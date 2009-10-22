@@ -630,16 +630,18 @@ class Function : public FunctionBlock
 public:
 	Function(Tokenizer &tk,
 		const Namespace & ns_a, const std::string &funcname);
+	std::string getname() const { return name; }
+	Namespace getnamespace() const { return ns; }
 	void optimize();
 	virtual void emit (std::ostream & os);
 	void local(std::string name);
 	bool islocal(std::string name);
+	virtual void emitbody (std::ostream & os);
 	virtual ~Function() {}
-//private:
-protected:
-	Namespace ns;
+private:
+	const Namespace ns;
 	Token start;
-	std::string name;
+	const std::string name;
 	std::vector <std::string> params;
 	std::vector <char> paramtypes;
 	std::vector <std::string> loc;
@@ -2972,23 +2974,26 @@ static const char * nameoftype(char ctype)
 	}
 }
 
+void Function::emitbody (std::ostream & os)
+{
+	for (size_t i= 0; i < params.size(); ++i)
+		os << ".param " << nameoftype(paramtypes[i]) << ' ' <<
+				params[i] << '\n';
+	os << ".annotate 'file', '" << start.file() << "'\n"
+		".annotate 'line', " << start.linenum() << "\n";
+	body->emit(os);
+}
+
 void Function::emit (std::ostream & os)
 {
-	ns.emit (os);
+	getnamespace().emit (os);
 
-	os << "\n.sub '" << name << "'";
+	os << "\n.sub '" << getname() << "'";
 	if (name == "main")
 		os << " :main";
 	os << "\n";
 
-	for (size_t i= 0; i < params.size(); ++i)
-		os << ".param " << nameoftype(paramtypes[i]) << ' ' <<
-				params[i] << '\n';
-
-	os << ".annotate 'file', '" << start.file() << "'\n"
-		".annotate 'line', " << start.linenum() << "\n";
-
-	body->emit(os);
+	emitbody(os);
 
 	os << ".end\n\n";
 }
@@ -3034,12 +3039,13 @@ public:
 		MethodAttributes(tk, ns_a),
 		Function(tk, ns_a, name)
 	{
+		genlocal("self", 'P');
 	}
 	void emit (std::ostream & os)
 	{
-		ns.emit (os);
+		getnamespace().emit (os);
 
-		os << "\n.sub '" << name << "'";
+		os << "\n.sub '" << getname() << "'";
 
 		if (has_attribute("vtable"))
 			os << " :vtable";
@@ -3048,14 +3054,7 @@ public:
 
 		os << "\n";
 
-		for (size_t i= 0; i < params.size(); ++i)
-			os << ".param " << nameoftype(paramtypes[i]) << ' ' <<
-					params[i] << '\n';
-
-		os << ".annotate 'file', '" << start.file() << "'\n"
-			".annotate 'line', " << start.linenum() << "\n";
-
-		body->emit(os);
+		emitbody(os);
 
 		os << ".end\n\n";
 	}
