@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 21-oct-2009
+// Revision 22-oct-2009
 
 #include "token.h"
 #include "errors.h"
@@ -82,6 +82,7 @@ protected:
 	virtual char checklocal(const std::string &name) = 0;
 public:
 	virtual std::string genlocalregister(char type) = 0;
+	virtual ~BlockBase() { }
 };
 
 class Block : public BlockBase
@@ -280,6 +281,7 @@ public:
 	virtual bool isempty() { return false; }
 	virtual void emit (std::ostream & os) = 0;
 	virtual BaseStatement *optimize() { return this; }
+	virtual ~BaseStatement() { };
 protected:
 	Function *function;
 };
