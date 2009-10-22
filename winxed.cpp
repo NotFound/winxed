@@ -3007,6 +3007,7 @@ public:
 private:
 	std::string name;
 	Namespace ns;
+	std::vector <Token> parents;
 	std::vector <Function *> functions;
 };
 
@@ -3015,6 +3016,14 @@ Class::Class(Tokenizer &tk, const Namespace & ns_a)
 	Token t= tk.get();
 	name= t.str();
 	t= tk.get();
+	if (t.str() == ":")
+	{
+		t= tk.get();
+		if (! (t.isidentifier () ||  t.isliteralstring()))
+			throw Expected("parent class", t);
+		parents.push_back(t);
+		t= tk.get();
+	}
 	if (t.str() != "{")
 		throw Expected ('{', t);
 
@@ -3036,8 +3045,26 @@ void Class::emit (std::ostream & os)
 	ns.emit (os);
 
 	os << ".sub Winxed_class_init :anon :load :init\n"
-		"$P0 = newclass " << ns.get_key() << "\n"
-		".end\n";
+		"$P0 = newclass " << ns.get_key() << "\n";
+
+	for (size_t i= 0; i < parents.size(); ++i)
+	{
+		Token parent= parents[i];
+		std::ostringstream oss;
+		oss << "$P" << i + 1;
+		std::string p= oss.str();
+		os << p << " = get_class ";
+
+		if (parent.isliteralstring() )
+			os << "'" << parent.str() << "'";
+		else 
+			os << "[ '" << parent.str() << "' ]";
+
+		os << "\n"
+			"addparent $P0, " << p << "\n";
+	}
+
+	os << ".end\n";
 
 	for (size_t i= 0; i < functions.size(); ++i)
 		functions[i]->emit(os);
