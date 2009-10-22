@@ -1,0 +1,10 @@
+function main()
+{
+	int i= 10;
+next:
+	--i;
+	say(i);
+	if(i) goto next; 
+	else { say('***'); goto end; }
+end:
+}

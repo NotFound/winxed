@@ -1,0 +1,23 @@
+class Foo{
+	function bar() { say ("Foo.bar");}
+}
+
+class Bar
+{
+	function foo()
+	{
+		say("Bar.foo");
+	}
+}
+
+function main()
+{
+	var o;
+	o = new Foo;
+	var p;
+	p= new Bar;
+	o.bar();
+	p.foo();
+
+	say("Bye");
+}

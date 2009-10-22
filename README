@@ -1,0 +1,23 @@
+Winxed compiler.
+Version: 0.Work-in-progress
+
+(C) 2009 Julian Albo
+
+Usage:
+	winxed [options] sourcefile
+
+Command line options:
+
+	--target pir	Compile to pir
+	--target pbc	Compile to pir, call parrot to compile to pbc
+			and delete the pir file.
+	-o filename	Use filename for the generated file.
+	-c		Compile only. Assume pir if --target is not used.
+
+Default values:
+
+	If -o is not specified, .pir and .pbc extensions are added
+	after stripping any extension found.
+
+	If --target is not specified and -c is not used, the source is
+	compiled to pir, executed, and the pir file is deleted.

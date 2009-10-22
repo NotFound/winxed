@@ -1,0 +1,40 @@
+
+function aux()
+{
+	try {
+		say('Hi');
+		throw Error('Testing');
+		say("no");
+	}
+	catch ()
+	{
+		say("Hello");
+		throw new 'Exception' {
+			"message": "Hi, world",
+			"severity": 3
+		};
+	}
+}
+
+function main()
+{
+	try
+	{
+		aux();
+	}
+	catch (e)
+	{
+		say('type:      ', e['type']);
+		say('severity:  ', e['severity']);
+		say('exit_code: ', e['exit_code']);
+		say('message:   ', e['message']);
+		say("Bye");
+	}
+}
+
+/*
+function main()
+{
+	aux();
+}
+*/

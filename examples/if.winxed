@@ -1,0 +1,13 @@
+function main()
+{
+	if (1 + 1 -2)
+		say('Hello');
+	if (2 + 3 -1)
+		;
+	else
+		say('Hi');
+	if (1) { } else say('Ho');
+
+	if (1) say('1 Yes'); else say ('1 No');
+	if (0) say('0 Yes'); else say ('0 No');
+}

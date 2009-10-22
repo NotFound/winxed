@@ -1,0 +1,29 @@
+// Yield test for Winxed compiler.
+
+function test()
+{
+	say('Hello');
+next:
+	yield 42;
+	yield 7;
+	goto next;
+}
+
+function main()
+{
+	int a;
+	a=test();
+	say(a);
+	a=test();
+	say(a);
+	a=test();
+	say(a);
+	a=test();
+	say(a);
+	a=test();
+	say(a);
+	a=test();
+	say(a);
+	a=test();
+	say(a);
+}

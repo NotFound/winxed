@@ -1,0 +1,17 @@
+function main()
+{
+	string s;
+	s= 'Hola\tmundo\n';
+	say(s);
+	say('Hola\tmundo\n');
+
+	s = "Hola\tmundo\n";
+	say(s);
+	say("Hola\tmundo\n");
+
+	s = "Hola\t" + 'mundo\n';
+	say(s);
+
+	s = 'Hola\t' + "mundo\n";
+	say(s);
+}

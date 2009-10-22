@@ -1,0 +1,21 @@
+function main()
+{
+	int a = 69;
+	int b = 42;
+	int c;
+	c = a + b * 2;
+	say (c);
+
+	c = 2 * b  + a;
+	say (c);
+	c = 2 * (b  + a);
+	say (c);
+
+	c = a + b * 2;
+	say (c);
+	c = ((a + b)) * 2;
+	say (c);
+
+	c = 2 * b  + a == 153;
+	say (c);
+}

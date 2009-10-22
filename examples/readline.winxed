@@ -1,0 +1,20 @@
+function main(var args)
+{
+	string filename = 'README';
+	var file = new 'FileHandle';
+	if (args > 1)
+		filename= args[1];
+	say ("File: ", filename);
+	file.open(filename);
+
+	while (1)
+	{
+		var s= file.readline();
+		if (file.eof() )
+			goto endfile;
+		print('>> ', s);
+	}
+endfile:
+	say("(End of file)");
+	file.close();
+}

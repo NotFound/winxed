@@ -1,0 +1,53 @@
+function doit(int i)
+{
+	while (i)
+	{
+		print(--i);
+	}
+	say();
+}
+
+function count()
+{
+	int i= 9;
+next:
+	print(i);
+	yield i;
+	--i;
+	goto next;
+}
+
+function main()
+{
+	int i= 10;
+	while (i)
+	{
+		doit(i);
+		--i;
+	}
+	i= 0;
+	while (i < 10) {
+		int j= 0;
+		while (j < i + 1)
+		{
+			print(j);
+			++j;
+		}
+		say();
+		++i;
+	}
+	while (0)
+		say ('Never');
+	while(count() ) ; // Empty body
+	say();
+	i= 0;
+	while (1) {
+		print('bye');
+		if (i > 0)
+			goto bye;
+		print(', ');
+		++i;
+	}
+bye:
+	say();
+}

@@ -1,0 +1,98 @@
+// Miscellenaous tests  for Winxed compiler.
+
+namespace foo
+{
+
+	namespace bar
+	{
+		function some ()
+		{
+			// Some comment
+			//using extern say;
+			print("Hello some world!\n");
+			say('Bye some');
+			return 92;
+		}
+	}
+
+}
+
+/* A C style comment */
+/**/
+/***/
+
+/************************************************
+	Multiline with lots of *
+*************************************************/
+
+function other(int n)
+{
+	int i = 17;
+	var p;
+	p = new 'String';
+	say('other');
+	say(i);
+	say(n);
+	string s = 'other end';
+	say(s);
+	return;
+}
+
+function out()
+{
+	exit(0);
+}
+
+// main
+
+function main()
+{
+	int a_1;
+	using foo.bar.some;
+	//using extern say;
+	say /* inline comment */ ( "main");
+	a_1 = some();
+	say(a_1);
+	{
+		print ( "end" );
+		say ("main");
+	}
+	other(42);
+	var p;
+	p = new 'ResizablePMCArray';
+here:	p.push(a_1);
+	int a2= 666;
+	p.push(a2);
+	p.push(456);
+	p.push('This is the end');
+	int i;
+	i = p;
+	say(p);
+//	goto here;
+
+
+	var it;
+	for (it in p)
+	{
+		say(it);
+	}
+
+	var r;
+	r=p[2];
+	say(r);
+
+	var c;
+	c = new 'Complex';
+	var q = [1, 2, "a", c] ;
+	int i = 0;
+	for (it in q) { say (i, "-> ", it); ++i;}
+
+	out();
+}
+
+function unused()
+{
+	say('never');
+}
+
+// End

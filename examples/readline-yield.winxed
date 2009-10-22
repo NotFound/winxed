@@ -1,0 +1,23 @@
+function read(var filename)
+{
+	var file = new 'FileHandle';
+	say ("File: ", filename);
+	file.open(filename);
+next:
+	var s= file.readline();
+	yield s;
+	goto next;
+}
+
+function main()
+{
+	string filename = 'README';
+	var s= read(filename);
+	say(s);
+	while (s)
+	{
+		print('>> ', s);
+		s= read();
+	}
+	say("(End of file)");
+}

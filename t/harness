@@ -1,0 +1,104 @@
+#! winxed
+# harness for winxed tests
+# Adapted from nqp in plumage harness
+
+function debugmsg(string s)
+{
+    if (0)
+        say(s);
+}
+
+function run_test(string filename)
+{
+    var fh;
+
+    string s= './winxed ' + filename;
+    debugmsg(s);
+
+    fh= new 'FileHandle';
+    fh.open(s, 'rp');
+    string test_output= fh.readall();
+    fh.close();
+    var output= split("\n", test_output);
+    return output;
+}
+
+function main(var args)
+{
+    args.shift();
+
+    int total_passed= 0;
+    int total_failed= 0;
+    int total_files= 0;
+    int failed_files= 0;
+    int curr_test;
+    int passed;
+    int failed;
+
+    var filename;
+    int l= 0;
+    for (filename in args) {
+        int i = length(filename);
+        if (i > l)
+            l= i;
+    }
+    l = l + 2;
+    for (filename in args)
+    {
+        print(filename);
+        int i= length(filename);
+        while (i++ < l)
+            print('.');
+        ++total_files;
+        passed= 0;
+        failed= 0;
+        curr_test= 0;
+        var output= run_test(filename);
+        var plan_parts= split('..', output[0]);
+        int num_tests = plan_parts[1];
+        output.shift();
+        string line;
+        for (line in output) {
+            debugmsg(line);
+            if (line != '')
+            {
+                var line_parts = split('ok ', line);
+                int test_number= line_parts[1];
+                debugmsg(test_number);
+                string part= line_parts[0];
+                debugmsg(part);
+                if (part == 'not ') {
+                    ++failed;
+                    ++curr_test;
+                }
+                else if (test_number == (curr_test + 1)) {
+                    ++passed;
+                    ++curr_test;
+                }
+            }
+        }
+        if (failed)
+            say('failed ', failed, '/', num_tests, ' tests');
+        else if (plan_parts[0] != 1 || (num_tests < 0)) {
+            say('INVALID PLAN: ', plan_parts[0], '..', plan_parts[1]);
+            ++failed_files;
+        }
+        else
+            say('passed ', curr_test, ' tests');
+
+        total_passed= total_passed + passed;
+        total_failed= total_failed + failed;
+        if (num_tests != curr_test) {
+            say('Planned to run ', num_tests, ' tests but ran ', curr_test, ' tests');
+            say('FAILED');
+        }
+    }
+    if (total_failed) {
+        int total= total_passed + total_failed;
+        say('FAILED ', total_failed, '/', total);
+    }
+    else if (failed_files)
+        say('FAILED ', failed_files, ' files, PASSED ', total_passed, ' tests');
+    else
+        say('PASSED ', total_passed, ' tests in ', total_files, ' files');
+}
