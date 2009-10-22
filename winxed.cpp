@@ -628,19 +628,21 @@ private:
 class Function : public FunctionBlock
 {
 public:
-	Function(Tokenizer &tk, const Namespace & ns_a, bool ismethod= false);
+	Function(Tokenizer &tk,
+		const Namespace & ns_a, const std::string &funcname);
 	void optimize();
-	void emit (std::ostream & os);
+	virtual void emit (std::ostream & os);
 	void local(std::string name);
 	bool islocal(std::string name);
-private:
+	virtual ~Function() {}
+//private:
+protected:
 	Namespace ns;
 	Token start;
 	std::string name;
 	std::vector <std::string> params;
 	std::vector <char> paramtypes;
 	std::vector <std::string> loc;
-	bool ismeth;
 	BaseStatement *body;
 };
 
@@ -2897,16 +2899,11 @@ void WhileStatement::emit(std::ostream & os)
 
 //**********************************************************************
 
-Function::Function(Tokenizer &tk, const Namespace & ns_a,
-		bool is_method) :
-	FunctionBlock(), ns(ns_a), ismeth(is_method)
+Function::Function(Tokenizer &tk,
+		const Namespace & ns_a, const std::string &funcname) :
+	FunctionBlock(), ns(ns_a), name(funcname)
 {
 	Token t (tk.get() );
-	if (t.str() != "(")
-	{
-		name = t.str ();
-		t= tk.get ();
-	}
 
 	if (t.str() != "(")
 		throw Expected("'(' in function", t);
@@ -2982,8 +2979,6 @@ void Function::emit (std::ostream & os)
 	os << "\n.sub '" << name << "'";
 	if (name == "main")
 		os << " :main";
-	if (ismeth)
-		os << " :method";
 	os << "\n";
 
 	for (size_t i= 0; i < params.size(); ++i)
@@ -2997,6 +2992,74 @@ void Function::emit (std::ostream & os)
 
 	os << ".end\n\n";
 }
+
+//**********************************************************************
+
+class MethodAttributes
+{
+public:
+	MethodAttributes(Tokenizer &tk, const Namespace &)
+	{
+		Token t= tk.get();
+		if (t.str() != "[")
+		{
+			tk.unget(t);
+		}
+		else
+		{
+			t= tk.get();
+			if (! t.isidentifier())
+				throw Expected("Attribute name", t);
+			attributes.push_back(t.str());
+			t= tk.get();
+			if (t.str() != "]")
+				throw Expected(']', t);
+		}
+	}
+	bool has_attribute(const std::string &attr)
+	{
+		return find(attributes.begin(), attributes.end(), attr)
+			!= attributes.end();
+	}
+private:
+	std::vector<std::string> attributes;
+};
+
+//**********************************************************************
+
+class Method : private MethodAttributes, public Function
+{
+public:
+	Method(Tokenizer &tk, const Namespace & ns_a, const std::string &name) :
+		MethodAttributes(tk, ns_a),
+		Function(tk, ns_a, name)
+	{
+	}
+	void emit (std::ostream & os)
+	{
+		ns.emit (os);
+
+		os << "\n.sub '" << name << "'";
+
+		if (has_attribute("vtable"))
+			os << " :vtable";
+		else
+			os << " :method";
+
+		os << "\n";
+
+		for (size_t i= 0; i < params.size(); ++i)
+			os << ".param " << nameoftype(paramtypes[i]) << ' ' <<
+					params[i] << '\n';
+
+		os << ".annotate 'file', '" << start.file() << "'\n"
+			".annotate 'line', " << start.linenum() << "\n";
+
+		body->emit(os);
+
+		os << ".end\n\n";
+	}
+};
 
 //**********************************************************************
 
@@ -3033,7 +3096,10 @@ Class::Class(Tokenizer &tk, const Namespace & ns_a)
 	{
 		if (t.str() == "function")
 		{
-			Function *f = new Function (tk, ns, true);
+			Token name= tk.get();
+			if (! name.isidentifier() )
+				throw Expected("method name", name);
+			Function *f = new Method (tk, ns, name.str());
 			functions.push_back(f);
 		}
 		else
@@ -3113,7 +3179,10 @@ void Winxed::parse (Tokenizer &tk)
 		}
 		else if (name == "function")
 		{
-			Function *f = new Function (tk, cur_namespace);
+			Token fname = tk.get();
+			if (! fname.isidentifier() )
+				throw Expected("funcion name", fname);
+			Function *f = new Function (tk, cur_namespace, fname.str());
 			functions.push_back(f);
 		}
 		else if (name == "}")
