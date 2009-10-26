@@ -2,7 +2,7 @@
 #define INCLUDE_TOKEN_H
 
 // token.h
-// Revision 20-oct-2009
+// Revision 26-oct-2009
 
 #include <string>
 #include <istream>
@@ -40,6 +40,8 @@ public:
 	bool isinteger() const;
 	bool issinglequoted() const;
 	bool isliteralstring() const;
+	bool isop(const std::string &name) const;
+	bool isop(char name) const;
 private:
 	TokenType ttype;
 	std::string s;

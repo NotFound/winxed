@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 20-oct-2009
+// Revision 26-oct-2009
 
 #include "token.h"
 #include "errors.h"
@@ -70,6 +70,18 @@ bool Token::issinglequoted() const
 
 bool Token::isliteralstring() const
 { return ttype == TokenTSingleQuoted || ttype == TokenTQuoted; }
+
+bool Token::isop(const std::string &name) const
+{
+	return ttype == TokenTOperator &&
+		s == name;
+}
+
+bool Token::isop(char name) const
+{
+	return ttype == TokenTOperator &&
+		s.length() == 1 && s[0] == name;
+}
 
 bool Token::isspace() const
 {

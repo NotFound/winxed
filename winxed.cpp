@@ -23,6 +23,20 @@
 
 //**********************************************************************
 
+inline void RequireOp(char name, const Token &t)
+{
+	if (! t.isop(name) )
+		throw Expected (name, t);
+}
+
+inline void ExpectOp(char name, Tokenizer &tk)
+{
+	Token t= tk.get();
+	RequireOp(name, t);
+}
+
+//**********************************************************************
+
 class Namespace
 {
 public:
@@ -363,9 +377,8 @@ ExternStatement::ExternStatement(Function &fn, Tokenizer &tk) :
 			n+= '/';
 		n+= t.str();
 		t= tk.get();
-	} while (t.str() == ".");
-	if (t.str() != ";")
-		throw Expected (';', t);
+	} while (t.isop('.') );
+	RequireOp(';', t);
 }
 
 void ExternStatement::emit (std::ostream & os)
@@ -662,14 +675,13 @@ BaseStatement *parseUsing(Function &fn, Tokenizer &tk)
 	{
 		Namespace ns;
 		std::string name = t.str();
-		while ((t= tk.get()).str() == ".")
+		while ((t= tk.get()).isop('.') )
 		{
 			ns = ns.child(name);
 			t= tk.get();
 			name = t.str();
 		}
-		if (t.str() != ";")
-			throw Expected (';', t);
+		RequireOp(';', t);
 		return new UsingStatement(fn, name, ns);
 	}
 }
@@ -680,9 +692,9 @@ BaseStatement *parseStatement(Function &fn, Block &block, Tokenizer &tk)
 	while (t.isspace() )
 		t= tk.get();
 
-	if (t.str() == ";")
+	if (t.isop(';'))
 		return new EmptyStatement(fn);
-	if (t.str() == "{")
+	if (t.isop('{') )
 		return new CompoundStatement(fn, block, tk);
 	if (t.str() == "using")
 		return parseUsing(fn, tk);
@@ -799,7 +811,7 @@ ArgumentList::ArgumentList(Function &fn, Block &block, Tokenizer &tk) :
 		BaseExpr *arg= parseExpr(fn, block, tk);
 		args.push_back(arg);
 		t= tk.get();
-	} while (t.str() == ",");
+	} while (t.isop(',') );
 	tk.unget(t);
 }
 
@@ -1687,15 +1699,14 @@ ArrayExpr::ArrayExpr(Function &fn, Block &block, Tokenizer &tk) :
 	BaseExpr(fn, block)
 {
 	Token t = tk.get();
-	if (t.str () != "]")
+	if (! t.isop (']') )
 	{
 		tk.unget(t);
 		do {
 			elems.push_back(parseExpr(fn, block, tk));
 			t= tk.get();
-		} while (t.str() == ",");
-		if (t.str () != "]")
-			throw Expected (']', t);
+		} while (t.isop(',') );
+		RequireOp (']', t);
 	}
 }
 
@@ -1740,7 +1751,7 @@ HashExpr::HashExpr(Function &fn, Block &block, Tokenizer &tk) :
 	BaseExpr(fn, block)
 {
 	Token t = tk.get();
-	if (t.str () != "}")
+	if (! t.isop ('}') )
 	{
 		tk.unget(t);
 		do {
@@ -1760,9 +1771,8 @@ HashExpr::HashExpr(Function &fn, Block &block, Tokenizer &tk) :
 				throw Expected("Identifier or string", tkey);
 			elems[key]= value;
 			t= tk.get();
-		} while (t.str() == ",");
-		if (t.str () != "}")
-			throw Expected ('}', t);
+		} while (t.isop(',') );
+		RequireOp ('}', t);
 	}
 }
 
@@ -1813,16 +1823,15 @@ FunctionCallExpr::FunctionCallExpr(Function &fn, Block &block,
 	name(tname.str())
 {
 	Token t= tk.get();
-	if (t.str () != ")")
+	if (! t.isop (')') )
 	{
 		tk.unget(t);
 		do
 		{
 			args.push_back(parseExpr(fn, block, tk));
 			t= tk.get();
-		} while (t.str() == ",");
-		if (t.str() != ")")
-			throw Expected (')', t);
+		} while (t.isop(',') );
+		RequireOp (')', t);
 	}
 }
 
@@ -1901,16 +1910,15 @@ MethodCallExpr::MethodCallExpr(Function &fn, Block &block,
 	BaseExpr(fn, block), object(tobj), method(tmeth)
 {
 	Token t= tk.get();
-	if (t.str () != ")")
+	if (!t.isop (')') )
 	{
 		tk.unget(t);
 		do
 		{
 			args.push_back(parseExpr(fn, block, tk));
 			t= tk.get();
-		} while (t.str() == ",");
-		if (t.str() != ")")
-			throw Expected (')', t);
+		} while (t.isop(',') );
+		RequireOp (')', t);
 	}
 }
 
@@ -1976,7 +1984,7 @@ NewExpr::NewExpr(Function &fn, Block &block, Tokenizer &tk, Token t) :
 	{
 		value = "root_new ['parrot'; '" + t.str() + "' ]";
 		t= tk.get();
-		if (t.str() != ";")
+		if (! t.isop(';') )
 		{
 			tk.unget(t);
 			init = parseExpr(fn, block, tk);
@@ -1990,7 +1998,7 @@ NewExpr::NewExpr(Function &fn, Block &block, Tokenizer &tk, Token t) :
 	{
 		std::string name = t.str();
 		std::vector<std::string> prefix;
-		while ((t= tk.get()).str() == ".")
+		while ((t= tk.get()).isop('.') )
 		{
 			t= tk.get();
 			prefix.push_back(name);
@@ -2002,8 +2010,6 @@ NewExpr::NewExpr(Function &fn, Block &block, Tokenizer &tk, Token t) :
 			value+= "'" + prefix[i] + "';";
 		}
 		value+= "'" + name + "' ]";
-		//if (t.str() != ";")
-		//	throw Expected (';', t);
 		tk.unget(t);
 	}
 }
@@ -2045,8 +2051,7 @@ IndexExpr::IndexExpr(Function &fn, Block &block, Tokenizer &tk, Token tname) :
 {
 	arg = parseExpr(fn, block, tk);
 	Token t= tk.get();
-	if (t.str() != "]")
-		throw Expected (']', t);
+	RequireOp (']', t);
 }
 
 void IndexExpr::emit(std::ostream &os, const std::string &result)
@@ -2095,18 +2100,17 @@ BaseExpr * parseExpr_0(Function &fn, Block &block, Tokenizer &tk)
 	BaseExpr *subexpr= NULL;
 	Token t= tk.get();
 
-	if (t.str() == "(")
+	if (t.isop('(') )
 	{
 		subexpr = parseExpr(fn, block, tk);
 		t= tk.get();
-		if (t.str() != ")")
-			throw Expected (')', t);
+		RequireOp (')', t);
 	}
-	else if (t.str() == "[")
+	else if (t.isop('[') )
 	{
 		subexpr = new ArrayExpr(fn, block, tk);
 	}
-	else if (t.str() == "{")
+	else if (t.isop('{') )
 	{
 		subexpr = new HashExpr(fn, block, tk);
 	}
@@ -2115,11 +2119,11 @@ BaseExpr * parseExpr_0(Function &fn, Block &block, Tokenizer &tk)
 	else
 	{
 		Token t2= tk.get();
-		if (t2.str() == "(")
+		if (t2.isop('(') )
 			subexpr = new FunctionCallExpr(fn, block, tk, t);
-		else if (t2.str() == "[")
+		else if (t2.isop('[') )
 			subexpr = new IndexExpr(fn, block, tk, t);
-		else if (t2.str() == ".")
+		else if (t2.isop('.') )
 			subexpr = parseDotted(fn, block, tk, t);
 		else
 		{
@@ -2135,9 +2139,9 @@ BaseExpr *parseExpr_3(Function &fn, Block &block, Tokenizer &tk)
 {
 	BaseExpr *subexpr= parseExpr_0(fn, block, tk);
 	Token t= tk.get();
-	if (t.str() == "++")
+	if (t.isop("++") )
 		return new OpPostIncExpr(fn, block, t, subexpr);
-	else if (t.str() == "--")
+	else if (t.isop("--") )
 		return new OpPostDecExpr(fn, block, t, subexpr);
 	else
 	{
@@ -2149,17 +2153,17 @@ BaseExpr *parseExpr_3(Function &fn, Block &block, Tokenizer &tk)
 BaseExpr * parseExpr_4(Function &fn, Block &block, Tokenizer &tk)
 {
 	Token t= tk.get();
-	if (t.str() == "!")
+	if (t.isop('!') )
 	{
 		BaseExpr *subexpr= parseExpr_4(fn, block, tk);
 		return new OpNotExpr(fn, block, t, subexpr);
 	}
-	else if (t.str() == "++")
+	else if (t.isop("++"))
 	{
 		BaseExpr *subexpr= parseExpr_4(fn, block, tk);
 		return new OpPreIncExpr(fn, block, t, subexpr);
 	}
-	else if (t.str() == "--")
+	else if (t.isop("--"))
 	{
 		BaseExpr *subexpr= parseExpr_4(fn, block, tk);
 		return new OpPreDecExpr(fn, block, t, subexpr);
@@ -2175,7 +2179,7 @@ BaseExpr * parseExpr_5(Function &fn, Block &block, Tokenizer &tk)
 {
 	BaseExpr *subexpr= parseExpr_4(fn, block, tk);
 	Token t= tk.get();
-	while (t.str() == "*")
+	while (t.isop('*') )
 	{
 		BaseExpr *subexpr2= parseExpr_4(fn, block, tk);
 		subexpr= new OpMulExpr(fn, block, t, subexpr, subexpr2);
@@ -2208,12 +2212,12 @@ BaseExpr * parseExpr_8(Function &fn, Block &block, Tokenizer &tk)
 {
 	BaseExpr *subexpr= parseExpr_6(fn, block, tk);
 	Token t= tk.get();
-	if (t.str() == "==")
+	if (t.isop("=="))
 	{
 		BaseExpr *subexpr2= parseExpr_6(fn, block, tk);
 		subexpr= new OpEqualExpr(fn, block, t, subexpr, subexpr2);
 	}
-	else if (t.str() == "!=")
+	else if (t.isop("!="))
 	{
 		BaseExpr *subexpr2= parseExpr_6(fn, block, tk);
 		subexpr= new OpNotEqualExpr(fn, block, t, subexpr, subexpr2);
@@ -2229,12 +2233,12 @@ BaseExpr * parseExpr_9(Function &fn, Block &block, Tokenizer &tk)
 {
 	BaseExpr *subexpr= parseExpr_8(fn, block, tk);
 	Token t= tk.get();
-	if (t.str() == "<")
+	if (t.isop('<'))
 	{
 		BaseExpr *subexpr2= parseExpr_8(fn, block, tk);
 		subexpr= new OpLessExpr(fn, block, t, subexpr, subexpr2);
 	}
-	else if (t.str() == ">")
+	else if (t.isop('>'))
 	{
 		BaseExpr *subexpr2= parseExpr_8(fn, block, tk);
 		subexpr= new OpGreaterExpr(fn, block, t, subexpr, subexpr2);
@@ -2250,7 +2254,7 @@ BaseExpr * parseExpr_13(Function &fn, Block &block, Tokenizer &tk)
 {
 	BaseExpr *subexpr= parseExpr_9(fn, block, tk);
 	Token t= tk.get();
-	if (t.str() == "&&")
+	if (t.isop("&&"))
 	{
 		BaseExpr *subexpr2= parseExpr_9(fn, block, tk);
 		subexpr= new OpBoolAndExpr(fn, block, t, subexpr, subexpr2);
@@ -2266,7 +2270,7 @@ BaseExpr * parseExpr_14(Function &fn, Block &block, Tokenizer &tk)
 {
 	BaseExpr *subexpr= parseExpr_13(fn, block, tk);
 	Token t= tk.get();
-	if (t.str() == "||")
+	if (t.isop("||"))
 	{
 		BaseExpr *subexpr2= parseExpr_13(fn, block, tk);
 		subexpr= new OpBoolOrExpr(fn, block, t, subexpr, subexpr2);
@@ -2289,9 +2293,7 @@ ExprStatement::ExprStatement(Function &fn, Block &parentblock, Tokenizer &tk) :
 	BaseStatement (fn)
 {
 	expr= parseExpr(fn, parentblock, tk);
-	Token t= tk.get();
-	if (t.str() != ";")
-		throw Expected(';', t);
+	ExpectOp(';', tk);
 }
 
 BaseStatement *ExprStatement::optimize ()
@@ -2330,13 +2332,12 @@ IntStatement::IntStatement(Function &fn, Block &block, Tokenizer &tk) :
 	function->genlocal(t.str(), 'I');
 	name= t.str();
 	t= tk.get();
-	if (t.str() == "=")
+	if (t.isop('='))
 	{
 		value= parseExpr(*function, block, tk);
 		t= tk.get();
 	}
-	if (t.str() != ";")
-		throw Expected (';', t);
+	RequireOp (';', t);
 }
 
 void IntStatement::emit (std::ostream & os)
@@ -2355,13 +2356,12 @@ StringStatement::StringStatement(Function &fn, Block & block, Tokenizer &tk) :
 	function->genlocal(t.str(), 'S');
 	name= t.str();
 	t= tk.get();
-	if (t.str() == "=")
+	if (t.isop('='))
 	{
 		value= parseExpr(*function, block, tk);
 		t= tk.get();
 	}
-	if (t.str() != ";")
-		throw Expected (';', t);
+	RequireOp (';', t);
 }
 
 void StringStatement::emit (std::ostream & os)
@@ -2380,13 +2380,12 @@ VarStatement::VarStatement(Function &fn, Block & block, Tokenizer &tk) :
 	function->genlocal(t.str(), 'P');
 	name= t.str();
 	t= tk.get();
-	if (t.str() == "=")
+	if (t.isop('='))
 	{
 		value= parseExpr(*function, block, tk);
 		t= tk.get();
 	}
-	if (t.str() != ";")
-		throw Expected ("';' in var", t);
+	RequireOp (';', t);
 }
 
 void VarStatement::emit (std::ostream & os)
@@ -2417,13 +2416,11 @@ ReturnStatement::ReturnStatement(Function &fn, Block & block, Tokenizer &tk) :
 	SubStatement (fn, block), values(0)
 {
 	Token t= tk.get();
-	if (t.str() != ";")
+	if (!t.isop(';'))
 	{
 		tk.unget(t);
 		values= new ArgumentList(*function, block, tk);
-		t= tk.get();
-		if (t.str() != ";")
-			throw Expected(';', t);
+		ExpectOp(';', tk);
 	}
 }
 
@@ -2443,13 +2440,11 @@ YieldStatement::YieldStatement(Function &fn, Block & block, Tokenizer &tk) :
 	SubStatement (fn, block), values(0)
 {
 	Token t= tk.get();
-	if (t.str() != ";")
+	if (! t.isop(';') )
 	{
 		tk.unget(t);
 		values= new ArgumentList(*function, block, tk);
-		t= tk.get();
-		if (t.str() != ";")
-			throw Expected (';', t);
+		ExpectOp (';', tk);
 	}
 }
 
@@ -2538,7 +2533,7 @@ CompoundStatement::CompoundStatement(Function &fn, Block &parentblock,
 		Tokenizer &tk) :
 	BlockStatement (fn, parentblock)
 {
-	for (Token t= tk.get(); t.str() != "}"; t= tk.get() )
+	for (Token t= tk.get(); ! t.isop('}'); t= tk.get() )
 	{
 		tk.unget(t);
 		BaseStatement *st= parseStatement(*function, *this, tk);
@@ -2575,18 +2570,14 @@ ForStatement::ForStatement(Function &fn, Block &block, Tokenizer &tk) :
 	BlockStatement (fn, block),
 	container(0)
 {
+	ExpectOp ('(', tk);
 	Token t= tk.get();
-	if (t.str() != "(")
-		throw Expected ('(', t);
-	t= tk.get();
 	varname= t.str();
 	t= tk.get();
 	if (t.str() != "in")
 		throw Expected ("'in'", t);
 	container= parseExpr(fn, *this, tk);
-	t= tk.get();
-	if (t.str() != ")")
-		throw Expected("')' in for", t);
+	ExpectOp(')', tk);
 	st= parseStatement(fn, block, tk);
 }
 
@@ -2651,16 +2642,12 @@ TryStatement::TryStatement(Function &fn, Block &block, Tokenizer &tk, Token t) :
 	t= tk.get();
 	if (t.str() != "catch")
 		throw Expected("catch", t);
+	ExpectOp ('(', tk);
 	t= tk.get();
-	if (t.str() != "(")
-		throw Expected ('(', t);
-	t= tk.get();
-	if (t.str() != ")")
+	if (! t.isop(')'))
 	{
 		exname= t.str();
-		t= tk.get();
-		if (t.str() != ")")
-			throw Expected (')', t);
+		ExpectOp (')', tk);
 	}
 	scatch= parseStatement (fn, block, tk);
 }
@@ -2717,13 +2704,9 @@ Condition::Condition (Function &fn, Block &block, Tokenizer &tk) :
 	InBlock (block),
 	expr (0)
 {
-	Token t= tk.get();
-	if (t.str() != "(")
-		throw Expected ('(', t);
+	ExpectOp ('(', tk);
 	expr= parseExpr(fn, block, tk);
-	t= tk.get();
-	if (t.str() != ")")
-		throw Expected (')', t);
+	ExpectOp(')', tk);
 }
 
 Condition *Condition::optimize()
@@ -2910,14 +2893,12 @@ Function::Function(Tokenizer &tk,
 		const Namespace & ns_a, const std::string &funcname) :
 	FunctionBlock(), ns(ns_a), name(funcname)
 {
-	Token t (tk.get() );
-
-	if (t.str() != "(")
-		throw Expected("'(' in function", t);
+	Token t= tk.get();
+	RequireOp('(', t);
 	start= t;
 	t= tk.get ();
 
-	if (t.str() != ")")
+	if (!t.isop(')'))
 	{
 		tk.unget(t);
 		do
@@ -2936,16 +2917,13 @@ Function::Function(Tokenizer &tk,
 			paramtypes.push_back(ctype);
 			genlocal(name, ctype);
 			t= tk.get();
-		} while (t.str() == ",");
+		} while (t.isop(','));
 	}
-	if (t.str() != ")")
-		throw std::runtime_error("Syntax error");
+	RequireOp(')', t);
 
 	//std::cout << ".sub '" << name << "'\n";
 
-	t= tk.get ();
-	if (t.str() != "{")
-		throw std::runtime_error("Syntax error");
+	ExpectOp('{', tk);
 
 	body = new CompoundStatement(*this, *this, tk);
 }
@@ -3011,7 +2989,7 @@ public:
 	MethodAttributes(Tokenizer &tk, const Namespace &)
 	{
 		Token t= tk.get();
-		if (t.str() != "[")
+		if (! t.isop('[') )
 		{
 			tk.unget(t);
 		}
@@ -3021,9 +2999,7 @@ public:
 			if (! t.isidentifier())
 				throw Expected("Attribute name", t);
 			attributes.push_back(t.str());
-			t= tk.get();
-			if (t.str() != "]")
-				throw Expected(']', t);
+			ExpectOp(']', tk);
 		}
 	}
 	bool has_attribute(const std::string &attr)
@@ -3084,7 +3060,7 @@ Class::Class(Tokenizer &tk, const Namespace & ns_a)
 	Token t= tk.get();
 	name= t.str();
 	t= tk.get();
-	if (t.str() == ":")
+	if (t.isop(':'))
 	{
 		t= tk.get();
 		if (! (t.isidentifier () ||  t.isliteralstring()))
@@ -3092,11 +3068,10 @@ Class::Class(Tokenizer &tk, const Namespace & ns_a)
 		parents.push_back(t);
 		t= tk.get();
 	}
-	if (t.str() != "{")
-		throw Expected ('{', t);
+	RequireOp('{', t);
 
 	ns= ns_a.child(name);
-	while ((t= tk.get()).str() != "}")
+	while (! (t= tk.get()).isop('}'))
 	{
 		if (t.str() == "function")
 		{
@@ -3171,10 +3146,7 @@ void Winxed::parse (Tokenizer &tk)
 		{
 			a = tk.get();
 			cur_namespace= cur_namespace.child(a.str());
-			a = tk.get();
-			if (a.str() != "{")
-				throw std::runtime_error("Syntax error");
-			//emit_namespace(std::cout, cur_namespace);
+			ExpectOp('{', tk);
 		}
 		else if (name == "class")
 		{
