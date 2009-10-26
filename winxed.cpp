@@ -1965,6 +1965,48 @@ void MethodCallExpr::emit(std::ostream &os, const std::string &result)
 
 //**********************************************************************
 
+class OpInstanceOf : public BaseExpr {
+public:
+	OpInstanceOf(Function &fn, Block &block, Token t,
+			BaseExpr *subexpr, Tokenizer &tk) :
+		BaseExpr(fn, block),
+		start(t),
+		obj(subexpr),
+		checked(tk.get())
+	{
+	}
+private:
+	bool isinteger() const { return true; }
+	BaseExpr *optimize()
+	{
+		obj->optimize();
+		return this;
+	}
+	void emit(std::ostream &os, const std::string &result)
+	{
+		if (! checked.isliteralstring())
+			throw SyntaxError("Unimplemented", checked);
+		std::string reg= genlocalregister('P');
+		obj->emit(os, reg);
+		os << ".annotate 'file', '" << start.file() << "'\n"
+			".annotate 'line', " << start.linenum() << '\n';
+
+		if (result.empty() ) {
+			std::string regcheck = genlocalregister('I');
+			os << regcheck << " = isa " << reg << ", '" << checked.str() << "'\n";
+		}
+		else
+		{
+			os << result << " = isa " << reg << ", '" << checked.str() << "'\n";
+		}
+	}
+	Token start;
+	BaseExpr *obj;
+	Token checked;
+};
+
+//**********************************************************************
+
 class NewExpr : public BaseExpr
 {
 public:
@@ -2221,6 +2263,10 @@ BaseExpr * parseExpr_8(Function &fn, Block &block, Tokenizer &tk)
 	{
 		BaseExpr *subexpr2= parseExpr_6(fn, block, tk);
 		subexpr= new OpNotEqualExpr(fn, block, t, subexpr, subexpr2);
+	}
+	else if (t.str() == "instanceof")
+	{
+		subexpr= new OpInstanceOf(fn, block, t, subexpr, tk);
 	}
 	else
 	{
