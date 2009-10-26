@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 22-oct-2009
+// Revision 26-oct-2009
 
 #include "token.h"
 #include "errors.h"
@@ -498,9 +498,10 @@ private:
 class GotoStatement: public SubStatement
 {
 public:
-	GotoStatement(Function &fn, Block &block, Tokenizer &tk);
+	GotoStatement(Function &fn, Block &block, Tokenizer &tk, Token startpos);
 	void emit (std::ostream & os);
 private:
+	Token start;
 	Block &bl;
 	std::string labelname;
 };
@@ -698,7 +699,7 @@ BaseStatement *parseStatement(Function &fn, Block &block, Tokenizer &tk)
 	if (t.str() == "yield")
 		return new YieldStatement(fn, block, tk);
 	if (t.str() == "goto")
-		return new GotoStatement(fn, block, tk);
+		return new GotoStatement(fn, block, tk, t);
 	if (t.str() == "if")
 		return new IfStatement(fn, block, tk);
 	if (t.str() == "while")
@@ -751,8 +752,9 @@ void LabelStatement::emit (std::ostream & os)
 
 //**********************************************************************
 
-GotoStatement::GotoStatement(Function &fn, Block &block, Tokenizer &tk) :
+GotoStatement::GotoStatement(Function &fn, Block &block, Tokenizer &tk, Token startpos) :
 	SubStatement(fn, block),
+	start(startpos),
 	bl(block)
 {
 	Token t= tk.get();
@@ -764,7 +766,10 @@ GotoStatement::GotoStatement(Function &fn, Block &block, Tokenizer &tk) :
 
 void GotoStatement::emit (std::ostream & os)
 {
-	os << "goto " << bl.getnamedlabel(labelname) <<
+	os <<
+		".annotate 'file', '" << start.file() << "'\n"
+		".annotate 'line', " << start.linenum() << "\n"
+		"goto " << bl.getnamedlabel(labelname) <<
 		" # " << labelname << '\n';
 }
 
