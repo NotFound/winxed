@@ -24,3 +24,6 @@ predef.o: predef.cpp predef.h
 
 test: winxed
 	./winxed t/harness t/*.t
+
+testv: winxed
+	./winxed t/harness -v t/*.t

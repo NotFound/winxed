@@ -25,7 +25,14 @@ function run_test(string filename)
 
 function main(var args)
 {
+    using extern Getopt.Obj;
+    var getopts = new 'Getopt::Obj';
+    getopts.notOptStop(1);
+    getopts.push_string('v');
+
     args.shift();
+    var opts = getopts.get_options(args);
+    int verbose = opts['v'];
 
     int total_passed= 0;
     int total_failed= 0;
@@ -57,11 +64,15 @@ function main(var args)
         var plan_parts= split('..', output[0]);
         int num_tests = plan_parts[1];
         output.shift();
+	if (verbose) {
+	    say(1 , '..', num_tests);
+	}
         string line;
         for (line in output) {
             debugmsg(line);
             if (line != '')
             {
+                if (verbose) say(line);
                 var line_parts = split('ok ', line);
                 int test_number= line_parts[1];
                 debugmsg(test_number);
