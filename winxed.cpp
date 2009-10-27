@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 27-oct-2009
+// Revision 28-oct-2009
 
 #include "token.h"
 #include "errors.h"
@@ -37,57 +37,86 @@ inline void ExpectOp(char name, Tokenizer &tk)
 
 //**********************************************************************
 
+class Emit
+{
+public:
+	Emit (std::ostream &out) : o(out), line(0)
+	{ }
+	void annotate(const Token &t)
+	{
+		if (t.file() != file)
+		{
+			file= t.file();
+			line= t.linenum();
+			o << ".annotate 'file', '" << file << "'\n";
+			if (line)
+				o << ".annotate 'line', " << line << '\n';
+		}
+		else if (t.linenum() != line)
+		{
+			line= t.linenum();
+			if (line)
+				o << ".annotate 'line', " << line << '\n';
+		}
+	}
+	std::ostream & get() { return o; }
+	template <typename T>
+	friend Emit & operator << (Emit &e, const T &t);
+private:
+	std::ostream &o;
+	std::string file;
+	unsigned int line;
+};
+
+template <typename T>
+Emit & operator << (Emit &e, const T &t)
+{
+	e.o << t;
+	return e;
+}
+
+//**********************************************************************
+
 class Namespace
 {
 public:
-	bool isroot() const;
-	Namespace child(std::string name) const;
-	Namespace parent() const;
-	std::string get_key() const;
-	void emit (std::ostream & os) const;
+	bool isroot() const
+	{
+		return key.empty();
+	}
+	Namespace child(std::string name) const
+	{
+		Namespace newchild;
+		newchild.key= key;
+		newchild.key.push_back(name);
+		return newchild;
+	}
+	Namespace parent() const
+	{
+		Namespace newparent;
+		newparent.key= key;
+		newparent.key.pop_back();
+		return newparent;
+	}
+	std::string get_key() const
+	{
+		std::string r= "[ ";
+		for (size_t i= 0; i < key.size(); ++i)
+		{
+			if (i > 0)
+				r+= "; ";
+			r+= '\'' + key [i] + '\'';
+		}
+		r+= " ]";
+		return r;
+	}
+	void emit (Emit &e) const
+	{
+		e << ".namespace " << get_key() << '\n';
+	}
 private:
 	std::vector <std::string> key;
 };
-
-bool Namespace::isroot() const
-{
-	return key.empty();
-}
-
-Namespace Namespace::child(std::string name) const
-{
-	Namespace newchild;
-	newchild.key= key;
-	newchild.key.push_back(name);
-	return newchild;
-}
-
-Namespace Namespace::parent() const
-{
-	Namespace newparent;
-	newparent.key= key;
-	newparent.key.pop_back();
-	return newparent;
-}
-
-std::string Namespace::get_key() const
-{
-	std::string r;
-	r= "[ ";
-	for (size_t i= 0; i < key.size(); ++i)
-	{
-		if (i > 0)
-			r+= "; ";
-		r+= '\'' + key [i] + '\'';
-	}
-	r+= " ]";
-	return r;
-}
-
-void Namespace::emit (std::ostream & os) const
-{
-	os << ".namespace " << get_key() << '\n';
-}
 
 //**********************************************************************
 
@@ -294,7 +323,7 @@ class BaseStatement
 public:
 	BaseStatement(Function &fn) : function (&fn) { }
 	virtual bool isempty() { return false; }
-	virtual void emit (std::ostream & os) = 0;
+	virtual void emit (Emit &e) = 0;
 	virtual BaseStatement *optimize() { return this; }
 	virtual ~BaseStatement() { };
 protected:
@@ -325,7 +354,7 @@ public:
 	EmptyStatement(Function &fn) : BaseStatement(fn) { }
 private:
 	bool isempty() { return true; }
-	void emit (std::ostream &) { };
+	void emit (Emit &) { };
 };
 
 //**********************************************************************
@@ -349,7 +378,7 @@ class UsingStatement : public BaseStatement
 public:
 	UsingStatement(Function &fn, const std::string & name, const Namespace &nspace);
 private:
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 
 	std::string n;
 	Namespace ns;
@@ -362,7 +391,10 @@ class ExternStatement : public BaseStatement
 public:
 	ExternStatement(Function &fn, Tokenizer &tk);
 private:
-	void emit (std::ostream & os);
+	void emit (Emit &e)
+	{
+		e << "load_bytecode '" << n << ".pbc'\n";
+	}
 
 	std::string n;
 };
@@ -381,11 +413,6 @@ ExternStatement::ExternStatement(Function &fn, Tokenizer &tk) :
 	RequireOp(';', t);
 }
 
-void ExternStatement::emit (std::ostream & os)
-{
-	os << "load_bytecode '" << n << ".pbc'\n";
-}
-
 //**********************************************************************
 
 class BaseExpr : public InBlock
@@ -394,7 +421,7 @@ public:
 	BaseExpr(Function &fn, Block &block) : InBlock(block), function(&fn) { }
 	BaseExpr(Function &fn, InBlock &block) : InBlock(block), function(&fn) { }
 	virtual BaseExpr *optimize();
-	virtual void emit(std::ostream &os, const std::string &result) = 0;
+	virtual void emit(Emit &e, const std::string &result) = 0;
 	virtual bool issimple() const { return false; }
 	virtual bool isidentifier() const { return false; }
 	virtual std::string getidentifier() const
@@ -418,8 +445,8 @@ class ArgumentList : public InBlock
 {
 public:
 	ArgumentList(Function &fn, Block &block, Tokenizer &tk);
-	void prepare(std::ostream &os);
-	void emit(std::ostream &os);
+	void prepare(Emit &e);
+	void emit(Emit &e);
 private:
 	Function *function;
 	std::vector <BaseExpr *> args;
@@ -434,7 +461,7 @@ public:
 	ExprStatement(Function &fn, Block &parentblock, Tokenizer &tk);
 private:
 	BaseStatement *optimize();
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 
 	BaseExpr *expr;
 };
@@ -446,7 +473,7 @@ class CompoundStatement : public BlockStatement
 public:
 	CompoundStatement(Function &fn, Block &parentblock, Tokenizer &tk);
 	BaseStatement *optimize();
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 private:
 	std::vector <BaseStatement *> subst;
 };
@@ -469,7 +496,7 @@ class IntStatement : public ValueStatement
 {
 public:
 	IntStatement(Function &fn, Block & block, Tokenizer &tk);
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 private:
 	std::string name;
 };
@@ -480,7 +507,7 @@ class StringStatement : public ValueStatement
 {
 public:
 	StringStatement(Function &fn, Block & block, Tokenizer &tk);
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 private:
 	std::string name;
 };
@@ -491,7 +518,7 @@ class VarStatement : public ValueStatement
 {
 public:
 	VarStatement(Function &fn, Block & block, Tokenizer &tk, Token startpos);
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 private:
 	const Token start;
 	std::string name;
@@ -503,7 +530,7 @@ class LabelStatement: public SubStatement
 {
 public:
 	LabelStatement(Function &fn, Block &block, const std::string &name);
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 private:
 	std::string labelname;
 	std::string codename;
@@ -513,7 +540,7 @@ class GotoStatement: public SubStatement
 {
 public:
 	GotoStatement(Function &fn, Block &block, Tokenizer &tk, Token startpos);
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 private:
 	Token start;
 	Block &bl;
@@ -526,7 +553,7 @@ class ReturnStatement : public SubStatement
 {
 public:
 	ReturnStatement(Function &fn, Block & block, Tokenizer &tk);
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 private:
 	ArgumentList *values;
 };
@@ -537,7 +564,7 @@ class YieldStatement : public SubStatement
 {
 public:
 	YieldStatement(Function &fn, Block & block, Tokenizer &tk);
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 private:
 	ArgumentList *values;
 };
@@ -549,7 +576,7 @@ class AssignStatement : public SubStatement
 public:
 	AssignStatement(Function &fn, Block & block,
 		Tokenizer &tk, const std::string &name);
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 private:
 	std::string varname;
 	std::string content;
@@ -568,7 +595,7 @@ public:
 	IfStatement(Function &fn, Block &block, Tokenizer &tk);
 private:
 	BaseStatement *optimize();
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 	Condition *condition;
 	BaseStatement *st;
 	BaseStatement *stelse;
@@ -582,7 +609,7 @@ public:
 	ForeverStatement(Function &fn, Block &block, BaseStatement *body);
 private:
 	BaseStatement *optimize();
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 	BaseStatement *st;
 };
 
@@ -594,7 +621,7 @@ public:
 	WhileStatement(Function &fn, Block &block, Tokenizer &tk);
 private:
 	BaseStatement *optimize();
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 	Condition *condition;
 	BaseStatement *st;
 };
@@ -606,7 +633,7 @@ class ForStatement : public BlockStatement
 public:
 	ForStatement(Function &fn, Block &block, Tokenizer &tk);
 private:
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 	std::string varname;
 	BaseExpr * container;
 	BaseStatement *st;
@@ -619,7 +646,7 @@ class ThrowStatement : public SubStatement
 public:
 	ThrowStatement(Function &fn, Block &block, Tokenizer &tk, Token t);
 private:
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 	Token pos;
 	BaseExpr * excep;
 };
@@ -631,8 +658,8 @@ class TryStatement : public BlockStatement
 public:
 	TryStatement(Function &fn, Block &block, Tokenizer &tk, Token t);
 private:
-	void emit (std::ostream & os);
-	unsigned int ln;
+	void emit (Emit &e);
+	Token start;
 	BaseStatement *stry;
 	BaseStatement *scatch;
 	std::string exname;
@@ -648,10 +675,10 @@ public:
 	std::string getname() const { return name; }
 	Namespace getnamespace() const { return ns; }
 	void optimize();
-	virtual void emit (std::ostream & os);
+	virtual void emit (Emit &e);
 	void local(std::string name);
 	bool islocal(std::string name);
-	virtual void emitbody (std::ostream & os);
+	virtual void emitbody (Emit &e);
 	virtual ~Function() {}
 private:
 	const Namespace ns;
@@ -757,9 +784,9 @@ LabelStatement::LabelStatement(Function &fn, Block &block, const std::string &na
 {
 }
 
-void LabelStatement::emit (std::ostream & os)
+void LabelStatement::emit (Emit &e)
 {
-	os << codename << ":"
+	e << codename << ":"
 		" # " << labelname << '\n';
 }
 
@@ -777,11 +804,10 @@ GotoStatement::GotoStatement(Function &fn, Block &block, Tokenizer &tk, Token st
 		throw Expected ("';' after label", t);
 }
 
-void GotoStatement::emit (std::ostream & os)
+void GotoStatement::emit (Emit &e)
 {
-	os <<
-		".annotate 'file', '" << start.file() << "'\n"
-		".annotate 'line', " << start.linenum() << "\n"
+	e.annotate(start);
+	e <<
 		"goto " << bl.getnamedlabel(labelname) <<
 		" # " << labelname << '\n';
 }
@@ -816,7 +842,7 @@ ArgumentList::ArgumentList(Function &fn, Block &block, Tokenizer &tk) :
 	tk.unget(t);
 }
 
-void ArgumentList::prepare(std::ostream &os)
+void ArgumentList::prepare(Emit &e)
 {
 	for (size_t i= 0; i < args.size(); ++i)
 		args[i]= args[i]->optimize();
@@ -825,7 +851,7 @@ void ArgumentList::prepare(std::ostream &os)
 		if (! args[i]->issimple() )
 		{
 			std::string reg= genlocalregister('P');
-			args[i]->emit(os, reg);
+			args[i]->emit(e, reg);
 			argregs.push_back(reg);
 		}
 		else
@@ -835,16 +861,16 @@ void ArgumentList::prepare(std::ostream &os)
 	}
 }
 
-void ArgumentList::emit(std::ostream &os)
+void ArgumentList::emit(Emit &e)
 {
 	for (size_t i= 0; i < args.size(); ++i)
 	{
 		if (i > 0)
-			os << ", ";
+			e << ", ";
 		if (argregs[i].empty() )
-			args[i]->emit(os, std::string() );
+			args[i]->emit(e, std::string() );
 		else
-			os << argregs[i];
+			e << argregs[i];
 	}
 }
 
@@ -859,7 +885,7 @@ public:
 	SimpleExpr(Function &fn, InBlock &block, Token token) :
 		BaseExpr(fn, block), t(token)
 	{ }
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 	bool issimple() const { return true; }
 	bool isidentifier() const;
 	std::string getidentifier() const;
@@ -875,21 +901,21 @@ private:
 	Token t;
 };
 
-void SimpleExpr::emit(std::ostream &os, const std::string &result)
+void SimpleExpr::emit(Emit &e, const std::string &result)
 {
 	if (!result.empty() )
-		os << result << " = ";
+		e << result << " = ";
 	if (isliteralstring())
 	{
 		if (issinglequoted())
-			os << '\'' << t.str() << '\'';
+			e << '\'' << t.str() << '\'';
 		else
-			os << unquote(t.str());
+			e << unquote(t.str());
 	}
 	else
-		os << t.str();
+		e << t.str();
 	if (!result.empty() )
-		os << '\n';
+		e << '\n';
 }
 
 bool SimpleExpr::isidentifier() const
@@ -983,16 +1009,15 @@ private:
 		}
 		return this;
 	}
-	void emit(std::ostream &os, const std::string &result)
+	void emit(Emit &e, const std::string &result)
 	{
 		std::string arg= genlocalregister('I');
-		expr->emit(os, arg);
+		expr->emit(e, arg);
 		std::string r= result.empty() ? genlocalregister('I') : result;
-		os << ".annotate 'file', '" << start.file() << "'\n"
-			".annotate 'line', " << start.linenum() << "\n" <<
-			r << " = neg " << arg;
+		e.annotate(start);
+		e << r << " = neg " << arg;
 		if (! result.empty() )
-			os << '\n';
+			e << '\n';
 	}
 	Token start;
 	BaseExpr * expr;
@@ -1024,16 +1049,15 @@ private:
 		}
 		return this;
 	}
-	void emit(std::ostream &os, const std::string &result)
+	void emit(Emit &e, const std::string &result)
 	{
 		std::string arg= genlocalregister('I');
-		expr->emit(os, arg);
+		expr->emit(e, arg);
 		std::string r= result.empty() ? genlocalregister('I') : result;
-		os << ".annotate 'file', '" << start.file() << "'\n"
-			".annotate 'line', " << start.linenum() << "\n" <<
-			r << " = not " << arg;
+		e.annotate(start);
+		e << r << " = not " << arg;
 		if (! result.empty() )
-			os << '\n';
+			e << '\n';
 	}
 	Token start;
 	BaseExpr * expr;
@@ -1050,10 +1074,9 @@ protected:
 		expr(subexpr)
 	{
 	}
-	void annotate(std::ostream &os)
+	void annotate(Emit &e)
 	{
-		os << ".annotate 'file', '" << start.file() << "'\n"
-			".annotate 'line', " << start.linenum() << '\n';
+		e.annotate(start);
 	}
 	std::string getvar()
 	{
@@ -1078,13 +1101,13 @@ public:
 	{
 	}
 private:
-	void emit(std::ostream &os, const std::string &result)
+	void emit(Emit &e, const std::string &result)
 	{
 		std::string var= getvar();
-		annotate(os);
-		os << "inc " << var << '\n';
+		annotate(e);
+		e << "inc " << var << '\n';
 		if (! result.empty())
-			os << result << " = " << var << '\n';
+			e << result << " = " << var << '\n';
 	}
 };
 
@@ -1098,13 +1121,13 @@ public:
 	{
 	}
 private:
-	void emit(std::ostream &os, const std::string &result)
+	void emit(Emit &e, const std::string &result)
 	{
 		std::string var= getvar();
-		annotate(os);
-		os << "dec " << var << '\n';
+		annotate(e);
+		e << "dec " << var << '\n';
 		if (! result.empty())
-			os << result << " = " << var << '\n';
+			e << result << " = " << var << '\n';
 	}
 };
 
@@ -1118,15 +1141,15 @@ public:
 	{
 	}
 private:
-	void emit(std::ostream &os, const std::string &result)
+	void emit(Emit &e, const std::string &result)
 	{
 		std::string var= getvar();
 		std::string reg= genlocalregister('I');
-		annotate(os);
-		os << reg << " = " << var << "\n"
+		annotate(e);
+		e << reg << " = " << var << "\n"
 			"inc " << var << '\n';
 		if (! result.empty())
-			os << result << " = " << reg << '\n';
+			e << result << " = " << reg << '\n';
 	}
 };
 
@@ -1140,15 +1163,15 @@ public:
 	{
 	}
 private:
-	void emit(std::ostream &os, const std::string &result)
+	void emit(Emit &e, const std::string &result)
 	{
 		std::string var= getvar();
 		std::string reg= genlocalregister('I');
-		annotate(os);
-		os << reg << " = " << var << "\n"
+		annotate(e);
+		e << reg << " = " << var << "\n"
 			"dec " << var << '\n';
 		if (! result.empty())
-			os << result << " = " << reg << '\n';
+			e << result << " = " << reg << '\n';
 	}
 };
 
@@ -1239,7 +1262,7 @@ public:
 	OpEqualExpr(Function &fn, Block &block,
 		Token t, BaseExpr *first, BaseExpr *second);
 private:
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 };
 
 OpEqualExpr::OpEqualExpr(Function &fn, Block &block,
@@ -1248,24 +1271,24 @@ OpEqualExpr::OpEqualExpr(Function &fn, Block &block,
 {
 }
 
-void OpEqualExpr::emit(std::ostream &os, const std::string &result)
+void OpEqualExpr::emit(Emit &e, const std::string &result)
 {
 	std::string res= genlocalregister('I');
 	if (isstring())
 	{
 		std::string op1= genlocalregister('S');
 		std::string op2= genlocalregister('S');
-		efirst->emit(os, op1);
-		esecond->emit(os, op2);
-		os << res << " = iseq " << op1 << " , " << op2;
+		efirst->emit(e, op1);
+		esecond->emit(e, op2);
+		e << res << " = iseq " << op1 << " , " << op2;
 	}
 	else if (efirst->isinteger() && esecond->isinteger())
 	{
 		std::string op1= genlocalregister('I');
 		std::string op2= genlocalregister('I');
-		efirst->emit(os, op1);
-		esecond->emit(os, op2);
-		os << res << " = iseq " << op1 << " , " << op2;
+		efirst->emit(e, op1);
+		esecond->emit(e, op2);
+		e << res << " = iseq " << op1 << " , " << op2;
 	}
 	else
 	{
@@ -1274,35 +1297,35 @@ void OpEqualExpr::emit(std::ostream &os, const std::string &result)
 		if (efirst->isinteger() )
 		{
 			std::string aux= genlocalregister('I');
-			efirst->emit(os, aux);
-			os << op1 << " = box " << aux << '\n';
+			efirst->emit(e, aux);
+			e << op1 << " = box " << aux << '\n';
 		}
 		else if (efirst->isstring() )
 		{
 			std::string aux= genlocalregister('S');
-			efirst->emit(os, aux);
-			os << op1 << " = box " << aux << '\n';
+			efirst->emit(e, aux);
+			e << op1 << " = box " << aux << '\n';
 		}
 		else
-			efirst->emit(os, op1);
+			efirst->emit(e, op1);
 		if (esecond->isinteger() )
 		{
 			std::string aux= genlocalregister('I');
-			esecond->emit(os, aux);
-			os << op2 << " = box " << aux << '\n';
+			esecond->emit(e, aux);
+			e << op2 << " = box " << aux << '\n';
 		}
 		else if (esecond->isstring() )
 		{
 			std::string aux= genlocalregister('S');
-			esecond->emit(os, aux);
-			os << op2 << " = box " << aux << '\n';
+			esecond->emit(e, aux);
+			e << op2 << " = box " << aux << '\n';
 		}
 		else
-			esecond->emit(os, op2);
-		os << res << " = iseq " << op1 << " , " << op2;
+			esecond->emit(e, op2);
+		e << res << " = iseq " << op1 << " , " << op2;
 	}
 	if (!result.empty())
-		os << '\n' << result << " = " << res << '\n';
+		e << '\n' << result << " = " << res << '\n';
 }
 
 //**********************************************************************
@@ -1313,7 +1336,7 @@ public:
 	OpNotEqualExpr(Function &fn, Block &block,
 		Token t, BaseExpr *first, BaseExpr *second);
 private:
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 };
 
 OpNotEqualExpr::OpNotEqualExpr(Function &fn, Block &block,
@@ -1322,24 +1345,24 @@ OpNotEqualExpr::OpNotEqualExpr(Function &fn, Block &block,
 {
 }
 
-void OpNotEqualExpr::emit(std::ostream &os, const std::string &result)
+void OpNotEqualExpr::emit(Emit &e, const std::string &result)
 {
 	std::string res= function->genregister('I');
 	if (isstring())
 	{
 		std::string op1= function->genregister('S');
 		std::string op2= function->genregister('S');
-		efirst->emit(os, op1);
-		esecond->emit(os, op2);
-		os << res << " = isne " << op1 << " , " << op2;
+		efirst->emit(e, op1);
+		esecond->emit(e, op2);
+		e << res << " = isne " << op1 << " , " << op2;
 	}
 	else if (isinteger())
 	{
 		std::string op1= function->genregister('I');
 		std::string op2= function->genregister('I');
-		efirst->emit(os, op1);
-		esecond->emit(os, op2);
-		os << res << " = isne " << op1 << " , " << op2;
+		efirst->emit(e, op1);
+		esecond->emit(e, op2);
+		e << res << " = isne " << op1 << " , " << op2;
 	}
 	else
 	{
@@ -1348,35 +1371,35 @@ void OpNotEqualExpr::emit(std::ostream &os, const std::string &result)
 		if (efirst->isinteger() )
 		{
 			std::string aux= genlocalregister('I');
-			efirst->emit(os, aux);
-			os << op1 << " = box " << aux << '\n';
+			efirst->emit(e, aux);
+			e << op1 << " = box " << aux << '\n';
 		}
 		else if (efirst->isstring() )
 		{
 			std::string aux= genlocalregister('S');
-			efirst->emit(os, aux);
-			os << op1 << " = box " << aux << '\n';
+			efirst->emit(e, aux);
+			e << op1 << " = box " << aux << '\n';
 		}
 		else
-			efirst->emit(os, op1);
+			efirst->emit(e, op1);
 		if (esecond->isinteger() )
 		{
 			std::string aux= genlocalregister('I');
-			esecond->emit(os, aux);
-			os << op2 << " = box " << aux << '\n';
+			esecond->emit(e, aux);
+			e << op2 << " = box " << aux << '\n';
 		}
 		else if (esecond->isstring() )
 		{
 			std::string aux= genlocalregister('S');
-			esecond->emit(os, aux);
-			os << op2 << " = box " << aux << '\n';
+			esecond->emit(e, aux);
+			e << op2 << " = box " << aux << '\n';
 		}
 		else
-			esecond->emit(os, op2);
-		os << res << " = isne " << op1 << " , " << op2;
+			esecond->emit(e, op2);
+		e << res << " = isne " << op1 << " , " << op2;
 	}
 	if (!result.empty())
-		os << '\n' << result << " = " << res << '\n';
+		e << '\n' << result << " = " << res << '\n';
 }
 
 //**********************************************************************
@@ -1387,7 +1410,7 @@ public:
 	OpLessExpr(Function &fn, Block &block,
 		Token t, BaseExpr *first, BaseExpr *second);
 private:
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 };
 
 OpLessExpr::OpLessExpr(Function &fn, Block &block,
@@ -1396,16 +1419,16 @@ OpLessExpr::OpLessExpr(Function &fn, Block &block,
 {
 }
 
-void OpLessExpr::emit(std::ostream &os, const std::string &result)
+void OpLessExpr::emit(Emit &e, const std::string &result)
 {
 	std::string res= result.empty() ? function->genregister('I') : result;
 	std::string op1= function->genregister('I');
 	std::string op2= function->genregister('I');
-	efirst->emit(os, op1);
-	esecond->emit(os, op2);
-	os << res << " = islt " << op1 << " , " << op2;
+	efirst->emit(e, op1);
+	esecond->emit(e, op2);
+	e << res << " = islt " << op1 << " , " << op2;
 	if (!result.empty())
-		os << '\n';
+		e << '\n';
 }
 
 //**********************************************************************
@@ -1416,7 +1439,7 @@ public:
 	OpGreaterExpr(Function &fn, Block &block,
 		Token t, BaseExpr *first, BaseExpr *second);
 private:
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 };
 
 OpGreaterExpr::OpGreaterExpr(Function &fn, Block &block,
@@ -1425,16 +1448,16 @@ OpGreaterExpr::OpGreaterExpr(Function &fn, Block &block,
 {
 }
 
-void OpGreaterExpr::emit(std::ostream &os, const std::string &result)
+void OpGreaterExpr::emit(Emit &e, const std::string &result)
 {
 	std::string res= result.empty() ? function->genregister('I') : result;
 	std::string op1= function->genregister('I');
 	std::string op2= function->genregister('I');
-	efirst->emit(os, op1);
-	esecond->emit(os, op2);
-	os << res << " = isgt " << op1 << " , " << op2;
+	efirst->emit(e, op1);
+	esecond->emit(e, op2);
+	e << res << " = isgt " << op1 << " , " << op2;
 	if (!result.empty())
-		os << '\n';
+		e << '\n';
 }
 
 //**********************************************************************
@@ -1446,7 +1469,7 @@ public:
 		Token t, BaseExpr *first, BaseExpr *second);
 private:
 	BaseExpr *optimize();
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 };
 
 OpAddExpr::OpAddExpr(Function &fn, Block &block,
@@ -1502,7 +1525,7 @@ BaseExpr *OpAddExpr::optimize()
 	return this;
 }
 
-void OpAddExpr::emit(std::ostream &os, const std::string &result)
+void OpAddExpr::emit(Emit &e, const std::string &result)
 {
 	// Quick hack
 	if (isstring())
@@ -1510,18 +1533,18 @@ void OpAddExpr::emit(std::ostream &os, const std::string &result)
 		std::string res= result.empty() ? genlocalregister('S') : result;
 		std::string op1= genlocalregister('S');
 		std::string op2= genlocalregister('S');
-		efirst->emit(os, op1);
-		esecond->emit(os, op2);
-		os << res << " = concat " << op1 << " , " << op2;
+		efirst->emit(e, op1);
+		esecond->emit(e, op2);
+		e << res << " = concat " << op1 << " , " << op2;
 	}
 	else if (isinteger())
 	{
 		std::string res= result.empty() ? genlocalregister('I') : result;
 		std::string op1= genlocalregister('I');
 		std::string op2= genlocalregister('I');
-		efirst->emit(os, op1);
-		esecond->emit(os, op2);
-		os << res << " = " << op1 << " + " << op2;
+		efirst->emit(e, op1);
+		esecond->emit(e, op2);
+		e << res << " = " << op1 << " + " << op2;
 	}
 	else
 	{
@@ -1531,32 +1554,32 @@ void OpAddExpr::emit(std::ostream &os, const std::string &result)
 		switch (efirst->checkresult() )
 		{
 		case 'I':
-			os << op1 << " = new 'Integer'\n";
+			e << op1 << " = new 'Integer'\n";
 			break;
 		case 'S':
-			os << op1 << " = new 'String'\n";
+			e << op1 << " = new 'String'\n";
 			break;
 		default:
-			os << "null " << op1 << '\n';
+			e << "null " << op1 << '\n';
 		}
 		switch (esecond->checkresult() )
 		{
 		case 'I':
-			os << op2 << " = new 'Integer'\n";
+			e << op2 << " = new 'Integer'\n";
 			break;
 		case 'S':
-			os << op2 << " = new 'String'\n";
+			e << op2 << " = new 'String'\n";
 			break;
 		default:
-			os << "null " << op2 << '\n';
+			e << "null " << op2 << '\n';
 		}
-		efirst->emit(os, op1);
-		esecond->emit(os, op2);
-		//os << res << " = new 'Integer'\n";
-		os << res << " = " << op1 << " + " << op2;
+		efirst->emit(e, op1);
+		esecond->emit(e, op2);
+		//e << res << " = new 'Integer'\n";
+		e << res << " = " << op1 << " + " << op2;
 	}
 	if (!result.empty())
-		os << '\n';
+		e << '\n';
 }
 
 //**********************************************************************
@@ -1568,7 +1591,7 @@ public:
 		Token t, BaseExpr *first, BaseExpr *second);
 private:
 	BaseExpr *optimize();
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 };
 
 OpSubExpr::OpSubExpr(Function &fn, Block &block,
@@ -1613,16 +1636,16 @@ BaseExpr *OpSubExpr::optimize()
 	return this;
 }
 
-void OpSubExpr::emit(std::ostream &os, const std::string &result)
+void OpSubExpr::emit(Emit &e, const std::string &result)
 {
 	std::string res= result.empty() ? genlocalregister('I') : result;
 	std::string op1= genlocalregister('I');
 	std::string op2= genlocalregister('I');
-	efirst->emit(os, op1);
-	esecond->emit(os, op2);
-	os << res << " = " << op1 << " - " << op2;
+	efirst->emit(e, op1);
+	esecond->emit(e, op2);
+	e << res << " = " << op1 << " - " << op2;
 	if (!result.empty())
-		os << '\n';
+		e << '\n';
 }
 
 //**********************************************************************
@@ -1634,7 +1657,7 @@ public:
 		Token t, BaseExpr *first, BaseExpr *second);
 private:
 	bool isinteger() const { return true; }
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 	unsigned int linenum;
 	BaseExpr *efirst;
 	BaseExpr *esecond;
@@ -1649,16 +1672,16 @@ OpBoolOrExpr::OpBoolOrExpr(Function &fn, Block &block,
 {
 }
 
-void OpBoolOrExpr::emit(std::ostream &os, const std::string &result)
+void OpBoolOrExpr::emit(Emit &e, const std::string &result)
 {
 	std::string res= result.empty() ? function->genregister('I') : result;
 	std::string op1= function->genregister('I');
 	std::string op2= function->genregister('I');
-	efirst->emit(os, op1);
-	esecond->emit(os, op2);
-	os << res << " = or " << op1 << ", " << op2;
+	efirst->emit(e, op1);
+	esecond->emit(e, op2);
+	e << res << " = or " << op1 << ", " << op2;
 	if (!result.empty())
-		os << '\n';
+		e << '\n';
 }
 
 //**********************************************************************
@@ -1673,16 +1696,16 @@ public:
 	}
 private:
 	bool isinteger() const { return true; }
-	void emit(std::ostream &os, const std::string &result)
+	void emit(Emit &e, const std::string &result)
 	{
 	std::string res= result.empty() ? function->genregister('I') : result;
 	std::string op1= function->genregister('I');
 	std::string op2= function->genregister('I');
-	efirst->emit(os, op1);
-	esecond->emit(os, op2);
-	os << res << " = band " << op1 << ", " << op2;
+	efirst->emit(e, op1);
+	esecond->emit(e, op2);
+	e << res << " = band " << op1 << ", " << op2;
 	if (!result.empty())
-		os << '\n';
+		e << '\n';
 	}
 };
 
@@ -1698,16 +1721,16 @@ public:
 	}
 private:
 	bool isinteger() const { return true; }
-	void emit(std::ostream &os, const std::string &result)
+	void emit(Emit &e, const std::string &result)
 	{
-	std::string res= result.empty() ? function->genregister('I') : result;
-	std::string op1= function->genregister('I');
-	std::string op2= function->genregister('I');
-	efirst->emit(os, op1);
-	esecond->emit(os, op2);
-	os << res << " = bor " << op1 << ", " << op2;
-	if (!result.empty())
-		os << '\n';
+		std::string res= result.empty() ? function->genregister('I') : result;
+		std::string op1= function->genregister('I');
+		std::string op2= function->genregister('I');
+		efirst->emit(e, op1);
+		esecond->emit(e, op2);
+		e << res << " = bor " << op1 << ", " << op2;
+		if (!result.empty())
+			e << '\n';
 	}
 };
 
@@ -1720,7 +1743,7 @@ public:
 		Token t, BaseExpr *first, BaseExpr *second);
 private:
 	bool isinteger() const { return true; }
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 	unsigned int linenum;
 	BaseExpr *efirst;
 	BaseExpr *esecond;
@@ -1734,16 +1757,16 @@ OpBoolAndExpr::OpBoolAndExpr(Function &fn, Block &block,
 {
 }
 
-void OpBoolAndExpr::emit(std::ostream &os, const std::string &result)
+void OpBoolAndExpr::emit(Emit &e, const std::string &result)
 {
 	std::string res= result.empty() ? function->genregister('I') : result;
 	std::string op1= function->genregister('I');
 	std::string op2= function->genregister('I');
-	efirst->emit(os, op1);
-	esecond->emit(os, op2);
-	os << res << " = and " << op1 << ", " << op2;
+	efirst->emit(e, op1);
+	esecond->emit(e, op2);
+	e << res << " = and " << op1 << ", " << op2;
 	if (!result.empty())
-		os << '\n';
+		e << '\n';
 }
 
 //**********************************************************************
@@ -1754,7 +1777,7 @@ public:
 	OpMulExpr(Function &fn, Block &block,
 		Token t, BaseExpr *first, BaseExpr *second);
 private:
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 };
 
 OpMulExpr::OpMulExpr(Function &fn, Block &block,
@@ -1763,16 +1786,16 @@ OpMulExpr::OpMulExpr(Function &fn, Block &block,
 {
 }
 
-void OpMulExpr::emit(std::ostream &os, const std::string &result)
+void OpMulExpr::emit(Emit &e, const std::string &result)
 {
 	std::string res= result.empty() ? function->genregister('I') : result;
 	std::string op1= function->genregister('I');
 	std::string op2= function->genregister('I');
-	efirst->emit(os, op1);
-	esecond->emit(os, op2);
-	os << res << " = " << op1 << " * " << op2;
+	efirst->emit(e, op1);
+	esecond->emit(e, op2);
+	e << res << " = " << op1 << " * " << op2;
 	if (!result.empty())
-		os << '\n';
+		e << '\n';
 }
 
 //**********************************************************************
@@ -1782,7 +1805,7 @@ class ArrayExpr : public BaseExpr
 public:
 	ArrayExpr(Function &fn, Block &block, Tokenizer &tk);
 private:
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 	std::vector<BaseExpr *> elems;
 };
 
@@ -1802,30 +1825,30 @@ ArrayExpr::ArrayExpr(Function &fn, Block &block, Tokenizer &tk) :
 	}
 }
 
-void ArrayExpr::emit(std::ostream &os, const std::string &result)
+void ArrayExpr::emit(Emit &e, const std::string &result)
 {
 	std::string reg = function->genregister('P');
-	os << reg << " = root_new ['parrot';'ResizablePMCArray']\n";
+	e << reg << " = root_new ['parrot';'ResizablePMCArray']\n";
 	for (size_t i= 0; i < elems.size(); ++i)
 	{
 		BaseExpr *elem= elems[i]->optimize();
 		std::string el = function->genregister('P');
 		if (elem->issimple() && !elem->isidentifier())
 		{
-			os << el << " = box ";
-			elem->emit(os, std::string());
-			os << "\n"
+			e << el << " = box ";
+			elem->emit(e, std::string());
+			e << "\n"
 				"push " << reg << " , " << el << '\n';
 		}
 		else
 		{
-			elem->emit(os, el);
-			os << "push " << reg << " , " << el << '\n';
+			elem->emit(e, el);
+			e << "push " << reg << " , " << el << '\n';
 		}
 	}
 
 	if (!result.empty())
-		os << result << " = " << reg << '\n';
+		e << result << " = " << reg << '\n';
 }
 
 //**********************************************************************
@@ -1835,7 +1858,7 @@ class HashExpr : public BaseExpr
 public:
 	HashExpr(Function &fn, Block &block, Tokenizer &tk);
 private:
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 	std::map<std::string, BaseExpr *> elems;
 };
 
@@ -1871,26 +1894,26 @@ HashExpr::HashExpr(Function &fn, Block &block, Tokenizer &tk) :
 class EmitItem
 {
 public:
-	EmitItem(std::ostream &os, const std::string reg) : o(&os), r(reg) { }
+	EmitItem(Emit &em, const std::string reg) : e(&em), r(reg) { }
 	void operator() (std::pair<std::string, BaseExpr *> elem)
 	{
 		BaseExpr *value= elem.second->optimize();
-		(*o) << r << " [" << elem.first << "] = ";
-		value->emit(*o, std::string());
-		(*o) << '\n';
+		(*e) << r << " [" << elem.first << "] = ";
+		value->emit(*e, std::string());
+		(*e) << '\n';
 	}
 private:
-	std::ostream *o;
+	Emit *e;
 	std::string r;
 };
 
-void HashExpr::emit(std::ostream &os, const std::string &result)
+void HashExpr::emit(Emit &e, const std::string &result)
 {
 	std::string reg = function->genregister('P');
-	os << reg << " = root_new ['parrot';'Hash']\n";
-	std::for_each(elems.begin(), elems.end(), EmitItem(os, reg) );
+	e << reg << " = root_new ['parrot';'Hash']\n";
+	std::for_each(elems.begin(), elems.end(), EmitItem(e, reg) );
 	if (!result.empty())
-		os << result << " = " << reg << '\n';
+		e << result << " = " << reg << '\n';
 }
 
 //**********************************************************************
@@ -1902,7 +1925,7 @@ public:
 		Tokenizer &tk, Token tname);
 	BaseExpr *optimize();
 private:
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 	Token start;
 	std::string name;
 	std::vector <BaseExpr *> args;
@@ -1934,7 +1957,7 @@ BaseExpr *FunctionCallExpr::optimize()
 	return this;
 }
 
-void FunctionCallExpr::emit(std::ostream &os, const std::string &result)
+void FunctionCallExpr::emit(Emit &e, const std::string &result)
 {
 	//std::cerr << "FunctionCallExpr::emit\n";
 
@@ -1945,7 +1968,7 @@ void FunctionCallExpr::emit(std::ostream &os, const std::string &result)
 		if (! arg.issimple() )
 		{
 			std::string reg= function->genregister(arg.isinteger() ? 'I' : 'P');
-			arg.emit(os, reg);
+			arg.emit(e, reg);
 			argregs.push_back(reg);
 		}
 		else
@@ -1954,32 +1977,31 @@ void FunctionCallExpr::emit(std::ostream &os, const std::string &result)
 		}
 	}
 
-	os << ".annotate 'file', '" << start.file() << "'\n"
-		".annotate 'line', " << start.linenum() << '\n';
+	e.annotate(start);
 
 	if (!result.empty() )
-		os << result << " = ";
+		e << result << " = ";
 
 	std::string quote(function->islocal(name) ? "" : "'");
 
-	os << quote << name << quote << '(';
+	e << quote << name << quote << '(';
 	for (size_t i= 0; i < args.size(); ++i)
 	{
 		if (i > 0)
-			os << ", ";
+			e << ", ";
 		if (argregs[i].empty() )
 		{
-			args[i]->emit(os, std::string());
+			args[i]->emit(e, std::string());
 		}
 		else
 		{
-			os << argregs[i];
-			//args[i]->emit(os, std::string());
+			e << argregs[i];
+			//args[i]->emit(e, std::string());
 		}
 	}
-	os << ')';
+	e << ')';
 	if (!result.empty() )
-		os << '\n';
+		e << '\n';
 }
 
 //**********************************************************************
@@ -1991,7 +2013,7 @@ public:
 		Tokenizer &tk, Token tobj, Token tmeth);
 private:
 	BaseExpr *optimize();
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 	Token object;
 	Token method;
 	std::vector <BaseExpr *> args;
@@ -2021,7 +2043,7 @@ BaseExpr *MethodCallExpr::optimize()
 	return this;
 }
 
-void MethodCallExpr::emit(std::ostream &os, const std::string &result)
+void MethodCallExpr::emit(Emit &e, const std::string &result)
 {
 	std::vector<std::string> argregs;
 	for (size_t i= 0; i < args.size(); ++i)
@@ -2029,7 +2051,7 @@ void MethodCallExpr::emit(std::ostream &os, const std::string &result)
 		if (! args[i]->issimple() )
 		{
 			std::string reg= function->genregister('P');
-			args[i]->emit(os, reg);
+			args[i]->emit(e, reg);
 			argregs.push_back(reg);
 		}
 		else
@@ -2037,22 +2059,22 @@ void MethodCallExpr::emit(std::ostream &os, const std::string &result)
 	}
 
 	if (!result.empty() )
-		os << result << " = ";
-	os << object.str() << ".'" << method.str() << "'(";
+		e << result << " = ";
+	e << object.str() << ".'" << method.str() << "'(";
 	for (size_t i= 0; i < args.size(); ++i)
 	{
 		if (i > 0)
-			os << ", ";
+			e << ", ";
 		if (argregs[i].empty() )
 		{
-			args[i]->emit(os, std::string());
+			args[i]->emit(e, std::string());
 		}
 		else
-			os << argregs[i];
+			e << argregs[i];
 	}
-	os << ')';
+	e << ')';
 	if (!result.empty() )
-		os << '\n';
+		e << '\n';
 }
 
 //**********************************************************************
@@ -2074,22 +2096,21 @@ private:
 		obj->optimize();
 		return this;
 	}
-	void emit(std::ostream &os, const std::string &result)
+	void emit(Emit &e, const std::string &result)
 	{
 		if (! checked.isliteralstring())
 			throw CompileError("Unimplemented", checked);
 		std::string reg= genlocalregister('P');
-		obj->emit(os, reg);
-		os << ".annotate 'file', '" << start.file() << "'\n"
-			".annotate 'line', " << start.linenum() << '\n';
+		obj->emit(e, reg);
+		e.annotate(start);
 
 		if (result.empty() ) {
 			std::string regcheck = genlocalregister('I');
-			os << regcheck << " = isa " << reg << ", '" << checked.str() << "'\n";
+			e << regcheck << " = isa " << reg << ", '" << checked.str() << "'\n";
 		}
 		else
 		{
-			os << result << " = isa " << reg << ", '" << checked.str() << "'\n";
+			e << result << " = isa " << reg << ", '" << checked.str() << "'\n";
 		}
 	}
 	Token start;
@@ -2104,7 +2125,7 @@ class NewExpr : public BaseExpr
 public:
 	NewExpr(Function &fn, Block &block, Tokenizer &tk, Token t);
 private:
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 	unsigned int ln;
 	std::string value;
 	BaseExpr *init;
@@ -2148,24 +2169,24 @@ NewExpr::NewExpr(Function &fn, Block &block, Tokenizer &tk, Token t) :
 	}
 }
 
-void NewExpr::emit(std::ostream &os, const std::string &result)
+void NewExpr::emit(Emit &e, const std::string &result)
 {
 	std::string reg;
 	if (init)
 	{
 		reg= function->genregister('P');
-		init->emit(os, reg);
+		init->emit(e, reg);
 	}
 
 	if (! result.empty())
 	{
-		os << result << " = " << value;
+		e << result << " = " << value;
 		if (! reg.empty())
-			os << ", " << reg;
-		os << '\n';
+			e << ", " << reg;
+		e << '\n';
 	}
 	else
-		os << value;
+		e << value;
 }
 
 //**********************************************************************
@@ -2175,7 +2196,7 @@ class IndexExpr : public BaseExpr
 public:
 	IndexExpr(Function &fn, Block &block, Tokenizer &tk, Token tname);
 private:
-	void emit(std::ostream &os, const std::string &result);
+	void emit(Emit &e, const std::string &result);
 	std::string name;
 	BaseExpr *arg;
 };
@@ -2188,24 +2209,24 @@ IndexExpr::IndexExpr(Function &fn, Block &block, Tokenizer &tk, Token tname) :
 	RequireOp (']', t);
 }
 
-void IndexExpr::emit(std::ostream &os, const std::string &result)
+void IndexExpr::emit(Emit &e, const std::string &result)
 {
 	std::string reg;
 	if (! arg->issimple() )
 	{
 		reg= function->genregister('P');
-		arg->emit(os, reg);
+		arg->emit(e, reg);
 	}
 	if (!result.empty() )
-		os << result << " = ";
-	os << name << '[';
+		e << result << " = ";
+	e << name << '[';
 	if (arg->issimple() )
-		arg->emit(os, std::string());
+		arg->emit(e, std::string());
 	else
-		os << reg;
-	os << ']';
+		e << reg;
+	e << ']';
 	if (!result.empty() )
-		os << '\n';
+		e << '\n';
 }
 
 //**********************************************************************
@@ -2479,10 +2500,10 @@ BaseStatement *ExprStatement::optimize ()
 	return this;
 }
 
-void ExprStatement::emit (std::ostream & os)
+void ExprStatement::emit (Emit &e)
 {
-	expr->emit(os, std::string());
-	os << '\n';
+	expr->emit(e, std::string());
+	e << '\n';
 }
 
 //**********************************************************************
@@ -2517,11 +2538,11 @@ IntStatement::IntStatement(Function &fn, Block &block, Tokenizer &tk) :
 	RequireOp (';', t);
 }
 
-void IntStatement::emit (std::ostream & os)
+void IntStatement::emit (Emit &e)
 {
-	os << ".local int " << name << '\n';
+	e << ".local int " << name << '\n';
 	if (value)
-		value->emit(os, name);
+		value->emit(e, name);
 }
 
 //**********************************************************************
@@ -2541,11 +2562,11 @@ StringStatement::StringStatement(Function &fn, Block & block, Tokenizer &tk) :
 	RequireOp (';', t);
 }
 
-void StringStatement::emit (std::ostream & os)
+void StringStatement::emit (Emit &e)
 {
-	os << ".local string " << name << '\n';
+	e << ".local string " << name << '\n';
 	if (value)
-		value->emit(os, name);
+		value->emit(e, name);
 }
 
 //**********************************************************************
@@ -2566,19 +2587,17 @@ VarStatement::VarStatement(Function &fn, Block & block, Tokenizer &tk, Token sta
 	RequireOp (';', t);
 }
 
-void VarStatement::emit (std::ostream & os)
+void VarStatement::emit (Emit &e)
 {
-	os <<
-		".annotate 'file', '" << start.file() << "'\n"
-		".annotate 'line', " << start.linenum() << "\n"
-		".local pmc " << name << '\n';
+	e.annotate(start);
+	e << ".local pmc " << name << '\n';
 	if (value)
 	{
 		if (value->isinteger())
-			os << name << " = root_new ['parrot'; 'Integer']\n";
+			e << name << " = root_new ['parrot'; 'Integer']\n";
 		else if (value->isstring())
-			os << name << " = root_new ['parrot'; 'String']\n";
-		value->emit(os, name);
+			e << name << " = root_new ['parrot'; 'String']\n";
+		value->emit(e, name);
 	}
 }
 
@@ -2590,9 +2609,9 @@ UsingStatement::UsingStatement(Function &fn, const std::string & name, const Nam
 	function->genlocal(n, 'P');
 }
 
-void UsingStatement::emit (std::ostream & os)
+void UsingStatement::emit (Emit &e)
 {
-	os << ".local pmc " << n << '\n' << n <<
+	e << ".local pmc " << n << '\n' << n <<
 		" = get_hll_global " << ns.get_key() <<
 		", '" << n << "'\n";
 }
@@ -2611,14 +2630,14 @@ ReturnStatement::ReturnStatement(Function &fn, Block & block, Tokenizer &tk) :
 	}
 }
 
-void ReturnStatement::emit (std::ostream & os)
+void ReturnStatement::emit (Emit &e)
 {
 	if (values)
-		values->prepare(os);
-	os << ".return (";
+		values->prepare(e);
+	e << ".return (";
 	if (values)
-		values->emit(os);
-	os << " )\n";
+		values->emit(e);
+	e << " )\n";
 }
 
 //**********************************************************************
@@ -2635,14 +2654,14 @@ YieldStatement::YieldStatement(Function &fn, Block & block, Tokenizer &tk) :
 	}
 }
 
-void YieldStatement::emit (std::ostream & os)
+void YieldStatement::emit (Emit &e)
 {
 	if (values)
-		values->prepare(os);
-	os << ".yield (";
+		values->prepare(e);
+	e << ".yield (";
 	if (values)
-		values->emit(os);
-	os << " )\n";
+		values->emit(e);
+	e << " )\n";
 }
 
 //**********************************************************************
@@ -2667,7 +2686,7 @@ AssignStatement::AssignStatement(Function &fn, Block & block,
 	//std::cerr << "AssignStatement end\n";
 }
 
-void AssignStatement::emit (std::ostream & os)
+void AssignStatement::emit (Emit &e)
 {
 	if (content.empty() )
 	{
@@ -2683,37 +2702,37 @@ void AssignStatement::emit (std::ostream & os)
 				if (!(st->isinteger() || st->isstring() ))
 				{
 					std::string r= bl.genregister('P');
-					st->emit(os, r);
-					os << varname << " = " << r << '\n';
+					st->emit(e, r);
+					e << varname << " = " << r << '\n';
 				}
 				else
-					st->emit(os, varname);
+					st->emit(e, varname);
 				break;
 			case 'S':
 				if (!(st->isinteger() || st->isstring() ))
 				{
 					std::string r= bl.genregister('S');
-					st->emit(os, r);
-					os << varname << " = " << r << '\n';
+					st->emit(e, r);
+					e << varname << " = " << r << '\n';
 				}
 				else
-					st->emit(os, varname);
+					st->emit(e, varname);
 				break;
 			default:
 				if (st->isinteger() || st->isstring() )
 				{
-					os << varname << " = box ";
-					st->emit(os, std::string());
-					os << '\n';
+					e << varname << " = box ";
+					st->emit(e, std::string());
+					e << '\n';
 				}
 				else
-					st->emit(os, varname);
+					st->emit(e, varname);
 			}
 		}
 	}
 	else
 	{
-		os << varname << " = " << content << '\n';
+		e << varname << " = " << content << '\n';
 	}
 }
 
@@ -2745,13 +2764,13 @@ BaseStatement *CompoundStatement::optimize ()
 		return this;
 }
 
-void CompoundStatement::emit (std::ostream & os)
+void CompoundStatement::emit (Emit &e)
 {
 	//std::cerr << "CompoundStatement::emit\n";
 
 	for (size_t i= 0; i < subst.size(); ++i)
 		if (subst[i])
-			subst[i]->emit(os);
+			subst[i]->emit(e);
 }
 
 //**********************************************************************
@@ -2771,24 +2790,24 @@ ForStatement::ForStatement(Function &fn, Block &block, Tokenizer &tk) :
 	st= parseStatement(fn, block, tk);
 }
 
-void ForStatement::emit(std::ostream & os)
+void ForStatement::emit(Emit &e)
 {
 	std::string label= genlabel();
 	std::string l_for = label + "_FOR";
 	std::string l_end = label + "_END";
 
 	std::string container_ = function->genregister('P');
-	container->emit(os, container_);
+	container->emit(e, container_);
 
-	os << ".local pmc iter_" << varname << "\n"
+	e << ".local pmc iter_" << varname << "\n"
 		"iter_" << varname << " = iter " << container_ << "\n"
 		"iter_" << varname << " = .ITERATE_FROM_START\n" <<
 		l_for << ":\n" <<
 		"unless " << "iter_" << varname << " goto " << l_end<< "\n"
 		"shift " << varname << ", iter_" << varname << '\n'
 		;
-	st->emit(os);
-	os << "goto " << l_for << '\n' <<
+	st->emit(e);
+	e << "goto " << l_for << '\n' <<
 		l_end << ":\n";
 }
 
@@ -2802,22 +2821,21 @@ ThrowStatement::ThrowStatement(Function &fn, Block &block,
 	excep = parseExpr(fn, block, tk);
 }
 
-void ThrowStatement::emit (std::ostream & os)
+void ThrowStatement::emit (Emit &e)
 {
-	os << ".annotate 'file', '" << pos.file() << "'\n"
-		".annotate 'line', " << pos.linenum() << '\n';
+	e.annotate(pos);
 
 	if (excep->issimple() )
 	{
-		os << "throw ";
-		excep->emit(os, std::string());
-		os << '\n';
+		e << "throw ";
+		excep->emit(e, std::string());
+		e << '\n';
 	}
 	else
 	{
 		std::string reg= function->genregister('P');
-		excep->emit(os, reg);
-		os << "throw " << reg << '\n';
+		excep->emit(e, reg);
+		e << "throw " << reg << '\n';
 	}
 }
 
@@ -2825,7 +2843,7 @@ void ThrowStatement::emit (std::ostream & os)
 
 TryStatement::TryStatement(Function &fn, Block &block, Tokenizer &tk, Token t) :
 	BlockStatement (fn, block),
-	ln(t.linenum()),
+	start(t),
 	stry(0), scatch(0)
 {
 	stry = parseStatement (fn, block, tk);
@@ -2842,10 +2860,9 @@ TryStatement::TryStatement(Function &fn, Block &block, Tokenizer &tk, Token t) :
 	scatch= parseStatement (fn, block, tk);
 }
 
-void TryStatement::emit (std::ostream & os)
+void TryStatement::emit (Emit &e)
 {
-	os << ".annotate 'file', 'ggggg'\n"
-		".annotate 'line', " << ln << '\n';
+	e.annotate(start);
 	std::string label= genlabel();
 	std::string handler = label + "_HANDLER";
 	std::string pasthandler = label + "_PAST_HANDLER";
@@ -2853,24 +2870,24 @@ void TryStatement::emit (std::ostream & os)
 		function->genregister('P') :
 		exname;
 
-	os << "push_eh " << handler << '\n';
-	stry->emit(os);
-	os <<
+	e << "push_eh " << handler << '\n';
+	stry->emit(e);
+	e <<
 		"pop_eh\n"
 		"goto " << pasthandler << '\n' <<
 		handler << ":\n";
 	if (!exname.empty() )
 	{
 		function->genlocal(exname, 'P');
-		os << ".local pmc " << exname << '\n';
+		e << ".local pmc " << exname << '\n';
 	}
-	os <<
+	e <<
 		".get_results(" << except << ")\n"
 		"pop_eh\n"
 		;
 
-	scatch->emit(os);
-	os << pasthandler << ":\n";
+	scatch->emit(e);
+	e << pasthandler << ":\n";
 }
 
 //**********************************************************************
@@ -2883,7 +2900,7 @@ public:
 	bool issimple() const;
 	bool isliteralinteger() const;
 	std::string value() const;
-	std::string emit(std::ostream &os);
+	std::string emit(Emit &e);
 	enum Value { CVtrue, CVfalse, CVruntime };
 	Value getvalue() const;
 private:
@@ -2939,7 +2956,7 @@ Condition::Value Condition::getvalue() const
 	return CVruntime;
 }
 
-std::string Condition::emit(std::ostream &os)
+std::string Condition::emit(Emit &e)
 {
 	std::string reg;
 	if (expr->isidentifier() && expr->isinteger())
@@ -2948,7 +2965,7 @@ std::string Condition::emit(std::ostream &os)
 	{
 		char type = expr->isstring() ? 'S' : expr->isinteger() ? 'I' : 'P';
 		reg = genlocalregister(type);
-		expr->emit(os, reg);
+		expr->emit(e, reg);
 	}
 	return reg;
 }
@@ -2993,24 +3010,24 @@ BaseStatement *IfStatement::optimize()
 	}
 }
 
-void IfStatement::emit(std::ostream & os)
+void IfStatement::emit(Emit &e)
 {
 	std::string label= genlabel();
 	std::string l_else= label + "_ELSE";
 	std::string l_endif= label + "_ENDIF";
-	std::string reg = condition->emit(os);
-	os << "\n"
+	std::string reg = condition->emit(e);
+	e << "\n"
 		"unless " << reg << " goto " <<
 			(!stelse->isempty() ? l_else : l_endif) << '\n';
 	if (!st->isempty())
-		st->emit(os);
+		st->emit(e);
 	if (!stelse->isempty())
 	{
-		os << "goto " << l_endif << '\n';
-		os << l_else << ":\n";
-		stelse->emit(os);
+		e << "goto " << l_endif << '\n';
+		e << l_else << ":\n";
+		stelse->emit(e);
 	}
-	os << l_endif << ":\n";
+	e << l_endif << ":\n";
 }
 
 //**********************************************************************
@@ -3028,12 +3045,12 @@ BaseStatement *ForeverStatement::optimize()
 	return this;
 }
 
-void ForeverStatement::emit (std::ostream & os)
+void ForeverStatement::emit (Emit &e)
 {
 	std::string label= genlabel() + "_FOREVER";
-	os << label << ":\n";
-	st->emit(os);
-	os << "goto " << label << '\n';
+	e << label << ":\n";
+	st->emit(e);
+	e << "goto " << label << '\n';
 }
 
 //**********************************************************************
@@ -3062,21 +3079,21 @@ BaseStatement *WhileStatement::optimize()
 	}
 }
 
-void WhileStatement::emit(std::ostream & os)
+void WhileStatement::emit(Emit &e)
 {
 	std::string label= genlabel();
 	std::string l_while= label + "_WHILE";
 	std::string l_end= label + "_ENDWHILE";
-	os << l_while << ":\n";
-	std::string reg= condition->emit(os);
-	os << '\n';
+	e << l_while << ":\n";
+	std::string reg= condition->emit(e);
+	e << '\n';
 	if (st->isempty()) {
-		os << "if " << reg << " goto " << l_while << '\n';
+		e << "if " << reg << " goto " << l_while << '\n';
 	}
 	else {
-		os << "unless " << reg << " goto " << l_end << '\n';
-		st->emit(os);
-		os << "goto " << l_while << '\n' <<
+		e << "unless " << reg << " goto " << l_end << '\n';
+		st->emit(e);
+		e << "goto " << l_while << '\n' <<
 			l_end << ":\n";
 	}
 }
@@ -3151,28 +3168,27 @@ static const char * nameoftype(char ctype)
 	}
 }
 
-void Function::emitbody (std::ostream & os)
+void Function::emitbody (Emit &e)
 {
 	for (size_t i= 0; i < params.size(); ++i)
-		os << ".param " << nameoftype(paramtypes[i]) << ' ' <<
+		e << ".param " << nameoftype(paramtypes[i]) << ' ' <<
 				params[i] << '\n';
-	os << ".annotate 'file', '" << start.file() << "'\n"
-		".annotate 'line', " << start.linenum() << "\n";
-	body->emit(os);
+	e.annotate(start);
+	body->emit(e);
 }
 
-void Function::emit (std::ostream & os)
+void Function::emit (Emit &e)
 {
-	getnamespace().emit (os);
+	getnamespace().emit (e);
 
-	os << "\n.sub '" << getname() << "'";
+	e << "\n.sub '" << getname() << "'";
 	if (name == "main")
-		os << " :main";
-	os << "\n";
+		e << " :main";
+	e << "\n";
 
-	emitbody(os);
+	emitbody(e);
 
-	os << ".end\n\n";
+	e << ".end\n\n";
 }
 
 //**********************************************************************
@@ -3216,22 +3232,22 @@ public:
 	{
 		genlocal("self", 'P');
 	}
-	void emit (std::ostream & os)
+	void emit (Emit &e)
 	{
-		getnamespace().emit (os);
+		getnamespace().emit (e);
 
-		os << "\n.sub '" << getname() << "'";
+		e << "\n.sub '" << getname() << "'";
 
 		if (has_attribute("vtable"))
-			os << " :vtable";
+			e << " :vtable";
 		else
-			os << " :method";
+			e << " :method";
 
-		os << "\n";
+		e << "\n";
 
-		emitbody(os);
+		emitbody(e);
 
-		os << ".end\n\n";
+		e << ".end\n\n";
 	}
 };
 
@@ -3241,7 +3257,7 @@ class Class
 {
 public:
 	Class(Tokenizer &tk, const Namespace & ns_a);
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 private:
 	std::string name;
 	Namespace ns;
@@ -3280,11 +3296,11 @@ Class::Class(Tokenizer &tk, const Namespace & ns_a)
 	}
 }
 
-void Class::emit (std::ostream & os)
+void Class::emit (Emit &e)
 {
-	ns.emit (os);
+	ns.emit (e);
 
-	os << ".sub Winxed_class_init :anon :load :init\n"
+	e << ".sub Winxed_class_init :anon :load :init\n"
 		"$P0 = newclass " << ns.get_key() << "\n";
 
 	for (size_t i= 0; i < parents.size(); ++i)
@@ -3293,21 +3309,21 @@ void Class::emit (std::ostream & os)
 		std::ostringstream oss;
 		oss << "$P" << i + 1;
 		std::string p= oss.str();
-		os << p << " = get_class ";
+		e << p << " = get_class ";
 
 		if (parent.isliteralstring() )
-			os << "'" << parent.str() << "'";
+			e << "'" << parent.str() << "'";
 		else 
-			os << "[ '" << parent.str() << "' ]";
+			e << "[ '" << parent.str() << "' ]";
 
-		os << "\n"
+		e << "\n"
 			"addparent $P0, " << p << "\n";
 	}
 
-	os << ".end\n";
+	e << ".end\n";
 
 	for (size_t i= 0; i < functions.size(); ++i)
-		functions[i]->emit(os);
+		functions[i]->emit(e);
 }
 
 //**********************************************************************
@@ -3317,7 +3333,7 @@ class Winxed
 public:
 	void parse (Tokenizer &tk);
 	void optimize ();
-	void emit (std::ostream & os);
+	void emit (Emit &e);
 private:
 	Namespace cur_namespace;
 	std::vector <Class *> classes;
@@ -3372,9 +3388,9 @@ void Winxed::optimize()
 		functions[i]->optimize();
 }
 
-void Winxed::emit (std::ostream & os)
+void Winxed::emit (Emit &e)
 {
-	os <<
+	e <<
 "#\n"
 "# Winxed generated file\n"
 "#**************************************************\n"	
@@ -3384,20 +3400,20 @@ void Winxed::emit (std::ostream & os)
 "#**************************************************\n"	
 	;
 
-	emit_predef(os);
+	emit_predef(e.get());
 
-	os <<
+	e <<
 "#**************************************************\n"	
 "# Begin generated code\n\n"
 	;
 
 	for (size_t i= 0; i < classes.size(); ++i)
-		classes[i]->emit(os);
+		classes[i]->emit(e);
 
 	for (size_t i= 0; i < functions.size(); ++i)
-		functions[i]->emit(os);
+		functions[i]->emit(e);
 
-	os << "\n# End generated code.\n";
+	e << "\n# End generated code.\n";
 }
 
 //**********************************************************************
@@ -3488,7 +3504,10 @@ nextarg:
 	Tokenizer tk (ifs, inputname);
 	winxed.parse (tk);
 	winxed.optimize();
-	winxed.emit(output);
+	{
+		Emit e(output);
+		winxed.emit(e);
+	}
 	output.close();
 
 	char parrot[]= "parrot;";

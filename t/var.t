@@ -6,7 +6,7 @@ function main()
     using Test.More.plan;
     using Test.More.is;
 
-    plan(2);
+    plan(4);
     var a = 1;
     is(a, 1, 'initialize from int');
     var b = 'Hi';
