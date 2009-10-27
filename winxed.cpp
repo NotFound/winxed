@@ -1621,6 +1621,56 @@ void OpBoolOrExpr::emit(std::ostream &os, const std::string &result)
 
 //**********************************************************************
 
+class OpBinAndExpr : public CommonBinOpExpr
+{
+public:
+	OpBinAndExpr(Function &fn, Block &block,
+			Token t, BaseExpr *first, BaseExpr *second) :
+		CommonBinOpExpr(fn, block, t, first, second)
+	{
+	}
+private:
+	bool isinteger() const { return true; }
+	void emit(std::ostream &os, const std::string &result)
+	{
+	std::string res= result.empty() ? function->genregister('I') : result;
+	std::string op1= function->genregister('I');
+	std::string op2= function->genregister('I');
+	efirst->emit(os, op1);
+	esecond->emit(os, op2);
+	os << res << " = band " << op1 << ", " << op2;
+	if (!result.empty())
+		os << '\n';
+	}
+};
+
+//**********************************************************************
+
+class OpBinOrExpr : public CommonBinOpExpr
+{
+public:
+	OpBinOrExpr(Function &fn, Block &block,
+			Token t, BaseExpr *first, BaseExpr *second) :
+		CommonBinOpExpr(fn, block, t, first, second)
+	{
+	}
+private:
+	bool isinteger() const { return true; }
+	void emit(std::ostream &os, const std::string &result)
+	{
+	std::string res= result.empty() ? function->genregister('I') : result;
+	std::string op1= function->genregister('I');
+	std::string op2= function->genregister('I');
+	efirst->emit(os, op1);
+	esecond->emit(os, op2);
+	os << res << " = bor " << op1 << ", " << op2;
+	if (!result.empty())
+		os << '\n';
+	}
+};
+
+//**********************************************************************
+
 class OpBoolAndExpr : public BaseExpr
 {
 public:
@@ -2296,13 +2346,45 @@ BaseExpr * parseExpr_9(Function &fn, Block &block, Tokenizer &tk)
 	return subexpr;
 }
 
-BaseExpr * parseExpr_13(Function &fn, Block &block, Tokenizer &tk)
+BaseExpr * parseExpr_10(Function &fn, Block &block, Tokenizer &tk)
 {
 	BaseExpr *subexpr= parseExpr_9(fn, block, tk);
 	Token t= tk.get();
-	if (t.isop("&&"))
+	if (t.isop("&"))
 	{
 		BaseExpr *subexpr2= parseExpr_9(fn, block, tk);
+		subexpr= new OpBinAndExpr(fn, block, t, subexpr, subexpr2);
+	}
+	else
+	{
+		tk.unget(t);
+	}
+	return subexpr;
+}
+
+BaseExpr * parseExpr_12(Function &fn, Block &block, Tokenizer &tk)
+{
+	BaseExpr *subexpr= parseExpr_10(fn, block, tk);
+	Token t= tk.get();
+	if (t.isop("|"))
+	{
+		BaseExpr *subexpr2= parseExpr_10(fn, block, tk);
+		subexpr= new OpBinOrExpr(fn, block, t, subexpr, subexpr2);
+	}
+	else
+	{
+		tk.unget(t);
+	}
+	return subexpr;
+}
+
+BaseExpr * parseExpr_13(Function &fn, Block &block, Tokenizer &tk)
+{
+	BaseExpr *subexpr= parseExpr_12(fn, block, tk);
+	Token t= tk.get();
+	if (t.isop("&&"))
+	{
+		BaseExpr *subexpr2= parseExpr_12(fn, block, tk);
 		subexpr= new OpBoolAndExpr(fn, block, t, subexpr, subexpr2);
 	}
 	else
