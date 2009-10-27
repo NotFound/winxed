@@ -2573,7 +2573,13 @@ void VarStatement::emit (std::ostream & os)
 		".annotate 'line', " << start.linenum() << "\n"
 		".local pmc " << name << '\n';
 	if (value)
+	{
+		if (value->isinteger())
+			os << name << " = root_new ['parrot'; 'Integer']\n";
+		else if (value->isstring())
+			os << name << " = root_new ['parrot'; 'String']\n";
 		value->emit(os, name);
+	}
 }
 
 //**********************************************************************
