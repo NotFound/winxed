@@ -1,5 +1,5 @@
 // predef.cpp
-// Revision 22-oct-2009
+// Revision 27-oct-2009
 
 #include "predef.h"
 
@@ -42,6 +42,13 @@ void emit_predef(std::ostream & os)
 "  .param pmc args :slurpy\n"
 "  'print'(args :flat)\n"
 "  say ''\n"
+".end\n"
+"\n"
+".sub 'substr'\n"
+"  .param string s\n"
+"  .param int n\n"
+"  $S0 = substr s, n\n"
+"  .return($S0)\n"
 ".end\n"
 "\n"
 ".sub 'join'\n"

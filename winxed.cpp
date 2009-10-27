@@ -490,9 +490,10 @@ private:
 class VarStatement : public ValueStatement
 {
 public:
-	VarStatement(Function &fn, Block & block, Tokenizer &tk);
+	VarStatement(Function &fn, Block & block, Tokenizer &tk, Token startpos);
 	void emit (std::ostream & os);
 private:
+	const Token start;
 	std::string name;
 };
 
@@ -704,7 +705,7 @@ BaseStatement *parseStatement(Function &fn, Block &block, Tokenizer &tk)
 	if (t.str() == "string")
 		return new StringStatement(fn, block, tk);
 	if (t.str() == "var")
-		return new VarStatement(fn, block, tk);
+		return new VarStatement(fn, block, tk, t);
 
 	if (t.str() == "return")
 		return new ReturnStatement(fn, block, tk);
@@ -955,6 +956,47 @@ std::string SimpleExpr::value() const
 {
 	return t.str();
 }
+
+//**********************************************************************
+
+class OpUnaryMinusExpr : public BaseExpr
+{
+public:
+	OpUnaryMinusExpr(Function &fn, Block &block, Token t, BaseExpr *subexpr) :
+		BaseExpr(fn, block),
+		start(t),
+		expr(subexpr)
+	{
+	}
+private:
+	bool isinteger () const { return expr->isinteger(); }
+	BaseExpr *optimize()
+	{
+		expr= expr->optimize();
+		if (expr->isliteralinteger() )
+		{
+			const int n= expr->getintegervalue();
+			std::ostringstream oss;
+			oss << - n;
+			Token newt= Token(TokenTInteger, oss.str(), start.linenum(), start.file());
+			return new SimpleExpr(*function, *this, newt);
+		}
+		return this;
+	}
+	void emit(std::ostream &os, const std::string &result)
+	{
+		std::string arg= genlocalregister('I');
+		expr->emit(os, arg);
+		std::string r= result.empty() ? genlocalregister('I') : result;
+		os << ".annotate 'file', '" << start.file() << "'\n"
+			".annotate 'line', " << start.linenum() << "\n" <<
+			r << " = neg " << arg;
+		if (! result.empty() )
+			os << '\n';
+	}
+	Token start;
+	BaseExpr * expr;
+};
 
 //**********************************************************************
 
@@ -2245,7 +2287,12 @@ BaseExpr *parseExpr_3(Function &fn, Block &block, Tokenizer &tk)
 BaseExpr * parseExpr_4(Function &fn, Block &block, Tokenizer &tk)
 {
 	Token t= tk.get();
-	if (t.isop('!') )
+	if (t.isop('-') )
+	{
+		BaseExpr *subexpr= parseExpr_4(fn, block, tk);
+		return new OpUnaryMinusExpr(fn, block, t, subexpr);
+	}
+	else if (t.isop('!') )
 	{
 		BaseExpr *subexpr= parseExpr_4(fn, block, tk);
 		return new OpNotExpr(fn, block, t, subexpr);
@@ -2501,8 +2548,9 @@ void StringStatement::emit (std::ostream & os)
 
 //**********************************************************************
 
-VarStatement::VarStatement(Function &fn, Block & block, Tokenizer &tk) :
-	ValueStatement (fn, block)
+VarStatement::VarStatement(Function &fn, Block & block, Tokenizer &tk, Token startpos) :
+	ValueStatement (fn, block),
+	start(startpos)
 {
 	Token t= tk.get();
 	function->genlocal(t.str(), 'P');
@@ -2518,7 +2566,10 @@ VarStatement::VarStatement(Function &fn, Block & block, Tokenizer &tk) :
 
 void VarStatement::emit (std::ostream & os)
 {
-	os << ".local pmc " << name << '\n';
+	os <<
+		".annotate 'file', '" << start.file() << "'\n"
+		".annotate 'line', " << start.linenum() << "\n"
+		".local pmc " << name << '\n';
 	if (value)
 		value->emit(os, name);
 }

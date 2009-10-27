@@ -15,6 +15,6 @@ function main()
     try aux();
     catch (e)
     {
-        is(e['message'], 'something bad');
+        is(e['message'], 'something bad', 'get Exception message');
     }
 }

@@ -1,6 +1,6 @@
 #! winxed
 # harness for winxed tests
-# Adapted from nqp in plumage harness
+# TAP parsing adapted from nqp in plumage harness
 
 function debugmsg(string s)
 {
@@ -23,17 +23,20 @@ function run_test(string filename)
     return output;
 }
 
-function main(var args)
+function max_length(var args)
 {
-    using extern Getopt.Obj;
-    var getopts = new 'Getopt::Obj';
-    getopts.notOptStop(1);
-    getopts.push_string('v');
+    var filename;
+    int l= 0;
+    for (filename in args) {
+        int i = length(filename);
+        if (i > l)
+            l= i;
+    }
+    return l;
+}
 
-    args.shift();
-    var opts = getopts.get_options(args);
-    int verbose = opts['v'];
-
+function run_test_list(var args, int verbose)
+{
     int total_passed= 0;
     int total_failed= 0;
     int total_files= 0;
@@ -42,14 +45,11 @@ function main(var args)
     int passed;
     int failed;
 
+    //int l= max_length(args) + 2;
+    int l= max_length(args);
+    l= l + 2;
+
     var filename;
-    int l= 0;
-    for (filename in args) {
-        int i = length(filename);
-        if (i > l)
-            l= i;
-    }
-    l = l + 2;
     for (filename in args)
     {
         print(filename);
@@ -112,4 +112,70 @@ function main(var args)
         say('FAILED ', failed_files, ' files, PASSED ', total_passed, ' tests');
     else
         say('PASSED ', total_passed, ' tests in ', total_files, ' files');
+}
+
+function add_file(var result, string path)
+{
+	if (length(path) > 2) {
+	        string ext= substr(path, -2);
+		if (ext == '.t')
+			result.push(path);
+	}
+}
+
+function build_from_dir(var result, string path, int recursive)
+{
+	var os = new 'OS';
+	var dir = os.readdir(path);
+	string dirent;
+	for (dirent in dir)
+		if ((dirent != '.') && (dirent != '..')) {
+			string newpath= path + '/' + dirent;
+			var st= os.stat(newpath);
+			int mode = st[2];
+			int isdir = (mode & 16384) != 0;
+			if (isdir)
+				build_from_dir(result, newpath, recursive);
+			else
+				add_file(result, newpath);
+		}
+}
+
+function build_file_list(var result, var args, int recursive)
+{
+	var os = new 'OS';
+	string path;
+	for (path in args) {
+		var st= os.stat(path);
+		int mode = st[2];
+		int isdir = (mode & 16384) != 0;
+		if (isdir && recursive)
+			var newlist= build_from_dir(result, path, recursive);
+		else
+			add_file(result, path);
+		
+	}
+}
+
+function main(var argv)
+{
+    using extern Getopt.Obj;
+    var getopts = new 'Getopt::Obj';
+    getopts.notOptStop(1);
+    getopts.push_string('v');
+    getopts.push_string('r');
+
+    argv.shift();
+    var opts = getopts.get_options(argv);
+    int verbose = opts['v'];
+    int recursive = opts['r'];
+
+    string arg= argv[0];
+    if (arg == '')
+    	argv.push('');
+
+    var args= new 'ResizableStringArray';
+    build_file_list(args, argv, recursive);
+
+    run_test_list(args, verbose);
 }

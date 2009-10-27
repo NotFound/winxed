@@ -23,7 +23,7 @@ predef.o: predef.cpp predef.h
 
 
 test: winxed
-	./winxed t/harness t/*.t
+	./winxed t/harness -r t
 
 testv: winxed
-	./winxed t/harness -v t/*.t
+	./winxed t/harness -rv t
