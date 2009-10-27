@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 26-oct-2009
+// Revision 27-oct-2009
 
 #include "token.h"
 #include "errors.h"
@@ -398,11 +398,11 @@ public:
 	virtual bool issimple() const { return false; }
 	virtual bool isidentifier() const { return false; }
 	virtual std::string getidentifier() const
-	{ throw std::logic_error("Not an identifier"); }
+	{ throw InternalError("Not an identifier"); }
 	virtual bool isliteralinteger() const { return false; }
 	virtual bool isinteger() const { return false; }
 	virtual int getintegervalue () const
-	{ throw std::logic_error("Not an integer"); }
+	{ throw InternalError("Not an integer"); }
 	virtual bool isliteralstring() const { return false; }
 	virtual bool isstring() const { return false; }
 	char checkresult() const;
@@ -899,7 +899,7 @@ bool SimpleExpr::isidentifier() const
 std::string SimpleExpr::getidentifier() const
 {
 	if (! isidentifier())
-		throw std::logic_error("Not an identifier");
+		throw InternalError("Not an identifier");
 	return t.str();
 }
 
@@ -920,7 +920,7 @@ bool SimpleExpr::isinteger() const
 int SimpleExpr::getintegervalue () const
 {
 	if (! isliteralinteger())
-		throw std::logic_error("Not an integer");
+		throw InternalError("Not an integer");
 	std::istringstream iss(t.str());
 	int n;
 	iss >> n;
@@ -1985,7 +1985,7 @@ private:
 	void emit(std::ostream &os, const std::string &result)
 	{
 		if (! checked.isliteralstring())
-			throw SyntaxError("Unimplemented", checked);
+			throw CompileError("Unimplemented", checked);
 		std::string reg= genlocalregister('P');
 		obj->emit(os, reg);
 		os << ".annotate 'file', '" << start.file() << "'\n"
@@ -2956,7 +2956,7 @@ Function::Function(Tokenizer &tk,
 			else if (type == "string") ctype = 'S';
 			else if (type == "var") ctype = 'P';
 			if (ctype == '\0')
-				throw SyntaxError ("type invalid in function", t);
+				throw CompileError ("type invalid in function", t);
 			t= tk.get();
 			std::string name= t.str();
 			params.push_back(name);
@@ -2999,7 +2999,7 @@ static const char * nameoftype(char ctype)
 	case 'S': return "string";
 	case 'P': return "pmc";
 	default:
-		throw std::runtime_error("Invalid type");
+		throw CompileError("Invalid type");
 	}
 }
 
@@ -3270,10 +3270,10 @@ int execute(char **args)
 	switch ((p= fork()) )
 	{
 	case pid_t(-1):
-		throw std::runtime_error(std::string("fork failed: ") + strerror(errno) );
+		throw InternalError(std::string("fork failed: ") + strerror(errno) );
 	case 0:
 		execvp("parrot", args);
-		throw std::runtime_error(std::string("exec failed: ") + strerror(errno) );
+		throw InternalError(std::string("exec failed: ") + strerror(errno) );
 	default:
 		waitpid(p, & stat, 0);
 		return WIFEXITED(stat) ? WEXITSTATUS(stat) : 127;
@@ -3283,7 +3283,7 @@ int execute(char **args)
 void winxed_main (int argc, char **argv)
 {
 	if (argc < 2)
-		throw std::runtime_error("No arguments");
+		throw CompileError("No arguments");
 	int i= 1;
 	const char *inputname= 0;
 	std::string outputfile;
@@ -3311,19 +3311,19 @@ nextarg:
 		else if (t == "pbc")
 			target= TargetPbc;
 		else
-			throw std::runtime_error("Invalid target");
+			throw CompileError("Invalid target");
 		compileonly= true;
 		++i;
 		goto nextarg;
 	}
 
 	if (i >= argc)
-		throw std::runtime_error("No input file");
+		throw CompileError("No input file");
 
 	inputname= argv[i++];
 	std::ifstream ifs(inputname);
 	if (! ifs.is_open() )
-		throw std::runtime_error(std::string("Cant't open ") + argv [1]);
+		throw CompileError(std::string("Cant't open ") + argv [1]);
 
 	if (outputfile.empty() )
 		outputfile= genfile (inputname, target == TargetPbc ? "pbc" : "pir");
@@ -3334,7 +3334,7 @@ nextarg:
 
 	output.open(pirfile.c_str());
 	if (!output.is_open() )
-		throw std::runtime_error(std::string("Cant't open ") + outputfile);
+		throw CompileError(std::string("Cant't open ") + outputfile);
 
 	Winxed winxed;
 	Tokenizer tk (ifs, inputname);
@@ -3356,7 +3356,7 @@ nextarg:
 		int r= execute(args);
 		unlink(outputfile.c_str());
 		if (r)
-			throw std::runtime_error("Run failed");
+			throw CompileError("Run failed");
 	}
 	else if (target == TargetPbc)
 	{
@@ -3369,7 +3369,7 @@ nextarg:
 		int r= execute(args);
 		unlink(pirfile.c_str());
 		if (r)
-			throw std::runtime_error("PBC compile failed");
+			throw CompileError("PBC compile failed");
 	}
 }
 
@@ -3382,12 +3382,12 @@ int main (int argc, char **argv)
 		winxed_main (argc, argv);
 		return 0;
 	}
-	catch (const SyntaxError &e)
+	catch (const CompileError &e)
 	{
 		std::cerr << e.file() << ':';
 		if (e.linenum() != 0)
 			std::cerr  << e.linenum() << ':';
-		 std::cerr << " SyntaxError: " << e.what() << '\n';
+		 std::cerr << e.what() << '\n';
 	}
 	catch (std::exception &e)
 	{

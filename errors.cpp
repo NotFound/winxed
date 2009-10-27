@@ -1,31 +1,55 @@
 // errors.cpp
-// Revision 20-oct-2009
+// Revision 27-oct-2009
 
 #include "errors.h"
 
 //**********************************************************************
 
-SyntaxError::SyntaxError(const std::string &msg, unsigned int line) :
+InternalError::InternalError(const std::string &msg) :
+	std::runtime_error(msg)
+{
+}
+
+//**********************************************************************
+
+CompileError::CompileError(const std::string &msg) :
+	std::runtime_error(msg)
+{
+}
+
+CompileError::CompileError(const std::string &msg, unsigned int line) :
 	std::runtime_error(msg),
 	ln(line)
 {
 }
 
-SyntaxError::SyntaxError(const std::string &msg, const Token &where) :
+CompileError::CompileError(const std::string &msg, const Token &where) :
 	std::runtime_error(msg + " (found: " + where.describe() + " )"),
 	ln(where.linenum() ),
 	w(where)
 {
 }
 
-unsigned int SyntaxError::linenum() const
+unsigned int CompileError::linenum() const
 {
 	return ln;
 }
 
-std::string SyntaxError::file() const
+std::string CompileError::file() const
 {
 	return w.file();
+}
+
+//**********************************************************************
+
+SyntaxError::SyntaxError(const std::string &msg, unsigned int line) :
+	CompileError("Syntax error: " + msg, line)
+{
+}
+
+SyntaxError::SyntaxError(const std::string &msg, const Token &where) :
+	CompileError("Syntax error: " + msg, where)
+{
 }
 
 //**********************************************************************
