@@ -64,9 +64,9 @@ function run_test_list(var args, int verbose)
         var plan_parts= split('..', output[0]);
         int num_tests = plan_parts[1];
         output.shift();
-	if (verbose) {
-	    say(1 , '..', num_tests);
-	}
+        if (verbose) {
+            say(1 , '..', num_tests);
+        }
         string line;
         for (line in output) {
             debugmsg(line);
@@ -116,45 +116,45 @@ function run_test_list(var args, int verbose)
 
 function add_file(var result, string path)
 {
-	if (length(path) > 2) {
-	        string ext= substr(path, -2);
-		if (ext == '.t')
-			result.push(path);
-	}
+    if (length(path) > 2) {
+        string ext= substr(path, -2);
+        if (ext == '.t')
+            result.push(path);
+    }
 }
 
 function build_from_dir(var result, string path, int recursive)
 {
-	var os = new 'OS';
-	var dir = os.readdir(path);
-	string dirent;
-	for (dirent in dir)
-		if ((dirent != '.') && (dirent != '..')) {
-			string newpath= path + '/' + dirent;
-			var st= os.stat(newpath);
-			int mode = st[2];
-			int isdir = (mode & 16384) != 0;
-			if (isdir)
-				build_from_dir(result, newpath, recursive);
-			else
-				add_file(result, newpath);
-		}
+    var os = new 'OS';
+    var dir = os.readdir(path);
+    string dirent;
+    for (dirent in dir)
+        if ((dirent != '.') && (dirent != '..')) {
+            string newpath= path + '/' + dirent;
+            var st= os.stat(newpath);
+            int mode = st[2];
+            int isdir = (mode & 16384) != 0;
+            if (isdir)
+                build_from_dir(result, newpath, recursive);
+            else
+                add_file(result, newpath);
+        }
 }
 
 function build_file_list(var result, var args, int recursive)
 {
-	var os = new 'OS';
-	string path;
-	for (path in args) {
-		var st= os.stat(path);
-		int mode = st[2];
-		int isdir = (mode & 16384) != 0;
-		if (isdir && recursive)
-			var newlist= build_from_dir(result, path, recursive);
-		else
-			add_file(result, path);
-		
-	}
+    var os = new 'OS';
+    string path;
+    for (path in args) {
+        var st= os.stat(path);
+        int mode = st[2];
+        int isdir = (mode & 16384) != 0;
+        if (isdir && recursive)
+            var newlist= build_from_dir(result, path, recursive);
+        else
+            add_file(result, path);
+        
+    }
 }
 
 function main(var argv)
@@ -172,7 +172,7 @@ function main(var argv)
 
     string arg= argv[0];
     if (arg == '')
-    	argv.push('.');
+        argv.push('.');
 
     var args= new 'ResizableStringArray';
     build_file_list(args, argv, recursive);
