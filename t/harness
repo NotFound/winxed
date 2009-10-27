@@ -172,7 +172,7 @@ function main(var argv)
 
     string arg= argv[0];
     if (arg == '')
-    	argv.push('');
+    	argv.push('.');
 
     var args= new 'ResizableStringArray';
     build_file_list(args, argv, recursive);
