@@ -2467,8 +2467,10 @@ BaseExpr * parseExpr(Function &fn, Block &block, Tokenizer &tk)
 ExprStatement::ExprStatement(Function &fn, Block &parentblock, Tokenizer &tk) :
 	BaseStatement (fn)
 {
+	//std::cerr << "ExprStatement\n";
 	expr= parseExpr(fn, parentblock, tk);
 	ExpectOp(';', tk);
+	//std::cerr << "ExprStatement end\n";
 }
 
 BaseStatement *ExprStatement::optimize ()
@@ -2643,6 +2645,7 @@ AssignStatement::AssignStatement(Function &fn, Block & block,
 		Tokenizer &tk, const std::string &name) :
 	SubStatement (fn, block), varname(name), st(0)
 {
+	//std::cerr << "AssignStatement\n";
 	Token t= tk.get();
 	if (t.str() == "new")
 	{
@@ -2654,6 +2657,8 @@ AssignStatement::AssignStatement(Function &fn, Block & block,
 		tk.unget(t);
 		st = parseExpr(fn, block, tk);
 	}
+	ExpectOp(';', tk);
+	//std::cerr << "AssignStatement end\n";
 }
 
 void AssignStatement::emit (std::ostream & os)
@@ -2950,15 +2955,19 @@ IfStatement::IfStatement(Function &fn, Block &block, Tokenizer &tk) :
 	st(new EmptyStatement(fn)),
 	stelse(new EmptyStatement(fn))
 {
+	//std::cerr << "if\n";
 	condition= new Condition(fn, *this, tk);
 	st= parseStatement(fn, block, tk);
 	Token t= tk.get();
-	if (t.str() == "else")
+	if (t.str() == "else") {
+		//std::cerr << "if else\n";
 		stelse= parseStatement(fn, block, tk);
+	}
 	else
 	{
 		tk.unget(t);
 	}
+	//std::cerr << "end if\n";
 }
 
 BaseStatement *IfStatement::optimize()

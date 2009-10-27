@@ -130,7 +130,9 @@ function build_from_dir(var result, string path, int recursive)
     string dirent;
     for (dirent in dir)
         if ((dirent != '.') && (dirent != '..')) {
-            string newpath= path + '/' + dirent;
+            string newpath;
+	    if (path == '.') newpath = dirent;
+	    else newpath = path + '/' + dirent;
             var st= os.stat(newpath);
             int mode = st[2];
             int isdir = (mode & 16384) != 0;
