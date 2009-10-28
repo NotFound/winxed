@@ -1,8 +1,10 @@
 // token.cpp
-// Revision 26-oct-2009
+// Revision 28-oct-2009
 
 #include "token.h"
 #include "errors.h"
+
+#include <sstream>
 
 //**********************************************************************
 
@@ -32,8 +34,43 @@ Token::Token (TokenType type, const std::string &ss, unsigned int linenum,
 bool Token::empty () const
 { return s.empty(); }
 
+int Token::getinteger() const
+{
+	if (ttype == TokenTInteger)
+	{
+		std::istringstream iss(s);
+		int n;
+		iss >> n;
+		return n;
+	}
+	else
+		throw Expected("integer number", *this);
+}
+
+#if 1
 std::string Token::str() const
 { return s; }
+#endif
+
+std::string Token::identifier() const
+{
+	if (ttype == TokenTIdentifier)
+		return s;
+	else
+		throw Expected("identifier", *this);
+}
+
+std::string Token::pirliteralstring() const
+{
+	switch (ttype) {
+	case TokenTSingleQuoted:
+		return '\'' + s + '\'';
+	case TokenTQuoted:
+		return unquote(s);
+	default:
+		throw Expected("literal string", *this);
+	}
+}
 
 std::string Token::describe() const
 {
@@ -81,6 +118,12 @@ bool Token::isop(char name) const
 {
 	return ttype == TokenTOperator &&
 		s.length() == 1 && s[0] == name;
+}
+
+bool Token::iskeyword(const std::string &name) const
+{
+	return ttype == TokenTIdentifier &&
+		s == name;
 }
 
 bool Token::isspace() const

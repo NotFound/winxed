@@ -407,7 +407,7 @@ ExternStatement::ExternStatement(Function &fn, Tokenizer &tk) :
 		t= tk.get();
 		if (!n.empty() )
 			n+= '/';
-		n+= t.str();
+		n+= t.identifier();
 		t= tk.get();
 	} while (t.isop('.') );
 	RequireOp(';', t);
@@ -696,19 +696,19 @@ private:
 BaseStatement *parseUsing(Function &fn, Tokenizer &tk)
 {
 	Token t= tk.get();
-	if (t.str() == "extern")
+	if (t.iskeyword("extern"))
 	{
 		return new ExternStatement(fn, tk);
 	}
 	else
 	{
 		Namespace ns;
-		std::string name = t.str();
+		std::string name = t.identifier();
 		while ((t= tk.get()).isop('.') )
 		{
 			ns = ns.child(name);
 			t= tk.get();
-			name = t.str();
+			name = t.identifier();
 		}
 		RequireOp(';', t);
 		return new UsingStatement(fn, name, ns);
@@ -725,31 +725,31 @@ BaseStatement *parseStatement(Function &fn, Block &block, Tokenizer &tk)
 		return new EmptyStatement(fn);
 	if (t.isop('{') )
 		return new CompoundStatement(fn, block, tk);
-	if (t.str() == "using")
+	if (t.iskeyword("using"))
 		return parseUsing(fn, tk);
 
-	if (t.str() == "int")
+	if (t.iskeyword("int"))
 		return new IntStatement(fn, block, tk);
-	if (t.str() == "string")
+	if (t.iskeyword("string"))
 		return new StringStatement(fn, block, tk);
-	if (t.str() == "var")
+	if (t.iskeyword("var"))
 		return new VarStatement(fn, block, tk, t);
 
-	if (t.str() == "return")
+	if (t.iskeyword("return"))
 		return new ReturnStatement(fn, block, tk);
-	if (t.str() == "yield")
+	if (t.iskeyword("yield"))
 		return new YieldStatement(fn, block, tk);
-	if (t.str() == "goto")
+	if (t.iskeyword("goto"))
 		return new GotoStatement(fn, block, tk, t);
-	if (t.str() == "if")
+	if (t.iskeyword("if"))
 		return new IfStatement(fn, block, tk);
-	if (t.str() == "while")
+	if (t.iskeyword("while"))
 		return new WhileStatement(fn, block, tk);
-	if (t.str() == "for")
+	if (t.iskeyword("for"))
 		return new ForStatement(fn, block, tk);
-	if (t.str() == "throw")
+	if (t.iskeyword("throw"))
 		return new ThrowStatement(fn, block, tk, t);
-	if (t.str() == "try")
+	if (t.iskeyword("try"))
 		return new TryStatement(fn, block, tk, t);
 
 	if (t.isidentifier() )
@@ -758,7 +758,7 @@ BaseStatement *parseStatement(Function &fn, Block &block, Tokenizer &tk)
 		if (t2.isop('='))
 			return new AssignStatement(fn, block, tk, t);
 		else if (t2.isop(':'))
-			return new LabelStatement(fn, block, t.str());
+			return new LabelStatement(fn, block, t.identifier());
 		else
 		{
 			tk.unget(t2);
@@ -796,7 +796,7 @@ GotoStatement::GotoStatement(Function &fn, Block &block, Tokenizer &tk, Token st
 	bl(block)
 {
 	Token t= tk.get();
-	labelname= t.str();
+	labelname= t.identifier();
 	t= tk.get();
 	if (!t.isop(';'))
 		throw Expected ("';' after label", t);
@@ -904,12 +904,9 @@ void SimpleExpr::emit(Emit &e, const std::string &result)
 	if (!result.empty() )
 		e << result << " = ";
 	if (isliteralstring())
-	{
-		if (issinglequoted())
-			e << '\'' << t.str() << '\'';
-		else
-			e << unquote(t.str());
-	}
+		e << t.pirliteralstring();
+	else if (isliteralinteger())
+		e << getintegervalue();
 	else
 		e << t.str();
 	if (!result.empty() )
@@ -923,9 +920,7 @@ bool SimpleExpr::isidentifier() const
 
 std::string SimpleExpr::getidentifier() const
 {
-	if (! isidentifier())
-		throw InternalError("Not an identifier");
-	return t.str();
+	return t.identifier();
 }
 
 bool SimpleExpr::isliteralinteger() const
@@ -944,12 +939,7 @@ bool SimpleExpr::isinteger() const
 
 int SimpleExpr::getintegervalue () const
 {
-	if (! isliteralinteger())
-		throw InternalError("Not an integer");
-	std::istringstream iss(t.str());
-	int n;
-	iss >> n;
-	return n;
+	return t.getinteger();
 }
 
 bool SimpleExpr::isliteralstring() const
@@ -1489,18 +1479,8 @@ BaseExpr *OpAddExpr::optimize()
 		{
 			//std::cerr << "OpAddExpr::optimize int\n";
 
-			int n1, n2;
-			{
-				std::string v= dynamic_cast<SimpleExpr *>(efirst)->value();
-				std::istringstream iss(v);
-				iss >> n1;
-			}
-			{
-				std::string v= dynamic_cast<SimpleExpr *>(esecond)->value();
-				std::istringstream iss(v);
-				iss >> n2;
-			}
-
+			int n1= t1.getinteger();
+			int n2= t2.getinteger();
 			//std::cerr << n1 << " " << n2 << '\n';
 
 			std::ostringstream oss;
@@ -1611,17 +1591,8 @@ BaseExpr *OpSubExpr::optimize()
 		{
 			//std::cerr << "OpAddExpr::optimize int\n";
 
-			int n1, n2;
-			{
-				std::string v= dynamic_cast<SimpleExpr *>(efirst)->value();
-				std::istringstream iss(v);
-				iss >> n1;
-			}
-			{
-				std::string v= dynamic_cast<SimpleExpr *>(esecond)->value();
-				std::istringstream iss(v);
-				iss >> n2;
-			}
+			int n1= t1.getinteger();
+			int n2= t2.getinteger();
 
 			//std::cerr << n1 << " " << n2 << '\n';
 
@@ -1876,10 +1847,10 @@ HashExpr::HashExpr(Function &fn, Block &block, Tokenizer &tk) :
 				throw Expected (':', t);
 			BaseExpr *value= parseExpr(fn, block, tk);
 			std::string key;
-			if (tkey.isidentifier() || tkey.issinglequoted() )
-				key= "'" + tkey.str() + "'";
+			if (tkey.isidentifier())
+				key= "'" + tkey.identifier() + "'";
 			else if (tkey.isliteralstring())
-				key= "\"" + tkey.str() + "\"";
+				key= tkey.pirliteralstring();
 			else
 				throw Expected("Identifier or string", tkey);
 			elems[key]= value;
@@ -1933,7 +1904,7 @@ FunctionCallExpr::FunctionCallExpr(Function &fn, Block &block,
 		Tokenizer &tk, Token tname) :
 	BaseExpr(fn, block),
 	start(tname),
-	name(tname.str())
+	name(tname.identifier())
 {
 	Token t= tk.get();
 	if (! t.isop (')') )
@@ -2058,7 +2029,7 @@ void MethodCallExpr::emit(Emit &e, const std::string &result)
 
 	if (!result.empty() )
 		e << result << " = ";
-	e << object.str() << ".'" << method.str() << "'(";
+	e << object.identifier() << ".'" << method.identifier() << "'(";
 	for (size_t i= 0; i < args.size(); ++i)
 	{
 		if (i > 0)
@@ -2135,7 +2106,7 @@ NewExpr::NewExpr(Function &fn, Block &block, Tokenizer &tk, Token t) :
 	t= tk.get();
 	if (t.issinglequoted())
 	{
-		value = "root_new ['parrot'; '" + t.str() + "' ]";
+		value = "root_new ['parrot'; " + t.pirliteralstring() + " ]";
 		t= tk.get();
 		if (! t.isop(';') )
 		{
@@ -2149,13 +2120,13 @@ NewExpr::NewExpr(Function &fn, Block &block, Tokenizer &tk, Token t) :
 	}
 	else
 	{
-		std::string name = t.str();
+		std::string name = t.identifier();
 		std::vector<std::string> prefix;
 		while ((t= tk.get()).isop('.') )
 		{
 			t= tk.get();
 			prefix.push_back(name);
-			name = t.str();
+			name = t.identifier();
 		}
 		value = " new [";
 		for (size_t i= 0; i < prefix.size(); ++i)
@@ -2200,7 +2171,7 @@ private:
 };
 
 IndexExpr::IndexExpr(Function &fn, Block &block, Tokenizer &tk, Token tname) :
-	BaseExpr(fn, block), name(tname.str()), arg(0)
+	BaseExpr(fn, block), name(tname.identifier()), arg(0)
 {
 	arg = parseExpr(fn, block, tk);
 	Token t= tk.get();
@@ -2265,7 +2236,7 @@ BaseExpr * parseExpr_0(Function &fn, Block &block, Tokenizer &tk)
 	{
 		subexpr = new HashExpr(fn, block, tk);
 	}
-	else if (t.str() == "new")
+	else if (t.iskeyword("new"))
 			subexpr = new NewExpr(fn, block, tk, t);
 	else
 	{
@@ -2349,16 +2320,14 @@ BaseExpr * parseExpr_6(Function &fn, Block &block, Tokenizer &tk)
 {
 	BaseExpr *subexpr= parseExpr_5(fn, block, tk);
 	Token t= tk.get();
-	std::string op = t.str();
-	while (op == "+" || op == "-")
+	while (t.isop('+') || t.isop('-'))
 	{
 		BaseExpr *subexpr2= parseExpr_5(fn, block, tk);
-		if (op == "+")
+		if (t.isop('+'))
 			subexpr= new OpAddExpr(fn, block, t, subexpr, subexpr2);
 		else
 			subexpr= new OpSubExpr(fn, block, t, subexpr, subexpr2);
 		t= tk.get();
-		op= t.str();
 	}
 	tk.unget(t);
 	return subexpr;
@@ -2378,7 +2347,7 @@ BaseExpr * parseExpr_8(Function &fn, Block &block, Tokenizer &tk)
 		BaseExpr *subexpr2= parseExpr_6(fn, block, tk);
 		subexpr= new OpNotEqualExpr(fn, block, t, subexpr, subexpr2);
 	}
-	else if (t.str() == "instanceof")
+	else if (t.iskeyword("instanceof"))
 	{
 		subexpr= new OpInstanceOf(fn, block, t, subexpr, tk);
 	}
@@ -2523,8 +2492,8 @@ IntStatement::IntStatement(Function &fn, Block &block, Tokenizer &tk) :
 	ValueStatement (fn, block)
 {
 	Token t= tk.get();
-	function->genlocal(t.str(), 'I');
-	name= t.str();
+	name= t.identifier();
+	function->genlocal(name, 'I');
 	t= tk.get();
 	if (t.isop('='))
 	{
@@ -2547,8 +2516,8 @@ StringStatement::StringStatement(Function &fn, Block & block, Tokenizer &tk) :
 	ValueStatement (fn, block)
 {
 	Token t= tk.get();
-	function->genlocal(t.str(), 'S');
-	name= t.str();
+	name= t.identifier();
+	function->genlocal(name, 'S');
 	t= tk.get();
 	if (t.isop('='))
 	{
@@ -2572,8 +2541,8 @@ VarStatement::VarStatement(Function &fn, Block & block, Tokenizer &tk, Token sta
 	start(startpos)
 {
 	Token t= tk.get();
-	function->genlocal(t.str(), 'P');
-	name= t.str();
+	name= t.identifier();
+	function->genlocal(name, 'P');
 	t= tk.get();
 	if (t.isop('='))
 	{
@@ -2668,7 +2637,7 @@ AssignStatement::AssignStatement(Function &fn, Block & block,
 {
 	//std::cerr << "AssignStatement\n";
 	Token t= tk.get();
-	if (t.str() == "new")
+	if (t.iskeyword("new"))
 	{
 		st = new NewExpr(fn, block, tk, t);
 		return;
@@ -2684,7 +2653,7 @@ AssignStatement::AssignStatement(Function &fn, Block & block,
 
 void AssignStatement::emit (Emit &e)
 {
-	std::string varname = tname.str();
+	std::string varname = tname.identifier();
 	if (content.empty() )
 	{
 		if (st)
@@ -2782,9 +2751,9 @@ ForStatement::ForStatement(Function &fn, Block &block, Tokenizer &tk) :
 {
 	ExpectOp ('(', tk);
 	Token t= tk.get();
-	varname= t.str();
+	varname= t.identifier();
 	t= tk.get();
-	if (t.str() != "in")
+	if (!t.iskeyword("in"))
 		throw Expected ("'in'", t);
 	container= parseExpr(fn, *this, tk);
 	ExpectOp(')', tk);
@@ -2849,13 +2818,13 @@ TryStatement::TryStatement(Function &fn, Block &block, Tokenizer &tk, Token t) :
 {
 	stry = parseStatement (fn, block, tk);
 	t= tk.get();
-	if (t.str() != "catch")
+	if (! t.iskeyword("catch"))
 		throw Expected("catch", t);
 	ExpectOp ('(', tk);
 	t= tk.get();
 	if (! t.isop(')'))
 	{
-		exname= t.str();
+		exname= t.identifier();
 		ExpectOp (')', tk);
 	}
 	scatch= parseStatement (fn, block, tk);
@@ -2944,10 +2913,7 @@ Condition::Value Condition::getvalue() const
 	{
 		if (isliteralinteger())
 		{
-			std::string v= value();
-			std::istringstream iss(v);
-			int n;
-			iss >> n;
+			int n = dynamic_cast<SimpleExpr &>(*expr).getintegervalue();;
 			if (n != 0)
 				return CVtrue;
 			else
@@ -2983,7 +2949,7 @@ IfStatement::IfStatement(Function &fn, Block &block, Tokenizer &tk) :
 	condition= new Condition(fn, *this, tk);
 	st= parseStatement(fn, block, tk);
 	Token t= tk.get();
-	if (t.str() == "else") {
+	if (t.iskeyword("else")) {
 		//std::cerr << "if else\n";
 		stelse= parseStatement(fn, block, tk);
 	}
@@ -3116,7 +3082,7 @@ Function::Function(Tokenizer &tk,
 		do
 		{
 			t= tk.get();
-			std::string type= t.str();
+			std::string type= t.identifier();
 			char ctype= '\0';
 			if (type == "int") ctype = 'I';
 			else if (type == "string") ctype = 'S';
@@ -3124,7 +3090,7 @@ Function::Function(Tokenizer &tk,
 			if (ctype == '\0')
 				throw CompileError ("type invalid in function", t);
 			t= tk.get();
-			std::string name= t.str();
+			std::string name= t.identifier();
 			params.push_back(name);
 			paramtypes.push_back(ctype);
 			genlocal(name, ctype);
@@ -3214,7 +3180,7 @@ public:
 			t= tk.get();
 			if (! t.isidentifier())
 				throw Expected("Attribute name", t);
-			attributes.push_back(t.str());
+			attributes.push_back(t.identifier());
 			ExpectOp(']', tk);
 		}
 	}
@@ -3292,7 +3258,7 @@ private:
 Class::Class(Tokenizer &tk, const Namespace & ns_a)
 {
 	Token t= tk.get();
-	name= t.str();
+	name= t.identifier();
 	t= tk.get();
 	if (t.isop(':'))
 	{
@@ -3307,21 +3273,19 @@ Class::Class(Tokenizer &tk, const Namespace & ns_a)
 	ns= ns_a.child(name);
 	while (! (t= tk.get()).isop('}'))
 	{
-		if (t.str() == "function")
+		if (t.iskeyword("function"))
 		{
 			Token name= tk.get();
 			if (! name.isidentifier() )
 				throw Expected("method name", name);
-			Function *f = new Method (tk, ns, *this, name.str());
+			Function *f = new Method (tk, ns, *this, name.identifier());
 			functions.push_back(f);
 		}
-		else if (t.str() == "var")
+		else if (t.iskeyword("var"))
 		{
 			do {
 				Token name= tk.get();
-				if (! name.isidentifier() )
-					throw Expected("identifier", name);
-				attrs.push_back(name.str());
+				attrs.push_back(name.identifier());
 				t= tk.get();
 			} while (t.isop(','));
 			RequireOp(';', t);
@@ -3347,9 +3311,9 @@ void Class::emit (Emit &e)
 		e << p << " = get_class ";
 
 		if (parent.isliteralstring() )
-			e << "'" << parent.str() << "'";
+			e << parent.pirliteralstring();
 		else 
-			e << "[ '" << parent.str() << "' ]";
+			e << "[ '" << parent.identifier() << "' ]";
 
 		e << "\n"
 			"addparent $P0, " << p << "\n";
@@ -3384,41 +3348,39 @@ void Winxed::parse (Tokenizer &tk)
 {
 	for (;;)
 	{
-		Token a(tk.get());
-		while ( (!a.empty() ) && a.isspace() )
-			a= tk.get();
-		if (a.empty())
+		Token t(tk.get());
+		while ( (!t.empty() ) && t.isspace() )
+			t= tk.get();
+		if (t.empty())
 			break;
 
-		std::string name = a.str();
-
-		if (name == "namespace")
+		if (t.iskeyword("namespace"))
 		{
-			a = tk.get();
-			cur_namespace= cur_namespace.child(a.str());
+			t = tk.get();
+			cur_namespace= cur_namespace.child(t.identifier());
 			ExpectOp('{', tk);
 		}
-		else if (name == "class")
+		else if (t.iskeyword("class"))
 		{
 			Class *c = new Class (tk, cur_namespace);
 			classes.push_back(c);
 		}
-		else if (name == "function")
+		else if (t.iskeyword("function"))
 		{
 			Token fname = tk.get();
 			if (! fname.isidentifier() )
 				throw Expected("funcion name", fname);
-			Function *f = new Function (tk, cur_namespace, fname.str());
+			Function *f = new Function (tk, cur_namespace, fname.identifier());
 			functions.push_back(f);
 		}
-		else if (name == "}")
+		else if (t.isop('}'))
 		{
 			if (cur_namespace.isroot())
-				throw SyntaxError("Unexpected '}'", a);
+				throw SyntaxError("Unexpected '}'", t);
 			cur_namespace= cur_namespace.parent();
 		}
 		else
-			throw SyntaxError("Unexpected statement", a);
+			throw SyntaxError("Unexpected statement", t);
 	}
 }
 

@@ -2,7 +2,7 @@
 #define INCLUDE_TOKEN_H
 
 // token.h
-// Revision 26-oct-2009
+// Revision 28-oct-2009
 
 #include <string>
 #include <istream>
@@ -31,7 +31,10 @@ public:
 	Token (TokenType type, const std::string &ss, unsigned int linenum, const std::string &file);
 
 	bool empty () const;
+	int getinteger() const;
 	std::string str() const;
+	std::string identifier() const;
+	std::string pirliteralstring() const;
 	std::string describe() const;
 	unsigned int linenum() const;
 	std::string file() const;
@@ -42,6 +45,7 @@ public:
 	bool isliteralstring() const;
 	bool isop(const std::string &name) const;
 	bool isop(char name) const;
+	bool iskeyword(const std::string &name) const;
 private:
 	TokenType ttype;
 	std::string s;
