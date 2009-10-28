@@ -1,0 +1,30 @@
+function main(var args)
+{
+	using extern Curses;
+
+	using Curses.curses_version;
+
+	using Curses.initscr;
+	using Curses.endwin;
+
+	using Curses.getmaxx;
+	using Curses.getmaxy;
+
+	using Curses.mvaddstr;
+	using Curses.getch;
+
+	say('Curses version: ', curses_version());
+
+	var scr= initscr();
+	int maxx= getmaxx(scr);
+	int maxy= getmaxy(scr);
+	string s= args[1];
+	if (s == '') s= 'Hello, world!';
+
+	int x = maxx - length(s);
+	if (x < 0) x= 0;
+	mvaddstr(maxy / 2, x / 2, s);
+	getch();
+	endwin();
+	say(maxx, ", ",  maxy);
+}
