@@ -575,10 +575,10 @@ class AssignStatement : public SubStatement
 {
 public:
 	AssignStatement(Function &fn, Block & block,
-		Tokenizer &tk, const std::string &name);
+		Tokenizer &tk, const Token &name);
 	void emit (Emit &e);
 private:
-	std::string varname;
+	const Token tname;
 	std::string content;
 	BaseExpr *st;
 };
@@ -755,15 +755,9 @@ BaseStatement *parseStatement(Function &fn, Block &block, Tokenizer &tk)
 	if (t.isidentifier() )
 	{
 		Token t2= tk.get();
-		if (t2.str() == "=")
-		{
-			std::string varname= t.str();
-			//if (fn.islocal(varname))
-			{
-				return new AssignStatement(fn, block, tk, varname);
-			}
-		}
-		else if (t2.str() == ":")
+		if (t2.isop('='))
+			return new AssignStatement(fn, block, tk, t);
+		else if (t2.isop(':'))
 			return new LabelStatement(fn, block, t.str());
 		else
 		{
@@ -772,8 +766,11 @@ BaseStatement *parseStatement(Function &fn, Block &block, Tokenizer &tk)
 			return new ExprStatement(fn, block, tk);
 		}
 	}
-	tk.unget(t);
-	return new ExprStatement(fn, block, tk);
+	else
+	{
+		tk.unget(t);
+		return new ExprStatement(fn, block, tk);
+	}
 }
 
 //**********************************************************************
@@ -801,7 +798,7 @@ GotoStatement::GotoStatement(Function &fn, Block &block, Tokenizer &tk, Token st
 	Token t= tk.get();
 	labelname= t.str();
 	t= tk.get();
-	if (t.str() != ";")
+	if (!t.isop(';'))
 		throw Expected ("';' after label", t);
 }
 
@@ -2235,9 +2232,7 @@ void IndexExpr::emit(Emit &e, const std::string &result)
 BaseExpr * parseDotted(Function &fn, Block &block, Tokenizer &tk, Token t)
 {
 	Token t2= tk.get();
-	Token t3= tk.get();
-	if (t3.str() != "(")
-		throw Expected ('(', t3);
+	ExpectOp ('(', tk);
 	return new MethodCallExpr(fn, block, tk, t, t2);
 }
 
@@ -2668,8 +2663,8 @@ void YieldStatement::emit (Emit &e)
 //**********************************************************************
 
 AssignStatement::AssignStatement(Function &fn, Block & block,
-		Tokenizer &tk, const std::string &name) :
-	SubStatement (fn, block), varname(name), st(0)
+		Tokenizer &tk, const Token &name) :
+	SubStatement (fn, block), tname(name), st(0)
 {
 	//std::cerr << "AssignStatement\n";
 	Token t= tk.get();
@@ -2689,6 +2684,7 @@ AssignStatement::AssignStatement(Function &fn, Block & block,
 
 void AssignStatement::emit (Emit &e)
 {
+	std::string varname = tname.str();
 	if (content.empty() )
 	{
 		if (st)
@@ -2704,6 +2700,7 @@ void AssignStatement::emit (Emit &e)
 				{
 					std::string r= bl.genregister('P');
 					st->emit(e, r);
+					e.annotate(tname);
 					e << varname << " = " << r << '\n';
 				}
 				else
@@ -2714,6 +2711,7 @@ void AssignStatement::emit (Emit &e)
 				{
 					std::string r= bl.genregister('S');
 					st->emit(e, r);
+					e.annotate(tname);
 					e << varname << " = " << r << '\n';
 				}
 				else
@@ -2722,6 +2720,7 @@ void AssignStatement::emit (Emit &e)
 			default:
 				if (st->isinteger() || st->isstring() )
 				{
+					e.annotate(tname);
 					e << varname << " = box ";
 					st->emit(e, std::string());
 					e << '\n';
@@ -2733,6 +2732,7 @@ void AssignStatement::emit (Emit &e)
 	}
 	else
 	{
+		e.annotate(tname);
 		e << varname << " = " << content << '\n';
 	}
 }
