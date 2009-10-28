@@ -319,6 +319,7 @@ Token Tokenizer::getany ()
 		c= getchar();
 		switch (c)
 		{
+		case ':':
 		case '=':
 			s+= c;
 			break;

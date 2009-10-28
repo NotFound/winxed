@@ -585,6 +585,20 @@ private:
 
 //**********************************************************************
 
+class AssignToStatement : public SubStatement
+{
+public:
+	AssignToStatement(Function &fn, Block & block,
+		Tokenizer &tk, const Token &name);
+	void emit (Emit &e);
+private:
+	const Token tname;
+	std::string content;
+	BaseExpr *st;
+};
+
+//**********************************************************************
+
 class Condition;
 
 //**********************************************************************
@@ -757,6 +771,8 @@ BaseStatement *parseStatement(Function &fn, Block &block, Tokenizer &tk)
 		Token t2= tk.get();
 		if (t2.isop('='))
 			return new AssignStatement(fn, block, tk, t);
+		if (t2.isop("=:"))
+			return new AssignToStatement(fn, block, tk, t);
 		else if (t2.isop(':'))
 			return new LabelStatement(fn, block, t.identifier());
 		else
@@ -2696,6 +2712,88 @@ void AssignStatement::emit (Emit &e)
 				}
 				else
 					st->emit(e, varname);
+			}
+		}
+	}
+	else
+	{
+		e.annotate(tname);
+		e << varname << " = " << content << '\n';
+	}
+}
+
+//**********************************************************************
+
+AssignToStatement::AssignToStatement(Function &fn, Block & block,
+		Tokenizer &tk, const Token &name) :
+	SubStatement (fn, block), tname(name), st(0)
+{
+	//std::cerr << "AssignToStatement\n";
+	Token t= tk.get();
+	if (t.iskeyword("new"))
+	{
+		st = new NewExpr(fn, block, tk, t);
+		return;
+	}
+	else
+	{
+		tk.unget(t);
+		st = parseExpr(fn, block, tk);
+	}
+	ExpectOp(';', tk);
+	//std::cerr << "AssignToStatement end\n";
+}
+
+void AssignToStatement::emit (Emit &e)
+{
+	std::string varname = tname.identifier();
+	if (content.empty() )
+	{
+		if (st)
+		{
+			//std::cerr << "AssignToStatement::emit\n";
+
+			st= st->optimize();
+			char type = bl.checklocal(varname);
+			switch (type)
+			{
+			case 'I':
+				if (!(st->isinteger() || st->isstring() ))
+				{
+					std::string r= bl.genregister('P');
+					st->emit(e, r);
+					e.annotate(tname);
+					e << varname << " = " << r << '\n';
+				}
+				else
+					st->emit(e, varname);
+				break;
+			case 'S':
+				if (!(st->isinteger() || st->isstring() ))
+				{
+					std::string r= bl.genregister('S');
+					st->emit(e, r);
+					e.annotate(tname);
+					e << varname << " = " << r << '\n';
+				}
+				else
+					st->emit(e, varname);
+				break;
+			default:
+				if (st->isinteger() || st->isstring() )
+				{
+					e.annotate(tname);
+					e << "assign " << varname << ", ";
+					st->emit(e, std::string());
+					e << '\n';
+				}
+				else
+				{
+					//st->emit(e, varname);
+					e << "assign " << varname << ", ";
+					st->emit(e, std::string());
+					e << '\n';
+				}
 			}
 		}
 	}
