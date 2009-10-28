@@ -678,6 +678,7 @@ public:
 	virtual void emit (Emit &e);
 	void local(std::string name);
 	bool islocal(std::string name);
+	virtual void emitparams (Emit &e);
 	virtual void emitbody (Emit &e);
 	virtual ~Function() {}
 private:
@@ -757,7 +758,7 @@ BaseStatement *parseStatement(Function &fn, Block &block, Tokenizer &tk)
 		if (t2.str() == "=")
 		{
 			std::string varname= t.str();
-			if (fn.islocal(varname))
+			//if (fn.islocal(varname))
 			{
 				return new AssignStatement(fn, block, tk, varname);
 			}
@@ -3168,11 +3169,15 @@ static const char * nameoftype(char ctype)
 	}
 }
 
-void Function::emitbody (Emit &e)
+void Function::emitparams (Emit &e)
 {
 	for (size_t i= 0; i < params.size(); ++i)
 		e << ".param " << nameoftype(paramtypes[i]) << ' ' <<
 				params[i] << '\n';
+}
+
+void Function::emitbody (Emit &e)
+{
 	e.annotate(start);
 	body->emit(e);
 }
@@ -3186,6 +3191,7 @@ void Function::emit (Emit &e)
 		e << " :main";
 	e << "\n";
 
+	emitparams(e);
 	emitbody(e);
 
 	e << ".end\n\n";
@@ -3223,12 +3229,32 @@ private:
 
 //**********************************************************************
 
+class Class
+{
+public:
+	Class(Tokenizer &tk, const Namespace & ns_a);
+	void emit (Emit &e);
+	std::vector <std::string> attributes() const { return attrs; }
+private:
+	std::string name;
+	Namespace ns;
+	std::vector <Token> parents;
+	std::vector <Function *> functions;
+	std::vector <std::string> attrs;
+};
+
+//**********************************************************************
+
 class Method : private MethodAttributes, public Function
 {
 public:
-	Method(Tokenizer &tk, const Namespace & ns_a, const std::string &name) :
+	Method(Tokenizer &tk,
+			const Namespace & ns_a,
+			Class &cl,
+			const std::string &name) :
 		MethodAttributes(tk, ns_a),
-		Function(tk, ns_a, name)
+		Function(tk, ns_a, name),
+		myclass(cl)
 	{
 		genlocal("self", 'P');
 	}
@@ -3244,27 +3270,24 @@ public:
 			e << " :method";
 
 		e << "\n";
-
+		emitparams(e);
+		std::vector <std::string> attrs= myclass.attributes();
+		for (size_t i= 0; i < attrs.size(); ++i)
+		{
+			std::string attr= attrs[i];
+			e << ".local pmc " << attr << "\n"
+				"getattribute " << attr << ", self, '" <<
+					attr << "'\n";
+		}
 		emitbody(e);
 
 		e << ".end\n\n";
 	}
+private:
+	const Class &myclass;
 };
 
 //**********************************************************************
-
-class Class
-{
-public:
-	Class(Tokenizer &tk, const Namespace & ns_a);
-	void emit (Emit &e);
-private:
-	std::string name;
-	Namespace ns;
-	std::vector <Token> parents;
-	std::vector <Function *> functions;
-	std::vector <std::string> attrs;
-};
 
 Class::Class(Tokenizer &tk, const Namespace & ns_a)
 {
@@ -3289,7 +3312,7 @@ Class::Class(Tokenizer &tk, const Namespace & ns_a)
 			Token name= tk.get();
 			if (! name.isidentifier() )
 				throw Expected("method name", name);
-			Function *f = new Method (tk, ns, name.str());
+			Function *f = new Method (tk, ns, *this, name.str());
 			functions.push_back(f);
 		}
 		else if (t.str() == "var")
