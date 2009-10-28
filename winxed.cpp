@@ -599,6 +599,20 @@ private:
 
 //**********************************************************************
 
+class AttributeAssignStatement : public SubStatement
+{
+public:
+	AttributeAssignStatement(Function &fn, Block &block,
+		Tokenizer &tk, const Token &name);
+private:
+	void emit (Emit &e);
+private:
+	const Token tname;
+	BaseExpr *st;
+};
+
+//**********************************************************************
+
 class Condition;
 
 //**********************************************************************
@@ -775,6 +789,21 @@ BaseStatement *parseStatement(Function &fn, Block &block, Tokenizer &tk)
 			return new AssignToStatement(fn, block, tk, t);
 		else if (t2.isop(':'))
 			return new LabelStatement(fn, block, t.identifier());
+		else if (t.iskeyword("self") && t2.isop('.'))
+		{
+			Token t3= tk.get();
+			Token t4= tk.get();
+			if (t4.isop('='))
+				return new AttributeAssignStatement(fn, block, tk, t3);
+			else
+			{
+				tk.unget(t4);
+				tk.unget(t3);
+				tk.unget(t2);
+				tk.unget(t);
+				return new ExprStatement(fn, block, tk);
+			}
+		}
 		else
 		{
 			tk.unget(t2);
@@ -2064,6 +2093,29 @@ void MethodCallExpr::emit(Emit &e, const std::string &result)
 
 //**********************************************************************
 
+class AttributeExpr : public BaseExpr
+{
+public:
+	AttributeExpr(Function &fn, Block &block, Token tobj, Token tname) :
+		BaseExpr(fn, block),
+		obj(tobj),
+		name(tname)
+	{
+	}
+private:
+	void emit(Emit &e, const std::string &result)
+	{
+		std::string r= genlocalregister('P');
+		e << "getattribute " << r << ", " << obj.identifier() <<
+			", '" << name.identifier() << "'\n"
+			"set " << result << ", " << r << '\n';
+	}
+	const Token obj;
+	const Token name;
+};
+
+//**********************************************************************
+
 class OpInstanceOf : public BaseExpr {
 public:
 	OpInstanceOf(Function &fn, Block &block, Token t,
@@ -2218,9 +2270,17 @@ void IndexExpr::emit(Emit &e, const std::string &result)
 
 BaseExpr * parseDotted(Function &fn, Block &block, Tokenizer &tk, Token t)
 {
-	Token t2= tk.get();
-	ExpectOp ('(', tk);
-	return new MethodCallExpr(fn, block, tk, t, t2);
+	Token tname= tk.get();
+	Token tpar= tk.get();
+	if (tpar.isop('('))
+	{
+		return new MethodCallExpr(fn, block, tk, t, tname);
+	}
+	else
+	{
+		tk.unget(tpar);
+		return new AttributeExpr(fn, block, t, tname);
+	}
 }
 
 BaseExpr * parseExpr_14(Function &fn, Block &block, Tokenizer &tk);
@@ -2804,6 +2864,57 @@ void AssignToStatement::emit (Emit &e)
 	}
 }
 
+void AttributeAssignStatement::emit (Emit &e)
+{
+	e.annotate(tname);
+	std::string varname = tname.identifier();
+	st= st->optimize();
+
+	std::string r= bl.genregister('P');
+	e << r << " = getattribute self, '" << varname << "'\n";
+	if (st->isinteger() || st->isstring())
+	{
+		std::string l= function->genlabel();
+		e << "unless null " << r << " goto " << l << "\n"
+			"new " << r << ", '" <<
+				(st->isinteger() ? "Integer" : "String") <<
+				"'\n"
+			"setattribute self, '" <<
+				varname << "', " << r << '\n' <<
+			l << ":\n";
+		e << "assign " << r << ", ";
+		st->emit(e, std::string());
+		e << '\n';
+	}
+	else
+	{
+		//st->emit(e, varname);
+		e << "assign " << varname << ", ";
+		st->emit(e, std::string());
+		e << '\n';
+	}
+}
+
+//**********************************************************************
+
+AttributeAssignStatement::AttributeAssignStatement(Function &fn, Block & block,
+		Tokenizer &tk, const Token &name) :
+	SubStatement (fn, block), tname(name), st(0)
+{
+	Token t= tk.get();
+	if (t.iskeyword("new"))
+	{
+		st = new NewExpr(fn, block, tk, t);
+		return;
+	}
+	else
+	{
+		tk.unget(t);
+		st = parseExpr(fn, block, tk);
+	}
+	ExpectOp(';', tk);
+}
+
 //**********************************************************************
 
 CompoundStatement::CompoundStatement(Function &fn, Block &parentblock,
@@ -3335,14 +3446,6 @@ public:
 
 		e << "\n";
 		emitparams(e);
-		std::vector <std::string> attrs= myclass.attributes();
-		for (size_t i= 0; i < attrs.size(); ++i)
-		{
-			std::string attr= attrs[i];
-			e << ".local pmc " << attr << "\n"
-				"getattribute " << attr << ", self, '" <<
-					attr << "'\n";
-		}
 		emitbody(e);
 
 		e << ".end\n\n";
