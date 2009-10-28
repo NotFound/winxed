@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 28-oct-2009
+// Revision 29-oct-2009
 
 #include "token.h"
 #include "errors.h"
@@ -1814,6 +1814,35 @@ void OpMulExpr::emit(Emit &e, const std::string &result)
 
 //**********************************************************************
 
+class OpDivExpr : public CommonBinOpExpr
+{
+public:
+	OpDivExpr(Function &fn, Block &block,
+		Token t, BaseExpr *first, BaseExpr *second);
+private:
+	void emit(Emit &e, const std::string &result);
+};
+
+OpDivExpr::OpDivExpr(Function &fn, Block &block,
+		Token t, BaseExpr *first, BaseExpr *second) :
+	CommonBinOpExpr(fn, block, t, first, second)
+{
+}
+
+void OpDivExpr::emit(Emit &e, const std::string &result)
+{
+	std::string res= result.empty() ? function->genregister('I') : result;
+	std::string op1= function->genregister('I');
+	std::string op2= function->genregister('I');
+	efirst->emit(e, op1);
+	esecond->emit(e, op2);
+	e << res << " = " << op1 << " / " << op2;
+	if (!result.empty())
+		e << '\n';
+}
+
+//**********************************************************************
+
 class ArrayExpr : public BaseExpr
 {
 public:
@@ -2382,10 +2411,13 @@ BaseExpr * parseExpr_5(Function &fn, Block &block, Tokenizer &tk)
 {
 	BaseExpr *subexpr= parseExpr_4(fn, block, tk);
 	Token t= tk.get();
-	while (t.isop('*') )
+	while (t.isop('*') || t.isop('/'))
 	{
 		BaseExpr *subexpr2= parseExpr_4(fn, block, tk);
-		subexpr= new OpMulExpr(fn, block, t, subexpr, subexpr2);
+		if (t.isop('*'))
+			subexpr= new OpMulExpr(fn, block, t, subexpr, subexpr2);
+		else
+			subexpr= new OpDivExpr(fn, block, t, subexpr, subexpr2);
 		t= tk.get();
 	}
 	tk.unget(t);
