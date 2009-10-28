@@ -3263,6 +3263,7 @@ private:
 	Namespace ns;
 	std::vector <Token> parents;
 	std::vector <Function *> functions;
+	std::vector <std::string> attrs;
 };
 
 Class::Class(Tokenizer &tk, const Namespace & ns_a)
@@ -3291,6 +3292,17 @@ Class::Class(Tokenizer &tk, const Namespace & ns_a)
 			Function *f = new Method (tk, ns, name.str());
 			functions.push_back(f);
 		}
+		else if (t.str() == "var")
+		{
+			do {
+				Token name= tk.get();
+				if (! name.isidentifier() )
+					throw Expected("identifier", name);
+				attrs.push_back(name.str());
+				t= tk.get();
+			} while (t.isop(','));
+			RequireOp(';', t);
+		}
 		else
 			throw Expected ("'function' or '}'", t);
 	}
@@ -3318,6 +3330,11 @@ void Class::emit (Emit &e)
 
 		e << "\n"
 			"addparent $P0, " << p << "\n";
+	}
+	for (size_t i= 0; i < attrs.size(); ++i)
+	{
+		std::string attr= attrs[i];
+		e << "addattribute $P0, '" << attr << "'\n";
 	}
 
 	e << ".end\n";

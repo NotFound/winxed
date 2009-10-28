@@ -2,6 +2,7 @@
 
 class Foo
 {
+	var n;
 	function f1() { return "Foo.f1"; }
 	function f2() { return "Foo.f2"; }
 	function f3() { return self.f1(); }
