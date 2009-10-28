@@ -3329,8 +3329,9 @@ Function::Function(Tokenizer &tk,
 			else if (type == "string") ctype = 'S';
 			else if (type == "var") ctype = 'P';
 			if (ctype == '\0')
-				throw CompileError ("type invalid in function", t);
-			t= tk.get();
+				ctype= 'P';
+			else
+				t= tk.get();
 			std::string name= t.identifier();
 			params.push_back(name);
 			paramtypes.push_back(ctype);

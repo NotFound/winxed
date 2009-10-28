@@ -1,4 +1,4 @@
-function main(var args)
+function main(args)
 {
 	using extern Curses;
 
