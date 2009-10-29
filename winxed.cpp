@@ -1496,6 +1496,48 @@ void OpGreaterExpr::emit(Emit &e, const std::string &result)
 
 //**********************************************************************
 
+class OpAddToExpr : public CommonBinOpExpr
+{
+public:
+	OpAddToExpr(Function &fn, Block &block,
+			Token t, BaseExpr *first, BaseExpr *second) :
+		CommonBinOpExpr(fn, block, t, first, second)
+	{
+	}
+private:
+	bool isinteger() const { return efirst->isinteger(); }
+	bool isstring() const { return efirst->isstring(); }
+	BaseExpr *optimize()
+	{
+		optimize_operands();
+		return this;
+	}
+	void emit(Emit &e, const std::string &result)
+	{
+		if (efirst->isidentifier())
+		{
+			if (efirst->isstring())
+			{
+				std::string reg= genlocalregister('S');
+				esecond->emit(e, reg);
+				e << "concat " << efirst->getidentifier() <<
+					", " << reg << '\n';
+			}
+			else
+			{
+				e << "add " << efirst->getidentifier() << ", ";
+				esecond->emit(e, "");
+				e << '\n';
+			}
+			if (! result.empty())
+				e << "assign " << result << ", " <<
+					efirst->getidentifier() << '\n';
+		}
+	}
+};
+
+//**********************************************************************
+
 class OpAddExpr : public CommonBinOpExpr
 {
 public:
@@ -1635,7 +1677,7 @@ BaseExpr *OpSubExpr::optimize()
 		Token t2= dynamic_cast<SimpleExpr *>(esecond)->get();
 		if (t1.isinteger() && t2.isinteger())
 		{
-			//std::cerr << "OpAddExpr::optimize int\n";
+			//std::cerr << "OpSubExpr::optimize int\n";
 
 			int n1= t1.getinteger();
 			int n2= t2.getinteger();
@@ -2591,9 +2633,22 @@ BaseExpr * parseExpr_14(Function &fn, Block &block, Tokenizer &tk)
 	return subexpr;
 }
 
+BaseExpr * parseExpr_16(Function &fn, Block &block, Tokenizer &tk)
+{
+	BaseExpr *subexpr= parseExpr_14(fn, block, tk);
+	Token t;
+	while ((t= tk.get()).isop("+="))
+	{
+		BaseExpr *subexpr2= parseExpr_14(fn, block, tk);
+		subexpr= new OpAddToExpr(fn, block, t, subexpr, subexpr2);
+	}
+	tk.unget(t);
+	return subexpr;
+}
+
 BaseExpr * parseExpr(Function &fn, Block &block, Tokenizer &tk)
 {
-	return parseExpr_14(fn, block, tk);
+	return parseExpr_16(fn, block, tk);
 }
 
 //**********************************************************************

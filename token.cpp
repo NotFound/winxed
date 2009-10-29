@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 28-oct-2009
+// Revision 29-oct-2009
 
 #include "token.h"
 #include "errors.h"
@@ -370,10 +370,14 @@ Token Tokenizer::getany ()
 		return Token(TokenTInteger, s, linenum, name);
 	case '+':
 		c= getchar();
-		if (c == '+')
+		switch (c) {
+		case '+':
+		case '=':
 			s+= c;
-		else
+			break;
+		default:
 			ungetchar(c);
+		}
 		break;
 	case '-':
 		c= getchar();

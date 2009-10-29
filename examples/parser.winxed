@@ -43,10 +43,10 @@ function getquoted(tk, string start)
     {
         if (c == '')
             throw Error('Unterminated string');
-        s= s + c;
+        s+= c;
         c= tk.getchar();
     }
-    s= s + c;
+    s+= c;
     return s;
 }
 
@@ -58,10 +58,10 @@ function getsinglequoted(tk, string start)
     {
         if (c == '')
             throw Error('Unterminated string');
-        s= s + c;
+        s+= c;
         c= tk.getchar();
     }
-    s= s + c;
+    s+= c;
     return s;
 }
 
@@ -71,7 +71,7 @@ function getident(tk, string start)
     string c= tk.getchar();
     while (isident(c))
     {
-        s= s + c;
+        s+= c;
         c= tk.getchar();
     }
     return s;
@@ -83,7 +83,7 @@ function getlinecomment(tk, string start)
     string c= tk.getchar();
     while (c != '' && c != "\n")
     {
-        s= s + c;
+        s+= c;
         c= tk.getchar();
     }
     return s;
@@ -95,15 +95,15 @@ function getcomment(tk, string start)
     string c= tk.getchar();
 next:
     while (c != '' && c != '*')
-    { s= s + c; c= tk.getchar(); }
+    { s+= c; c= tk.getchar(); }
     if (c == '')
         throw Error("Unclosed comment");
     c= tk.getchar();
     if (c == '')
         throw Error("Unclosed comment");
     if (c != '/')
-    { s= s + '*' + c; goto next; }
-    s= s + '*/';
+    { s+= '*' + c; goto next; }
+    s+= '*/';
     return s;
 }
 
