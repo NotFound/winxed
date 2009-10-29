@@ -789,7 +789,7 @@ BaseStatement *parseStatement(Function &fn, Block &block, Tokenizer &tk)
 			return new AssignToStatement(fn, block, tk, t);
 		else if (t2.isop(':'))
 			return new LabelStatement(fn, block, t.identifier());
-		else if (t.iskeyword("self") && t2.isop('.'))
+		else if (t2.isop('.'))
 		{
 			Token t3= tk.get();
 			Token t4= tk.get();
