@@ -37,14 +37,23 @@ function isident(string c)
 
 class Token
 {
-	var type;
-	var str;
-	function get_string[vtable]()
-	{
-		if (self.type == 0)
-			return '"' + self.str + '"';
-		return self.str;
-	}
+    var type;
+    var str;
+    var line;
+    function get_bool[vtable]()
+    {
+        int eof = self.type == -1;
+        return eof;
+    }
+    function get_string[vtable]()
+    {
+        string str= self.str;
+        if (self.type == 1)
+            str= '"' + str + '"';
+        else if (self.type == 2)
+            str= "'" + str + "'";
+        return str;
+    }
 }
 
 //*********************************************
@@ -53,7 +62,8 @@ class Token
 
 function getquoted(tk, string start)
 {
-    string s= start;
+    int line= tk.line;
+    string s;
     string c= tk.getchar();
     while (c != '"')
     {
@@ -62,15 +72,15 @@ function getquoted(tk, string start)
         s+= c;
         c= tk.getchar();
     }
-    s+= c;
     var t= new Token;
-    t.type= 0; t.str= s;
+    t.type= 2; t.str= s; t.line= line;
     return t;
 }
 
 function getsinglequoted(tk, string start)
 {
-    string s= start;
+    int line= tk.line;
+    string s;
     string c= tk.getchar();
     while (c != "'")
     {
@@ -79,12 +89,14 @@ function getsinglequoted(tk, string start)
         s+= c;
         c= tk.getchar();
     }
-    s+= c;
-    return s;
+    var t= new Token;
+    t.type= 3; t.str= s; t.line= line;
+    return t;
 }
 
 function getident(tk, string start)
 {
+    int line= tk.line;
     string s= start;
     string c= tk.getchar();
     while (isident(c))
@@ -92,11 +104,15 @@ function getident(tk, string start)
         s+= c;
         c= tk.getchar();
     }
-    return s;
+    tk.ungetchar(c);
+    var t= new Token;
+    t.type= 4; t.str= s; t.line= line;
+    return t;
 }
 
 function getlinecomment(tk, string start)
 {
+    int line= tk.line;
     string s= start;
     string c= tk.getchar();
     while (c != '' && c != "\n")
@@ -104,11 +120,14 @@ function getlinecomment(tk, string start)
         s+= c;
         c= tk.getchar();
     }
-    return s;
+    var t= new Token;
+    t.type= 0; t.str= s; t.line= line;
+    return t;
 }
 
 function getcomment(tk, string start)
 {
+    int line= tk.line;
     string s= start;
     string c= tk.getchar();
 next:
@@ -122,12 +141,18 @@ next:
     if (c != '/')
     { s+= '*' + c; goto next; }
     s+= '*/';
-    return s;
+    var t= new Token;
+    t.type= 0; t.str= s; t.line= line;
+    return t;
 }
 
 function getop(tk, string start)
 {
-    return start;
+    int line= tk.line;
+    string s= start;
+    var t= new Token;
+    t.type= 5; t.str= s; t.line= line;
+    return t;
 }
 
 //*********************************************
@@ -139,11 +164,13 @@ class Tokenizer
     var h;
     var pending;
     var select;
+    var line;
     function init(handle)
     {
         self.h= handle;
         var pending= new 'String';
         self.pending= pending;
+	self.line= 1;
         var select = {
             '"': { '': getquoted },
             "'": { '': getsinglequoted },
@@ -166,6 +193,12 @@ class Tokenizer
         }
         var h= self.h;
         string c= h.read(1);
+	if (c == "\n")
+	{
+		int l=self.line;
+		++l;
+		self.line= l;
+	}
         return c;
     }
     function ungetchar(string c)
@@ -177,7 +210,11 @@ class Tokenizer
     skip:
         string c= self.getchar();
         if (c == '')
-            return c;
+        {
+            var t= new Token;
+            t.type= -1;
+            return t;
+        }
         if (isspace(c)) goto skip;
         if (isidentstart(c)) return getident(self, c);
         var select = self.select;
@@ -199,7 +236,13 @@ class Tokenizer
                     return current2(self, c);
             }
         }
-        return c;
+	else
+	{
+            int line= self.line;
+            var t= new Token;
+            t.type= 5; t.str= c; t.line= line;
+            return t;
+        }
     }
 }
 
@@ -220,10 +263,17 @@ function parser(argv)
     var t= new Tokenizer;
     t.init(file);
 
-    string c;
+    var c;
+    int line= 0;
     c= t.get();
-    while (length(c) > 0)
+    while (! c)
     {
+    	int newline= c.line;
+	if (newline != line)
+	{
+	    line= newline;
+	    say(); print(line, ': ');
+	}
         print(" [", c, "]");
         c= t.get();
     }
@@ -234,14 +284,14 @@ function parser(argv)
 function main(argv)
 {
     argv.shift();
-    /*try*/ parser(argv);
-    /*
+    try parser(argv);
+    /**/
     catch (e)
     {
         string msg= e['message'];
         say('Error: ', msg);
     }
-    */
+    /**/
 }
 
 // End

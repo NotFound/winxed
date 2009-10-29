@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 29-oct-2009
+// Revision 30-oct-2009
 
 #include "token.h"
 #include "errors.h"
@@ -1070,7 +1070,7 @@ public:
 	{
 	}
 private:
-	bool isinteger () const { return expr->isinteger(); }
+	bool isinteger () const { return true; }
 	BaseExpr *optimize()
 	{
 		expr= expr->optimize();
@@ -1086,11 +1086,17 @@ private:
 	}
 	void emit(Emit &e, const std::string &result)
 	{
-		std::string arg= genlocalregister('I');
+		std::string arg= genlocalregister(expr->isinteger() ? 'I' : 'P');
 		expr->emit(e, arg);
-		std::string r= result.empty() ? genlocalregister('I') : result;
+		std::string r= result.empty() ?
+			genlocalregister('I') :
+			result;
 		e.annotate(start);
-		e << r << " = not " << arg;
+		if (expr->isinteger())
+			e << "not ";
+		else
+			e << "isfalse ";
+		e << r << ", " << arg;
 		if (! result.empty() )
 			e << '\n';
 	}
