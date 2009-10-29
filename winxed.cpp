@@ -2410,15 +2410,14 @@ BaseExpr * parseExpr_4(Function &fn, Block &block, Tokenizer &tk)
 BaseExpr * parseExpr_5(Function &fn, Block &block, Tokenizer &tk)
 {
 	BaseExpr *subexpr= parseExpr_4(fn, block, tk);
-	Token t= tk.get();
-	while (t.isop('*') || t.isop('/'))
+	Token t;
+	while ((t= tk.get()).isop('*') || t.isop('/'))
 	{
 		BaseExpr *subexpr2= parseExpr_4(fn, block, tk);
 		if (t.isop('*'))
 			subexpr= new OpMulExpr(fn, block, t, subexpr, subexpr2);
 		else
 			subexpr= new OpDivExpr(fn, block, t, subexpr, subexpr2);
-		t= tk.get();
 	}
 	tk.unget(t);
 	return subexpr;
@@ -2427,15 +2426,14 @@ BaseExpr * parseExpr_5(Function &fn, Block &block, Tokenizer &tk)
 BaseExpr * parseExpr_6(Function &fn, Block &block, Tokenizer &tk)
 {
 	BaseExpr *subexpr= parseExpr_5(fn, block, tk);
-	Token t= tk.get();
-	while (t.isop('+') || t.isop('-'))
+	Token t;
+	while ((t= tk.get()).isop('+') || t.isop('-'))
 	{
 		BaseExpr *subexpr2= parseExpr_5(fn, block, tk);
 		if (t.isop('+'))
 			subexpr= new OpAddExpr(fn, block, t, subexpr, subexpr2);
 		else
 			subexpr= new OpSubExpr(fn, block, t, subexpr, subexpr2);
-		t= tk.get();
 	}
 	tk.unget(t);
 	return subexpr;
@@ -2522,32 +2520,26 @@ BaseExpr * parseExpr_12(Function &fn, Block &block, Tokenizer &tk)
 BaseExpr * parseExpr_13(Function &fn, Block &block, Tokenizer &tk)
 {
 	BaseExpr *subexpr= parseExpr_12(fn, block, tk);
-	Token t= tk.get();
-	if (t.isop("&&"))
+	Token t;
+	while ((t= tk.get()).isop("&&"))
 	{
 		BaseExpr *subexpr2= parseExpr_12(fn, block, tk);
 		subexpr= new OpBoolAndExpr(fn, block, t, subexpr, subexpr2);
 	}
-	else
-	{
-		tk.unget(t);
-	}
+	tk.unget(t);
 	return subexpr;
 }
 
 BaseExpr * parseExpr_14(Function &fn, Block &block, Tokenizer &tk)
 {
 	BaseExpr *subexpr= parseExpr_13(fn, block, tk);
-	Token t= tk.get();
-	if (t.isop("||"))
+	Token t;
+	while ((t= tk.get()).isop("||"))
 	{
 		BaseExpr *subexpr2= parseExpr_13(fn, block, tk);
 		subexpr= new OpBoolOrExpr(fn, block, t, subexpr, subexpr2);
 	}
-	else
-	{
-		tk.unget(t);
-	}
+	tk.unget(t);
 	return subexpr;
 }
 
