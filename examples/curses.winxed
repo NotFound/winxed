@@ -18,8 +18,10 @@ function main(args)
 	var scr= initscr();
 	int maxx= getmaxx(scr);
 	int maxy= getmaxy(scr);
-	string s= args[1];
-	if (s == '') s= 'Hello, world!';
+	int argc = args;
+	string s;
+	if (argc > 1) s= args[1];
+	else          s= 'Hello, world!';
 
 	int x = maxx - length(s);
 	if (x < 0) x= 0;
