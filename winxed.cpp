@@ -1937,16 +1937,46 @@ HashExpr::HashExpr(Function &fn, Block &block, Tokenizer &tk) :
 class EmitItem
 {
 public:
-	EmitItem(Emit &em, const std::string reg) : e(&em), r(reg) { }
+	EmitItem(Emit &em, Function & function, HashExpr &block,
+			const std::string reg) :
+		e(&em), fn(function), bl(block), r(reg) { }
 	void operator() (std::pair<std::string, BaseExpr *> elem)
 	{
 		BaseExpr *value= elem.second->optimize();
-		(*e) << r << " [" << elem.first << "] = ";
-		value->emit(*e, std::string());
-		(*e) << '\n';
+		std::string reg;
+		if (value->isidentifier() )
+		{
+			std::string id= value->getidentifier();
+			if (bl.checklocal(id))
+				reg= id;
+			else
+			{
+				reg = fn.genregister('P');
+				(*e) << "get_hll_global " << reg << ", '" <<
+					id << "'\n";
+			}
+		}
+		else if (value->isinteger())
+		{
+			reg = fn.genregister('I');
+			value->emit(*e, reg);
+		}
+		else if (value->isstring())
+		{
+			reg = fn.genregister('S');
+			value->emit(*e, reg);
+		}
+		else
+		{
+			reg = fn.genregister('P');
+			value->emit(*e, reg);
+		}
+		(*e) << r << " [" << elem.first << "] = " << reg << '\n';
 	}
 private:
 	Emit *e;
+	Function &fn;
+	HashExpr &bl;
 	std::string r;
 };
 
@@ -1954,7 +1984,7 @@ void HashExpr::emit(Emit &e, const std::string &result)
 {
 	std::string reg = function->genregister('P');
 	e << reg << " = root_new ['parrot';'Hash']\n";
-	std::for_each(elems.begin(), elems.end(), EmitItem(e, reg) );
+	std::for_each(elems.begin(), elems.end(), EmitItem(e, *function, *this, reg) );
 	if (!result.empty())
 		e << result << " = " << reg << '\n';
 }
@@ -3102,6 +3132,8 @@ public:
 	Condition (Function &fn, Block &block, Tokenizer &tk);
 	Condition *optimize();
 	bool issimple() const;
+	bool isinteger() const { return expr->isinteger(); }
+	bool isstring() const { return expr->isstring(); }
 	bool isliteralinteger() const;
 	std::string value() const;
 	std::string emit(Emit &e);
@@ -3217,7 +3249,13 @@ void IfStatement::emit(Emit &e)
 	std::string l_else= label + "_ELSE";
 	std::string l_endif= label + "_ENDIF";
 	std::string reg = condition->emit(e);
-	e << "\n"
+	e << "\n";
+	if (!(condition->isinteger() || condition->isstring()))
+	{
+		e << "if null " << reg << " goto " <<
+			(!stelse->isempty() ? l_else : l_endif) << '\n';
+	}
+	e <<
 		"unless " << reg << " goto " <<
 			(!stelse->isempty() ? l_else : l_endif) << '\n';
 	if (!st->isempty())

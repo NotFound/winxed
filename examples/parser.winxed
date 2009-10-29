@@ -1,172 +1,229 @@
 #! winxed
 
-// parser tests
+// parsing example
+
+//*********************************************
+//          Character test functions
+//*********************************************
 
 function isspace(string c)
 {
-	int r= c == ' ' || c == "\n" || c == "\t";
-	return r;
+    int r= c == ' ' || c == "\n" || c == "\t";
+    return r;
 }
 
 function isidentstart(string c)
 {
-	int r= indexof(
-		'abcdefghijklmnopqrstuvwxyz' +
-		'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '_', c);
-	r= r > -1;
-	return r;
+    int r= indexof(
+        'abcdefghijklmnopqrstuvwxyz' +
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '_', c);
+    r= r > -1;
+    return r;
 }
 
 function isident(string c)
 {
-	int r= indexof(
-		'abcdefghijklmnopqrstuvwxyz' +
-		'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '_' +
-		'0123456789', c);
-	r= r > -1;
-	return r;
+    int r= indexof(
+        'abcdefghijklmnopqrstuvwxyz' +
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '_' +
+        '0123456789', c);
+    r= r > -1;
+    return r;
 }
 
-/*****************************************/
+//*********************************************
+//       Tokenizer auxiliar functions
+//*********************************************
+
+function getquoted(tk, string start)
+{
+    string s= start;
+    string c= tk.getchar();
+    while (c != '"')
+    {
+        if (c == '')
+            throw Error('Unterminated string');
+        s= s + c;
+        c= tk.getchar();
+    }
+    s= s + c;
+    return s;
+}
+
+function getsinglequoted(tk, string start)
+{
+    string s= start;
+    string c= tk.getchar();
+    while (c != "'")
+    {
+        if (c == '')
+            throw Error('Unterminated string');
+        s= s + c;
+        c= tk.getchar();
+    }
+    s= s + c;
+    return s;
+}
+
+function getident(tk, string start)
+{
+    string s= start;
+    string c= tk.getchar();
+    while (isident(c))
+    {
+        s= s + c;
+        c= tk.getchar();
+    }
+    return s;
+}
+
+function getlinecomment(tk, string start)
+{
+    string s= start;
+    string c= tk.getchar();
+    while (c != '' && c != "\n")
+    {
+        s= s + c;
+        c= tk.getchar();
+    }
+    return s;
+}
+
+function getcomment(tk, string start)
+{
+    string s= start;
+    string c= tk.getchar();
+next:
+    while (c != '' && c != '*')
+    { s= s + c; c= tk.getchar(); }
+    if (c == '')
+        throw Error("Unclosed comment");
+    c= tk.getchar();
+    if (c == '')
+        throw Error("Unclosed comment");
+    if (c != '/')
+    { s= s + '*' + c; goto next; }
+    s= s + '*/';
+    return s;
+}
+
+function getop(tk, string start)
+{
+    return start;
+}
+
+//*********************************************
+//              Tokenizer
+//*********************************************
 
 class Tokenizer
 {
-	var h;
-	var pending;
-	function init(handle)
-	{
-		self.h= handle;
-		var pending= new 'String';
-		self.pending= pending;
-	}
-	function getchar()
-	{
-		string pending= self.pending;
-		if (pending != '')
-		{
-			self.pending= '';
-			return pending;
-		}
-		var h= self.h;
-		string c= h.read(1);
-		return c;
-	}
-	function ungetchar(string c)
-	{
-		self.pending= c;
-	}
-	function getident(string c)
-	{
-		string s= c;
-	next:
-		c= self.getchar();
-		if (isident(c))
-		{
-			s= s + c;
-			goto next;
-		}
-		return s;
-	}
-	function get()
-	{
-	skip:
-		string c= self.getchar();
-		if (c == '')
-			return c;
-		if (isspace(c)) goto skip;
-		if (isidentstart(c)) return self.getident(c);
-		if (c == '/')
-		{
-			c= self.getchar();
-			if (c == '/')
-			{
-				string s= '/';
-				while (c != "\n")
-				{
-					s= s + c;
-					c= self.getchar();
-				}
-				return s;
-			}
-			else if (c == '*')
-			{
-				string s= '/*';
-				c= self.getchar();
-			next:
-				while (c != '' && c != '*')
-					{ s= s + c; c= self.getchar(); }
-				if (c == '')
-					throw Error("Unclosed comment");
-				c= self.getchar();
-				if (c == '')
-					throw Error("Unclosed comment");
-				if (c != '/')
-					{ s= s + '*' + c; goto next; }
-				s= s + '*/';
-				return s;
-			}
-			else
-			{
-				self.ungetchar(c);
-				return '/';
-			}
-		}
-		if (c == '=')
-		{
-			c= self.getchar();
-			if (c == '=')
-				return "==";
-			else
-			{
-				self.ungetchar(c);
-				return '=';
-			}
-		}
-		string s= c;
-	next:
-		c= self.getchar();
-		if (c != '' && !isspace(c) )
-		{
-			s= s + c;
-			goto next;
-		}
-		return s;
-	}
+    var h;
+    var pending;
+    var select;
+    function init(handle)
+    {
+        self.h= handle;
+        var pending= new 'String';
+        self.pending= pending;
+        var select = {
+            '"': { '': getquoted },
+            "'": { '': getsinglequoted },
+            '=': { '': getop, '=': getop },
+            '|': { '': getop, '|': getop },
+            '&': { '': getop, '&': getop },
+            '!': { '': getop, '=': getop },
+            '/': { '/': getlinecomment, '*': getcomment },
+            '#': { '': getlinecomment }
+        };
+        self.select= select;
+    }
+    function getchar()
+    {
+        string pending= self.pending;
+        if (pending != '')
+        {
+            self.pending= '';
+            return pending;
+        }
+        var h= self.h;
+        string c= h.read(1);
+        return c;
+    }
+    function ungetchar(string c)
+    {
+        self.pending= c;
+    }
+    function get()
+    {
+    skip:
+        string c= self.getchar();
+        if (c == '')
+            return c;
+        if (isspace(c)) goto skip;
+        if (isidentstart(c)) return getident(self, c);
+        var select = self.select;
+        var current= select[c];
+        if (current)
+        {
+            string c2= self.getchar();
+            var current2= current[c2];
+            if (current2)
+            {
+                c= c + c2;
+                return current2(self, c);
+            }
+            else
+            {
+                self.ungetchar(c2);
+                current2= current[''];
+                if (current2)
+                    return current2(self, c);
+            }
+        }
+        return c;
+    }
 }
+
+//*********************************************
+//            Main functions
+//*********************************************
 
 function parser(argv)
 {
-	int argc= argv;
-	if (argc == 0)
-		throw Error('No file');
-	var file= new 'FileHandle';
-	file.open(argv[0]); // Must throw on error
+    // Simple example, get tokens and prints them.
 
-	var t= new Tokenizer;
-	t.init(file);
+    int argc= argv;
+    if (argc == 0)
+        throw Error('No file');
+    var file= new 'FileHandle';
+    file.open(argv[0]); // Must throw on error
 
-	string c;
-	c= t.get();
-	while (length(c) > 0)
-	{
-		print(" [", c, "]");
-		c= t.get();
-	}
-	say('');
-	file.close();
+    var t= new Tokenizer;
+    t.init(file);
+
+    string c;
+    c= t.get();
+    while (length(c) > 0)
+    {
+        print(" [", c, "]");
+        c= t.get();
+    }
+    say('');
+    file.close();
 }
 
 function main(argv)
 {
-	argv.shift();
-	try parser(argv);
-	/**/
-	catch (e)
-	{
-		string msg= e['message'];
-		say('Error: ', msg);
-	}
-	/**/
+    argv.shift();
+    try parser(argv);
+    /**/
+    catch (e)
+    {
+        string msg= e['message'];
+        say('Error: ', msg);
+    }
+    /**/
 }
 
 // End
