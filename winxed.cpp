@@ -576,6 +576,7 @@ class AssignStatement : public SubStatement
 public:
 	AssignStatement(Function &fn, Block & block,
 		Tokenizer &tk, const Token &name);
+	BaseStatement *optimize();
 	void emit (Emit &e);
 private:
 	const Token tname;
@@ -1848,6 +1849,12 @@ class ArrayExpr : public BaseExpr
 public:
 	ArrayExpr(Function &fn, Block &block, Tokenizer &tk);
 private:
+	BaseExpr *optimize()
+	{
+		for (size_t i= 0; i < elems.size(); ++i)
+			elems[i]= elems[i]->optimize();
+		return this;
+	}
 	void emit(Emit &e, const std::string &result);
 	std::vector<BaseExpr *> elems;
 };
@@ -1874,7 +1881,7 @@ void ArrayExpr::emit(Emit &e, const std::string &result)
 	e << reg << " = root_new ['parrot';'ResizablePMCArray']\n";
 	for (size_t i= 0; i < elems.size(); ++i)
 	{
-		BaseExpr *elem= elems[i]->optimize();
+		BaseExpr *elem= elems[i];
 		std::string el = function->genregister('P');
 		if (elem->issimple() && !elem->isidentifier())
 		{
@@ -1901,6 +1908,17 @@ class HashExpr : public BaseExpr
 public:
 	HashExpr(Function &fn, Block &block, Tokenizer &tk);
 private:
+	BaseExpr *optimize()
+	{
+		for (std::map<std::string, BaseExpr *>::iterator
+			it= elems.begin();
+			it != elems.end();
+			++it)
+		{
+			it->second= it->second->optimize();
+		}
+		return this;
+	}
 	void emit(Emit &e, const std::string &result);
 	std::map<std::string, BaseExpr *> elems;
 };
@@ -1942,7 +1960,7 @@ public:
 		e(&em), fn(function), bl(block), r(reg) { }
 	void operator() (std::pair<std::string, BaseExpr *> elem)
 	{
-		BaseExpr *value= elem.second->optimize();
+		BaseExpr *value= elem.second;
 		std::string reg;
 		if (value->isidentifier() )
 		{
@@ -2781,6 +2799,13 @@ AssignStatement::AssignStatement(Function &fn, Block & block,
 	//std::cerr << "AssignStatement end\n";
 }
 
+BaseStatement *AssignStatement::optimize()
+{
+	if (st)
+		st= st->optimize();
+	return this;
+}
+
 void AssignStatement::emit (Emit &e)
 {
 	std::string varname = tname.identifier();
@@ -2790,7 +2815,6 @@ void AssignStatement::emit (Emit &e)
 		{
 			//std::cerr << "AssignStatement::emit\n";
 
-			st= st->optimize();
 			char type = bl.checklocal(varname);
 			switch (type)
 			{
