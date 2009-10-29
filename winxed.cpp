@@ -1291,20 +1291,16 @@ CompareOpExpr::CompareOpExpr(Function &fn, Block &block,
 
 //**********************************************************************
 
-class OpEqualExpr : public CommonBinOpExpr
+class OpEqualExpr : public CompareOpExpr
 {
 public:
 	OpEqualExpr(Function &fn, Block &block,
-		Token t, BaseExpr *first, BaseExpr *second);
+			Token t, BaseExpr *first, BaseExpr *second) :
+		CompareOpExpr(fn, block, t, first, second)
+	{ }
 private:
 	void emit(Emit &e, const std::string &result);
 };
-
-OpEqualExpr::OpEqualExpr(Function &fn, Block &block,
-		Token t, BaseExpr *first, BaseExpr *second) :
-	CommonBinOpExpr(fn, block, t, first, second)
-{
-}
 
 void OpEqualExpr::emit(Emit &e, const std::string &result)
 {
@@ -1365,20 +1361,16 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
 
 //**********************************************************************
 
-class OpNotEqualExpr : public CommonBinOpExpr
+class OpNotEqualExpr : public CompareOpExpr
 {
 public:
 	OpNotEqualExpr(Function &fn, Block &block,
-		Token t, BaseExpr *first, BaseExpr *second);
+			Token t, BaseExpr *first, BaseExpr *second) :
+		CompareOpExpr(fn, block, t, first, second)
+	{ }
 private:
 	void emit(Emit &e, const std::string &result);
 };
-
-OpNotEqualExpr::OpNotEqualExpr(Function &fn, Block &block,
-		Token t, BaseExpr *first, BaseExpr *second) :
-	CommonBinOpExpr(fn, block, t, first, second)
-{
-}
 
 void OpNotEqualExpr::emit(Emit &e, const std::string &result)
 {
@@ -1391,7 +1383,7 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
 		esecond->emit(e, op2);
 		e << res << " = isne " << op1 << " , " << op2;
 	}
-	else if (isinteger())
+	else if (efirst->isinteger() && esecond->isinteger())
 	{
 		std::string op1= function->genregister('I');
 		std::string op2= function->genregister('I');

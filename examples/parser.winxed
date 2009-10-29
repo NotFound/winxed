@@ -32,6 +32,22 @@ function isident(string c)
 }
 
 //*********************************************
+//                Token
+//*********************************************
+
+class Token
+{
+	var type;
+	var str;
+	function get_string[vtable]()
+	{
+		if (self.type == 0)
+			return '"' + self.str + '"';
+		return self.str;
+	}
+}
+
+//*********************************************
 //       Tokenizer auxiliar functions
 //*********************************************
 
@@ -47,7 +63,9 @@ function getquoted(tk, string start)
         c= tk.getchar();
     }
     s+= c;
-    return s;
+    var t= new Token;
+    t.type= 0; t.str= s;
+    return t;
 }
 
 function getsinglequoted(tk, string start)
@@ -216,14 +234,14 @@ function parser(argv)
 function main(argv)
 {
     argv.shift();
-    try parser(argv);
-    /**/
+    /*try*/ parser(argv);
+    /*
     catch (e)
     {
         string msg= e['message'];
         say('Error: ', msg);
     }
-    /**/
+    */
 }
 
 // End
