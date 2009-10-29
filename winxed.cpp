@@ -604,10 +604,11 @@ class AttributeAssignStatement : public SubStatement
 {
 public:
 	AttributeAssignStatement(Function &fn, Block &block,
-		Tokenizer &tk, const Token &name);
+		Tokenizer &tk, const Token &object, const Token &name);
 private:
 	void emit (Emit &e);
 private:
+	const Token tobject;
 	const Token tname;
 	BaseExpr *st;
 };
@@ -795,7 +796,7 @@ BaseStatement *parseStatement(Function &fn, Block &block, Tokenizer &tk)
 			Token t3= tk.get();
 			Token t4= tk.get();
 			if (t4.isop('='))
-				return new AttributeAssignStatement(fn, block, tk, t3);
+				return new AttributeAssignStatement(fn, block, tk, t, t3);
 			else
 			{
 				tk.unget(t4);
@@ -2181,19 +2182,24 @@ void MethodCallExpr::emit(Emit &e, const std::string &result)
 	std::vector<std::string> argregs;
 	for (size_t i= 0; i < args.size(); ++i)
 	{
-		if (! args[i]->issimple() )
+		BaseExpr &arg= * args[i];
+		if (! arg.issimple() )
 		{
-			std::string reg= function->genregister('P');
-			args[i]->emit(e, reg);
+			std::string reg= function->genregister(arg.isinteger() ? 'I' : 'P');
+			arg.emit(e, reg);
 			argregs.push_back(reg);
 		}
 		else
 			argregs.push_back(std::string());
 	}
 
+	e.annotate(object);
+
 	if (!result.empty() )
 		e << result << " = ";
+
 	e << object.identifier() << ".'" << method.identifier() << "'(";
+
 	for (size_t i= 0; i < args.size(); ++i)
 	{
 		if (i > 0)
@@ -3000,8 +3006,11 @@ void AssignToStatement::emit (Emit &e)
 //**********************************************************************
 
 AttributeAssignStatement::AttributeAssignStatement(Function &fn, Block & block,
-		Tokenizer &tk, const Token &name) :
-	SubStatement (fn, block), tname(name), st(0)
+		Tokenizer &tk, const Token &object, const Token &name) :
+	SubStatement (fn, block),
+	tobject(object),
+	tname(name),
+	st(0)
 {
 	Token t= tk.get();
 	if (t.iskeyword("new"))
@@ -3024,15 +3033,17 @@ void AttributeAssignStatement::emit (Emit &e)
 	st= st->optimize();
 
 	std::string r= bl.genregister('P');
+	const std::string objname= tobject.identifier();
 	if (st->isinteger() || st->isstring())
 	{
-		e << "getattribute " << r << ", self, '" << varname << "'\n";
+		e << "getattribute " << r << ", " << objname <<
+			", '" << varname << "'\n";
 		std::string l= function->genlabel();
 		e << "unless null " << r << " goto " << l << "\n"
 			"new " << r << ", '" <<
 				(st->isinteger() ? "Integer" : "String") <<
 				"'\n"
-			"setattribute self, '" <<
+			"setattribute "<< objname << ", '" <<
 				varname << "', " << r << '\n' <<
 			l << ":\n";
 		e << "assign " << r << ", ";
@@ -3044,7 +3055,7 @@ void AttributeAssignStatement::emit (Emit &e)
 		e << "set " << r << ", ";
 		st->emit(e, std::string());
 		e << "\n"
-			"setattribute self, '" << varname <<
+			"setattribute " << objname << ", '" << varname <<
 				"', " << r << '\n';
 	}
 }
