@@ -1,5 +1,5 @@
 // predef.cpp
-// Revision 27-oct-2009
+// Revision 29-oct-2009
 
 #include "predef.h"
 
@@ -49,6 +49,13 @@ void emit_predef(std::ostream & os)
 "  .param int n\n"
 "  $S0 = substr s, n\n"
 "  .return($S0)\n"
+".end\n"
+"\n"
+".sub 'indexof'\n"
+"  .param string s1\n"
+"  .param string s2\n"
+"  $I0 = index s1, s2\n"
+"  .return($I0)\n"
 ".end\n"
 "\n"
 ".sub 'join'\n"

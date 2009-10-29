@@ -2888,37 +2888,6 @@ void AssignToStatement::emit (Emit &e)
 	}
 }
 
-void AttributeAssignStatement::emit (Emit &e)
-{
-	e.annotate(tname);
-	std::string varname = tname.identifier();
-	st= st->optimize();
-
-	std::string r= bl.genregister('P');
-	e << r << " = getattribute self, '" << varname << "'\n";
-	if (st->isinteger() || st->isstring())
-	{
-		std::string l= function->genlabel();
-		e << "unless null " << r << " goto " << l << "\n"
-			"new " << r << ", '" <<
-				(st->isinteger() ? "Integer" : "String") <<
-				"'\n"
-			"setattribute self, '" <<
-				varname << "', " << r << '\n' <<
-			l << ":\n";
-		e << "assign " << r << ", ";
-		st->emit(e, std::string());
-		e << '\n';
-	}
-	else
-	{
-		//st->emit(e, varname);
-		e << "assign " << varname << ", ";
-		st->emit(e, std::string());
-		e << '\n';
-	}
-}
-
 //**********************************************************************
 
 AttributeAssignStatement::AttributeAssignStatement(Function &fn, Block & block,
@@ -2937,6 +2906,38 @@ AttributeAssignStatement::AttributeAssignStatement(Function &fn, Block & block,
 		st = parseExpr(fn, block, tk);
 	}
 	ExpectOp(';', tk);
+}
+
+void AttributeAssignStatement::emit (Emit &e)
+{
+	e.annotate(tname);
+	std::string varname = tname.identifier();
+	st= st->optimize();
+
+	std::string r= bl.genregister('P');
+	if (st->isinteger() || st->isstring())
+	{
+		e << "getattribute " << r << ", self, '" << varname << "'\n";
+		std::string l= function->genlabel();
+		e << "unless null " << r << " goto " << l << "\n"
+			"new " << r << ", '" <<
+				(st->isinteger() ? "Integer" : "String") <<
+				"'\n"
+			"setattribute self, '" <<
+				varname << "', " << r << '\n' <<
+			l << ":\n";
+		e << "assign " << r << ", ";
+		st->emit(e, std::string());
+		e << '\n';
+	}
+	else
+	{
+		e << "set " << r << ", ";
+		st->emit(e, std::string());
+		e << "\n"
+			"setattribute self, '" << varname <<
+				"', " << r << '\n';
+	}
 }
 
 //**********************************************************************

@@ -1,0 +1,172 @@
+#! winxed
+
+// parser tests
+
+function isspace(string c)
+{
+	int r= c == ' ' || c == "\n" || c == "\t";
+	return r;
+}
+
+function isidentstart(string c)
+{
+	int r= indexof(
+		'abcdefghijklmnopqrstuvwxyz' +
+		'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '_', c);
+	r= r > -1;
+	return r;
+}
+
+function isident(string c)
+{
+	int r= indexof(
+		'abcdefghijklmnopqrstuvwxyz' +
+		'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '_' +
+		'0123456789', c);
+	r= r > -1;
+	return r;
+}
+
+/*****************************************/
+
+class Tokenizer
+{
+	var h;
+	var pending;
+	function init(handle)
+	{
+		self.h= handle;
+		var pending= new 'String';
+		self.pending= pending;
+	}
+	function getchar()
+	{
+		string pending= self.pending;
+		if (pending != '')
+		{
+			self.pending= '';
+			return pending;
+		}
+		var h= self.h;
+		string c= h.read(1);
+		return c;
+	}
+	function ungetchar(string c)
+	{
+		self.pending= c;
+	}
+	function getident(string c)
+	{
+		string s= c;
+	next:
+		c= self.getchar();
+		if (isident(c))
+		{
+			s= s + c;
+			goto next;
+		}
+		return s;
+	}
+	function get()
+	{
+	skip:
+		string c= self.getchar();
+		if (c == '')
+			return c;
+		if (isspace(c)) goto skip;
+		if (isidentstart(c)) return self.getident(c);
+		if (c == '/')
+		{
+			c= self.getchar();
+			if (c == '/')
+			{
+				string s= '/';
+				while (c != "\n")
+				{
+					s= s + c;
+					c= self.getchar();
+				}
+				return s;
+			}
+			else if (c == '*')
+			{
+				string s= '/*';
+				c= self.getchar();
+			next:
+				while (c != '' && c != '*')
+					{ s= s + c; c= self.getchar(); }
+				if (c == '')
+					throw Error("Unclosed comment");
+				c= self.getchar();
+				if (c == '')
+					throw Error("Unclosed comment");
+				if (c != '/')
+					{ s= s + '*' + c; goto next; }
+				s= s + '*/';
+				return s;
+			}
+			else
+			{
+				self.ungetchar(c);
+				return '/';
+			}
+		}
+		if (c == '=')
+		{
+			c= self.getchar();
+			if (c == '=')
+				return "==";
+			else
+			{
+				self.ungetchar(c);
+				return '=';
+			}
+		}
+		string s= c;
+	next:
+		c= self.getchar();
+		if (c != '' && !isspace(c) )
+		{
+			s= s + c;
+			goto next;
+		}
+		return s;
+	}
+}
+
+function parser(argv)
+{
+	int argc= argv;
+	if (argc == 0)
+		throw Error('No file');
+	var file= new 'FileHandle';
+	file.open(argv[0]); // Must throw on error
+
+	var t= new Tokenizer;
+	t.init(file);
+
+	string c;
+	c= t.get();
+	while (length(c) > 0)
+	{
+		print(" [", c, "]");
+		c= t.get();
+	}
+	say('');
+	file.close();
+}
+
+function main(argv)
+{
+	argv.shift();
+	try parser(argv);
+	/**/
+	catch (e)
+	{
+		string msg= e['message'];
+		say('Error: ', msg);
+	}
+	/**/
+}
+
+// End
