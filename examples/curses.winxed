@@ -2,121 +2,114 @@
 
 class Window
 {
-	var scr;
-	var panel;
-	function getmaxx()
-	{
-		using Curses.getmaxx;
-		var scr= self.scr;
-		int x= getmaxx(scr);
-		return x;
-	}
-	function getmaxy()
-	{
-		using Curses.getmaxy;
-		var scr= self.scr;
-		int y= getmaxy(scr);
-		return y;
-	}
-	function clear()
-	{
-		using Curses.wclear;
-		var scr= self.scr;
-		wclear(scr);
-	}
-	function mvaddstr(int y, int x, string s)
-	{
-		using Curses.mvwaddstr;
-		var scr= self.scr;
-		mvwaddstr(scr, y, x, s);
-	}
-	function getch()
-	{
-		using Curses.wgetch;
-		var scr= self.scr;
-		string s= wgetch(scr);
-		return s;
-	}
-	function box(int verch, int horch)
-	{
-		using Curses.box;
-		var scr= self.scr;
-		box(scr, verch, horch);
-	}
-	function new_panel(int lines, int cols, int y, int x)
-	{
-		using Curses.derwin;
-		using Curses.new_panel;
+    var win;
+    var panel;
+    function getmaxx()
+    {
+        using Curses.getmaxx;
+        int x= getmaxx(self.win);
+        return x;
+    }
+    function getmaxy()
+    {
+        using Curses.getmaxy;
+        int y= getmaxy(self.win);
+        return y;
+    }
+    function clear()
+    {
+        using Curses.wclear;
+        wclear(self.win);
+    }
+    function mvaddstr(int y, int x, string s)
+    {
+        using Curses.mvwaddstr;
+        mvwaddstr(self.win, y, x, s);
+    }
+    function getch()
+    {
+        using Curses.wgetch;
+        string s= wgetch(self.win);
+        return s;
+    }
+    function box(int verch, int horch)
+    {
+        using Curses.box;
+        box(self.win, verch, horch);
+    }
+    function new_panel(int lines, int cols, int y, int x)
+    {
+        using Curses.derwin;
+        using Curses.new_panel;
 
-		var scr= self.scr;
-		var win= new Window;
-		var winscr = derwin(scr, lines, cols, y, x);
-		var panel= new_panel(winscr);
-		win.panel= panel;
-		win.scr= winscr;
-		return win;
-	}
+        var newwindow= new Window;
+        var winscr = derwin(self.win, lines, cols, y, x);
+        var panel= new_panel(winscr);
+        newwindow.panel= panel;
+        newwindow.win= winscr;
+        return newwindow;
+    }
 }
 
 class Screen : Window
 {
-	function init [vtable]()
-	{
-		using extern Curses;
-		using Curses.initscr;
-		say('Hi');
-		var scr= initscr();
-		self.scr= scr;
-	}
-	function endwin()
-	{
-		using Curses.endwin;
-		endwin();
-	}
+    function init [vtable]()
+    {
+        using extern Curses;
+        using Curses.initscr;
+        say('Hi');
+        var win= initscr();
+        self.win= win;
+    }
+    function endwin()
+    {
+        using Curses.endwin;
+        endwin();
+    }
 }
 
 function test(scr, string s)
 {
-	int maxx= scr.getmaxx();
-	int maxy= scr.getmaxy();
-	int x = maxx - length(s);
-	if (x < 0) x= 0;
-	scr.mvaddstr(maxy / 2, x / 2, s);
-	scr.getch();
+    int maxx= scr.getmaxx();
+    int maxy= scr.getmaxy();
+    int x = maxx - length(s);
+    if (x < 0) x= 0;
+    scr.mvaddstr(maxy / 2, x / 2, s);
+    scr.getch();
 
-	using Curses.update_panels;
-	using Curses.doupdate;
+    using Curses.update_panels;
+    using Curses.doupdate;
 
-	var p= scr.new_panel(maxy/2, maxx/2, maxy/4, maxx/4);
-	p.clear();
-	p.box(0, 0);
-	p.mvaddstr(2, 6, 'Uuuuh!');
-	update_panels();
-	doupdate();
-	p.getch();
+    var p= scr.new_panel(maxy/2, maxx/2, maxy/4, maxx/4);
+    p.clear();
+    p.box(0, 0);
+    p.mvaddstr(2, 6, 'Uuuuh!');
+    update_panels();
+    doupdate();
+    p.getch();
 
-	scr.endwin();
-	say(maxx, ", ",  maxy);
+    scr.endwin();
+    say(maxx, ", ",  maxy);
 }
 
 function main(args)
 {
-	using extern Curses;
+    using extern Curses;
 
-	using Curses.curses_version;
+    using Curses.curses_version;
 
-	say('Curses version: ', curses_version());
+    say('Curses version: ', curses_version());
 
-	string s;
-	int argc = args;
-	if (argc > 1) s= args[1];
-	else          s= 'Hello, world!';
+    string s;
+    int argc = args;
+    if (argc > 1) s= args[1];
+    else          s= 'Hello, world!';
 
-	var scr= new Screen;
-	try test(scr, s);
-	catch(e)
-	{
-		scr.endwin();
-		throw e;
-	}
+    var scr= new Screen;
+    try test(scr, s);
+    catch(e)
+    {
+        scr.endwin();
+        throw e;
+    }
 }
