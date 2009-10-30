@@ -3962,6 +3962,7 @@ void winxed_main (int argc, char **argv)
 	std::string outputfile;
 	bool compileonly= false;
 	enum Target { TargetRun, TargetPir, TargetPbc } target = TargetPir;
+	std::vector <std::string> addlib;
 
 nextarg:
 	if (strcmp(argv[i], "-o") == 0)
@@ -3986,6 +3987,12 @@ nextarg:
 		else
 			throw CompileError("Invalid target");
 		compileonly= true;
+		++i;
+		goto nextarg;
+	}
+	else if (strcmp(argv[i], "-L") == 0)
+	{
+		addlib.push_back(std::string(argv[++i]));
 		++i;
 		goto nextarg;
 	}
@@ -4023,12 +4030,18 @@ nextarg:
 	if (!compileonly)
 	{
 		int n= argc - i;
-		char *args[3 + n];
+		char *args[3 + n + 2 * addlib.size() ];
 		args[0] = parrot;
-		args[1]= strdup(outputfile.c_str());
+		int pos= 1;
+		for (size_t l= 0; l < addlib.size(); ++l)
+		{
+			args [pos++]= strdup("-L");
+			args [pos++]= strdup(addlib[l].c_str());
+		}
+		args[pos++]= strdup(outputfile.c_str());
 		for (int a= 0; a < n; ++a)
-			args[a + 2]= argv[a + i];
-		args[2 + n]= NULL;
+			args[a + pos]= argv[a + i];
+		args[2 + n + 2 * addlib.size()]= NULL;
 		int r= execute(args);
 		unlink(outputfile.c_str());
 		if (r)
