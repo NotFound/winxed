@@ -126,6 +126,10 @@ protected:
 	virtual char checklocal(const std::string &name) = 0;
 public:
 	virtual std::string genlocalregister(char type) = 0;
+	virtual std::string getbreaklabel() const
+	{
+		throw std::runtime_error("No break allowed");
+	}
 	virtual ~BlockBase() { }
 };
 
@@ -155,6 +159,10 @@ class InBlock : public BlockBase
 protected:
 	InBlock(Block &block) : bl(block) { };
 public:
+	std::string getbreaklabel() const
+	{
+		return bl.getbreaklabel();
+	}
 	char checklocal(const std::string &name) { return bl.checklocal(name); }
 	std::string genlocalregister(char type) { return bl.genlocalregister(type); }
 private:
@@ -262,10 +270,11 @@ class SubBlock : public Block
 {
 public:
 	SubBlock(Block &parentblock);
+	std::string getbreaklabel() const;
+	char checklocal(const std::string &name);
 private:
 	unsigned int blockid();
 	std::string genlocalregister(char type);
-	char checklocal(const std::string &name);
 	std::string genlocallabel();
 	std::string getnamedlabel(const std::string &name);
 
@@ -284,6 +293,11 @@ SubBlock::SubBlock(Block &parentblock) :
 unsigned int SubBlock::blockid()
 {
 	return parent.blockid();
+}
+
+std::string SubBlock::getbreaklabel() const
+{
+	return parent.getbreaklabel();
 }
 
 std::string SubBlock::genlocalregister(char type)
@@ -337,7 +351,7 @@ class SubStatement : public BaseStatement
 public:
 	SubStatement(Function &fn, Block &block);
 protected:
-	Block &bl;
+	SubBlock bl;
 };
 
 SubStatement::SubStatement(Function &fn, Block &block) :
@@ -619,6 +633,38 @@ class Condition;
 
 //**********************************************************************
 
+class BreakStatement : public SubStatement
+{
+public:
+	BreakStatement(Function &fn, Block &block, Tokenizer &tk) :
+		SubStatement(fn, block)
+	{
+		ExpectOp(';', tk);
+	}
+private:
+	void emit (Emit &e)
+	{
+		e << "goto " << bl.getbreaklabel() << " # break\n";
+	}
+};
+
+class SwitchStatement : public BlockStatement
+{
+public:
+	SwitchStatement(Function &fn, Block &block, Tokenizer &tk);
+private:
+	BaseStatement *optimize();
+	std::string getbreaklabel() const;
+	void emit (Emit &e);
+	BaseExpr *condition;
+	std::string breaklabel;
+	std::vector<BaseExpr *> casevalue;
+	std::vector<std::vector<BaseStatement *> > casest;
+	std::vector<BaseStatement *> defaultst;
+};
+
+//**********************************************************************
+
 class IfStatement : public BlockStatement
 {
 public:
@@ -633,27 +679,17 @@ private:
 
 //**********************************************************************
 
-class ForeverStatement : public BlockStatement
-{
-public:
-	ForeverStatement(Function &fn, Block &block, BaseStatement *body);
-private:
-	BaseStatement *optimize();
-	void emit (Emit &e);
-	BaseStatement *st;
-};
-
-//**********************************************************************
-
 class WhileStatement : public BlockStatement
 {
 public:
 	WhileStatement(Function &fn, Block &block, Tokenizer &tk);
 private:
 	BaseStatement *optimize();
+	std::string getbreaklabel() const;
 	void emit (Emit &e);
 	Condition *condition;
 	BaseStatement *st;
+	std::string labelend;
 };
 
 //**********************************************************************
@@ -771,8 +807,12 @@ BaseStatement *parseStatement(Function &fn, Block &block, Tokenizer &tk)
 		return new YieldStatement(fn, block, tk);
 	if (t.iskeyword("goto"))
 		return new GotoStatement(fn, block, tk, t);
+	if (t.iskeyword("break"))
+		return new BreakStatement(fn, block, tk);
 	if (t.iskeyword("if"))
 		return new IfStatement(fn, block, tk);
+	if (t.iskeyword("switch"))
+		return new SwitchStatement(fn, block, tk);
 	if (t.iskeyword("while"))
 		return new WhileStatement(fn, block, tk);
 	if (t.iskeyword("for"))
@@ -3293,6 +3333,129 @@ std::string Condition::emit(Emit &e)
 
 //**********************************************************************
 
+SwitchStatement::SwitchStatement(Function &fn, Block &block, Tokenizer &tk) :
+	BlockStatement (fn, block),
+	condition(0)
+{
+	ExpectOp ('(', tk);
+	condition= parseExpr(fn, *this, tk);
+	ExpectOp(')', tk);
+	ExpectOp('{', tk);
+
+more:
+	Token t= tk.get();
+	if (t.iskeyword("case"))
+	{
+		//std::cerr << "case\n";
+		BaseExpr *caseexpr= parseExpr(fn, *this, tk);
+		casevalue.push_back(caseexpr);
+		//std::cerr << "/case\n";
+		ExpectOp(':', tk);
+		std::vector<BaseStatement *> cst;
+		t= tk.get();
+		while (!(t.isop('}') || t.iskeyword("case") || t.iskeyword("default")))
+		{
+			tk.unget(t);
+			cst.push_back(parseStatement(fn, *this, tk));
+			t= tk.get();
+		}
+		casest.push_back(cst);
+		tk.unget(t);
+		goto more;
+	}
+	else if (t.iskeyword("default"))
+	{
+		ExpectOp(':', tk);
+		std::vector<BaseStatement *> cst;
+		t= tk.get();
+		while (!(t.isop('}') || t.iskeyword("case") || t.iskeyword("default")))
+		{
+			tk.unget(t);
+			cst.push_back(parseStatement(fn, *this, tk));
+			t= tk.get();
+		}
+		defaultst= cst;
+		tk.unget(t);
+		goto more;
+	}
+	else if(t.isop('}'))
+	{
+		//std::cerr << "esac\n";
+	}
+	else throw Expected("case, default or block end", t);
+
+	//st= parseStatement(fn, block, tk);
+}
+
+BaseStatement *SwitchStatement::optimize()
+{
+	condition= condition->optimize();
+	for (size_t i= 0; i < casevalue.size(); ++i)
+		if (casevalue[i])
+			casevalue[i]= casevalue[i]->optimize();
+	for (size_t i= 0; i < casest.size(); ++i)
+	{
+		std::vector<BaseStatement *> &cst= casest[i];
+		for (size_t j= 0; j < cst.size(); ++j)
+			cst[j]= cst[j]->optimize();
+	}
+	return this;
+}
+
+std::string SwitchStatement::getbreaklabel() const
+{
+	return breaklabel;
+}
+
+void SwitchStatement::emit(Emit &e)
+{
+	char type = '\0';
+	for (size_t i= 0; i < casevalue.size(); ++i)
+	{
+		BaseExpr &value= *casevalue[i];
+		char newtype = 'P';
+		if (value.isinteger())
+			newtype= 'I';
+		else if (value.isstring())
+			newtype= 'S';
+		if (type == '\0')
+			type= newtype;
+		else
+			if (type != newtype)
+				type= 'P';
+	}
+	std::string reg= genregister(type);
+	condition->emit(e, reg);
+	std::string defaultlabel= genlabel();
+	breaklabel= genlabel();
+	std::vector<std::string> caselabel;
+	for (size_t i= 0; i < casest.size(); ++i)
+	{
+		std::string label= genlabel();
+		caselabel.push_back(label);
+		std::string value= genregister(type);
+		casevalue[i]->emit(e, value);
+		e << "if " << reg << " == " << value <<
+				" goto " << label << '\n';
+	}
+	e << "goto " << defaultlabel << '\n';
+
+	for (size_t i= 0; i < casest.size(); ++i)
+	{
+		e << caselabel[i] << ": # case\n";
+		std::vector<BaseStatement *> &cst= casest[i];
+		for (size_t j= 0; j < cst.size(); ++j)
+			cst[j]->emit(e);
+	}
+
+	e << defaultlabel << ": # default\n";
+	for (size_t i= 0; i < defaultst.size(); ++i)
+		defaultst[i]->emit(e);
+	e << breaklabel << ": # break goes here\n";
+}
+
+//**********************************************************************
+
 IfStatement::IfStatement(Function &fn, Block &block, Tokenizer &tk) :
 	BlockStatement (fn, block),
 	condition(0),
@@ -3305,7 +3468,7 @@ IfStatement::IfStatement(Function &fn, Block &block, Tokenizer &tk) :
 	Token t= tk.get();
 	if (t.iskeyword("else")) {
 		//std::cerr << "if else\n";
-		stelse= parseStatement(fn, block, tk);
+		stelse= parseStatement(fn, *this, tk);
 	}
 	else
 	{
@@ -3359,35 +3522,12 @@ void IfStatement::emit(Emit &e)
 
 //**********************************************************************
 
-ForeverStatement::ForeverStatement(Function &fn, Block &block,
-		BaseStatement *body) :
-	BlockStatement(fn, block),
-	st(body)
-{
-}
-
-BaseStatement *ForeverStatement::optimize()
-{
-	st= st->optimize();
-	return this;
-}
-
-void ForeverStatement::emit (Emit &e)
-{
-	std::string label= genlabel() + "_FOREVER";
-	e << label << ":\n";
-	st->emit(e);
-	e << "goto " << label << '\n';
-}
-
-//**********************************************************************
-
 WhileStatement::WhileStatement(Function &fn, Block &block, Tokenizer &tk) :
 	BlockStatement (fn, block),
 	st(new EmptyStatement(fn))
 {
 	condition = new Condition(fn, *this, tk);
-	st= parseStatement(fn, block, tk);
+	st= parseStatement(fn, *this, tk);
 }
 
 BaseStatement *WhileStatement::optimize()
@@ -3396,32 +3536,46 @@ BaseStatement *WhileStatement::optimize()
 	st= st->optimize();
 	switch (condition->getvalue())
 	{
-	case Condition::CVtrue:
-		return new ForeverStatement(*function, *this, st);;
 	case Condition::CVfalse:
 		return new EmptyStatement(*function);;
+	case Condition::CVtrue:
 	case Condition::CVruntime:
 	default:
 		return this;
 	}
 }
 
+std::string WhileStatement::getbreaklabel() const
+{
+	//if (labelend.empty())
+	//	throw InternalError("bad break label in while");
+	return labelend;
+}
+
 void WhileStatement::emit(Emit &e)
 {
 	std::string label= genlabel();
 	std::string l_while= label + "_WHILE";
-	std::string l_end= label + "_ENDWHILE";
+	labelend= label + "_ENDWHILE";
+	bool forever= condition->getvalue() == Condition::CVtrue;
 	e << l_while << ":\n";
-	std::string reg= condition->emit(e);
-	e << '\n';
+	std::string reg;
+	if (! forever)
+	{
+		reg= condition->emit(e);
+		e << '\n';
+	}
 	if (st->isempty()) {
-		e << "if " << reg << " goto " << l_while << '\n';
+		if (! forever)
+			e << "if " << reg << ' ';
+		e << "goto " << l_while << '\n';
 	}
 	else {
-		e << "unless " << reg << " goto " << l_end << '\n';
+		if (! forever)
+			e << "unless " << reg << " goto " << labelend << '\n';
 		st->emit(e);
 		e << "goto " << l_while << '\n' <<
-			l_end << ":\n";
+			labelend << ":\n";
 	}
 }
 

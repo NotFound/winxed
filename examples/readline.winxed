@@ -11,10 +11,9 @@ function main(var args)
 	{
 		var s= file.readline();
 		if (file.eof() )
-			goto endfile;
+			break;
 		print('>> ', s);
 	}
-endfile:
 	say("(End of file)");
 	file.close();
 }

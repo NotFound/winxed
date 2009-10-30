@@ -48,10 +48,15 @@ class Token
     function get_string[vtable]()
     {
         string str= self.str;
-        if (self.type == 1)
+        switch (self.type)
+	{
+	case 1:
             str= '"' + str + '"';
-        else if (self.type == 2)
+	    break;
+	case 2:
             str= "'" + str + "'";
+	    break;
+	}
         return str;
     }
 }
@@ -207,15 +212,15 @@ class Tokenizer
     }
     function get()
     {
-    skip:
         string c= self.getchar();
+	while (isspace(c))
+		c= self.getchar();
         if (c == '')
         {
             var t= new Token;
             t.type= -1;
             return t;
         }
-        if (isspace(c)) goto skip;
         if (isidentstart(c)) return getident(self, c);
         var select = self.select;
         var current= select[c];
