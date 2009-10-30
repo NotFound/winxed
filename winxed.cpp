@@ -2016,8 +2016,7 @@ HashExpr::HashExpr(Function &fn, Block &block, Tokenizer &tk) :
 			if (! (tkey.isliteralstring() || tkey.isidentifier() ) )
 				throw Expected("key", t);
 			t= tk.get();
-			if (t.str () != ":")
-				throw Expected (':', t);
+			RequireOp (':', t);
 			BaseExpr *value= parseExpr(fn, block, tk);
 			std::string key;
 			if (tkey.isidentifier())
@@ -2622,32 +2621,26 @@ BaseExpr * parseExpr_9(Function &fn, Block &block, Tokenizer &tk)
 BaseExpr * parseExpr_10(Function &fn, Block &block, Tokenizer &tk)
 {
 	BaseExpr *subexpr= parseExpr_9(fn, block, tk);
-	Token t= tk.get();
-	if (t.isop("&"))
+	Token t;
+	while ((t= tk.get()).isop('&'))
 	{
 		BaseExpr *subexpr2= parseExpr_9(fn, block, tk);
 		subexpr= new OpBinAndExpr(fn, block, t, subexpr, subexpr2);
 	}
-	else
-	{
-		tk.unget(t);
-	}
+	tk.unget(t);
 	return subexpr;
 }
 
 BaseExpr * parseExpr_12(Function &fn, Block &block, Tokenizer &tk)
 {
 	BaseExpr *subexpr= parseExpr_10(fn, block, tk);
-	Token t= tk.get();
-	if (t.isop("|"))
+	Token t;
+	while ((t= tk.get()).isop('|'))
 	{
 		BaseExpr *subexpr2= parseExpr_10(fn, block, tk);
 		subexpr= new OpBinOrExpr(fn, block, t, subexpr, subexpr2);
 	}
-	else
-	{
-		tk.unget(t);
-	}
+	tk.unget(t);
 	return subexpr;
 }
 

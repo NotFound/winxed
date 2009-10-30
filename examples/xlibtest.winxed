@@ -21,7 +21,7 @@ function main()
     var window= display.CreateSimpleWindow(rootwin, 0, 0, 600, 400, 0, 0, white);
 
     // KeyPressMask, ButtonPressMask, ButtonReleaseMask, PointerMotionMask
-    window.SelectInput(1 + 4 + 8 + 64);
+    window.SelectInput(1 | 4 | 8 | 64);
 
     window.Map();
 
