@@ -2872,7 +2872,45 @@ StringStatement::StringStatement(Function &fn, Block & block, Tokenizer &tk) :
 	name= t.identifier();
 	function->genlocal(name, 'S');
 	t= tk.get();
-	if (t.isop('='))
+	if (t.isop('['))
+	{
+		t= tk.get();
+		if (t.isop(']') )
+		{
+			vtype= ValueArray;
+			t= tk.get();
+			if (t.isop('='))
+			{
+				ExpectOp('[', tk);
+				do
+				{
+					value.push_back(parseExpr(*function, block, tk));
+					t= tk.get();
+				} while (t.isop(','));
+				RequireOp(']', t);
+				t= tk.get();
+			}
+		}
+		else if (t.isinteger() )
+		{
+			vtype= ValueFixedArray;
+			vsize= t.getinteger();
+			ExpectOp(']', tk);
+			t= tk.get();
+			if (t.isop('='))
+			{
+				ExpectOp('[', tk);
+				do
+				{
+					value.push_back(parseExpr(*function, block, tk));
+					t= tk.get();
+				} while (t.isop(','));
+				RequireOp(']', t);
+				t= tk.get();
+			}
+		}
+	}
+	else if (t.isop('='))
 	{
 		value.push_back(parseExpr(*function, block, tk));
 		t= tk.get();
@@ -2882,9 +2920,45 @@ StringStatement::StringStatement(Function &fn, Block & block, Tokenizer &tk) :
 
 void StringStatement::emit (Emit &e)
 {
-	e << ".local string " << name << '\n';
-	if (value.size() == 1)
-		value[0]->emit(e, name);
+	switch (vtype)
+	{
+	case ValueSimple:
+		e << ".local string " << name << '\n';
+		if (value.size() == 1)
+			value[0]->emit(e, name);
+		break;
+	case ValueArray:
+		e << ".local pmc " << name << "\n"
+			"root_new " << name << ", ['parrot'; 'ResizableStringArray' ]\n";
+		if (value.size() > 0)
+		{
+			std::string reg= bl.genregister('S');
+			for (size_t i= 0; i < value.size(); ++i)
+			{
+				value[i]->emit(e, reg);
+				e << name << '[' << i << "] = " << reg <<
+					"\nnull " << reg << '\n';
+			}
+		}
+		break;
+	case ValueFixedArray:
+		e << ".local pmc " << name << "\n"
+			"root_new " << name << ", ['parrot'; 'FixedStringArray' ]\n" <<
+			name << " = " << vsize << '\n';
+		if (value.size() > 0)
+		{
+			std::string reg= bl.genregister('S');
+			for (size_t i= 0; i < value.size(); ++i)
+			{
+				value[i]->emit(e, reg);
+				e << name << '[' << i << "] = " << reg <<
+					"\nnull " << reg << '\n';
+			}
+		}
+		break;
+	default:
+		throw InternalError("Unexpected initializer type");
+	}
 }
 
 //**********************************************************************
