@@ -2,7 +2,7 @@
 #define INCLUDE_TOKEN_H
 
 // token.h
-// Revision 28-oct-2009
+// Revision 30-oct-2009
 
 #include <string>
 #include <istream>
@@ -29,6 +29,8 @@ public:
 	Token (TokenType tt, const std::string &file);
 	Token (const std::string &ss, unsigned int linenum, const std::string &file);
 	Token (TokenType type, const std::string &ss, unsigned int linenum, const std::string &file);
+	Token (bool value, const Token &base);
+	Token (int value, const Token &base);
 
 	bool empty () const;
 	int getinteger() const;

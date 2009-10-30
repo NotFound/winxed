@@ -437,6 +437,8 @@ public:
 	virtual BaseExpr *optimize();
 	virtual void emit(Emit &e, const std::string &result) = 0;
 	virtual bool issimple() const { return false; }
+	virtual const Token &gettoken() const
+	{ throw InternalError("Not a simple expression"); }
 	virtual bool isidentifier() const { return false; }
 	virtual std::string getidentifier() const
 	{ throw InternalError("Not an identifier"); }
@@ -445,6 +447,8 @@ public:
 	virtual int getintegervalue () const
 	{ throw InternalError("Not an integer"); }
 	virtual bool isliteralstring() const { return false; }
+	virtual std::string getstringvalue () const
+	{ throw InternalError("Not a string"); }
 	virtual bool isstring() const { return false; }
 	char checkresult() const;
 protected:
@@ -1008,6 +1012,7 @@ public:
 	{ }
 	void emit(Emit &e, const std::string &result);
 	bool issimple() const { return true; }
+	const Token &gettoken() const { return t; }
 	bool isidentifier() const;
 	std::string getidentifier() const;
 	bool isliteralinteger() const;
@@ -1017,7 +1022,7 @@ public:
 	bool isstring() const;
 	bool issinglequoted() const;
 	Token get() const;
-	std::string value() const;
+	std::string getstringvalue() const;
 private:
 	Token t;
 };
@@ -1089,7 +1094,7 @@ Token SimpleExpr::get() const
 	return t;
 }
 
-std::string SimpleExpr::value() const
+std::string SimpleExpr::getstringvalue() const
 {
 	return t.str();
 }
@@ -1113,9 +1118,7 @@ private:
 		if (expr->isliteralinteger() )
 		{
 			const int n= expr->getintegervalue();
-			std::ostringstream oss;
-			oss << - n;
-			Token newt= Token(TokenTInteger, oss.str(), start.linenum(), start.file());
+			Token newt= Token(-n, start);
 			return new SimpleExpr(*function, *this, newt);
 		}
 		return this;
@@ -1153,9 +1156,7 @@ private:
 		if (expr->isliteralinteger() )
 		{
 			const int n= expr->getintegervalue();
-			std::ostringstream oss;
-			oss << ! n;
-			Token newt= Token(TokenTInteger, oss.str(), start.linenum(), start.file());
+			Token newt= Token(! n, start);
 			return new SimpleExpr(*function, *this, newt);
 		}
 		return this;
@@ -1381,8 +1382,30 @@ public:
 		CompareOpExpr(fn, block, t, first, second)
 	{ }
 private:
+	BaseExpr *optimize();
 	void emit(Emit &e, const std::string &result);
 };
+
+BaseExpr *OpEqualExpr::optimize()
+{
+	optimize_operands();
+	if (efirst->issimple() && esecond->issimple())
+	{
+		if (efirst->isliteralinteger() && esecond->isliteralinteger())
+		{
+			Token newt= Token(efirst->getintegervalue() == esecond->getintegervalue(), efirst->gettoken());
+			return new SimpleExpr(*function, *this, newt);
+		}
+		if (efirst->isliteralstring() && esecond->isliteralstring())
+		{
+			std::string s1= efirst->getstringvalue();
+			std::string s2= esecond->getstringvalue();
+			Token newt= Token(s1 == s2, efirst->gettoken());
+			return new SimpleExpr(*function, *this, newt);
+		}
+	}
+	return this;
+}
 
 void OpEqualExpr::emit(Emit &e, const std::string &result)
 {
@@ -1451,8 +1474,32 @@ public:
 		CompareOpExpr(fn, block, t, first, second)
 	{ }
 private:
+	BaseExpr *optimize();
 	void emit(Emit &e, const std::string &result);
 };
+
+BaseExpr *OpNotEqualExpr::optimize()
+{
+	optimize_operands();
+	if (efirst->issimple() && esecond->issimple())
+	{
+		if (efirst->isliteralinteger() && esecond->isliteralinteger())
+		{
+			int n1= efirst->getintegervalue();
+			int n2= esecond->getintegervalue();
+			Token newt= Token(n1 != n2, efirst->gettoken());
+			return new SimpleExpr(*function, *this, newt);
+		}
+		if (efirst->isliteralstring() && esecond->isliteralstring())
+		{
+			std::string s1= efirst->getstringvalue();
+			std::string s2= efirst->getstringvalue();
+			Token newt= Token(s1 != s2, efirst->gettoken());
+			return new SimpleExpr(*function, *this, newt);
+		}
+	}
+	return this;
+}
 
 void OpNotEqualExpr::emit(Emit &e, const std::string &result)
 {
@@ -1638,27 +1685,23 @@ BaseExpr *OpAddExpr::optimize()
 	{
 		Token t1= dynamic_cast<SimpleExpr *>(efirst)->get();
 		Token t2= dynamic_cast<SimpleExpr *>(esecond)->get();
-		if (t1.isinteger() && t2.isinteger())
+		if (efirst->isliteralinteger() && esecond->isliteralinteger())
 		{
 			//std::cerr << "OpAddExpr::optimize int\n";
 
-			int n1= t1.getinteger();
-			int n2= t2.getinteger();
+			int n1= efirst->getintegervalue();
+			int n2= esecond->getintegervalue();
 			//std::cerr << n1 << " " << n2 << '\n';
 
-			std::ostringstream oss;
-			oss << n1 + n2;
-			Token newt= Token(TokenTInteger, oss.str(), t1.linenum(), t1.file());
+			Token newt= Token(n1 + n2, t1);
 			return new SimpleExpr(*function, *this, newt);
 		}
 		if (t1.isliteralstring() && t2.isliteralstring())
 		{
 			//std::cerr << "OpAddExpr::optimize string\n";
 
-			SimpleExpr &e1= dynamic_cast<SimpleExpr &>(*efirst);
-			SimpleExpr &e2= dynamic_cast<SimpleExpr &>(*esecond);
-			std::string s1= e1.value();
-			std::string s2= e2.value();
+			std::string s1= efirst->getstringvalue();
+			std::string s2= efirst->getstringvalue();
 			Token newt= Token(TokenTQuoted, s1 + s2, t1.linenum(), t1.file());
 			return new SimpleExpr(*function, *this, newt);
 		}
@@ -1759,9 +1802,7 @@ BaseExpr *OpSubExpr::optimize()
 
 			//std::cerr << n1 << " " << n2 << '\n';
 
-			std::ostringstream oss;
-			oss << n1 - n2;
-			Token newt= Token(TokenTInteger, oss.str(), t1.linenum(), t1.file());
+			Token newt= Token(n1 - n2, t1);
 			return new SimpleExpr(*function, *this, newt);
 		}
 	}
@@ -3478,7 +3519,7 @@ bool Condition::isliteralinteger() const
 
 std::string Condition::value() const
 {
-	return dynamic_cast<SimpleExpr &>(*expr).value();
+	return expr->getstringvalue();
 }
 
 Condition::Value Condition::getvalue() const
@@ -3501,7 +3542,7 @@ std::string Condition::emit(Emit &e)
 {
 	std::string reg;
 	if (expr->isidentifier() && expr->isinteger())
-		reg= dynamic_cast<SimpleExpr &>(*expr).value();
+		reg= expr->getstringvalue();
 	else
 	{
 		char type = expr->isstring() ? 'S' : expr->isinteger() ? 'I' : 'P';

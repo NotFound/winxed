@@ -1,10 +1,19 @@
 // token.cpp
-// Revision 29-oct-2009
+// Revision 30-oct-2009
 
 #include "token.h"
 #include "errors.h"
 
 #include <sstream>
+
+//**********************************************************************
+
+static std::string tostring(int n)
+{
+	std::ostringstream oss;
+	oss << n;
+	return oss.str();
+}
 
 //**********************************************************************
 
@@ -30,6 +39,18 @@ Token::Token (TokenType type, const std::string &ss, unsigned int linenum,
 		const std::string &file) :
 	ttype(type), s(ss), ln(linenum), filename(file)
 { }
+
+Token::Token (bool value, const Token &base) :
+	ttype(TokenTInteger), s(value ? "1" : "0"),
+	ln(base.linenum()), filename(base.file())
+{
+}
+
+Token::Token (int value, const Token &base) :
+	ttype(TokenTInteger), s(tostring(value)),
+	ln(base.linenum()), filename(base.file())
+{
+}
 
 bool Token::empty () const
 { return s.empty(); }
