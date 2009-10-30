@@ -733,7 +733,40 @@ private:
 
 //**********************************************************************
 
-class Function : public FunctionBlock
+class FunctionAttributes
+{
+public:
+	FunctionAttributes(Tokenizer &tk, const Namespace &)
+	{
+		Token t= tk.get();
+		if (! t.isop('[') )
+		{
+			tk.unget(t);
+		}
+		else
+		{
+			do {
+				t= tk.get();
+				if (! t.isidentifier())
+					throw Expected("Attribute name", t);
+				attributes.push_back(t.identifier());
+				t= tk.get();
+			} while (t.isop(','));
+			RequireOp(']', t);
+		}
+	}
+	bool has_attribute(const std::string &attr)
+	{
+		return find(attributes.begin(), attributes.end(), attr)
+			!= attributes.end();
+	}
+private:
+	std::vector<std::string> attributes;
+};
+
+//**********************************************************************
+
+class Function : protected FunctionAttributes, public FunctionBlock
 {
 public:
 	Function(Tokenizer &tk,
@@ -3576,6 +3609,7 @@ void WhileStatement::emit(Emit &e)
 
 Function::Function(Tokenizer &tk,
 		const Namespace & ns_a, const std::string &funcname) :
+	FunctionAttributes(tk, ns_a),
 	FunctionBlock(), ns(ns_a), name(funcname)
 {
 	Token t= tk.get();
@@ -3661,8 +3695,12 @@ void Function::emit (Emit &e)
 	getnamespace().emit (e);
 
 	e << "\n.sub '" << getname() << "'";
-	if (name == "main")
+	if (has_attribute("main") || name == "main")
 		e << " :main";
+	if (has_attribute("load") || name == "main")
+		e << " :load";
+	if (has_attribute("init") || name == "main")
+		e << " :init";
 	e << "\n";
 
 	emitparams(e);
@@ -3719,14 +3757,13 @@ private:
 
 //**********************************************************************
 
-class Method : private MethodAttributes, public Function
+class Method : public Function
 {
 public:
 	Method(Tokenizer &tk,
 			const Namespace & ns_a,
 			Class &cl,
 			const std::string &name) :
-		MethodAttributes(tk, ns_a),
 		Function(tk, ns_a, name),
 		myclass(cl)
 	{

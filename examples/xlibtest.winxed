@@ -6,7 +6,9 @@
 // To execute it directly from command line you can do:
 //     winxed -L /parrot_source_dir/examples/nci xlibtest.winxed
 
-function main()
+function none() { }
+
+function xlibtest [main] ()
 {
     using extern Xlib;
     using Xlib.DisplayName;
