@@ -1,0 +1,62 @@
+#! winxed
+
+// This example uses the Xlib.pir module that is provided
+// in the examples/nci directory of the parrot source.
+//
+// To execute it directly from command line you can do:
+//     winxed -L /parrot_source_dir/examples/nci xlibtest.winxed
+
+function main()
+{
+    using extern Xlib;
+    using Xlib.DisplayName;
+    using Xlib.OpenDisplay;
+    using Xlib.newEvent;
+
+    say(DisplayName());
+    var display= OpenDisplay();
+    say('DefaultScreen: ', display.DefaultScreen());
+    var rootwin= display.RootWindow();
+    int white= display.WhitePixel();
+    var window= display.CreateSimpleWindow(rootwin, 0, 0, 600, 400, 0, 0, white);
+
+    // KeyPressMask, ButtonPressMask, ButtonReleaseMask, PointerMotionMask
+    window.SelectInput(1 + 4 + 8 + 64);
+
+    window.Map();
+
+    int pressed= 0;
+    int looping= 1;
+
+    var event= newEvent();
+    while (looping)
+    {
+        display.NextEvent(event);
+        int t= event.type();
+        switch(t) {
+        case 4: // ButtonPress
+            pressed= 1;
+            break;
+        case 5: // ButtonRelease
+            pressed= 0;
+            break;
+        case 6: // MotionNotify
+            if (pressed)
+            {
+                int x= event.x();
+                int y= event.y();
+                window.DrawPoint(x, y);
+            }
+            break;
+        case 33: // ClientMessage
+        case 2: // KeyPress
+            looping= 0;
+            break;
+        default:
+            say('Hi');
+        }
+    }
+    window.Unmap();
+    window.Destroy();
+    display.Close();
+}
