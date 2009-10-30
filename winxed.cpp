@@ -3697,9 +3697,9 @@ void Function::emit (Emit &e)
 	e << "\n.sub '" << getname() << "'";
 	if (has_attribute("main") || name == "main")
 		e << " :main";
-	if (has_attribute("load") || name == "main")
+	if (has_attribute("load"))
 		e << " :load";
-	if (has_attribute("init") || name == "main")
+	if (has_attribute("init"))
 		e << " :init";
 	e << "\n";
 
