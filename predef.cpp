@@ -1,5 +1,5 @@
 // predef.cpp
-// Revision 29-oct-2009
+// Revision 30-oct-2009
 
 #include "predef.h"
 
@@ -46,8 +46,15 @@ void emit_predef(std::ostream & os)
 "\n"
 ".sub 'substr'\n"
 "  .param string s\n"
-"  .param int n\n"
-"  $S0 = substr s, n\n"
+"  .param int pos\n"
+"  .param int length :optional\n"
+"  .param int has_length :opt_flag\n"
+"  if has_length goto with_length\n"
+"  $S0 = substr s, pos\n"
+"  goto done\n"
+"with_length:\n"
+"  $S0 = substr s, pos, length\n"
+"done:\n"
 "  .return($S0)\n"
 ".end\n"
 "\n"

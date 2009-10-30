@@ -49,6 +49,11 @@ class Window
         newwindow.win= winscr;
         return newwindow;
     }
+    function top_panel()
+    {
+        using Curses.top_panel;
+        top_panel(self.panel);
+    }
 }
 
 class Screen : Window
@@ -68,11 +73,27 @@ class Screen : Window
     }
 }
 
+function panel1(var p)
+{
+    p.clear();
+    p.box(0, 0);
+    p.mvaddstr(2, 6, 'Uuuuh!');
+}
+
+function panel2(var p2, string s)
+{
+    p2.clear();
+    p2.box(0, 0);
+    int width= p2.getmaxx();
+    p2.mvaddstr(1, 1, substr(s, 0, width-3));
+}
+
 function test(scr, string s)
 {
     int maxx= scr.getmaxx();
     int maxy= scr.getmaxy();
-    int x = maxx - length(s);
+    int l= length(s);
+    int x = maxx - l;
     if (x < 0) x= 0;
     scr.mvaddstr(maxy / 2, x / 2, s);
     scr.getch();
@@ -81,12 +102,30 @@ function test(scr, string s)
     using Curses.doupdate;
 
     var p= scr.new_panel(maxy/2, maxx/2, maxy/4, maxx/4);
-    p.clear();
-    p.box(0, 0);
-    p.mvaddstr(2, 6, 'Uuuuh!');
+    panel1(p);
     update_panels();
     doupdate();
     p.getch();
+
+    int width= l + 3;
+    if( width > maxx) width= maxx;
+    var p2= scr.new_panel(3, width, (maxy - 3)/2, (maxx - width) / 2);
+    panel2(p2, s);
+    update_panels();
+    doupdate();
+    p2.getch();
+
+    p.top_panel();
+    panel1(p);
+    update_panels();
+    doupdate();
+    p.getch();
+
+    p2.top_panel();
+    panel2(p2, s);
+    update_panels();
+    doupdate();
+    p2.getch();
 
     scr.endwin();
     say(maxx, ", ",  maxy);
