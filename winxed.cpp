@@ -4003,7 +4003,7 @@ nextarg:
 	inputname= argv[i++];
 	std::ifstream ifs(inputname);
 	if (! ifs.is_open() )
-		throw CompileError(std::string("Cant't open ") + argv [1]);
+		throw CompileError(std::string("Cant't open ") + inputname);
 
 	if (outputfile.empty() )
 		outputfile= genfile (inputname, target == TargetPbc ? "pbc" : "pir");
