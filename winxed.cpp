@@ -499,7 +499,10 @@ class ValueStatement : public SubStatement
 public:
 	ValueStatement(Function &fn, Block & block);
 protected:
-	BaseExpr *value;
+	enum ValueType { ValueSimple, ValueArray, ValueFixedArray };
+	ValueType vtype;
+	std::vector<BaseExpr *> value;
+	size_t vsize;
 private:
 	BaseStatement *optimize();
 };
@@ -2748,14 +2751,15 @@ void ExprStatement::emit (Emit &e)
 
 ValueStatement::ValueStatement(Function &fn, Block & block) :
 	SubStatement (fn, block),
-	value(0)
+	vtype(ValueSimple),
+	vsize(0)
 {
 }
 
 BaseStatement *ValueStatement::optimize()
 {
-	if (value)
-		value= value->optimize();
+	for (size_t i= 0; i < value.size(); ++i)
+		value[i]= value[i]->optimize();
 	return this;
 }
 
@@ -2768,9 +2772,49 @@ IntStatement::IntStatement(Function &fn, Block &block, Tokenizer &tk) :
 	name= t.identifier();
 	function->genlocal(name, 'I');
 	t= tk.get();
-	if (t.isop('='))
+	if (t.isop('['))
 	{
-		value= parseExpr(*function, block, tk);
+		t= tk.get();
+		if (t.isop(']') )
+		{
+			vtype= ValueArray;
+			t= tk.get();
+			if (t.isop('='))
+			{
+				ExpectOp('[', tk);
+				do
+				{
+					value.push_back(parseExpr(*function, block, tk));
+					t= tk.get();
+				} while (t.isop(','));
+				RequireOp(']', t);
+				t= tk.get();
+			}
+		}
+		else if (t.isinteger() )
+		{
+			vtype= ValueFixedArray;
+			vsize= t.getinteger();
+			ExpectOp(']', tk);
+			t= tk.get();
+			if (t.isop('='))
+			{
+				ExpectOp('[', tk);
+				do
+				{
+					value.push_back(parseExpr(*function, block, tk));
+					t= tk.get();
+				} while (t.isop(','));
+				RequireOp(']', t);
+				t= tk.get();
+			}
+		}
+		else
+			throw Expected("size initializer", t);
+	}
+	else if (t.isop('='))
+	{
+		value.push_back(parseExpr(*function, block, tk));
 		t= tk.get();
 	}
 	RequireOp (';', t);
@@ -2778,9 +2822,45 @@ IntStatement::IntStatement(Function &fn, Block &block, Tokenizer &tk) :
 
 void IntStatement::emit (Emit &e)
 {
-	e << ".local int " << name << '\n';
-	if (value)
-		value->emit(e, name);
+	switch (vtype)
+	{
+	case ValueSimple:
+		e << ".local int " << name << '\n';
+		if (value.size() == 1)
+			value[0]->emit(e, name);
+		break;
+	case ValueArray:
+		e << ".local pmc " << name << "\n"
+			"root_new " << name << ", ['parrot'; 'ResizableIntegerArray' ]\n";
+		if (value.size() > 0)
+		{
+			std::string reg= bl.genregister('I');
+			for (size_t i= 0; i < value.size(); ++i)
+			{
+				value[i]->emit(e, reg);
+				e << name << '[' << i << "] = " << reg <<
+					"\nnull " << reg << '\n';
+			}
+		}
+		break;
+	case ValueFixedArray:
+		e << ".local pmc " << name << "\n"
+			"root_new " << name << ", ['parrot'; 'FixedIntegerArray' ]\n" <<
+			name << " = " << vsize << '\n';
+		if (value.size() > 0)
+		{
+			std::string reg= bl.genregister('I');
+			for (size_t i= 0; i < value.size(); ++i)
+			{
+				value[i]->emit(e, reg);
+				e << name << '[' << i << "] = " << reg <<
+					"\nnull " << reg << '\n';
+			}
+		}
+		break;
+	default:
+		throw InternalError("Unexpected initializer type");
+	}
 }
 
 //**********************************************************************
@@ -2794,7 +2874,7 @@ StringStatement::StringStatement(Function &fn, Block & block, Tokenizer &tk) :
 	t= tk.get();
 	if (t.isop('='))
 	{
-		value= parseExpr(*function, block, tk);
+		value.push_back(parseExpr(*function, block, tk));
 		t= tk.get();
 	}
 	RequireOp (';', t);
@@ -2803,8 +2883,8 @@ StringStatement::StringStatement(Function &fn, Block & block, Tokenizer &tk) :
 void StringStatement::emit (Emit &e)
 {
 	e << ".local string " << name << '\n';
-	if (value)
-		value->emit(e, name);
+	if (value.size() == 1)
+		value[0]->emit(e, name);
 }
 
 //**********************************************************************
@@ -2819,7 +2899,7 @@ VarStatement::VarStatement(Function &fn, Block & block, Tokenizer &tk, Token sta
 	t= tk.get();
 	if (t.isop('='))
 	{
-		value= parseExpr(*function, block, tk);
+		value.push_back(parseExpr(*function, block, tk));
 		t= tk.get();
 	}
 	RequireOp (';', t);
@@ -2829,13 +2909,13 @@ void VarStatement::emit (Emit &e)
 {
 	e.annotate(start);
 	e << ".local pmc " << name << '\n';
-	if (value)
+	if (value.size() == 1)
 	{
-		if (value->isinteger())
+		if (value[0]->isinteger())
 			e << name << " = root_new ['parrot'; 'Integer']\n";
-		else if (value->isstring())
+		else if (value[0]->isstring())
 			e << name << " = root_new ['parrot'; 'String']\n";
-		value->emit(e, name);
+		value[0]->emit(e, name);
 	}
 }
 
