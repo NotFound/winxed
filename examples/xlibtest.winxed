@@ -103,6 +103,8 @@ function xlibtest [main] ()
             }
         break;
         case 33: // ClientMessage
+            looping= 0;
+            break;
         case 2: // KeyPress
             if (event.keycode() == Escape)
                 looping= 0;
