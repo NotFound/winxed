@@ -1598,6 +1598,28 @@ void OpLessExpr::emit(Emit &e, const std::string &result)
 		if (!result.empty())
 			e << '\n';
 	}
+	else if (type1 == 'S' || type2 == 'S')
+	{
+		std::string op1= function->genregister('S');
+		std::string op2= function->genregister('S');
+		if (type1 == 'S')
+			efirst->emit(e, op1);
+		else {
+			std::string aux= function->genregister('P');
+			efirst->emit(e, aux);
+			e << op1 << " = " << aux << '\n';
+		}
+		if (type2 == 'S')
+			esecond->emit(e, op2);
+		else {
+			std::string aux= function->genregister('P');
+			esecond->emit(e, aux);
+			e << op2 << " = " << aux << '\n';
+		}
+		e << res << " = islt " << op1 << " , " << op2;
+		if (!result.empty())
+			e << '\n';
+	}
 	else
 		throw Unsupported(" operator < for non int", start);
 }
@@ -1636,6 +1658,28 @@ void OpGreaterExpr::emit(Emit &e, const std::string &result)
 			e << op1 << " = " << aux << '\n';
 		}
 		if (type2 == 'I')
+			esecond->emit(e, op2);
+		else {
+			std::string aux= function->genregister('P');
+			esecond->emit(e, aux);
+			e << op2 << " = " << aux << '\n';
+		}
+		e << res << " = isgt " << op1 << " , " << op2;
+		if (!result.empty())
+			e << '\n';
+	}
+	else if (type1 == 'S' || type2 == 'S')
+	{
+		std::string op1= function->genregister('S');
+		std::string op2= function->genregister('S');
+		if (type1 == 'S')
+			efirst->emit(e, op1);
+		else {
+			std::string aux= function->genregister('P');
+			efirst->emit(e, aux);
+			e << op1 << " = " << aux << '\n';
+		}
+		if (type2 == 'S')
 			esecond->emit(e, op2);
 		else {
 			std::string aux= function->genregister('P');
