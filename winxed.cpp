@@ -463,6 +463,7 @@ class ArgumentList : public InBlock
 {
 public:
 	ArgumentList(Function &fn, Block &block, Tokenizer &tk);
+	void optimize();
 	void prepare(Emit &e);
 	void emit(Emit &e);
 private:
@@ -574,6 +575,7 @@ class ReturnStatement : public SubStatement
 {
 public:
 	ReturnStatement(Function &fn, Block & block, Tokenizer &tk);
+	BaseStatement *optimize();
 	void emit (Emit &e);
 private:
 	ArgumentList *values;
@@ -585,6 +587,7 @@ class YieldStatement : public SubStatement
 {
 public:
 	YieldStatement(Function &fn, Block & block, Tokenizer &tk);
+	BaseStatement *optimize();
 	void emit (Emit &e);
 private:
 	ArgumentList *values;
@@ -967,15 +970,19 @@ ArgumentList::ArgumentList(Function &fn, Block &block, Tokenizer &tk) :
 	tk.unget(t);
 }
 
-void ArgumentList::prepare(Emit &e)
+void ArgumentList::optimize()
 {
 	for (size_t i= 0; i < args.size(); ++i)
 		args[i]= args[i]->optimize();
+}
+
+void ArgumentList::prepare(Emit &e)
+{
 	for (size_t i= 0; i < args.size(); ++i)
 	{
 		if (! args[i]->issimple() )
 		{
-			std::string reg= genlocalregister('P');
+			std::string reg= genlocalregister(args[i]->checkresult());
 			args[i]->emit(e, reg);
 			argregs.push_back(reg);
 		}
@@ -3129,6 +3136,13 @@ ReturnStatement::ReturnStatement(Function &fn, Block & block, Tokenizer &tk) :
 	}
 }
 
+BaseStatement *ReturnStatement::optimize()
+{
+	if (values)
+		values->optimize();
+	return this;
+}
+
 void ReturnStatement::emit (Emit &e)
 {
 	if (values)
@@ -3151,6 +3165,13 @@ YieldStatement::YieldStatement(Function &fn, Block & block, Tokenizer &tk) :
 		values= new ArgumentList(*function, block, tk);
 		ExpectOp (';', tk);
 	}
+}
+
+BaseStatement *YieldStatement::optimize()
+{
+	if (values)
+		values->optimize();
+	return this;
 }
 
 void YieldStatement::emit (Emit &e)
