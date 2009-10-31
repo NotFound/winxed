@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 30-oct-2009
+// Revision 31-oct-2009
 
 #include "token.h"
 #include "errors.h"
@@ -1493,7 +1493,7 @@ BaseExpr *OpNotEqualExpr::optimize()
 		if (efirst->isliteralstring() && esecond->isliteralstring())
 		{
 			std::string s1= efirst->getstringvalue();
-			std::string s2= efirst->getstringvalue();
+			std::string s2= esecond->getstringvalue();
 			Token newt= Token(s1 != s2, efirst->gettoken());
 			return new SimpleExpr(*function, *this, newt);
 		}
@@ -1701,7 +1701,7 @@ BaseExpr *OpAddExpr::optimize()
 			//std::cerr << "OpAddExpr::optimize string\n";
 
 			std::string s1= efirst->getstringvalue();
-			std::string s2= efirst->getstringvalue();
+			std::string s2= esecond->getstringvalue();
 			Token newt= Token(TokenTQuoted, s1 + s2, t1.linenum(), t1.file());
 			return new SimpleExpr(*function, *this, newt);
 		}
