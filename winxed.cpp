@@ -794,35 +794,44 @@ private:
 
 //**********************************************************************
 
-class FunctionModifiers
+class Modifiers
+{
+public:
+	bool has_modifier(const std::string &attr)
+	{
+		return find(modifiers.begin(), modifiers.end(), attr)
+			!= modifiers.end();
+	}
+	void parse(Tokenizer &tk)
+	{
+		Token t;
+		do {
+			t= tk.get();
+			if (! t.isidentifier())
+				throw Expected("Attribute name", t);
+			add(t.identifier());
+			t= tk.get();
+		} while (t.isop(','));
+		RequireOp(']', t);
+	}
+protected:
+	void add(std::string name) { modifiers.push_back(name); }
+	std::vector<std::string> modifiers;
+};
+
+//**********************************************************************
+
+class FunctionModifiers : public Modifiers
 {
 public:
 	FunctionModifiers(Tokenizer &tk, const Namespace &)
 	{
 		Token t= tk.get();
 		if (! t.isop('[') )
-		{
 			tk.unget(t);
-		}
 		else
-		{
-			do {
-				t= tk.get();
-				if (! t.isidentifier())
-					throw Expected("Attribute name", t);
-				attributes.push_back(t.identifier());
-				t= tk.get();
-			} while (t.isop(','));
-			RequireOp(']', t);
-		}
+			parse(tk);
 	}
-	bool has_attribute(const std::string &attr)
-	{
-		return find(attributes.begin(), attributes.end(), attr)
-			!= attributes.end();
-	}
-private:
-	std::vector<std::string> attributes;
 };
 
 //**********************************************************************
@@ -846,7 +855,17 @@ private:
 	Token start;
 	const std::string name;
 	std::vector <std::string> params;
-	std::vector <char> paramtypes;
+	class ParamInfo
+	{
+	public:
+		ParamInfo() : t('\0') { }
+		ParamInfo(char type) : t(type) {}
+		char type() const { return t; }
+	private:
+		char t;
+		Modifiers modifiers;
+	};
+	std::map <std::string, ParamInfo> paraminfo;
 	std::vector <std::string> loc;
 	BaseStatement *body;
 };
@@ -3968,7 +3987,8 @@ Function::Function(Tokenizer &tk,
 				t= tk.get();
 			std::string name= t.identifier();
 			params.push_back(name);
-			paramtypes.push_back(ctype);
+			ParamInfo pi(ctype);
+			paraminfo [name]= pi;
 			genlocal(name, ctype);
 			t= tk.get();
 		} while (t.isop(','));
@@ -4014,7 +4034,7 @@ static const char * nameoftype(char ctype)
 void Function::emitparams (Emit &e)
 {
 	for (size_t i= 0; i < params.size(); ++i)
-		e << ".param " << nameoftype(paramtypes[i]) << ' ' <<
+		e << ".param " << nameoftype(paraminfo[params[i]].type()) << ' ' <<
 				params[i] << '\n';
 }
 
@@ -4029,11 +4049,11 @@ void Function::emit (Emit &e)
 	getnamespace().emit (e);
 
 	e << "\n.sub '" << getname() << "'";
-	if (has_attribute("main") || name == "main")
+	if (has_modifier("main") || name == "main")
 		e << " :main";
-	if (has_attribute("load"))
+	if (has_modifier("load"))
 		e << " :load";
-	if (has_attribute("init"))
+	if (has_modifier("init"))
 		e << " :init";
 	e << "\n";
 
@@ -4079,7 +4099,7 @@ public:
 
 		e << "\n.sub '" << getname() << "'";
 
-		if (has_attribute("vtable"))
+		if (has_modifier("vtable"))
 			e << " :vtable";
 		else
 			e << " :method";
