@@ -3614,9 +3614,12 @@ void ForeachStatement::emit(Emit &e)
 //**********************************************************************
 
 ForStatement::ForStatement(Function &fn, Block &block, Tokenizer &tk) :
-	BlockStatement (fn, block)
+	BlockStatement (fn, block),
+	initializer(0),
+	condition(0),
+	iteration(0),
+	st(0)
 {
-	std::cerr << "for\n";
 	Token t= tk.get();
 	if (! t.isop(';'))
 	{
@@ -3629,14 +3632,12 @@ ForStatement::ForStatement(Function &fn, Block &block, Tokenizer &tk) :
 		tk.unget(t);
 		condition= parseExpr(fn, *this, tk);
 		ExpectOp(';', tk);
-		std::cerr << "for ; ;\n";
 	}
 	t= tk.get();
 	if (! t.isop(')'))
 	{
 		tk.unget(t);
 		iteration= parseExpr(fn, *this, tk);
-		std::cerr << "for ; ; )\n";
 		ExpectOp(')', tk);
 	}
 	st= parseStatement(fn, *this, tk);
@@ -3662,27 +3663,34 @@ std::string ForStatement::getbreaklabel() const
 void ForStatement::emit(Emit &e)
 {
 	std::string l_iteration= genlabel();
-	std::string l_body= genlabel();
+	std::string l_condition= (initializer && iteration) ?
+		genlabel() :
+		std::string();
 	breaklabel = genlabel();
 	if (initializer)
+	{
 		initializer->emit(e);
-	e << "goto " << l_body << '\n' <<
-		l_iteration << ": # for\n";
+		if (!l_condition.empty())
+			e << "goto " << l_condition << " # for condition\n";
+	}
+	e << l_iteration << ": # for iteration\n";
 	if (iteration)
 	{
 		iteration->emit(e, std::string() );
 		e << '\n';
 	}
+	if (! l_condition.empty())
+		e << l_condition << ": # for condition\n";
 	if (condition)
 	{
 		char type= condition->checkresult();
 		std::string reg= genregister(type);
 		condition->emit(e, reg);
-		e << "unless " << reg << " goto " << breaklabel << '\n';
+		e << "unless " << reg << " goto " << breaklabel << " # for end\n";
 	}
-	e << l_body << ": # for body\n";
+	e << "# for body\n";
 	st->emit(e);
-	e << "goto " << l_iteration << '\n' <<
+	e << "goto " << l_iteration << " # for iteration\n" <<
 		breaklabel << ": # for end\n";
 }
 
