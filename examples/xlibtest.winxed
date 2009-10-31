@@ -22,14 +22,19 @@ function xlibtest [main] ()
     int white= display.WhitePixel();
     var window= display.CreateSimpleWindow(rootwin, 0, 0, 600, 400, 0, 0, white);
 
-    // KeyPressMask, ButtonPressMask, ButtonReleaseMask, PointerMotionMask
-    window.SelectInput(1 | 4 | 8 | 64);
+    // KeyPressMask, ButtonPressMask, ButtonReleaseMask, PointerMotionMask,
+    // ExposureMask
+    window.SelectInput(1 | 4 | 8 | 64 | 32768);
 
     window.Map();
 
     int pressed= 0;
     int looping= 1;
+    int oldx;
+    int oldy;
 
+    var listline = [];
+    var line;
     var event= newEvent();
     while (looping)
     {
@@ -38,6 +43,13 @@ function xlibtest [main] ()
         switch(t) {
         case 4: // ButtonPress
             pressed= 1;
+            oldx= event.x();
+            oldy= event.y();
+            line = new 'ResizablePMCArray';
+            listline.push(line);
+            line.push(oldx);
+            line.push(oldy);
+            window.DrawPoint(oldx, oldy);
             break;
         case 5: // ButtonRelease
             pressed= 0;
@@ -47,9 +59,39 @@ function xlibtest [main] ()
             {
                 int x= event.x();
                 int y= event.y();
-                window.DrawPoint(x, y);
+                if (x != oldx || y != oldy)
+                {
+                    window.DrawLine(oldx, oldy, x, y);
+                    oldx= x; oldy= y;
+                    line.push(oldx);
+                     line.push(oldy);
+                }
             }
             break;
+        case 12: // Expose
+            var l;
+            for (l in listline)
+            {
+                int n= l;
+                if (n > 2)
+                {
+                    int px= l[0];
+                    int py= l[1];
+                    int i= 2;
+                    while (i < l)
+                    {
+                        int nx=l[i];
+                        ++i;
+                        int ny=l[i];
+                        window.DrawLine(px, py, nx, ny);
+                        px= nx; py= ny;
+                        ++i;
+                    }
+                }
+                else
+                    window.DrawPoint(l[0], l[1]);
+            }
+        break;
         case 33: // ClientMessage
         case 2: // KeyPress
             looping= 0;
