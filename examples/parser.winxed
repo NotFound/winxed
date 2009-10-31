@@ -16,7 +16,7 @@ function isidentstart(string c)
     return indexof(
         'abcdefghijklmnopqrstuvwxyz' +
         'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '_',
-	c) > -1;
+        c) > -1;
 }
 
 function isident(string c)
@@ -25,7 +25,7 @@ function isident(string c)
         'abcdefghijklmnopqrstuvwxyz' +
         'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '_' +
         '0123456789',
-	c) > -1;
+        c) > -1;
 }
 
 //*********************************************
@@ -41,6 +41,7 @@ class Token
     {
         return self.type == -1;
     }
+    function iscomment() { return self.type == 0; }
     function get_string[vtable]()
     {
         string str= self.str;
@@ -60,7 +61,7 @@ class Token
 function newToken(int type, string s, int line)
 {
     var t= new Token;
-    t.type= 2; t.str= s; t.line= line;
+    t.type= type; t.str= s; t.line= line;
     return t;
 }
 
@@ -267,13 +268,16 @@ function parser(argv)
     c= t.get();
     while (! c)
     {
+        if (! c.iscomment())
+	{
             int newline= c.line;
-        if (newline != line)
-        {
-            line= newline;
-            say(); print(line, ': ');
+            if (newline != line)
+            {
+                line= newline;
+                say(); print(line, ': ');
+            }
+            print(" [", c, "]");
         }
-        print(" [", c, "]");
         c= t.get();
     }
     say('');
