@@ -794,10 +794,10 @@ private:
 
 //**********************************************************************
 
-class FunctionAttributes
+class FunctionModifiers
 {
 public:
-	FunctionAttributes(Tokenizer &tk, const Namespace &)
+	FunctionModifiers(Tokenizer &tk, const Namespace &)
 	{
 		Token t= tk.get();
 		if (! t.isop('[') )
@@ -827,7 +827,7 @@ private:
 
 //**********************************************************************
 
-class Function : protected FunctionAttributes, public FunctionBlock
+class Function : protected FunctionModifiers, public FunctionBlock
 {
 public:
 	Function(Tokenizer &tk,
@@ -3943,7 +3943,7 @@ void WhileStatement::emit(Emit &e)
 
 Function::Function(Tokenizer &tk,
 		const Namespace & ns_a, const std::string &funcname) :
-	FunctionAttributes(tk, ns_a),
+	FunctionModifiers(tk, ns_a),
 	FunctionBlock(), ns(ns_a), name(funcname)
 {
 	Token t= tk.get();
@@ -4042,36 +4042,6 @@ void Function::emit (Emit &e)
 
 	e << ".end\n\n";
 }
-
-//**********************************************************************
-
-class MethodAttributes
-{
-public:
-	MethodAttributes(Tokenizer &tk, const Namespace &)
-	{
-		Token t= tk.get();
-		if (! t.isop('[') )
-		{
-			tk.unget(t);
-		}
-		else
-		{
-			t= tk.get();
-			if (! t.isidentifier())
-				throw Expected("Attribute name", t);
-			attributes.push_back(t.identifier());
-			ExpectOp(']', tk);
-		}
-	}
-	bool has_attribute(const std::string &attr)
-	{
-		return find(attributes.begin(), attributes.end(), attr)
-			!= attributes.end();
-	}
-private:
-	std::vector<std::string> attributes;
-};
 
 //**********************************************************************
 
