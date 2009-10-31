@@ -8,8 +8,7 @@
 
 function isspace(string c)
 {
-    int r= c == ' ' || c == "\n" || c == "\t";
-    return r;
+    return c == ' ' || c == "\n" || c == "\t";
 }
 
 function isidentstart(string c)
@@ -40,8 +39,7 @@ class Token
     var line;
     function get_bool[vtable]()
     {
-        int eof = self.type == -1;
-        return eof;
+        return self.type == -1;
     }
     function get_string[vtable]()
     {
@@ -143,9 +141,7 @@ next:
     if (c != '/')
     { s+= '*' + c; goto next; }
     s+= '*/';
-    var t= new Token;
-    t.type= 0; t.str= s; t.line= line;
-    return t;
+    return newToken(0, s, line);
 }
 
 function getop(tk, string start)
@@ -153,8 +149,7 @@ function getop(tk, string start)
     int line= tk.line;
     string s= start;
     var t= new Token;
-    t.type= 5; t.str= s; t.line= line;
-    return t;
+    return newToken(5, s, line);
 }
 
 //*********************************************
