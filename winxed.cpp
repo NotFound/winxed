@@ -797,9 +797,9 @@ private:
 class Modifiers
 {
 public:
-	bool has_modifier(const std::string &attr)
+	bool has_modifier(const std::string &name) const
 	{
-		return find(modifiers.begin(), modifiers.end(), attr)
+		return find(modifiers.begin(), modifiers.end(), name)
 			!= modifiers.end();
 	}
 	void parse(Tokenizer &tk)
@@ -859,8 +859,12 @@ private:
 	{
 	public:
 		ParamInfo() : t('\0') { }
-		ParamInfo(char type) : t(type) {}
+		ParamInfo(char type, const Modifiers &mods) :
+			t(type), modifiers(mods)
+		{}
 		char type() const { return t; }
+		bool has_modifier(const std::string &name) const
+		{ return modifiers.has_modifier(name); }
 	private:
 		char t;
 		Modifiers modifiers;
@@ -3986,11 +3990,19 @@ Function::Function(Tokenizer &tk,
 			else
 				t= tk.get();
 			std::string name= t.identifier();
+			t= tk.get();
+			Modifiers modifiers;
+			if (t.isop('['))
+			{
+				modifiers.parse(tk);
+				t= tk.get();
+			}
+
 			params.push_back(name);
-			ParamInfo pi(ctype);
+			ParamInfo pi(ctype, modifiers);
 			paraminfo [name]= pi;
 			genlocal(name, ctype);
-			t= tk.get();
+			
 		} while (t.isop(','));
 	}
 	RequireOp(')', t);
@@ -4034,8 +4046,17 @@ static const char * nameoftype(char ctype)
 void Function::emitparams (Emit &e)
 {
 	for (size_t i= 0; i < params.size(); ++i)
-		e << ".param " << nameoftype(paraminfo[params[i]].type()) << ' ' <<
-				params[i] << '\n';
+	{
+		const std::string &param= params[i];
+		const ParamInfo &info= paraminfo[param];
+		e << ".param " << nameoftype(info.type()) << ' ' <<
+				param;
+		if (info.has_modifier("optional"))
+			e << " :optional";
+		if (info.has_modifier("opt_flag"))
+			e << " :opt_flag";
+		e << '\n';
+	}
 }
 
 void Function::emitbody (Emit &e)
