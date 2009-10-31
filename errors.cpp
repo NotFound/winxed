@@ -1,5 +1,5 @@
 // errors.cpp
-// Revision 27-oct-2009
+// Revision 31-oct-2009
 
 #include "errors.h"
 
@@ -38,6 +38,13 @@ unsigned int CompileError::linenum() const
 std::string CompileError::file() const
 {
 	return w.file();
+}
+
+//**********************************************************************
+
+Unsupported::Unsupported(const std::string &msg, const Token &where) :
+	CompileError("Unsupported feature: " + msg, where)
+{
 }
 
 //**********************************************************************

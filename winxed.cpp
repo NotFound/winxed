@@ -1300,7 +1300,7 @@ class BinOpExpr : public BaseExpr
 protected:
 	BinOpExpr(Function &fn, Block &block, Token t, BaseExpr *first, BaseExpr *second);
 	void optimize_operands();
-	unsigned int linenum;
+	const Token start;
 	BaseExpr *efirst;
 	BaseExpr *esecond;
 private:
@@ -1309,7 +1309,7 @@ private:
 
 BinOpExpr::BinOpExpr(Function &fn, Block &block, Token t, BaseExpr *first, BaseExpr *second) :
 	BaseExpr(fn, block),
-	linenum(t.linenum()),
+	start(t),
 	efirst(first),
 	esecond(second)
 {
@@ -1574,13 +1574,32 @@ OpLessExpr::OpLessExpr(Function &fn, Block &block,
 void OpLessExpr::emit(Emit &e, const std::string &result)
 {
 	std::string res= result.empty() ? function->genregister('I') : result;
-	std::string op1= function->genregister('I');
-	std::string op2= function->genregister('I');
-	efirst->emit(e, op1);
-	esecond->emit(e, op2);
-	e << res << " = islt " << op1 << " , " << op2;
-	if (!result.empty())
-		e << '\n';
+	char type1= efirst->checkresult();
+	char type2= esecond->checkresult();
+	if (type1 == 'I' || type2 == 'I')
+	{
+		std::string op1= function->genregister('I');
+		std::string op2= function->genregister('I');
+		if (type1 == 'I')
+			efirst->emit(e, op1);
+		else {
+			std::string aux= function->genregister('P');
+			efirst->emit(e, aux);
+			e << op1 << " = " << aux << '\n';
+		}
+		if (type2 == 'I')
+			esecond->emit(e, op2);
+		else {
+			std::string aux= function->genregister('P');
+			esecond->emit(e, aux);
+			e << op2 << " = " << aux << '\n';
+		}
+		e << res << " = islt " << op1 << " , " << op2;
+		if (!result.empty())
+			e << '\n';
+	}
+	else
+		throw Unsupported(" operator < for non int", start);
 }
 
 //**********************************************************************
@@ -1603,13 +1622,32 @@ OpGreaterExpr::OpGreaterExpr(Function &fn, Block &block,
 void OpGreaterExpr::emit(Emit &e, const std::string &result)
 {
 	std::string res= result.empty() ? function->genregister('I') : result;
-	std::string op1= function->genregister('I');
-	std::string op2= function->genregister('I');
-	efirst->emit(e, op1);
-	esecond->emit(e, op2);
-	e << res << " = isgt " << op1 << " , " << op2;
-	if (!result.empty())
-		e << '\n';
+	char type1= efirst->checkresult();
+	char type2= esecond->checkresult();
+	if (type1 == 'I' || type2 == 'I')
+	{
+		std::string op1= function->genregister('I');
+		std::string op2= function->genregister('I');
+		if (type1 == 'I')
+			efirst->emit(e, op1);
+		else {
+			std::string aux= function->genregister('P');
+			efirst->emit(e, aux);
+			e << op1 << " = " << aux << '\n';
+		}
+		if (type2 == 'I')
+			esecond->emit(e, op2);
+		else {
+			std::string aux= function->genregister('P');
+			esecond->emit(e, aux);
+			e << op2 << " = " << aux << '\n';
+		}
+		e << res << " = isgt " << op1 << " , " << op2;
+		if (!result.empty())
+			e << '\n';
+	}
+	else
+		throw Unsupported(std::string(" operator > for operands (") + type1 + "," + type2 + ")", start);
 }
 
 //**********************************************************************

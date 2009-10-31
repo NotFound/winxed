@@ -2,7 +2,7 @@
 #define INCLUDE_ERRORS_H
 
 // errors.h
-// Revision 27-oct-2009
+// Revision 31-oct-2009
 
 #include "token.h"
 
@@ -27,6 +27,12 @@ public:
 private:
 	unsigned int ln;
 	Token w;
+};
+
+class Unsupported : public CompileError
+{
+public:
+	Unsupported(const std::string &msg, const Token &where);
 };
 
 class SyntaxError : public CompileError

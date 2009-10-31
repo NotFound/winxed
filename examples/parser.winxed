@@ -14,21 +14,19 @@ function isspace(string c)
 
 function isidentstart(string c)
 {
-    int r= indexof(
+    return indexof(
         'abcdefghijklmnopqrstuvwxyz' +
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '_', c);
-    r= r > -1;
-    return r;
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '_',
+	c) > -1;
 }
 
 function isident(string c)
 {
-    int r= indexof(
+    return indexof(
         'abcdefghijklmnopqrstuvwxyz' +
         'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '_' +
-        '0123456789', c);
-    r= r > -1;
-    return r;
+        '0123456789',
+	c) > -1;
 }
 
 //*********************************************
