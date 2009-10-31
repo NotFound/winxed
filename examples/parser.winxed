@@ -254,6 +254,15 @@ function parser(argv)
 {
     // Simple example, get tokens and prints them.
 
+    using extern Getopt.Obj;
+    var getopts = new 'Getopt::Obj';
+    getopts.notOptStop(1);
+    getopts.push_string('withcomments');
+
+    argv.shift();
+    var opts = getopts.get_options(argv);
+    int withcomments= opts['withcomments'];
+
     int argc= argv;
     if (argc == 0)
         throw Error('No file');
@@ -268,7 +277,7 @@ function parser(argv)
     c= t.get();
     while (! c)
     {
-        if (! c.iscomment())
+        if (withcomments || ! c.iscomment())
 	{
             int newline= c.line;
             if (newline != line)
@@ -286,7 +295,6 @@ function parser(argv)
 
 function main(argv)
 {
-    argv.shift();
     try parser(argv);
     /**/
     catch (e)
