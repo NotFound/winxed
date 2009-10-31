@@ -7,7 +7,7 @@ function main(var args)
 	say ("File: ", filename);
 	file.open(filename);
 
-	while (1)
+	for (;;)
 	{
 		var s= file.readline();
 		if (file.eof() )
