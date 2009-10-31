@@ -25,6 +25,7 @@ function xlibtest [main] ()
     // KeyPressMask, ButtonPressMask, ButtonReleaseMask, PointerMotionMask,
     // ExposureMask
     window.SelectInput(1 | 4 | 8 | 64 | 32768);
+    window.StoreName('Hello, winxed!');
 
     window.Map();
 
