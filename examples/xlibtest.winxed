@@ -5,6 +5,8 @@
 //
 // To execute it directly from command line you can do:
 //     winxed -L /parrot_source_dir/examples/nci xlibtest.winxed
+//
+// To exit close the window or press Esc.
 
 function getKeycode(display, string keyname)
 {
@@ -102,7 +104,8 @@ function xlibtest [main] ()
         break;
         case 33: // ClientMessage
         case 2: // KeyPress
-            looping= 0;
+            if (event.keycode() == Escape)
+                looping= 0;
             break;
         default:
             say('Hi');
