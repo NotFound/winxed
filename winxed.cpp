@@ -23,6 +23,57 @@
 
 //**********************************************************************
 
+inline
+std::string op(const char *name,
+	const std::string &op1, const std::string &op2)
+{
+	return std::string(name) + ' ' + op1 + ", " + op2;
+}
+
+inline
+std::string op(const char *name,
+	const std::string &op1,
+	const std::string &op2, const std::string &op3)
+{
+	return std::string(name) + ' ' + op1 + ", " + op2 + ", " + op3;
+}
+
+inline
+std::string op_set(const std::string &to, const std::string &from)
+{
+	return op("set", to, from);
+}
+
+inline
+std::string op_add(const std::string &res,
+	const std::string &op1, const std::string &op2)
+{
+	return op("add", res, op1, op2);
+}
+
+inline
+std::string op_sub(const std::string &res,
+	const std::string &op1, const std::string &op2)
+{
+	return op("sub", res, op1, op2);
+}
+
+inline
+std::string op_islt(const std::string &res,
+	const std::string &op1, const std::string &op2)
+{
+	return op("islt", res, op1, op2);
+}
+
+inline
+std::string op_isgt(const std::string &res,
+	const std::string &op1, const std::string &op2)
+{
+	return op("isgt", res, op1, op2);
+}
+
+//**********************************************************************
+
 inline void RequireOp(char name, const Token &t)
 {
 	if (! t.isop(name) )
@@ -1601,7 +1652,7 @@ void OpLessExpr::emit(Emit &e, const std::string &result)
 			esecond->emit(e, aux);
 			e << op2 << " = " << aux << '\n';
 		}
-		e << res << " = islt " << op1 << " , " << op2;
+		e << op_islt(res, op1, op2);
 		if (!result.empty())
 			e << '\n';
 	}
@@ -1623,7 +1674,7 @@ void OpLessExpr::emit(Emit &e, const std::string &result)
 			esecond->emit(e, aux);
 			e << op2 << " = " << aux << '\n';
 		}
-		e << res << " = islt " << op1 << " , " << op2;
+		e << op_islt(res, op1, op2);
 		if (!result.empty())
 			e << '\n';
 	}
@@ -1662,16 +1713,16 @@ void OpGreaterExpr::emit(Emit &e, const std::string &result)
 		else {
 			std::string aux= function->genregister('P');
 			efirst->emit(e, aux);
-			e << op1 << " = " << aux << '\n';
+			e << op_set(op1, aux) << '\n';
 		}
 		if (type2 == 'I')
 			esecond->emit(e, op2);
 		else {
 			std::string aux= function->genregister('P');
 			esecond->emit(e, aux);
-			e << op2 << " = " << aux << '\n';
+			e << op_set(op2, aux) << '\n';
 		}
-		e << res << " = isgt " << op1 << " , " << op2;
+		e << op_isgt(res, op1, op2);
 		if (!result.empty())
 			e << '\n';
 	}
@@ -1684,16 +1735,16 @@ void OpGreaterExpr::emit(Emit &e, const std::string &result)
 		else {
 			std::string aux= function->genregister('P');
 			efirst->emit(e, aux);
-			e << op1 << " = " << aux << '\n';
+			e << op_set(op1, aux) << '\n';
 		}
 		if (type2 == 'S')
 			esecond->emit(e, op2);
 		else {
 			std::string aux= function->genregister('P');
 			esecond->emit(e, aux);
-			e << op2 << " = " << aux << '\n';
+			e << op_set(op2, aux) << '\n';
 		}
-		e << res << " = isgt " << op1 << " , " << op2;
+		e << op_isgt(res, op1, op2);
 		if (!result.empty())
 			e << '\n';
 	}
@@ -1803,7 +1854,7 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
 		std::string op2= genlocalregister('I');
 		efirst->emit(e, op1);
 		esecond->emit(e, op2);
-		e << res << " = " << op1 << " + " << op2;
+		e << op_add(res, op1, op2);
 	}
 	else
 	{
@@ -1835,7 +1886,7 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
 		efirst->emit(e, op1);
 		esecond->emit(e, op2);
 		//e << res << " = new 'Integer'\n";
-		e << res << " = " << op1 << " + " << op2;
+		e << op_add(res, op1, op2);
 	}
 	if (!result.empty())
 		e << '\n';
@@ -1889,7 +1940,7 @@ void OpSubExpr::emit(Emit &e, const std::string &result)
 	std::string op2= genlocalregister('I');
 	efirst->emit(e, op1);
 	esecond->emit(e, op2);
-	e << res << " = " << op1 << " - " << op2;
+	e << op_sub(res, op1, op2);
 	if (!result.empty())
 		e << '\n';
 }
