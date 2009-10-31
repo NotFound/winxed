@@ -76,7 +76,7 @@ function getquoted(tk, string start)
     string c= tk.getchar();
     while (c != '"')
     {
-        if (c == '')
+        if (c == '' || c == "\n")
             throw Error('Unterminated string');
         s+= c;
         c= tk.getchar();
@@ -91,7 +91,7 @@ function getsinglequoted(tk, string start)
     string c= tk.getchar();
     while (c != "'")
     {
-        if (c == '')
+        if (c == '' || c == "\n")
             throw Error('Unterminated string');
         s+= c;
         c= tk.getchar();
