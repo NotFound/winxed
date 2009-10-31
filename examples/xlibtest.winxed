@@ -6,7 +6,12 @@
 // To execute it directly from command line you can do:
 //     winxed -L /parrot_source_dir/examples/nci xlibtest.winxed
 
-function none() { }
+function getKeycode(display, string keyname)
+{
+    using Xlib.StringToKeysym;
+    int keysym = StringToKeysym(keyname);
+    return display.KeysymToKeycode(keysym);
+}
 
 function xlibtest [main] ()
 {
@@ -18,6 +23,8 @@ function xlibtest [main] ()
     say(DisplayName());
     var display= OpenDisplay();
     say('DefaultScreen: ', display.DefaultScreen());
+    int Escape = getKeycode(display, 'Escape');
+
     var rootwin= display.RootWindow();
     int white= display.WhitePixel();
     var window= display.CreateSimpleWindow(rootwin, 0, 0, 600, 400, 0, 0, white);
