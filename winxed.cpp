@@ -1485,16 +1485,12 @@ BaseExpr *OpNotEqualExpr::optimize()
 	{
 		if (efirst->isliteralinteger() && esecond->isliteralinteger())
 		{
-			int n1= efirst->getintegervalue();
-			int n2= esecond->getintegervalue();
-			Token newt= Token(n1 != n2, efirst->gettoken());
+			Token newt= Token(efirst->getintegervalue() != esecond->getintegervalue(), efirst->gettoken());
 			return new SimpleExpr(*function, *this, newt);
 		}
 		if (efirst->isliteralstring() && esecond->isliteralstring())
 		{
-			std::string s1= efirst->getstringvalue();
-			std::string s2= esecond->getstringvalue();
-			Token newt= Token(s1 != s2, efirst->gettoken());
+			Token newt= Token(efirst->getstringvalue() != esecond->getstringvalue(), efirst->gettoken());
 			return new SimpleExpr(*function, *this, newt);
 		}
 	}
@@ -1683,26 +1679,16 @@ BaseExpr *OpAddExpr::optimize()
 	optimize_operands();
 	if (efirst->issimple() && esecond->issimple())
 	{
-		Token t1= dynamic_cast<SimpleExpr *>(efirst)->get();
-		Token t2= dynamic_cast<SimpleExpr *>(esecond)->get();
 		if (efirst->isliteralinteger() && esecond->isliteralinteger())
 		{
 			//std::cerr << "OpAddExpr::optimize int\n";
-
-			int n1= efirst->getintegervalue();
-			int n2= esecond->getintegervalue();
-			//std::cerr << n1 << " " << n2 << '\n';
-
-			Token newt= Token(n1 + n2, t1);
+			Token newt= Token(efirst->getintegervalue() + esecond->getintegervalue(), efirst->gettoken());
 			return new SimpleExpr(*function, *this, newt);
 		}
-		if (t1.isliteralstring() && t2.isliteralstring())
+		if (efirst->isliteralstring() && esecond->isliteralstring())
 		{
 			//std::cerr << "OpAddExpr::optimize string\n";
-
-			std::string s1= efirst->getstringvalue();
-			std::string s2= esecond->getstringvalue();
-			Token newt= Token(TokenTQuoted, s1 + s2, t1.linenum(), t1.file());
+			Token newt= Token(TokenTQuoted, efirst->getstringvalue() + esecond->getstringvalue(), efirst->gettoken());
 			return new SimpleExpr(*function, *this, newt);
 		}
 	}
@@ -1791,18 +1777,16 @@ BaseExpr *OpSubExpr::optimize()
 	optimize_operands();
 	if (efirst->issimple() && esecond->issimple())
 	{
-		Token t1= dynamic_cast<SimpleExpr *>(efirst)->get();
-		Token t2= dynamic_cast<SimpleExpr *>(esecond)->get();
-		if (t1.isinteger() && t2.isinteger())
+		if (efirst->isliteralinteger() && esecond->isliteralinteger())
 		{
 			//std::cerr << "OpSubExpr::optimize int\n";
 
-			int n1= t1.getinteger();
-			int n2= t2.getinteger();
+			int n1= efirst->getintegervalue();
+			int n2= esecond->getintegervalue();
 
 			//std::cerr << n1 << " " << n2 << '\n';
 
-			Token newt= Token(n1 - n2, t1);
+			Token newt= Token(n1 - n2, efirst->gettoken());
 			return new SimpleExpr(*function, *this, newt);
 		}
 	}

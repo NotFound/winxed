@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 30-oct-2009
+// Revision 31-oct-2009
 
 #include "token.h"
 #include "errors.h"
@@ -38,6 +38,11 @@ Token::Token (const std::string &ss, unsigned int linenum,
 Token::Token (TokenType type, const std::string &ss, unsigned int linenum,
 		const std::string &file) :
 	ttype(type), s(ss), ln(linenum), filename(file)
+{ }
+
+Token::Token (TokenType type, const std::string &ss, const Token &base) :
+	ttype(type), s(ss),
+	ln(base.linenum()), filename(base.file())
 { }
 
 Token::Token (bool value, const Token &base) :
