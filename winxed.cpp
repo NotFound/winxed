@@ -2074,6 +2074,7 @@ public:
 	OpMulExpr(Function &fn, Block &block,
 		Token t, BaseExpr *first, BaseExpr *second);
 private:
+	bool isinteger() const { return true; }
 	void emit(Emit &e, const std::string &result);
 };
 
