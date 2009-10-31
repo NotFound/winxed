@@ -1869,6 +1869,13 @@ public:
 	OpAddExpr(Function &fn, Block &block,
 		Token t, BaseExpr *first, BaseExpr *second);
 private:
+	bool isstring () const
+	{
+		return (efirst->isstring() &&
+			(esecond->isstring() || esecond->isinteger()) ) ||
+			(esecond->isstring() &&
+			(efirst->isstring() || efirst->isinteger()) );
+	}
 	BaseExpr *optimize();
 	void emit(Emit &e, const std::string &result);
 };
@@ -1904,8 +1911,7 @@ BaseExpr *OpAddExpr::optimize()
 
 void OpAddExpr::emit(Emit &e, const std::string &result)
 {
-	// Quick hack
-	if (isstring())
+	if (efirst->isstring() && esecond->isstring())
 	{
 		std::string res= result.empty() ? genlocalregister('S') : result;
 		std::string op1= genlocalregister('S');
@@ -1922,6 +1928,28 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
 		efirst->emit(e, op1);
 		esecond->emit(e, op2);
 		e << op_add(res, op1, op2);
+	}
+	else if (efirst->isstring() && esecond->isinteger())
+	{
+		std::string res= result.empty() ? genlocalregister('S') : result;
+		std::string op1= genlocalregister('S');
+		std::string op2= genlocalregister('I');
+		std::string op2_s= genlocalregister('S');
+		efirst->emit(e, op1);
+		esecond->emit(e, op2);
+		e << op_set(op2_s, op2) << '\n' <<
+			res << " = concat " << op1 << " , " << op2_s;
+	}
+	else if (efirst->isinteger() && esecond->isstring())
+	{
+		std::string res= result.empty() ? genlocalregister('S') : result;
+		std::string op1= genlocalregister('I');
+		std::string op2= genlocalregister('S');
+		std::string op1_s= genlocalregister('S');
+		efirst->emit(e, op1);
+		esecond->emit(e, op2);
+		e << op_set(op1_s, op1) << '\n' <<
+			res << " = concat " << op1_s << " , " << op2;
 	}
 	else
 	{
@@ -2407,7 +2435,7 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
 		BaseExpr &arg= * args[i];
 		if (! arg.issimple() )
 		{
-			std::string reg= function->genregister(arg.isinteger() ? 'I' : 'P');
+			std::string reg= function->genregister(arg.checkresult());
 			arg.emit(e, reg);
 			argregs.push_back(reg);
 		}
@@ -2491,7 +2519,7 @@ void MethodCallExpr::emit(Emit &e, const std::string &result)
 		BaseExpr &arg= * args[i];
 		if (! arg.issimple() )
 		{
-			std::string reg= function->genregister(arg.isinteger() ? 'I' : 'P');
+			std::string reg= function->genregister(arg.checkresult());
 			arg.emit(e, reg);
 			argregs.push_back(reg);
 		}
