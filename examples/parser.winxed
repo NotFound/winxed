@@ -49,16 +49,23 @@ class Token
     {
         string str= self.str;
         switch (self.type)
-	{
-	case 1:
+        {
+        case 1:
             str= '"' + str + '"';
-	    break;
-	case 2:
+            break;
+        case 2:
             str= "'" + str + "'";
-	    break;
-	}
+            break;
+        }
         return str;
     }
+}
+
+function newToken(int type, string s, int line)
+{
+    var t= new Token;
+    t.type= 2; t.str= s; t.line= line;
+    return t;
 }
 
 //*********************************************
@@ -77,9 +84,7 @@ function getquoted(tk, string start)
         s+= c;
         c= tk.getchar();
     }
-    var t= new Token;
-    t.type= 2; t.str= s; t.line= line;
-    return t;
+    return newToken(2, s, line);
 }
 
 function getsinglequoted(tk, string start)
@@ -94,9 +99,7 @@ function getsinglequoted(tk, string start)
         s+= c;
         c= tk.getchar();
     }
-    var t= new Token;
-    t.type= 3; t.str= s; t.line= line;
-    return t;
+    return newToken(3, s, line);
 }
 
 function getident(tk, string start)
@@ -110,9 +113,7 @@ function getident(tk, string start)
         c= tk.getchar();
     }
     tk.ungetchar(c);
-    var t= new Token;
-    t.type= 4; t.str= s; t.line= line;
-    return t;
+    return newToken(4, s, line);
 }
 
 function getlinecomment(tk, string start)
@@ -125,9 +126,7 @@ function getlinecomment(tk, string start)
         s+= c;
         c= tk.getchar();
     }
-    var t= new Token;
-    t.type= 0; t.str= s; t.line= line;
-    return t;
+    return newToken(0, s, line);
 }
 
 function getcomment(tk, string start)
@@ -175,13 +174,17 @@ class Tokenizer
         self.h= handle;
         var pending= new 'String';
         self.pending= pending;
-	self.line= 1;
+        self.line= 1;
         var select = {
             '"': { '': getquoted },
             "'": { '': getsinglequoted },
             '=': { '': getop, '=': getop },
+            '+': { '': getop, '+': getop, '=': getop },
+            '-': { '': getop, '-': getop, '=': getop },
             '|': { '': getop, '|': getop },
             '&': { '': getop, '&': getop },
+            '<': { '': getop, '<': getop, '=': getop },
+            '>': { '': getop, '>': getop, '=': getop },
             '!': { '': getop, '=': getop },
             '/': { '/': getlinecomment, '*': getcomment },
             '#': { '': getlinecomment }
@@ -198,12 +201,12 @@ class Tokenizer
         }
         var h= self.h;
         string c= h.read(1);
-	if (c == "\n")
-	{
-		int l=self.line;
-		++l;
-		self.line= l;
-	}
+        if (c == "\n")
+        {
+                int l=self.line;
+                ++l;
+                self.line= l;
+        }
         return c;
     }
     function ungetchar(string c)
@@ -213,8 +216,8 @@ class Tokenizer
     function get()
     {
         string c= self.getchar();
-	while (isspace(c))
-		c= self.getchar();
+        while (isspace(c))
+                c= self.getchar();
         if (c == '')
         {
             var t= new Token;
@@ -230,7 +233,7 @@ class Tokenizer
             var current2= current[c2];
             if (current2)
             {
-                c= c + c2;
+                c+= c2;
                 return current2(self, c);
             }
             else
@@ -241,12 +244,10 @@ class Tokenizer
                     return current2(self, c);
             }
         }
-	else
-	{
+        else
+        {
             int line= self.line;
-            var t= new Token;
-            t.type= 5; t.str= c; t.line= line;
-            return t;
+            return newToken(5, c, line);
         }
     }
 }
@@ -273,12 +274,12 @@ function parser(argv)
     c= t.get();
     while (! c)
     {
-    	int newline= c.line;
-	if (newline != line)
-	{
-	    line= newline;
-	    say(); print(line, ': ');
-	}
+            int newline= c.line;
+        if (newline != line)
+        {
+            line= newline;
+            say(); print(line, ': ');
+        }
         print(" [", c, "]");
         c= t.get();
     }
