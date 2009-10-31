@@ -4320,53 +4320,60 @@ void winxed_main (int argc, char **argv)
 {
 	if (argc < 2)
 		throw CompileError("No arguments");
-	int i= 1;
-	const char *inputname= 0;
+	std::string inputname;
+	std::string expr;
 	std::string outputfile;
 	bool compileonly= false;
 	enum Target { TargetRun, TargetPir, TargetPbc } target = TargetPir;
 	std::vector <std::string> addlib;
 
-nextarg:
-	if (strcmp(argv[i], "-o") == 0)
+	int i;
+	for (i = 1; i < argc; ++i)
 	{
-		outputfile= argv[++i];
-		++i;
-		goto nextarg;
-	}
-	else if (strcmp(argv[i], "-c") == 0)
-	{
-		compileonly= true;
-		++i;
-		goto nextarg;
-	}
-	else if (strcmp(argv[i], "--target") == 0)
-	{
-		std::string t= argv [++i];
-		if (t == "pir")
-			target= TargetPir;
-		else if (t == "pbc")
-			target= TargetPbc;
-		else
-			throw CompileError("Invalid target");
-		compileonly= true;
-		++i;
-		goto nextarg;
-	}
-	else if (strcmp(argv[i], "-L") == 0)
-	{
-		addlib.push_back(std::string(argv[++i]));
-		++i;
-		goto nextarg;
+		if (strcmp(argv[i], "-o") == 0)
+		{
+			outputfile= argv[++i];
+		}
+		else if (strcmp(argv[i], "-c") == 0)
+			compileonly= true;
+		else if (strcmp(argv[i], "--target") == 0)
+		{
+			std::string t= argv [++i];
+			if (t == "pir")
+				target= TargetPir;
+			else if (t == "pbc")
+				target= TargetPbc;
+			else
+				throw CompileError("Invalid target");
+			compileonly= true;
+		}
+		else if (strcmp(argv[i], "-L") == 0)
+			addlib.push_back(std::string(argv[++i]));
+		else if (strcmp(argv[i], "-e") == 0)
+			expr = argv[++i];
+		else break;
 	}
 
-	if (i >= argc)
-		throw CompileError("No input file");
-
-	inputname= argv[i++];
-	std::ifstream ifs(inputname);
-	if (! ifs.is_open() )
-		throw CompileError(std::string("Cant't open ") + inputname);
+	std::ifstream ifile;
+	std::istringstream iss;
+	if (! expr.empty() )
+	{
+		expr = "function main(argv) {\n" + expr + "\n;\n}\n";
+		iss.str(expr);
+		std::streambuf *aux= iss.rdbuf();
+		std::cin.rdbuf(aux);
+		inputname = "##eval##";
+	}
+	else
+	{
+		if (i < argc)
+			inputname= argv[i++];
+		if (!inputname.empty())
+			ifile.open(inputname.c_str());
+		if (! ifile.is_open() )
+			throw CompileError(std::string("Cant't open ") + inputname);
+		std::cin.rdbuf(ifile.rdbuf());
+	}
 
 	if (outputfile.empty() )
 		outputfile= genfile (inputname, target == TargetPbc ? "pbc" : "pir");
@@ -4380,7 +4387,7 @@ nextarg:
 		throw CompileError(std::string("Cant't open ") + outputfile);
 
 	Winxed winxed;
-	Tokenizer tk (ifs, inputname);
+	Tokenizer tk (std::cin, inputname.c_str());
 	winxed.parse (tk);
 	winxed.optimize();
 	{
