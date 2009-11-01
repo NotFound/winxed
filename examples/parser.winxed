@@ -50,6 +50,10 @@ class Token
     {
         return self.type == 4 && self.str == name;
     }
+    function isop(string name)
+    {
+        return self.type == 5 && self.str == name;
+    }
 
     function get_string[vtable]()
     {
@@ -268,8 +272,45 @@ class Tokenizer
 
 // This is a first step towards a possible bootstraped version.
 
-function miniwinxed_parser(tk)
+class FunctionStatement
 {
+    var name;
+    function parse(tk)
+    {
+        var t= tk.get();
+        say('name: ', t);
+        self.name= t;
+        t= tk.get();
+        if (t.isop('['))
+        {
+            for (t= tk.get(); !t.isop(']'); )
+                t= tk.get();
+            t= tk.get();
+        }
+        if (! t.isop('('))
+            throw Error("Expected '('");
+        t= tk.get();
+        while (! t.isop(')'))
+            t= tk.get();
+    }
+}
+
+class MiniWinxed
+{
+    var balance1;
+    var balance2;
+    var balance3;
+    var functions;
+    function init [vtable] ()
+    {
+        self.balance1= 0;
+        self.balance2= 0;
+        self.balance3= 0;
+        var functions= [];
+        self.functions = functions;
+    }
+    function parse(tk)
+    {
         var t= tk.get();
         int balance1= 0;
         int balance2= 0;
@@ -279,7 +320,15 @@ function miniwinxed_parser(tk)
             string s= t;
             switch(s)
             {
-            case "function": say('Got a function!'); break;
+            case "function":
+                {
+                    say('Got a function!');
+                    var f= new FunctionStatement;
+                    f.parse(tk);
+                    var functions= self.functions;
+                    functions.push(f);
+                }
+                break;
             case '(': ++balance1; break;
             case ')': --balance1; break;
             case '{': ++balance2; break;
@@ -289,9 +338,28 @@ function miniwinxed_parser(tk)
             }
             t= tk.get();
         }
-        if (balance1) say('Unbalanced ( ): ', balance1);
-        if (balance2) say('Unbalanced [ ]: ', balance2);
-        if (balance1) say('Unbalanced { }: ', balance3);
+        self.balance1= balance1;
+        self.balance2= balance2;
+        self.balance3= balance3;
+    }
+    function report()
+    {
+        int n= self.functions;
+        say('Functions: ', n);
+        var f;
+        for (f in self.functions)
+            say(f.name);
+        if (self.balance1) say('Unbalanced ( ): ', self.balance1);
+        if (self.balance2) say('Unbalanced [ ]: ', self.balance2);
+        if (self.balance3) say('Unbalanced { }: ', self.balance3);
+    }
+}
+
+function miniwinxed_parser(tk)
+{
+        var winxed= new MiniWinxed;
+        winxed.parse(tk);
+        winxed.report();
 }
 
 //*********************************************
