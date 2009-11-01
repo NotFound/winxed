@@ -266,14 +266,27 @@ class Tokenizer
 function miniwinxed_parser(tk)
 {
         var t= tk.get();
+        int balance1= 0;
+        int balance2= 0;
+        int balance3= 0;
         while (! t)
         {
             string s= t;
-            if (s == "function")
-                say('Got a function!');
+            switch(s)
+            {
+            case "function": say('Got a function!'); break;
+            case '(': ++balance1; break;
+            case ')': --balance1; break;
+            case '{': ++balance2; break;
+            case '}': --balance2; break;
+            case '[': ++balance3; break;
+            case ']': --balance3; break;
+            }
             t= tk.get();
         }
-        say('');
+        if (balance1) say('Unbalanced ( ): ', balance1);
+        if (balance2) say('Unbalanced [ ]: ', balance2);
+        if (balance1) say('Unbalanced { }: ', balance3);
 }
 
 //*********************************************
