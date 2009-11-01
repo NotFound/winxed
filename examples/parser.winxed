@@ -275,6 +275,8 @@ class Tokenizer
 class FunctionStatement
 {
     var name;
+    var modifiers;
+
     function parse(tk)
     {
         var t= tk.get();
@@ -283,15 +285,100 @@ class FunctionStatement
         t= tk.get();
         if (t.isop('['))
         {
-            for (t= tk.get(); !t.isop(']'); )
-                t= tk.get();
+            var modifiers= [];
             t= tk.get();
+            modifiers.push(t);
+            for (t= tk.get(); t.isop(','); )
+            {
+                t= tk.get();
+                modifiers.push(t);
+            }
+            if (!t.isop(']'))
+                throw Error("Expected ',' or ']'");
+            t= tk.get();
+            self.modifiers= modifiers;
         }
         if (! t.isop('('))
             throw Error("Expected '('");
         t= tk.get();
         while (! t.isop(')'))
             t= tk.get();
+        t= tk.get();
+        if (!t.isop('{'))
+            throw Error("Expected '{'");
+        int blocklevel= 1;
+        while (blocklevel > 0)
+        {
+            t= tk.get();
+            if (t.isop('{'))
+                ++blocklevel;
+            else if (t.isop('}'))
+                --blocklevel;
+        }
+    }
+
+    function showinfo()
+    {
+            print('function ', self.name);
+            var modifiers= self.modifiers;
+            if (modifiers)
+            {
+                print(' [');
+                var m;
+                string sep= '';
+                for (m in modifiers)
+                {
+                    print(sep);
+                    sep= ', ';
+                    print(m);
+                }
+                print(']');
+            }
+            say(' ()');
+    }
+}
+
+class ClassStatement
+{
+    var name;
+    var functions;
+
+    function init [vtable] ()
+    {
+        var functions= [];
+        self.functions = functions;
+    }
+
+    function parse(tk)
+    {
+        var t= tk.get();
+        say('name: ', t);
+        self.name= t;
+        t= tk.get();
+        if (!t.isop('{'))
+            throw Error("Expected '{'");
+        t= tk.get();
+        while (!t.isop('}'))
+        {
+            if (t.iskeyword('function'))
+            {
+                say('Got a member function!');
+                var f= new FunctionStatement;
+                f.parse(tk);
+                var functions= self.functions;
+                functions.push(f);
+            }
+            t= tk.get();
+        }
+    }
+
+    function showinfo()
+    {
+        say('class ', self.name, ' {');
+        var f;
+        for (f in self.functions)
+            f.showinfo();
+        say('}');
     }
 }
 
@@ -301,6 +388,7 @@ class MiniWinxed
     var balance2;
     var balance3;
     var functions;
+    var classes;
     function init [vtable] ()
     {
         self.balance1= 0;
@@ -308,6 +396,8 @@ class MiniWinxed
         self.balance3= 0;
         var functions= [];
         self.functions = functions;
+        var classes= [];
+        self.classes= classes;
     }
     function parse(tk)
     {
@@ -317,24 +407,34 @@ class MiniWinxed
         int balance3= 0;
         while (! t)
         {
-            string s= t;
-            switch(s)
+            if (t.iskeyword('function'))
             {
-            case "function":
+                say('Got a function!');
+                var f= new FunctionStatement;
+                f.parse(tk);
+                var functions= self.functions;
+                functions.push(f);
+            }
+            else if (t.iskeyword('class'))
+            {
+                say('Got a class!');
+                var c= new ClassStatement;
+                c.parse(tk);
+                var classes= self.classes;
+                classes.push(c);
+            }
+            else if (t.type == 5)
+            {
+                string s= t;
+                switch(s)
                 {
-                    say('Got a function!');
-                    var f= new FunctionStatement;
-                    f.parse(tk);
-                    var functions= self.functions;
-                    functions.push(f);
+                case '(': ++balance1; break;
+                case ')': --balance1; break;
+                case '{': ++balance2; break;
+                case '}': --balance2; break;
+                case '[': ++balance3; break;
+                case ']': --balance3; break;
                 }
-                break;
-            case '(': ++balance1; break;
-            case ')': --balance1; break;
-            case '{': ++balance2; break;
-            case '}': --balance2; break;
-            case '[': ++balance3; break;
-            case ']': --balance3; break;
             }
             t= tk.get();
         }
@@ -344,11 +444,13 @@ class MiniWinxed
     }
     function report()
     {
-        int n= self.functions;
-        say('Functions: ', n);
         var f;
         for (f in self.functions)
-            say(f.name);
+            f.showinfo();
+        var c;
+        for (c in self.classes)
+            c.showinfo();
+
         if (self.balance1) say('Unbalanced ( ): ', self.balance1);
         if (self.balance2) say('Unbalanced [ ]: ', self.balance2);
         if (self.balance3) say('Unbalanced { }: ', self.balance3);
