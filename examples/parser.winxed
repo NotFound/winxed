@@ -82,9 +82,8 @@ function newToken(int type, string s, int line)
 //       Tokenizer auxiliar functions
 //*********************************************
 
-function getquoted(tk, string start)
+function getquoted(tk, string start, int line)
 {
-    int line= tk.line;
     string s;
     string c= tk.getchar();
     while (c != '"')
@@ -97,9 +96,8 @@ function getquoted(tk, string start)
     return newToken(2, s, line);
 }
 
-function getsinglequoted(tk, string start)
+function getsinglequoted(tk, string start, int line)
 {
-    int line= tk.line;
     string s;
     string c= tk.getchar();
     while (c != "'")
@@ -112,9 +110,8 @@ function getsinglequoted(tk, string start)
     return newToken(3, s, line);
 }
 
-function getident(tk, string start)
+function getident(tk, string start, int line)
 {
-    int line= tk.line;
     string s= start;
     string c= tk.getchar();
     while (isident(c))
@@ -126,9 +123,8 @@ function getident(tk, string start)
     return newToken(4, s, line);
 }
 
-function getlinecomment(tk, string start)
+function getlinecomment(tk, string start, int line)
 {
-    int line= tk.line;
     string s= start;
     string c= tk.getchar();
     while (c != '' && c != "\n")
@@ -139,9 +135,8 @@ function getlinecomment(tk, string start)
     return newToken(0, s, line);
 }
 
-function getcomment(tk, string start)
+function getcomment(tk, string start, int line)
 {
-    int line= tk.line;
     string s= start;
     string c= tk.getchar();
 next:
@@ -158,9 +153,8 @@ next:
     return newToken(0, s, line);
 }
 
-function getop(tk, string start)
+function getop(tk, string start, int line)
 {
-    int line= tk.line;
     string s= start;
     var t= new Token;
     return newToken(5, s, line);
@@ -185,15 +179,15 @@ class Tokenizer
         var select = {
             '"': { '': getquoted },
             "'": { '': getsinglequoted },
-            '=': { '': getop, '=': getop },
-            '+': { '': getop, '+': getop, '=': getop },
-            '-': { '': getop, '-': getop, '=': getop },
-            '|': { '': getop, '|': getop },
-            '&': { '': getop, '&': getop },
-            '<': { '': getop, '<': getop, '=': getop },
-            '>': { '': getop, '>': getop, '=': getop },
-            '!': { '': getop, '=': getop },
-            '/': { '': getop, '/': getlinecomment, '*': getcomment },
+            '=': { '=': getop },
+            '+': { '+': getop, '=': getop },
+            '-': { '-': getop, '=': getop },
+            '|': { '|': getop },
+            '&': { '&': getop },
+            '<': { '<': getop, '=': getop },
+            '>': { '>': getop, '=': getop },
+            '!': { '=': getop },
+            '/': { '/': getlinecomment, '*': getcomment },
             '#': { '': getlinecomment }
         };
         self.select= select;
@@ -225,13 +219,14 @@ class Tokenizer
         string c= self.getchar();
         while (isspace(c))
                 c= self.getchar();
+        int line= self.line;
         if (c == '')
         {
             var t= new Token;
             t.type= -1;
             return t;
         }
-        if (isidentstart(c)) return getident(self, c);
+        if (isidentstart(c)) return getident(self, c, line);
         var select = self.select;
         var current= select[c];
         if (current)
@@ -241,21 +236,17 @@ class Tokenizer
             if (current2)
             {
                 c+= c2;
-                return current2(self, c);
+                return current2(self, c, line);
             }
             else
             {
                 self.ungetchar(c2);
                 current2= current[''];
                 if (current2)
-                    return current2(self, c);
+                    return current2(self, c, line);
             }
         }
-        else
-        {
-            int line= self.line;
-            return newToken(5, c, line);
-        }
+        return getop(self, c, line);
     }
     function get(int withcomments [optional])
     {
