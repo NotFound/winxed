@@ -193,7 +193,7 @@ class Tokenizer
             '<': { '': getop, '<': getop, '=': getop },
             '>': { '': getop, '>': getop, '=': getop },
             '!': { '': getop, '=': getop },
-            '/': { '/': getlinecomment, '*': getcomment },
+            '/': { '': getop, '/': getlinecomment, '*': getcomment },
             '#': { '': getlinecomment }
         };
         self.select= select;
