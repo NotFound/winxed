@@ -46,6 +46,11 @@ class Token
         return self.type == -1;
     }
     function iscomment() { return self.type == 0; }
+    function iskeyword(string name)
+    {
+        return self.type == 4 && self.str == name;
+    }
+
     function get_string[vtable]()
     {
         string str= self.str;
