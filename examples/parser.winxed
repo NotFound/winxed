@@ -41,6 +41,10 @@ class Token
     {
         return self.type == -1;
     }
+    function iseof()
+    {
+        return self.type == -1;
+    }
     function iscomment() { return self.type == 0; }
     function get_string[vtable]()
     {
@@ -207,7 +211,7 @@ class Tokenizer
     {
         self.pending= c;
     }
-    function get()
+    function get_token()
     {
         string c= self.getchar();
         while (isspace(c))
@@ -244,6 +248,32 @@ class Tokenizer
             return newToken(5, c, line);
         }
     }
+    function get(int withcomments [optional])
+    {
+        var t= self.get_token();
+        while (!t.iseof() && ! withcomments && t.iscomment() )
+           t= self.get_token();
+        return t;
+    }
+}
+
+//*********************************************
+//            Miniwinxed
+//*********************************************
+
+// This is a first step towards a possible bootstraped version.
+
+function miniwinxed_parser(tk)
+{
+        var t= tk.get();
+        while (! t)
+        {
+            string s= t;
+            if (s == "function")
+                say('Got a function!');
+            t= tk.get();
+        }
+        say('');
 }
 
 //*********************************************
@@ -258,10 +288,12 @@ function parser(argv)
     var getopts = new 'Getopt::Obj';
     getopts.notOptStop(1);
     getopts.push_string('withcomments');
+    getopts.push_string('miniwinxed');
 
     argv.shift();
     var opts = getopts.get_options(argv);
     int withcomments= opts['withcomments'];
+    int miniwinxed = opts['miniwinxed'];
 
     int argc= argv;
     if (argc == 0)
@@ -272,12 +304,14 @@ function parser(argv)
     var t= new Tokenizer;
     t.init(file);
 
-    var c;
-    int line= 0;
-    c= t.get();
-    while (! c)
+    if (miniwinxed)
+        miniwinxed_parser(t);
+    else
     {
-        if (withcomments || ! c.iscomment())
+        var c;
+        int line= 0;
+        c= t.get(withcomments);
+        while (! c)
         {
             int newline= c.line;
             if (newline != line)
@@ -286,10 +320,11 @@ function parser(argv)
                 say(); print(line, ': ');
             }
             print(" [", c, "]");
+            c= t.get(withcomments);
         }
-        c= t.get();
+        say('');
     }
-    say('');
+
     file.close();
 }
 

@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 31-oct-2009
+// Revision 1-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -3704,7 +3704,7 @@ void ForStatement::emit(Emit &e)
 	e << l_iteration << ": # for iteration\n";
 	if (iteration)
 	{
-		iteration->emit(e, std::string() );
+		iteration->emit(e, std::string());
 		e << '\n';
 	}
 	if (! l_condition.empty())
