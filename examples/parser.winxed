@@ -471,8 +471,8 @@ function parser(argv)
 
     argv.shift();
     var opts = getopts.get_options(argv);
-    int withcomments= opts['withcomments'];
-    int miniwinxed = opts['miniwinxed'];
+    var withcomments= opts['withcomments'];
+    var miniwinxed = opts['miniwinxed'];
 
     int argc= argv;
     if (argc == 0)
@@ -509,14 +509,14 @@ function parser(argv)
 
 function main(argv)
 {
-    try parser(argv);
-    /**/
+    /*try*/ parser(argv);
+    /*
     catch (e)
     {
         string msg= e['message'];
         say('Error: ', msg);
     }
-    /**/
+    */
 }
 
 // End

@@ -190,10 +190,10 @@ const PredefFunction PredefFunction::predefs[]= {
 		'I', 'S'),
 	PredefFunction("substr",
 		"substr {res}, {arg0}, {arg1}",
-		'I', 'S', 'I'),
+		'S', 'S', 'I'),
 	PredefFunction("substr",
 		"substr {res}, {arg0}, {arg1}, {arg2}",
-		'I', 'S', 'I', 'I'),
+		'S', 'S', 'I', 'I'),
 	PredefFunction("indexof",
 		"index {res}, {arg0}, {arg1}",
 		'I', 'S', 'S'),
@@ -2689,6 +2689,32 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
 
 //**********************************************************************
 
+class MemberExpr : public BaseExpr {
+public:
+	MemberExpr(Function &fn, Block &block, Tokenizer &tk, Token t,
+			BaseExpr *leftexpr) :
+		BaseExpr(fn, block),
+		start(t),
+		left(leftexpr),
+		right(tk.get())
+	{
+	}
+	void emit(Emit &e, const std::string &result)
+	{
+		std::string reg = genlocalregister('P');
+		std::string r = result.empty() ? genlocalregister('P') : result;
+		left->emit(e, reg);
+		e << "getattribute " << r << ", " << reg <<
+			", '" << right.identifier() << "'\n";
+	}
+private:
+	Token start;
+	BaseExpr *left;
+	Token right;
+};
+
+//**********************************************************************
+
 class MethodCallExpr : public BaseExpr
 {
 public:
@@ -2957,6 +2983,11 @@ BaseExpr * parseDotted(Function &fn, Block &block, Tokenizer &tk, Token t)
 	}
 }
 
+BaseExpr * parseDotted2(Function &fn, Block &block, Tokenizer &tk, Token t, BaseExpr *leftexpr)
+{
+	return new MemberExpr(fn, block, tk, t, leftexpr);
+}
+
 BaseExpr * parseExpr_14(Function &fn, Block &block, Tokenizer &tk);
 BaseExpr * parseExpr_13(Function &fn, Block &block, Tokenizer &tk);
 BaseExpr * parseExpr_9(Function &fn, Block &block, Tokenizer &tk);
@@ -2996,7 +3027,28 @@ BaseExpr * parseExpr_0(Function &fn, Block &block, Tokenizer &tk)
 		else if (t2.isop('[') )
 			subexpr = new IndexExpr(fn, block, tk, t);
 		else if (t2.isop('.') )
-			subexpr = parseDotted(fn, block, tk, t);
+		{
+			Token t3= tk.get();
+			Token t4= tk.get();
+			if (t4.isop('('))
+			{
+				tk.unget(t4);
+				tk.unget(t3);
+				subexpr = parseDotted(fn, block, tk, t);
+			}
+			else
+			{
+				tk.unget(t4);
+				tk.unget(t3);
+				tk.unget(t2);
+				subexpr = new SimpleExpr(fn, block, t);
+				t= tk.get();
+				if (t.isop('.'))
+					subexpr= parseDotted2(fn, block, tk, t, subexpr);
+				else
+					tk.unget(t);
+			}
+		}
 		else
 		{
 			tk.unget(t2);
@@ -3303,7 +3355,16 @@ void IntStatement::emit (Emit &e)
 	case ValueSimple:
 		e << ".local int " << name << '\n';
 		if (value.size() == 1)
-			value[0]->emit(e, name);
+		{
+			if (value[0]->isinteger())
+				value[0]->emit(e, name);
+			else
+			{
+				std::string reg= bl.genregister('P');
+				value[0]->emit(e, reg);
+				e << op_set(name, reg) << '\n';
+			}
+		}
 		break;
 	case ValueArray:
 		e << ".local pmc " << name << "\n"
@@ -3401,7 +3462,16 @@ void StringStatement::emit (Emit &e)
 	case ValueSimple:
 		e << ".local string " << name << '\n';
 		if (value.size() == 1)
-			value[0]->emit(e, name);
+		{
+			if (value[0]->isstring())
+				value[0]->emit(e, name);
+			else
+			{
+				std::string reg= bl.genregister('P');
+				value[0]->emit(e, reg);
+				e << op_set(name, reg) << '\n';
+			}
+		}
 		break;
 	case ValueArray:
 		e << ".local pmc " << name << "\n"
@@ -4200,7 +4270,16 @@ void SwitchStatement::emit(Emit &e)
 				type= 'P';
 	}
 	std::string reg= genregister(type);
-	condition->emit(e, reg);
+
+        if (condition->checkresult() == type)
+		condition->emit(e, reg);
+	else
+	{
+		std::string r= genregister(condition->checkresult());
+		condition->emit(e, r);
+		e << op_set(reg, r) << '\n';
+	}
+
 	std::string defaultlabel= genlabel();
 	breaklabel= genlabel();
 	std::vector<std::string> caselabel;

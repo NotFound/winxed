@@ -169,8 +169,8 @@ function main(var argv)
 
     argv.shift();
     var opts = getopts.get_options(argv);
-    int verbose = opts['v'];
-    int recursive = opts['r'];
+    var verbose = opts['v'];
+    var recursive = opts['r'];
 
     string arg= argv[0];
     if (arg == '')
