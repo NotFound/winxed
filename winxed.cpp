@@ -380,6 +380,7 @@ std::string SubBlock::getnamedlabel(const std::string &name)
 //**********************************************************************
 
 class Function;
+class BaseExpr;
 
 //**********************************************************************
 
@@ -390,6 +391,8 @@ public:
 	virtual bool isempty() { return false; }
 	virtual void emit (Emit &e) = 0;
 	virtual BaseStatement *optimize() { return this; }
+	void optimize_branch(BaseStatement *&branch);
+	void optimize_branch(BaseExpr *&branch);
 	virtual ~BaseStatement() { };
 protected:
 	Function *function;
@@ -502,11 +505,27 @@ public:
 	{ throw InternalError("Not a string"); }
 	virtual bool isstring() const { return false; }
 	char checkresult() const;
+	void optimize_branch(BaseExpr *&branch)
+	{ branch= branch->optimize(); }
 protected:
 	Function *function;
 };
 
 BaseExpr * parseExpr(Function &fn, Block &block, Tokenizer &tk);
+
+//**********************************************************************
+
+void BaseStatement::optimize_branch(BaseStatement *&branch)
+{
+	if (branch)
+		branch= branch->optimize();
+}
+
+void BaseStatement::optimize_branch(BaseExpr *&branch)
+{
+	if (branch)
+		branch= branch->optimize();
+}
 
 //**********************************************************************
 
@@ -666,6 +685,7 @@ class AssignToStatement : public SubStatement
 public:
 	AssignToStatement(Function &fn, Block & block,
 		Tokenizer &tk, const Token &name);
+	BaseStatement *optimize();
 	void emit (Emit &e);
 private:
 	const Token tname;
@@ -795,6 +815,7 @@ class ThrowStatement : public SubStatement
 public:
 	ThrowStatement(Function &fn, Block &block, Tokenizer &tk, Token t);
 private:
+	BaseStatement *optimize();
 	void emit (Emit &e);
 	Token pos;
 	BaseExpr * excep;
@@ -807,6 +828,7 @@ class TryStatement : public BlockStatement
 public:
 	TryStatement(Function &fn, Block &block, Tokenizer &tk, Token t);
 private:
+	BaseStatement *optimize();
 	void emit (Emit &e);
 	Token start;
 	BaseStatement *stry;
@@ -1239,7 +1261,7 @@ private:
 	bool isinteger () const { return expr->isinteger(); }
 	BaseExpr *optimize()
 	{
-		expr= expr->optimize();
+		optimize_branch(expr);
 		if (expr->isliteralinteger() )
 		{
 			const int n= expr->getintegervalue();
@@ -1277,7 +1299,7 @@ private:
 	bool isinteger () const { return true; }
 	BaseExpr *optimize()
 	{
-		expr= expr->optimize();
+		optimize_branch(expr);
 		if (expr->isliteralinteger() )
 		{
 			const int n= expr->getintegervalue();
@@ -1442,8 +1464,8 @@ BinOpExpr::BinOpExpr(Function &fn, Block &block, Token t, BaseExpr *first, BaseE
 
 void BinOpExpr::optimize_operands()
 {
-	efirst= efirst->optimize();
-	esecond= esecond->optimize();
+	optimize_branch(efirst);
+	optimize_branch(esecond);
 }
 
 BaseExpr *BinOpExpr::optimize()
@@ -2230,7 +2252,7 @@ private:
 	BaseExpr *optimize()
 	{
 		for (size_t i= 0; i < elems.size(); ++i)
-			elems[i]= elems[i]->optimize();
+			optimize_branch(elems[i]);
 		return this;
 	}
 	void emit(Emit &e, const std::string &result);
@@ -2293,7 +2315,7 @@ private:
 			it != elems.end();
 			++it)
 		{
-			it->second= it->second->optimize();
+			optimize_branch(it->second);
 		}
 		return this;
 	}
@@ -2421,7 +2443,7 @@ FunctionCallExpr::FunctionCallExpr(Function &fn, Block &block,
 BaseExpr *FunctionCallExpr::optimize()
 {
 	for (size_t i= 0; i < args.size(); ++i)
-		args[i]= args[i]->optimize();
+		optimize_branch(args[i]);
 	return this;
 }
 
@@ -2507,7 +2529,7 @@ MethodCallExpr::MethodCallExpr(Function &fn, Block &block,
 BaseExpr *MethodCallExpr::optimize()
 {
 	for (size_t i= 0; i < args.size(); ++i)
-		args[i]= args[i]->optimize();
+		optimize_branch(args[i]);
 	return this;
 }
 
@@ -2589,7 +2611,7 @@ private:
 	bool isinteger() const { return true; }
 	BaseExpr *optimize()
 	{
-		obj->optimize();
+		optimize_branch(obj);
 		return this;
 	}
 	void emit(Emit &e, const std::string &result)
@@ -2998,7 +3020,7 @@ ExprStatement::ExprStatement(Function &fn, Block &parentblock, Tokenizer &tk) :
 
 BaseStatement *ExprStatement::optimize ()
 {
-	expr= expr->optimize();
+	optimize_branch(expr);
 	return this;
 }
 
@@ -3020,7 +3042,7 @@ ValueStatement::ValueStatement(Function &fn, Block & block) :
 BaseStatement *ValueStatement::optimize()
 {
 	for (size_t i= 0; i < value.size(); ++i)
-		value[i]= value[i]->optimize();
+		optimize_branch(value[i]);
 	return this;
 }
 
@@ -3285,8 +3307,7 @@ ReturnStatement::ReturnStatement(Function &fn, Block & block, Tokenizer &tk) :
 
 BaseStatement *ReturnStatement::optimize()
 {
-	if (values)
-		values->optimize();
+	values->optimize();
 	return this;
 }
 
@@ -3316,8 +3337,7 @@ YieldStatement::YieldStatement(Function &fn, Block & block, Tokenizer &tk) :
 
 BaseStatement *YieldStatement::optimize()
 {
-	if (values)
-		values->optimize();
+	values->optimize();
 	return this;
 }
 
@@ -3355,8 +3375,7 @@ AssignStatement::AssignStatement(Function &fn, Block & block,
 
 BaseStatement *AssignStatement::optimize()
 {
-	if (st)
-		st= st->optimize();
+	optimize_branch(st);
 	return this;
 }
 
@@ -3436,6 +3455,12 @@ AssignToStatement::AssignToStatement(Function &fn, Block & block,
 	//std::cerr << "AssignToStatement end\n";
 }
 
+BaseStatement *AssignToStatement::optimize()
+{
+	optimize_branch(st);
+	return this;
+}
+
 void AssignToStatement::emit (Emit &e)
 {
 	std::string varname = tname.identifier();
@@ -3445,7 +3470,6 @@ void AssignToStatement::emit (Emit &e)
 		{
 			//std::cerr << "AssignToStatement::emit\n";
 
-			st= st->optimize();
 			char type = bl.checklocal(varname);
 			switch (type)
 			{
@@ -3523,7 +3547,7 @@ void AttributeAssignStatement::emit (Emit &e)
 {
 	e.annotate(tname);
 	std::string varname = tname.identifier();
-	st= st->optimize();
+	optimize_branch(st);
 
 	std::string r= bl.genregister('P');
 	const std::string objname= tobject.identifier();
@@ -3571,7 +3595,7 @@ BaseStatement *CompoundStatement::optimize ()
 {
 	bool empty= true;
 	for (size_t i= 0; i < subst.size(); ++i) {
-		subst[i]= subst[i]->optimize();
+		optimize_branch(subst[i]);
 		if (!subst[i]->isempty() )
 			empty= false;
 	}
@@ -3608,8 +3632,8 @@ ForeachStatement::ForeachStatement(Function &fn, Block &block, Tokenizer &tk) :
 
 BaseStatement *ForeachStatement::optimize()
 {
-	container= container->optimize();
-	st= st->optimize();
+	optimize_branch(container);
+	optimize_branch(st);
 	return this;
 }
 
@@ -3673,13 +3697,10 @@ ForStatement::ForStatement(Function &fn, Block &block, Tokenizer &tk) :
 
 BaseStatement *ForStatement::optimize()
 {
-	if (initializer)
-		initializer= initializer->optimize();
-	if (condition)
-		condition= condition->optimize();
-	if (iteration)
-		iteration= iteration->optimize();
-	st= st->optimize();
+	optimize_branch(initializer);
+	optimize_branch(condition);
+	optimize_branch(iteration);
+	optimize_branch(st);
 	return this;
 }
 
@@ -3732,6 +3753,12 @@ ThrowStatement::ThrowStatement(Function &fn, Block &block,
 	excep = parseExpr(fn, block, tk);
 }
 
+BaseStatement *ThrowStatement::optimize()
+{
+	optimize_branch(excep);
+	return this;
+}
+
 void ThrowStatement::emit (Emit &e)
 {
 	e.annotate(pos);
@@ -3769,6 +3796,13 @@ TryStatement::TryStatement(Function &fn, Block &block, Tokenizer &tk, Token t) :
 		ExpectOp (')', tk);
 	}
 	scatch= parseStatement (fn, block, tk);
+}
+
+BaseStatement *TryStatement::optimize()
+{
+	optimize_branch(stry);
+	optimize_branch(scatch);
+	return this;
 }
 
 void TryStatement::emit (Emit &e)
@@ -3938,15 +3972,14 @@ more:
 
 BaseStatement *SwitchStatement::optimize()
 {
-	condition= condition->optimize();
+	optimize_branch(condition);
 	for (size_t i= 0; i < casevalue.size(); ++i)
-		if (casevalue[i])
-			casevalue[i]= casevalue[i]->optimize();
+		optimize_branch(casevalue[i]);
 	for (size_t i= 0; i < casest.size(); ++i)
 	{
 		std::vector<BaseStatement *> &cst= casest[i];
 		for (size_t j= 0; j < cst.size(); ++j)
-			cst[j]= cst[j]->optimize();
+			optimize_branch(cst[j]);
 	}
 	return this;
 }
@@ -4029,8 +4062,8 @@ IfStatement::IfStatement(Function &fn, Block &block, Tokenizer &tk) :
 BaseStatement *IfStatement::optimize()
 {
 	condition= condition->optimize();
-	st= st->optimize();
-	stelse= stelse->optimize();
+	optimize_branch(st);
+	optimize_branch(stelse);
 	switch (condition->getvalue())
 	{
 	case Condition::CVtrue:
@@ -4082,7 +4115,7 @@ WhileStatement::WhileStatement(Function &fn, Block &block, Tokenizer &tk) :
 BaseStatement *WhileStatement::optimize()
 {
 	condition= condition->optimize();
-	st= st->optimize();
+	optimize_branch(st);
 	switch (condition->getvalue())
 	{
 	case Condition::CVfalse:
