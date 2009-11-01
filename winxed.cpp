@@ -128,6 +128,121 @@ Emit & operator << (Emit &e, const T &t)
 
 //**********************************************************************
 
+class PredefFunction
+{
+public:
+	PredefFunction(const std::string &name,
+			const std::string &body,
+			char typeresult,
+			char type0= '\0',
+			char type1= '\0',
+			char type2= '\0',
+			char type3= '\0') :
+		pname(name), pbody(body),
+		tresult(typeresult),
+		t0(type0), t1(type1), t2(type2), t3(type3),
+		n(bool(type0) +bool(type1) + bool(type2) + bool(type3) )
+	{}
+	bool name_is(const std::string &name) const
+	{ return pname == name; }
+	static const PredefFunction *find(const std::string &name,
+		size_t numargs);
+	void emit(Emit &e, const std::string &result,
+		const std::vector<std::string> args) const;
+	size_t numargs() const { return n; }
+	char resulttype() const { return tresult; }
+	char paramtype(size_t n) const
+	{
+		switch(n)
+		{
+		case 0: return t0;
+		case 1: return t1;
+		case 2: return t2;
+		case 3: return t3;
+		default: return '\0';
+		}
+	}
+private:
+	static const PredefFunction predefs[];
+	static const size_t numpredefs;
+	const std::string pname;
+	const std::string pbody;
+	char tresult, t0, t1, t2, t3;
+	unsigned int n;
+};
+
+const PredefFunction PredefFunction::predefs[]= {
+	PredefFunction("die",
+		"die {arg0}",
+		'\0', 'S'),
+	PredefFunction("exit",
+		"exit {arg0}",
+		'\0', 'I'),
+	PredefFunction("Error",
+		"root_new {res}, ['parrot';'Exception']\n"
+		"{res}['message'] = {arg0}\n"
+		, 'P', 'S'),
+	PredefFunction("is_null",
+		"is_null {res}, {arg0}",
+		'I', 'P'),
+	PredefFunction("length",
+		"length {res}, {arg0}",
+		'I', 'S'),
+	PredefFunction("substr",
+		"substr {res}, {arg0}, {arg1}",
+		'I', 'S', 'I'),
+	PredefFunction("substr",
+		"substr {res}, {arg0}, {arg1}, {arg2}",
+		'I', 'S', 'I', 'I'),
+	PredefFunction("indexof",
+		"index {res}, {arg0}, {arg1}",
+		'I', 'S', 'S'),
+	PredefFunction("join",
+		"join {res}, {arg0}, {arg1}",
+		'S', 'S', 'P'),
+	PredefFunction("split",
+		"split {res}, {arg0}, {arg1}",
+		'P', 'S', 'S')
+};
+
+const size_t PredefFunction::numpredefs =
+	sizeof(PredefFunction::predefs) / sizeof(PredefFunction::predefs[0]);
+
+const PredefFunction *PredefFunction::find(const std::string &name,
+	size_t numargs)
+{
+	for (size_t i= 0; i < numpredefs; ++i)
+		if (predefs[i].name_is(name) && predefs[i].n == numargs)
+			return predefs + i;
+	return 0;
+}
+
+void PredefFunction::emit(Emit &e, const std::string &result,
+	const std::vector<std::string> args) const
+{
+	std::string body= pbody;
+	const size_t n= args.size();
+	size_t pos;
+	if (tresult)
+		while ((pos= body.find("{res}")) != std::string::npos)
+			body= body.replace(pos, 5, result);
+	if (n > 0)
+		while ((pos= body.find("{arg0}")) != std::string::npos)
+			body= body.replace(pos, 6, args[0]);
+	if (n > 1)
+		while ((pos= body.find("{arg1}")) != std::string::npos)
+			body= body.replace(pos, 6, args[1]);
+	if (n > 2)
+		while ((pos= body.find("{arg2}")) != std::string::npos)
+			body= body.replace(pos, 6, args[2]);
+	if (n > 3)
+		while ((pos= body.find("{arg3}")) != std::string::npos)
+			body= body.replace(pos, 6, args[3]);
+	e << body << '\n';
+}
+
+//**********************************************************************
+
 class Namespace
 {
 public:
@@ -2414,6 +2529,8 @@ public:
 	FunctionCallExpr(Function &fn, Block &block,
 		Tokenizer &tk, Token tname);
 	BaseExpr *optimize();
+	bool isinteger() const;
+	bool isstring() const;
 private:
 	void emit(Emit &e, const std::string &result);
 	Token start;
@@ -2447,9 +2564,85 @@ BaseExpr *FunctionCallExpr::optimize()
 	return this;
 }
 
+bool FunctionCallExpr::isinteger() const
+{
+	if (const PredefFunction *predef= PredefFunction::find(name, args.size()))
+	{
+		return predef->resulttype() == 'I';
+	}
+	else
+		return false;
+}
+
+bool FunctionCallExpr::isstring() const
+{
+	if (const PredefFunction *predef= PredefFunction::find(name, args.size()))
+	{
+		return predef->resulttype() == 'S';
+	}
+	else
+		return false;
+}
+
 void FunctionCallExpr::emit(Emit &e, const std::string &result)
 {
 	//std::cerr << "FunctionCallExpr::emit\n";
+
+	if (const PredefFunction *predef= PredefFunction::find(name, args.size()))
+	{
+		std::vector<std::string> argregs;
+		for (size_t i= 0; i < args.size(); ++i)
+		{
+			BaseExpr &arg= * args[i];
+			char argtype= arg.checkresult();
+			char paramtype= predef->paramtype(i);
+			switch (paramtype)
+			{
+			case 'I':
+				if (arg.isliteralinteger())
+					argregs.push_back(arg.gettoken().str());
+				else if (arg.isinteger() && arg.isidentifier())
+					argregs.push_back(arg.getidentifier());
+				else
+				{
+					std::string reg= genlocalregister('I');
+					arg.emit(e, reg);
+					argregs.push_back(reg);
+				}
+				break;
+			case 'S':
+				if (arg.isliteralstring())
+					argregs.push_back(arg.gettoken().pirliteralstring());
+				else if (arg.isstring() && arg.isidentifier())
+					argregs.push_back(arg.getidentifier());
+				else
+				{
+					std::string reg= genlocalregister('S');
+					arg.emit(e, reg);
+					argregs.push_back(reg);
+				}
+				break;
+			default:
+				{
+					std::string reg= genlocalregister('P');
+					arg.emit(e, reg);
+					argregs.push_back(reg);
+				}
+			}
+		}
+		if (predef->resulttype())
+		{
+			std::string r;
+			if (result.empty())
+				r= genlocalregister(predef->resulttype());
+			else
+				r= result;
+			predef->emit(e, r, argregs);
+		}
+		else
+			predef->emit(e, std::string(), argregs);
+		return;
+	}
 
 	std::vector<std::string> argregs;
 	for (size_t i= 0; i < args.size(); ++i)
