@@ -3870,7 +3870,8 @@ ReturnStatement::ReturnStatement(Block & block, Tokenizer &tk) :
 
 BaseStatement *ReturnStatement::optimize()
 {
-    values->optimize();
+    if (values)
+        values->optimize();
     return this;
 }
 
@@ -3900,7 +3901,8 @@ YieldStatement::YieldStatement(Block & block, Tokenizer &tk) :
 
 BaseStatement *YieldStatement::optimize()
 {
-    values->optimize();
+    if (values)
+        values->optimize();
     return this;
 }
 
