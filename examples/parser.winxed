@@ -34,25 +34,32 @@ function isident(string c)
 
 class Token
 {
+    const int TypeEof = -1;
+    const int TypeComment = 0;
+    const int TypeQuoted = 2;
+    const int TypeSingleQuoted = 3;
+    const int TypeIdentifier = 4;
+    const int TypeOp = 5;
+
     var type;
     var str;
     var line;
     function get_bool[vtable]()
     {
-        return self.type == -1;
+        return self.type == TypeEof;
     }
     function iseof()
     {
-        return self.type == -1;
+        return self.type == TypeEof;
     }
     function iscomment() { return self.type == 0; }
     function iskeyword(string name)
     {
-        return self.type == 4 && self.str == name;
+        return self.type == TypeIdentifier && self.str == name;
     }
     function isop(string name)
     {
-        return self.type == 5 && self.str == name;
+        return self.type == TypeOp && self.str == name;
     }
 
     function get_string[vtable]()
@@ -60,10 +67,10 @@ class Token
         string str= self.str;
         switch (self.type)
         {
-        case 1:
+        case TypeQuoted:
             str= '"' + str + '"';
             break;
-        case 2:
+        case TypeSingleQuoted:
             str= "'" + str + "'";
             break;
         }
