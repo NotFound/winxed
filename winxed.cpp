@@ -546,24 +546,22 @@ std::string SubBlock::getnamedlabel(const std::string &name)
 
 //**********************************************************************
 
-class Namespace
+class NamespaceKey
 {
 public:
+    NamespaceKey() { }
+    NamespaceKey(const NamespaceKey &parent, const std::string &name) :
+        key(parent.key)
+    {
+        key.push_back(name);
+    }
     bool isroot() const
     {
         return key.empty();
     }
-    Namespace child(std::string name) const
+    NamespaceKey parent() const
     {
-        Namespace newchild;
-        newchild.key= key;
-        newchild.key.push_back(name);
-        return newchild;
-    }
-    Namespace parent() const
-    {
-        Namespace newparent;
-        newparent.key= key;
+        NamespaceKey newparent(*this);
         newparent.key.pop_back();
         return newparent;
     }
@@ -585,7 +583,7 @@ public:
     }
 private:
     std::vector <std::string> key;
-    Namespace *parentns;
+    NamespaceKey *parentns;
 };
 
 //**********************************************************************
@@ -696,12 +694,12 @@ class UsingStatement : public BaseStatement
 {
 public:
     UsingStatement(Block &bl,
-        const std::string &name, const Namespace &nspace);
+        const std::string &name, const NamespaceKey &nspace);
 private:
     void emit (Emit &e);
 
     std::string n;
-    Namespace ns;
+    NamespaceKey ns;
 };
 
 //**********************************************************************
@@ -1130,7 +1128,7 @@ protected:
 class FunctionModifiers : public Modifiers
 {
 public:
-    FunctionModifiers(Tokenizer &tk, const Namespace &)
+    FunctionModifiers(Tokenizer &tk, const NamespaceKey &)
     {
         Token t= tk.get();
         if (! t.isop('[') )
@@ -1147,9 +1145,9 @@ class Function : protected FunctionModifiers, public FunctionBlock
 public:
     Function(Tokenizer &tk,
         Block &parent,
-        const Namespace & ns_a, const std::string &funcname);
+        const NamespaceKey & ns_a, const std::string &funcname);
     std::string getname() const { return name; }
-    Namespace getnamespace() const { return ns; }
+    NamespaceKey getnamespace() const { return ns; }
     void optimize();
     virtual void emit (Emit &e);
     void local(std::string name);
@@ -1158,7 +1156,7 @@ public:
     virtual void emitbody (Emit &e);
     virtual ~Function() {}
 private:
-    const Namespace ns;
+    const NamespaceKey ns;
     Token start;
     const std::string name;
     std::vector <std::string> params;
@@ -1192,11 +1190,11 @@ BaseStatement *parseUsing(Block &block, Tokenizer &tk)
     }
     else
     {
-        Namespace ns;
+        NamespaceKey ns;
         std::string name= t.identifier();
         while((t= tk.get()).isop('.'))
         {
-            ns= ns.child(name);
+            ns= NamespaceKey(ns, name);
             t= tk.get();
             name= t.identifier();
         }
@@ -3841,7 +3839,7 @@ void ConstStatement::emit (Emit &e)
 //**********************************************************************
 
 UsingStatement::UsingStatement(Block &bl,
-        const std::string &name, const Namespace &nspace) :
+        const std::string &name, const NamespaceKey &nspace) :
     n(name), ns(nspace)
 {
     bl.genlocal(n, 'P');
@@ -4753,7 +4751,7 @@ void WhileStatement::emit(Emit &e)
 
 Function::Function(Tokenizer &tk,
         Block &parent,
-        const Namespace & ns_a, const std::string &funcname) :
+        const NamespaceKey & ns_a, const std::string &funcname) :
     FunctionModifiers(tk, ns_a),
     FunctionBlock(parent),
     ns(ns_a), name(funcname)
@@ -4863,7 +4861,7 @@ class Class : public Block
 {
 public:
     Class();
-    Class(Tokenizer &tk, Namespace &ns_a);
+    Class(Tokenizer &tk, NamespaceKey &ns_a);
     void emit (Emit &e);
     std::vector <std::string> attributes() const { return attrs; }
 private:
@@ -4878,7 +4876,7 @@ private:
     std::string genlocalregister(char) { throw InternalError("No Class registers"); }
 
     std::string name;
-    Namespace ns;
+    NamespaceKey ns;
     std::vector <Token> parents;
     std::vector <Function *> functions;
     std::vector <std::string> attrs;
@@ -4892,7 +4890,7 @@ class Method : public Function
 public:
     Method(Tokenizer &tk,
             Block &parent,
-            const Namespace & ns_a,
+            const NamespaceKey & ns_a,
             Class &cl,
             const std::string &name) :
         Function(tk, parent, ns_a, name),
@@ -4927,7 +4925,7 @@ Class::Class()
 {
 }
 
-Class::Class(Tokenizer &tk, Namespace &ns_a)
+Class::Class(Tokenizer &tk, NamespaceKey &ns_a)
 {
     Token t= tk.get();
     name= t.identifier();
@@ -4942,7 +4940,7 @@ Class::Class(Tokenizer &tk, Namespace &ns_a)
     }
     RequireOp('{', t);
 
-    ns= ns_a.child(name);
+    ns= NamespaceKey(ns_a, name);
     while (! (t= tk.get()).isop('}'))
     {
         if (t.iskeyword("function"))
@@ -5022,7 +5020,7 @@ public:
     void optimize ();
     void emit (Emit &e);
 private:
-    Namespace cur_namespace;
+    NamespaceKey cur_namespace;
     std::vector <Class *> classes;
     std::vector <Function *> functions;
 };
@@ -5040,7 +5038,7 @@ void Winxed::parse (Tokenizer &tk)
         if (t.iskeyword("namespace"))
         {
             t = tk.get();
-            cur_namespace= cur_namespace.child(t.identifier());
+            cur_namespace= NamespaceKey(cur_namespace, t.identifier());
             ExpectOp('{', tk);
         }
         else if (t.iskeyword("class"))
