@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 1-nov-2009
+// Revision 2-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -2523,27 +2523,62 @@ void HashExpr::emit(Emit &e, const std::string &result)
 
 //**********************************************************************
 
+class MemberExpr : public BaseExpr {
+public:
+	MemberExpr(Function &fn, Block &block, Tokenizer &tk, Token t,
+			BaseExpr *leftexpr) :
+		BaseExpr(fn, block),
+		start(t),
+		left(leftexpr),
+		right(tk.get())
+	{
+		//std::cerr << "MemberExpr::MemberExpr\n";
+		if (!right.isidentifier())
+			throw Expected("identifier", right);
+		//std::cerr << "MemberExpr::MemberExpr\n";
+	}
+	void emit(Emit &e, const std::string &result)
+	{
+		std::string reg = genlocalregister('P');
+		std::string r = result.empty() ? genlocalregister('P') : result;
+		left->emit(e, reg);
+		e << "getattribute " << r << ", " << reg <<
+			", '" << right.identifier() << "'\n";
+	}
+	std::string getmember() const { return right.identifier(); }
+	void emitleft(Emit &e, const std::string &result)
+	{
+		left->emit(e, result);
+	}
+private:
+	Token start;
+	BaseExpr *left;
+	Token right;
+};
+
+//**********************************************************************
+
 class FunctionCallExpr : public BaseExpr
 {
 public:
 	FunctionCallExpr(Function &fn, Block &block,
-		Tokenizer &tk, Token tname);
+		Tokenizer &tk, BaseExpr *function);
 	BaseExpr *optimize();
 	bool isinteger() const;
 	bool isstring() const;
 private:
 	void emit(Emit &e, const std::string &result);
-	Token start;
-	std::string name;
+	BaseExpr *called;
 	std::vector <BaseExpr *> args;
 };
 
 FunctionCallExpr::FunctionCallExpr(Function &fn, Block &block,
-		Tokenizer &tk, Token tname) :
+		Tokenizer &tk, BaseExpr *function) :
 	BaseExpr(fn, block),
-	start(tname),
-	name(tname.identifier())
+	called(function)
 {
+	//std::cerr << "FunctionCallExpr::FunctionCallExpr\n";
+
 	Token t= tk.get();
 	if (! t.isop (')') )
 	{
@@ -2555,6 +2590,8 @@ FunctionCallExpr::FunctionCallExpr(Function &fn, Block &block,
 		} while (t.isop(',') );
 		RequireOp (')', t);
 	}
+
+	//std::cerr << "FunctionCallExpr::FunctionCallExpr end\n";
 }
 
 BaseExpr *FunctionCallExpr::optimize()
@@ -2566,27 +2603,37 @@ BaseExpr *FunctionCallExpr::optimize()
 
 bool FunctionCallExpr::isinteger() const
 {
-	if (const PredefFunction *predef= PredefFunction::find(name, args.size()))
+	if (called->isidentifier())
 	{
-		return predef->resulttype() == 'I';
+		std::string name= called->getidentifier();
+		if (const PredefFunction *predef= PredefFunction::find(name, args.size()))
+		{
+			return predef->resulttype() == 'I';
+		}
 	}
-	else
-		return false;
+	return false;
 }
 
 bool FunctionCallExpr::isstring() const
 {
-	if (const PredefFunction *predef= PredefFunction::find(name, args.size()))
+	if (called->isidentifier())
 	{
-		return predef->resulttype() == 'S';
+		std::string name= called->getidentifier();
+		if (const PredefFunction *predef= PredefFunction::find(name, args.size()))
+		{
+			return predef->resulttype() == 'S';
+		}
 	}
-	else
-		return false;
+	return false;
 }
 
 void FunctionCallExpr::emit(Emit &e, const std::string &result)
 {
 	//std::cerr << "FunctionCallExpr::emit\n";
+
+	if (called->isidentifier())
+	{
+		std::string name= called->getidentifier();
 
 	if (const PredefFunction *predef= PredefFunction::find(name, args.size()))
 	{
@@ -2594,7 +2641,6 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
 		for (size_t i= 0; i < args.size(); ++i)
 		{
 			BaseExpr &arg= * args[i];
-			char argtype= arg.checkresult();
 			char paramtype= predef->paramtype(i);
 			switch (paramtype)
 			{
@@ -2632,6 +2678,7 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
 		}
 		if (predef->resulttype())
 		{
+
 			std::string r;
 			if (result.empty())
 				r= genlocalregister(predef->resulttype());
@@ -2642,6 +2689,7 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
 		else
 			predef->emit(e, std::string(), argregs);
 		return;
+	}
 	}
 
 	std::vector<std::string> argregs;
@@ -2660,14 +2708,36 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
 		}
 	}
 
-	e.annotate(start);
+	//e.annotate(start);
 
-	if (!result.empty() )
-		e << result << " = ";
+	std::string reg;
+	if (called->isidentifier())
+	{
+		std::string name= called->getidentifier();
+		std::string quote(function->islocal(name) ? "" : "'");
+		name = quote + name + quote;
+		if (!result.empty() )
+			e << result << " = ";
+		e << name << '(';
+	}
+	else
+	{
+		reg= genlocalregister('P');
+		if (MemberExpr *me= dynamic_cast<MemberExpr*>(called))
+		{
+			std::string mefun= genlocalregister('P');
+			me->emitleft(e, mefun);
+			e << reg << " = " << mefun << ".'" << me->getmember() << "'(";
+		}
+		else
+		{
+			called->emit(e, reg);
+			e << reg << '(';
+		}
+	}
 
-	std::string quote(function->islocal(name) ? "" : "'");
+	// Arguments
 
-	e << quote << name << quote << '(';
 	for (size_t i= 0; i < args.size(); ++i)
 	{
 		if (i > 0)
@@ -2683,35 +2753,19 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
 		}
 	}
 	e << ')';
-	if (!result.empty() )
+
+	if (! reg.empty() )
+	{
 		e << '\n';
+		if (!result.empty() )
+			e << result << " = " << reg << '\n';
+	}
+	else
+	{
+		if (!result.empty() )
+			e << '\n';
+	}
 }
-
-//**********************************************************************
-
-class MemberExpr : public BaseExpr {
-public:
-	MemberExpr(Function &fn, Block &block, Tokenizer &tk, Token t,
-			BaseExpr *leftexpr) :
-		BaseExpr(fn, block),
-		start(t),
-		left(leftexpr),
-		right(tk.get())
-	{
-	}
-	void emit(Emit &e, const std::string &result)
-	{
-		std::string reg = genlocalregister('P');
-		std::string r = result.empty() ? genlocalregister('P') : result;
-		left->emit(e, reg);
-		e << "getattribute " << r << ", " << reg <<
-			", '" << right.identifier() << "'\n";
-	}
-private:
-	Token start;
-	BaseExpr *left;
-	Token right;
-};
 
 //**********************************************************************
 
@@ -2871,12 +2925,13 @@ private:
 NewExpr::NewExpr(Function &fn, Block &block, Tokenizer &tk, Token t) :
 	BaseExpr(fn, block), ln(t.linenum()), init(0)
 {
+	//std::cerr << "NewExpr::NewExpr\n";
 	t= tk.get();
 	if (t.issinglequoted())
 	{
 		value = "root_new ['parrot'; " + t.pirliteralstring() + " ]";
 		t= tk.get();
-		if (! t.isop(';') )
+		if ((! t.isop(';') && (!t.isop(')'))))
 		{
 			tk.unget(t);
 			init = parseExpr(fn, block, tk);
@@ -2904,6 +2959,7 @@ NewExpr::NewExpr(Function &fn, Block &block, Tokenizer &tk, Token t) :
 		value+= "'" + name + "' ]";
 		tk.unget(t);
 	}
+	//std::cerr << "NewExpr::NewExpr end\n";
 }
 
 void NewExpr::emit(Emit &e, const std::string &result)
@@ -2996,17 +3052,21 @@ BaseExpr * parseExpr_6(Function &fn, Block &block, Tokenizer &tk);
 BaseExpr * parseExpr_5(Function &fn, Block &block, Tokenizer &tk);
 BaseExpr * parseExpr_4(Function &fn, Block &block, Tokenizer &tk);
 BaseExpr * parseExpr_3(Function &fn, Block &block, Tokenizer &tk);
+BaseExpr * parseExpr_2(Function &fn, Block &block, Tokenizer &tk);
 BaseExpr * parseExpr_0(Function &fn, Block &block, Tokenizer &tk);
 
 BaseExpr * parseExpr_0(Function &fn, Block &block, Tokenizer &tk)
 {
+	//std::cerr << "parseExpr_0\n";
 	BaseExpr *subexpr= NULL;
 	Token t= tk.get();
 
 	if (t.isop('(') )
 	{
+		//std::cerr << "parseExpr_0 (\n";
 		subexpr = parseExpr(fn, block, tk);
 		t= tk.get();
+		//std::cerr << "parseExpr_0 )\n";
 		RequireOp (')', t);
 	}
 	else if (t.isop('[') )
@@ -3022,9 +3082,9 @@ BaseExpr * parseExpr_0(Function &fn, Block &block, Tokenizer &tk)
 	else
 	{
 		Token t2= tk.get();
-		if (t2.isop('(') )
+		/*if (t2.isop('(') )
 			subexpr = new FunctionCallExpr(fn, block, tk, t);
-		else if (t2.isop('[') )
+		else */if (t2.isop('[') )
 			subexpr = new IndexExpr(fn, block, tk, t);
 		else if (t2.isop('.') )
 		{
@@ -3042,11 +3102,13 @@ BaseExpr * parseExpr_0(Function &fn, Block &block, Tokenizer &tk)
 				tk.unget(t3);
 				tk.unget(t2);
 				subexpr = new SimpleExpr(fn, block, t);
+#if 0
 				t= tk.get();
 				if (t.isop('.'))
 					subexpr= parseDotted2(fn, block, tk, t, subexpr);
 				else
 					tk.unget(t);
+#endif
 			}
 		}
 		else
@@ -3056,12 +3118,33 @@ BaseExpr * parseExpr_0(Function &fn, Block &block, Tokenizer &tk)
 		}
 	}
 
+	//std::cerr << "parseExpr_0 end\n";
+	return subexpr;
+}
+
+BaseExpr *parseExpr_2(Function &fn, Block &block, Tokenizer &tk)
+{
+	//std::cerr << "parseExpr_2\n";
+
+	BaseExpr *subexpr= parseExpr_0(fn, block, tk);
+	Token t;
+	while ((t= tk.get()).isop('.') || t.isop('('))
+	{
+		if (t.isop('.'))
+			subexpr= new MemberExpr(fn, block, tk, t, subexpr);
+		else
+		{
+			subexpr = new FunctionCallExpr(fn, block, tk, subexpr);
+		}
+	}
+	tk.unget(t);
+	//std::cerr << "parseExpr_2 end\n";
 	return subexpr;
 }
 
 BaseExpr *parseExpr_3(Function &fn, Block &block, Tokenizer &tk)
 {
-	BaseExpr *subexpr= parseExpr_0(fn, block, tk);
+	BaseExpr *subexpr= parseExpr_2(fn, block, tk);
 	Token t= tk.get();
 	if (t.isop("++") )
 		return new OpPostIncExpr(fn, block, t, subexpr);
