@@ -278,7 +278,6 @@ class FunctionStatement
     function parse(tk)
     {
         var t= tk.get();
-        say('name: ', t);
         self.name= t;
         t= tk.get();
         if (t.isop('['))
@@ -350,7 +349,6 @@ class ClassStatement
     function parse(tk)
     {
         var t= tk.get();
-        say('name: ', t);
         self.name= t;
         t= tk.get();
         if (!t.isop('{'))
@@ -360,7 +358,6 @@ class ClassStatement
         {
             if (t.iskeyword('function'))
             {
-                say('Got a member function!');
                 var f= new FunctionStatement;
                 f.parse(tk);
                 var functions= self.functions;
@@ -407,7 +404,6 @@ class MiniWinxed
         {
             if (t.iskeyword('function'))
             {
-                say('Got a function!');
                 var f= new FunctionStatement;
                 f.parse(tk);
                 var functions= self.functions;
@@ -415,7 +411,6 @@ class MiniWinxed
             }
             else if (t.iskeyword('class'))
             {
-                say('Got a class!');
                 var c= new ClassStatement;
                 c.parse(tk);
                 var classes= self.classes;
