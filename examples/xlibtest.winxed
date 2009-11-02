@@ -7,6 +7,8 @@
 //     winxed -L /parrot_source_dir/examples/nci xlibtest.winxed
 //
 // To exit close the window or press Esc.
+// Backspace key delete the last item drawed.
+// Delete key delete all lines.
 
 function getKeycode(display, string keyname)
 {
@@ -25,7 +27,10 @@ function xlibtest [main] ()
     say(DisplayName());
     var display= OpenDisplay();
     say('DefaultScreen: ', display.DefaultScreen());
+
     int Escape = getKeycode(display, 'Escape');
+    int Delete = getKeycode(display, 'Delete');
+    int BackSpace = getKeycode(display, 'BackSpace');
 
     var rootwin= display.RootWindow();
     int white= display.WhitePixel();
@@ -106,8 +111,32 @@ function xlibtest [main] ()
             looping= 0;
             break;
         case 2: // KeyPress
-            if (event.keycode() == Escape)
-                looping= 0;
+            switch (event.keycode())
+            {
+            case Escape:
+                looping= 0; break;
+            case BackSpace:
+                if (listline) {
+                    line= listline.pop();
+                    if (listline) {
+                        line= listline.pop();
+                    }
+                    else {
+                        line = new 'ResizablePMCArray';
+                    }
+                    listline.push(line);
+                }
+                // Ugly, need more functions in Xlib module
+                window.Unmap();
+                window.Map();
+                say('Hi'); break;
+            case Delete:
+                listline= new 'ResizablePMCArray';
+                // Ugly, need more functions in Xlib module
+                window.Unmap();
+                window.Map();
+                break;
+            }
             break;
         default:
             say('Hi');
