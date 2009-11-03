@@ -14,6 +14,10 @@ Command line options:
 	-o filename	Use filename for the generated file.
 	-c		Compile only. Assume pir if --target is not used.
 
+	-e codfragment	Evaluate. The code fragment provided is compiled
+			inside a 'function main(argv) {' ... ';}' enveloppe.
+			Useful for one-liners and quick tests.
+
 Default values:
 
 	If -o is not specified, .pir and .pbc extensions are added
@@ -21,3 +25,6 @@ Default values:
 
 	If --target is not specified and -c is not used, the source is
 	compiled to pir, executed, and the pir file is deleted.
+
+	When using -e the generated files are named '##eval##' with the
+	appropiate extension.

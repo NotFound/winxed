@@ -32,15 +32,15 @@ function isident(string c)
 //                Token
 //*********************************************
 
+const int TypeEof          = -1;
+const int TypeComment      = 0;
+const int TypeOp           = 1;
+const int TypeQuoted       = 2;
+const int TypeSingleQuoted = 3;
+const int TypeIdentifier   = 4;
+
 class Token
 {
-    const int TypeEof = -1;
-    const int TypeComment = 0;
-    const int TypeQuoted = 2;
-    const int TypeSingleQuoted = 3;
-    const int TypeIdentifier = 4;
-    const int TypeOp = 5;
-
     var type;
     var str;
     var line;
@@ -100,7 +100,7 @@ function getquoted(tk, string start, int line)
         s+= c;
         c= tk.getchar();
     }
-    return newToken(2, s, line);
+    return newToken(TypeQuoted, s, line);
 }
 
 function getsinglequoted(tk, string start, int line)
@@ -114,7 +114,7 @@ function getsinglequoted(tk, string start, int line)
         s+= c;
         c= tk.getchar();
     }
-    return newToken(3, s, line);
+    return newToken(TypeSingleQuoted, s, line);
 }
 
 function getident(tk, string start, int line)
@@ -127,7 +127,7 @@ function getident(tk, string start, int line)
         c= tk.getchar();
     }
     tk.ungetchar(c);
-    return newToken(4, s, line);
+    return newToken(TypeIdentifier, s, line);
 }
 
 function getlinecomment(tk, string start, int line)
@@ -139,7 +139,7 @@ function getlinecomment(tk, string start, int line)
         s+= c;
         c= tk.getchar();
     }
-    return newToken(0, s, line);
+    return newToken(TypeComment, s, line);
 }
 
 function getcomment(tk, string start, int line)
@@ -157,14 +157,14 @@ next:
     if (c != '/')
     { s+= '*' + c; goto next; }
     s+= '*/';
-    return newToken(0, s, line);
+    return newToken(TypeComment, s, line);
 }
 
 function getop(tk, string start, int line)
 {
     string s= start;
     var t= new Token;
-    return newToken(5, s, line);
+    return newToken(TypeOp, s, line);
 }
 
 //*********************************************
@@ -230,7 +230,7 @@ class Tokenizer
         if (c == '')
         {
             var t= new Token;
-            t.type= -1;
+            t.type= TypeEof;
             return t;
         }
         if (isidentstart(c)) return getident(self, c, line);
