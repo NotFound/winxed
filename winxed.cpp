@@ -240,7 +240,7 @@ const PredefFunction PredefFunction::predefs[]= {
         "{res}['message'] = {arg0}\n"
         , 'P', 'S'),
     PredefFunction("is_null",
-        "is_null {res}, {arg0}",
+        "isnull {res}, {arg0}",
         'I', 'P'),
     PredefFunction("length",
         "length {res}, {arg0}",

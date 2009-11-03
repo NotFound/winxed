@@ -1,0 +1,66 @@
+#! winxed
+
+// Test Mysql usage via NCI
+
+class Mysql
+{
+    var libhandle;
+    var mysql;
+    function init [vtable]()
+    {
+        string libs[] = [
+            'libmysqlclient',
+            'libmysqlclient.so.15'
+        ];
+        for (string lib in libs) {
+            var l= loadlib(lib);
+            if (l) goto done;
+        }
+        throw Error('Cannot load Mysql lib');
+    done:
+        self.libhandle= l;
+        var minit= dlfunc(l, 'mysql_init', 'pt');
+        string nothing;
+        var my= minit(nothing);
+        self.mysql= my;
+    }
+    function close()
+    {
+        var mclose= dlfunc(self.libhandle, 'mysql_close', 'vp');
+        mclose(self.mysql);
+        var n= new 'Undef';
+        self.mysql= n;
+        self.libhandle= n;
+    }
+    function get_client_info()
+    {
+        var f= dlfunc(self.libhandle, 'mysql_get_client_info', 'tv');
+        string s= f();
+        return s;
+    }
+    function error()
+    {
+        var f= dlfunc(self.libhandle, 'mysql_error', 'tp');
+        string s= f(self.mysql);
+        return s;
+    }
+    function connect(string host, string user, string pass, string database)
+    {
+        var f= dlfunc(self.libhandle, 'mysql_real_connect', 'ppttttitl');
+        string snull;
+        var p= f(self.mysql, host, user, pass, database, 0, snull, 0);
+        // This doesn't detect failure, must check nci issues.
+        if (is_null(p)) throw Error(self.error());
+        return(p);
+    }
+}
+
+function main()
+{
+    var mysql= new Mysql;
+    say(mysql.get_client_info());
+    //mysql.close();
+    mysql.connect('localhost', 'parrot', 'baDworD', 'parrot');
+    say(mysql.error());
+    mysql.close();
+}
