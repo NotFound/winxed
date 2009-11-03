@@ -12,11 +12,13 @@ class Mysql
             'libmysqlclient',
             'libmysqlclient.so.15'
         ];
+        var l;
         for (string lib in libs) {
-            var l= loadlib(lib);
-            if (l) goto done;
+            l= loadlib(lib);
+            if (l) break;
         }
-        throw Error('Cannot load Mysql lib');
+        if (! l)
+            throw Error('Cannot load Mysql lib');
     done:
         self.libhandle= l;
         var minit= dlfunc(l, 'mysql_init', 'pt');
