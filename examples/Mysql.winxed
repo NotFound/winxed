@@ -19,7 +19,6 @@ class Mysql
         }
         if (! l)
             throw Error('Cannot load Mysql lib');
-    done:
         self.libhandle= l;
         var minit= dlfunc(l, 'mysql_init', 'pt');
         string nothing;
