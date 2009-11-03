@@ -262,7 +262,13 @@ const PredefFunction PredefFunction::predefs[]= {
         'P', 'S', 'S'),
     PredefFunction("clone",
         "clone {res}, {arg0}",
-        'P', 'P')
+        'P', 'P'),
+    PredefFunction("loadlib",
+        "loadlib {res}, {arg0}",
+        'P', 'S'),
+    PredefFunction("dlfunc",
+        "dlfunc {res}, {arg0}, {arg1}, {arg2}",
+        'P', 'P', 'S', 'S')
 };
 
 const size_t PredefFunction::numpredefs =
