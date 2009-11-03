@@ -179,8 +179,8 @@ Emit & operator << (Emit &e, const T &t)
 template <typename T>
 void emit_group(const std::vector<T *> &group, Emit &e)
 {
-        std::for_each(group.begin(), group.end(),
-            std::bind2nd(std::mem_fun(&T::emit), e) );
+    for (size_t i= 0; i < group.size(); ++i)
+        group[i]->emit(e);
 }
 
 //**********************************************************************
@@ -4737,8 +4737,8 @@ public:
     {
         //std::cerr << "NamespaceBlockBase::optimize\n";
 
-        std::for_each(constants.begin(), constants.end(),
-            std::mem_fun(&ConstStatement::optimize) );
+        for (size_t i= 0; i < constants.size(); ++i)
+            constants[i]->optimize();
     }
     void emit (Emit &e) const
     {
