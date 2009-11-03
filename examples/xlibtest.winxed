@@ -126,15 +126,11 @@ function xlibtest [main] ()
                     }
                     listline.push(line);
                 }
-                // Ugly, need more functions in Xlib module
-                window.Unmap();
-                window.Map();
+                window.ClearArea(0, 0, 0, 0, 1);
                 say('Hi'); break;
             case Delete:
                 listline= new 'ResizablePMCArray';
-                // Ugly, need more functions in Xlib module
-                window.Unmap();
-                window.Map();
+                window.ClearArea(0, 0, 0, 0, 1);
                 break;
             }
             break;
