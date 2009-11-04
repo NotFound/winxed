@@ -338,12 +338,15 @@ class FunctionStatement
 class ClassStatement
 {
     var name;
+    var bases;
     var functions;
 
     function init [vtable] ()
     {
         var functions= [];
+        var bases= [];
         self.functions = functions;
+        self.bases= bases;
     }
 
     function parse(tk)
@@ -351,6 +354,15 @@ class ClassStatement
         var t= tk.get();
         self.name= t;
         t= tk.get();
+        if (t.isop(':')) {
+            var bases= self.bases;
+            for (;;) {
+                t= tk.get();
+                bases.push(t);
+                t= tk.get();
+                if (!t.isop(',')) break;
+            }
+        }
         if (!t.isop('{'))
             throw Error("Expected '{'");
         t= tk.get();
@@ -369,8 +381,14 @@ class ClassStatement
 
     function showinfo()
     {
-        say('class ', self.name, ' {');
         var f;
+        print('class ', self.name);
+        string sep= ' : ';
+        for (f in self.bases) {
+            print (sep, f);
+            sep= ' ,';
+        }
+        say(' {');
         for (f in self.functions)
             f.showinfo();
         say('}');
