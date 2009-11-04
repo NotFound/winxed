@@ -6,6 +6,9 @@
 
 #include <sstream>
 
+
+static std::string unsinglequote (const std::string &s);
+
 //**********************************************************************
 
 static std::string tostring(int n)
@@ -90,7 +93,7 @@ std::string Token::pirliteralstring() const
 {
     switch (ttype) {
     case TokenTSingleQuoted:
-        return '\'' + s + '\'';
+        return unsinglequote(s);
     case TokenTQuoted:
         return unquote(s);
     default:
@@ -199,6 +202,21 @@ std::string unquote (const std::string &s)
         }
     }
     return (nonascii ? "utf8:unicode:\"" : "\"") + r + "\"";
+}
+
+static std::string unsinglequote (const std::string &s)
+{
+    bool nonascii= false;
+    for (size_t i= 0; i < s.size(); ++i)
+    {
+        unsigned char c= s[i];
+        if (c > 127)
+            nonascii= true;
+    }
+    if (nonascii)
+        return unquote(s);
+    else
+        return '\'' + s + '\'';
 }
 
 //**********************************************************************
@@ -389,7 +407,7 @@ Token Tokenizer::getany ()
         return Token(TokenTInteger, s, linenum, name);
     case '+':
         switch ((c= getchar()))
-	{
+        {
         case '+': case '=':
             s+= c;
             break;
