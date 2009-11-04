@@ -2615,18 +2615,41 @@ public:
         CommonBinOpExpr(block, t, first, second)
     { }
 private:
-    bool isinteger() const { return true; }
+    bool isinteger() const
+    {
+        if (efirst->isstring() && esecond->isinteger())
+            return false;
+        else
+            return true;
+    }
+    bool isstring() const
+    {
+        if (efirst->isstring() && esecond->isinteger())
+            return true;
+        else
+            return false;
+    }
     void emit(Emit &e, const std::string &result);
 };
 
 void OpMulExpr::emit(Emit &e, const std::string &result)
 {
-    std::string res= result.empty() ? genlocalregister('I') : result;
-    std::string op1= genlocalregister('I');
     std::string op2= genlocalregister('I');
-    efirst->emit(e, op1);
     esecond->emit(e, op2);
-    e << res << " = " << op1 << " * " << op2;
+    if (isstring())
+    {
+        std::string res= result.empty() ? genlocalregister('S') : result;
+        std::string op1= genlocalregister('S');
+        efirst->emit(e, op1);
+        e << "repeat " << res << ", " << op1 << ", " << op2;
+    }
+    else
+    {
+        std::string res= result.empty() ? genlocalregister('I') : result;
+        std::string op1= genlocalregister('I');
+        efirst->emit(e, op1);
+        e << res << " = " << op1 << " * " << op2;
+    }
     if (!result.empty())
         e << '\n';
 }
