@@ -3574,11 +3574,24 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
         break;
     case ValueFixedArray:
         {
-        size_t vsize= esize->getintegervalue();
+        size_t vsize;
+	std::string regsize;
+        if (esize->isliteralinteger() )
+            vsize= esize->getintegervalue();
+        else
+        {
+            regsize= genlocalregister('I');
+            esize->emit(e, regsize);
+        }
         e << ".local pmc " << name << "\n"
             "root_new " << name << ", ['parrot';"
                  "'Fixed" << arraytype << "Array' ]\n" <<
-            name << " = " << vsize << '\n';
+            name << " = ";
+        if (regsize.empty())
+            e << vsize;
+        else
+            e << regsize;
+        e << '\n';
         if (value.size() > 0)
         {
             std::string reg= genlocalregister(type);

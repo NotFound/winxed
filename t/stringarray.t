@@ -6,7 +6,7 @@ function main()
     using extern Test.More;
     using Test.More.plan;
     using Test.More.is;
-    plan (12);
+    plan (14);
 
     string noinit [];
     int n= noinit;
@@ -31,4 +31,10 @@ function main()
     is (c instanceof 'FixedStringArray', 1, 'type');
     is (c[0], 'foo', 'first value');
     is (c[1], 'bar', 'second value');
+
+    int size= 4;
+    string d[size];
+    n= d;
+    is (n, size, 'non constant - size');
+    is (c instanceof 'FixedStringArray', 1, 'non constant - type');
 }
