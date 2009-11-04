@@ -265,10 +265,10 @@ const PredefFunction PredefFunction::predefs[]= {
     // while a better way is implemeneted.
     PredefFunction("__push_int",
         "push {arg0}, {arg1}",
-	'\0', 'P', 'I'),
+        '\0', 'P', 'I'),
     PredefFunction("__push_string",
         "push {arg0}, {arg1}",
-	'\0', 'P', 'S'),
+        '\0', 'P', 'S'),
 
     PredefFunction("clone",
         "clone {res}, {arg0}",
@@ -2221,6 +2221,38 @@ void OpGreaterExpr::emit(Emit &e, const std::string &result)
 
 //**********************************************************************
 
+class OpAssignExpr : public BinOpExpr
+{
+public:
+    OpAssignExpr(BlockBase &block,
+            Token t, BaseExpr *first, BaseExpr *second) :
+        BinOpExpr(block, t, first, second)
+    {
+    }
+    void emit(Emit &/*e*/, const std::string &/*result*/)
+    {
+        throw Unsupported("Only simple assignments for a now", start);
+    }
+};
+
+//**********************************************************************
+
+class OpAssignToExpr : public BinOpExpr
+{
+public:
+    OpAssignToExpr(BlockBase &block,
+            Token t, BaseExpr *first, BaseExpr *second) :
+        BinOpExpr(block, t, first, second)
+    {
+    }
+    void emit(Emit &/*e*/, const std::string &/*result*/)
+    {
+        throw Unsupported("Only simple assignments for a now", start);
+    }
+};
+
+//**********************************************************************
+
 class OpAddToExpr : public CommonBinOpExpr
 {
 public:
@@ -3466,15 +3498,44 @@ BaseExpr * parseExpr_14(BlockBase &block, Tokenizer &tk)
     return subexpr;
 }
 
+enum AssignOp { AssignOpNone,
+    SimpleAssignOp, AssignToOp,
+    AddAssignOp, SubAssignOp
+};
+
+AssignOp getAssignOp(const Token &t)
+{
+    if (t.isop('=')) return SimpleAssignOp;
+    if (t.isop("=:")) return AssignToOp;
+    if (t.isop("+=")) return AddAssignOp;
+    if (t.isop("-=")) return SubAssignOp;
+    return AssignOpNone;
+}
+
 BaseExpr * parseExpr_16(BlockBase &block, Tokenizer &tk)
 {
     BaseExpr *subexpr= parseExpr_14(block, tk);
     Token t;
-    while ((t= tk.get()).isop("+=") || t.isop("-="))
+    AssignOp op;
+    while ((op= getAssignOp(t= tk.get())) != AssignOpNone)
     {
         BaseExpr *subexpr2= parseExpr_14(block, tk);
-        if (t.isop("+=")) subexpr= new OpAddToExpr(block, t, subexpr, subexpr2);
-        else              subexpr= new OpSubToExpr(block, t, subexpr, subexpr2);
+        switch (op)
+        {
+        case SimpleAssignOp:
+            subexpr= new OpAssignExpr(block, t, subexpr, subexpr2);
+            break;
+        case AssignToOp:
+            subexpr= new OpAssignToExpr(block, t, subexpr, subexpr2);
+            break;
+        case AddAssignOp:
+            subexpr= new OpAddToExpr(block, t, subexpr, subexpr2);
+            break;
+        case SubAssignOp:
+            subexpr= new OpSubToExpr(block, t, subexpr, subexpr2);
+            break;
+        default: /* Must never happen */ ;
+        }
     }
     tk.unget(t);
     return subexpr;
@@ -3578,7 +3639,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
         {
             if ((type == 'I' && value[0]->isinteger()) ||
                     (type == 'S' && value[0]->isstring())||
-		    (dynamic_cast<IndexExpr *>(value[0])))
+                    (dynamic_cast<IndexExpr *>(value[0])))
                 value[0]->emit(e, name);
             else
             {
@@ -3607,7 +3668,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
     case ValueFixedArray:
         {
         size_t vsize;
-	std::string regsize;
+        std::string regsize;
         if (esize->isliteralinteger() )
             vsize= esize->getintegervalue();
         else
