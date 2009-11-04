@@ -165,7 +165,7 @@ function main(argv)
     var mysql= new WinxedMysql.Connection;
     say('Mysql version: ', mysql.get_client_info());
 
-    /*try*/ {
+    try {
         mysql.connect('localhost', 'parrot', 'baDworD', 'parrot');
         string q= 'select * from hello;';
         if (argv[1])
@@ -183,24 +183,19 @@ function main(argv)
             int i;
             for (i= 0; i < fields; ++i) {
                 if (i > 0) print(", ");
-                //print(row.get(i));
-		var s= row.get(i);
-		print("'");
-		if (is_null(s) ) print('(null)');
-		else print(s);
-		print("'");
+                var s= row.get(i);
+                if (is_null(s) ) print('(null)');
+                else print("'", s, "'");
             }
             say();
             row= result.fetch_row();
         }
         say('Total rows: ', nrows);
     }
-/*
     catch (e) {
         say("\tERROR: ", e['message']);
         mysql.close();
         throw e;
     }
-*/
     mysql.close();
 }
