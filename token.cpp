@@ -180,9 +180,12 @@ bool isidentifier(char c)
 std::string unquote (const std::string &s)
 {
     std::string r;
+    bool nonascii= false;
     for (size_t i= 0; i < s.size(); ++i)
     {
-        char c= s[i];
+        unsigned char c= s[i];
+        if (c > 127)
+            nonascii= true;
         switch(c)
         {
         case '\n':
@@ -195,7 +198,7 @@ std::string unquote (const std::string &s)
             r+= c;
         }
     }
-    return "\"" + r + "\"";
+    return (nonascii ? "utf8:unicode:\"" : "\"") + r + "\"";
 }
 
 //**********************************************************************
