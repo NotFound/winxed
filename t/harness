@@ -45,10 +45,7 @@ function run_test_list(var args, int verbose)
     int passed;
     int failed;
 
-    //int l= max_length(args) + 2;
-    int l= max_length(args);
-    l= l + 2;
-
+    int l= max_length(args) + 2;
     var filename;
     for (filename in args)
     {
@@ -172,8 +169,8 @@ function main(var argv)
     var verbose = opts['v'];
     var recursive = opts['r'];
 
-    string arg= argv[0];
-    if (arg == '')
+    int argc= argv;
+    if (argc == 0)
         argv.push('.');
 
     var args= new 'ResizableStringArray';
