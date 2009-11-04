@@ -4244,7 +4244,14 @@ void ForeachStatement::emit(Emit &e)
     breaklabel= label + "_END";
 
     std::string container_ = genlocalregister('P');
-    container->emit(e, container_);
+    if (container-> isstring() )
+    {
+        std::string value= genlocalregister('S');
+        container->emit(e, value);
+        e << op_box(container_, value) << '\n';
+    }
+    else
+        container->emit(e, container_);
 
     if (vartype != '\0')
         e << ".local " << nameoftype(vartype) << ' ' << varname << '\n';
