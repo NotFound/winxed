@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 3-nov-2009
+// Revision 4-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -260,6 +260,16 @@ const PredefFunction PredefFunction::predefs[]= {
     PredefFunction("split",
         "split {res}, {arg0}, {arg1}",
         'P', 'S', 'S'),
+
+    // This is quick helper for Resizable...Array usage
+    // while a better way is implemeneted.
+    PredefFunction("__push_int",
+        "push {arg0}, {arg1}",
+	'\0', 'P', 'I'),
+    PredefFunction("__push_string",
+        "push {arg0}, {arg1}",
+	'\0', 'P', 'S'),
+
     PredefFunction("clone",
         "clone {res}, {arg0}",
         'P', 'P'),
@@ -3158,7 +3168,10 @@ void IndexExpr::emit(Emit &e, const std::string &result)
     std::string reg;
     if (! arg->issimple() )
     {
-        reg= genlocalregister('P');
+        if (! result.empty() && result.substr(0, 2) == "$S")
+            reg= genlocalregister('S');
+        else
+            reg= genlocalregister('P');
         arg->emit(e, reg);
     }
     if (!result.empty() )
@@ -3532,7 +3545,8 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
         if (value.size() == 1)
         {
             if ((type == 'I' && value[0]->isinteger()) ||
-                (type == 'S' && value[0]->isstring()))
+                    (type == 'S' && value[0]->isstring())||
+		    (dynamic_cast<IndexExpr *>(value[0])))
                 value[0]->emit(e, name);
             else
             {
@@ -3552,8 +3566,9 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
             for (size_t i= 0; i < value.size(); ++i)
             {
                 value[i]->emit(e, reg);
-                e << name << '[' << i << "] = " << reg <<
-                    "\nnull " << reg << '\n';
+                e << name << '[' << i << "] = " << reg << '\n';
+                if (type == 'P')
+                    e << "null " << reg << '\n';
             }
         }
         break;
@@ -3570,8 +3585,9 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
             for (size_t i= 0; i < value.size(); ++i)
             {
                 value[i]->emit(e, reg);
-                e << name << '[' << i << "] = " << reg <<
-                    "\nnull " << reg << '\n';
+                e << name << '[' << i << "] = " << reg << '\n';
+                if (type == 'P')
+                    e << "null " << reg << '\n';
             }
         }
         }
@@ -3588,17 +3604,21 @@ IntStatement::IntStatement(Block &block, Tokenizer &tk) :
 {
     Token t= tk.get();
     name= t.identifier();
-    genlocal(name, 'I');
     t= tk.get();
     if (t.isop('['))
     {
+        genlocal(name, 'P');
         parseArray(tk);
         t= tk.get();
     }
-    else if (t.isop('='))
+    else
     {
-        value.push_back(parseExpr(block, tk));
-        t= tk.get();
+        genlocal(name, 'I');
+        if (t.isop('='))
+        {
+            value.push_back(parseExpr(block, tk));
+            t= tk.get();
+        }
     }
     RequireOp (';', t);
 }
@@ -3615,17 +3635,21 @@ StringStatement::StringStatement(Block & block, Tokenizer &tk) :
 {
     Token t= tk.get();
     name= t.identifier();
-    genlocal(name, 'S');
     t= tk.get();
     if (t.isop('['))
     {
+        genlocal(name, 'P');
         parseArray(tk);
         t= tk.get();
     }
-    else if (t.isop('='))
+    else
     {
-        value.push_back(parseExpr(block, tk));
-        t= tk.get();
+        genlocal(name, 'S');
+        if (t.isop('='))
+        {
+            value.push_back(parseExpr(block, tk));
+            t= tk.get();
+        }
     }
     RequireOp (';', t);
 }
