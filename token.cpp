@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 31-oct-2009
+// Revision 4-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -10,50 +10,50 @@
 
 static std::string tostring(int n)
 {
-	std::ostringstream oss;
-	oss << n;
-	return oss.str();
+    std::ostringstream oss;
+    oss << n;
+    return oss.str();
 }
 
 //**********************************************************************
 
 Token::Token () :
-	ttype(TokenTUnknown), ln(0)
+    ttype(TokenTUnknown), ln(0)
 { }
 
 Token::Token (TokenType tt) :
-	ttype(tt), ln(0)
+    ttype(tt), ln(0)
 { }
 
 Token::Token (TokenType tt, const std::string &file) :
-	ttype(tt), ln(0), filename(file)
+    ttype(tt), ln(0), filename(file)
 {
 }
 
 Token::Token (const std::string &ss, unsigned int linenum,
-		const std::string &file) :
-	ttype(TokenTUnknown), s(ss), ln(linenum), filename(file)
+        const std::string &file) :
+    ttype(TokenTUnknown), s(ss), ln(linenum), filename(file)
 { }
 
 Token::Token (TokenType type, const std::string &ss, unsigned int linenum,
-		const std::string &file) :
-	ttype(type), s(ss), ln(linenum), filename(file)
+        const std::string &file) :
+    ttype(type), s(ss), ln(linenum), filename(file)
 { }
 
 Token::Token (TokenType type, const std::string &ss, const Token &base) :
-	ttype(type), s(ss),
-	ln(base.linenum()), filename(base.file())
+    ttype(type), s(ss),
+    ln(base.linenum()), filename(base.file())
 { }
 
 Token::Token (bool value, const Token &base) :
-	ttype(TokenTInteger), s(value ? "1" : "0"),
-	ln(base.linenum()), filename(base.file())
+    ttype(TokenTInteger), s(value ? "1" : "0"),
+    ln(base.linenum()), filename(base.file())
 {
 }
 
 Token::Token (int value, const Token &base) :
-	ttype(TokenTInteger), s(tostring(value)),
-	ln(base.linenum()), filename(base.file())
+    ttype(TokenTInteger), s(tostring(value)),
+    ln(base.linenum()), filename(base.file())
 {
 }
 
@@ -62,15 +62,15 @@ bool Token::empty () const
 
 int Token::getinteger() const
 {
-	if (ttype == TokenTInteger)
-	{
-		std::istringstream iss(s);
-		int n;
-		iss >> n;
-		return n;
-	}
-	else
-		throw Expected("integer number", *this);
+    if (ttype == TokenTInteger)
+    {
+        std::istringstream iss(s);
+        int n;
+        iss >> n;
+        return n;
+    }
+    else
+        throw Expected("integer number", *this);
 }
 
 #if 1
@@ -80,40 +80,40 @@ std::string Token::str() const
 
 std::string Token::identifier() const
 {
-	if (ttype == TokenTIdentifier)
-		return s;
-	else
-		throw Expected("identifier", *this);
+    if (ttype == TokenTIdentifier)
+        return s;
+    else
+        throw Expected("identifier", *this);
 }
 
 std::string Token::pirliteralstring() const
 {
-	switch (ttype) {
-	case TokenTSingleQuoted:
-		return '\'' + s + '\'';
-	case TokenTQuoted:
-		return unquote(s);
-	default:
-		throw Expected("literal string", *this);
-	}
+    switch (ttype) {
+    case TokenTSingleQuoted:
+        return '\'' + s + '\'';
+    case TokenTQuoted:
+        return unquote(s);
+    default:
+        throw Expected("literal string", *this);
+    }
 }
 
 std::string Token::describe() const
 {
-	switch (ttype) {
-	case TokenTEOF:
-		return "*End of file*";
-	case TokenTSingleQuoted:
-		return "'" + s + "'";
-	case TokenTQuoted:
-		return "\"" + unquote(s) + "\"";
-	case TokenTOperator:
-		return "'" + s + "'";
-	case TokenTUnknown:
-		return "*Unknown*";
-	default:
-		return s;
-	}
+    switch (ttype) {
+    case TokenTEOF:
+        return "*End of file*";
+    case TokenTSingleQuoted:
+        return "'" + s + "'";
+    case TokenTQuoted:
+        return "\"" + unquote(s) + "\"";
+    case TokenTOperator:
+        return "'" + s + "'";
+    case TokenTUnknown:
+        return "*Unknown*";
+    default:
+        return s;
+    }
 }
 
 unsigned int Token::linenum() const
@@ -136,307 +136,299 @@ bool Token::isliteralstring() const
 
 bool Token::isop(const std::string &name) const
 {
-	return ttype == TokenTOperator &&
-		s == name;
+    return ttype == TokenTOperator &&
+        s == name;
 }
 
 bool Token::isop(char name) const
 {
-	return ttype == TokenTOperator &&
-		s.length() == 1 && s[0] == name;
+    return ttype == TokenTOperator &&
+        s.length() == 1 && s[0] == name;
 }
 
 bool Token::iskeyword(const std::string &name) const
 {
-	return ttype == TokenTIdentifier &&
-		s == name;
+    return ttype == TokenTIdentifier &&
+        s == name;
 }
 
 bool Token::isspace() const
 {
-	return
-		ttype == TokenTComment ||
-		ttype == TokenTWhiteSpace ||
-		(ttype == TokenTUnknown &&
-		(s.empty() ||
-		s[0] == ' ' ||
-		s[0] == '\t' ||
-		s[0] == '\n'
-		));
+    return
+        ttype == TokenTComment ||
+        ttype == TokenTWhiteSpace ||
+        (ttype == TokenTUnknown &&
+        (s.empty() ||
+        s[0] == ' ' ||
+        s[0] == '\t' ||
+        s[0] == '\n'
+        ));
 }
 
 //**********************************************************************
 
 bool isidentifierstart(char c)
 {
-	return c == '_' || isalpha((unsigned char) c);
+    return c == '_' || isalpha((unsigned char) c);
 }
 
 bool isidentifier(char c)
 {
-	return c == '_' || isalnum((unsigned char) c);
+    return c == '_' || isalnum((unsigned char) c);
 }
 
 std::string unquote (const std::string &s)
 {
-	std::string r;
-	for (size_t i= 0; i < s.size(); ++i)
-	{
-		char c= s[i];
-		switch(c)
-		{
-		case '\n':
-			r+= "\\n"; break;
-		case '\t':
-			r+= "\\t"; break;
-		case '\\':
-			r+= "\\\\"; break;
-		default:
-			r+= c;
-		}
-	}
-	return "\"" + r + "\"";
+    std::string r;
+    for (size_t i= 0; i < s.size(); ++i)
+    {
+        char c= s[i];
+        switch(c)
+        {
+        case '\n':
+            r+= "\\n"; break;
+        case '\t':
+            r+= "\\t"; break;
+        case '\\':
+            r+= "\\\\"; break;
+        default:
+            r+= c;
+        }
+    }
+    return "\"" + r + "\"";
 }
 
 //**********************************************************************
 
 Tokenizer::Tokenizer (std::istream &is_a, const char *filename) :
-	is (is_a),
-	name (std::string(filename ? filename : "(unknown)")),
-	ln(1),
-	unc('\0')
+    is (is_a),
+    name (std::string(filename ? filename : "(unknown)")),
+    ln(1),
+    unc('\0')
 {
 }
 
 char Tokenizer::getchar()
 {
-	if (unc)
-	{
-		char c= unc;
-		unc = '\0';
-		return c;
-	}
-	else
-	{
-		char c= is.get();
-		if (is.eof())
-			c= '\0';
-		if (c == '\n')
-			++ln;
-		return c;
-	}
+    if (unc)
+    {
+        char c= unc;
+        unc = '\0';
+        return c;
+    }
+    else
+    {
+        char c= is.get();
+        if (is.eof())
+            c= '\0';
+        if (c == '\n')
+            ++ln;
+        return c;
+    }
 }
 
 void Tokenizer::ungetchar(char c)
 {
-	unc = c;
+    unc = c;
 }
 
 std::string Tokenizer::quoted()
 {
-	std::string s;
-	unsigned int line = ln;
-	char c;
-	while ((c= getchar()) && is && c != '"' && c != '\n')
-	{
-		if (c == '\\')
-		{
-			c= getchar();
-			switch(c)
-			{
-			case 'n':
-				s+= '\n';
-				break;
-			case 't':
-				s+= '\t';
-				break;
-			case '\\':
-				s+= '\\';
-				break;
-			}
-		}
-		else
-			s+= c;
-	}
-	if ((!is) || c != '"')
-		throw SyntaxError ("Unterminated string ", line);
-	return s;
+    std::string s;
+    unsigned int line = ln;
+    char c;
+    while ((c= getchar()) && is && c != '"' && c != '\n')
+    {
+        if (c == '\\')
+        {
+            c= getchar();
+            switch(c)
+            {
+            case 'n':
+                s+= '\n';
+                break;
+            case 't':
+                s+= '\t';
+                break;
+            case '\\':
+                s+= '\\';
+                break;
+            }
+        }
+        else
+            s+= c;
+    }
+    if ((!is) || c != '"')
+        throw SyntaxError ("Unterminated string ", line);
+    return s;
 }
 
 void Tokenizer::unget (const Token & t)
 {
-	untoc.push_back(t);
+    untoc.push_back(t);
 }
 
 Token Tokenizer::getany ()
 {
-	if (! untoc.empty () )
-	{
-		Token t(untoc.back());
-		untoc.pop_back();
-		return t;
-	}
-	char c = getchar();
-	while (is && (c == ' ' || c == '\t' ||  c == '\n'))
-		c= getchar();
-	if (is.eof())
-		return Token(TokenTEOF, name);
+    if (! untoc.empty () )
+    {
+        Token t(untoc.back());
+        untoc.pop_back();
+        return t;
+    }
+    char c = getchar();
+    while (is && (c == ' ' || c == '\t' ||  c == '\n'))
+        c= getchar();
+    if (is.eof())
+        return Token(TokenTEOF, name);
 
-	unsigned int linenum = ln;
-	std::string s(1, c);
-	switch (c) {
-	case '#':
-		c= getchar();
-		while (c != '\0' && c != '\n')
-		{
-			s+= c;
-			c= getchar();
-		}
-		return Token(TokenTComment, s, linenum, name);
-	case '/':
-		c = getchar();
-		switch (c)
-		{
-		case '/':
-			for (; (!is.eof()) && c != '\n'; c= getchar())
-				s+= c;
-			return Token(TokenTComment, s, linenum, name);
-		case '*':
-			s+= c;
-			c= getchar();
-			do
-			{
-				while (is && c != '*') {
-					s+= c;
-					c= getchar();
-				}
-				c= getchar();
-			} while (is && c != '/');
-			s+= c;
-			return Token(TokenTComment, s, linenum, name);
-		default:
-			ungetchar(c);
-		}
-		break;
-	case ':':
-		c= getchar();
-		switch (c)
-		{
-		case ':':
-			s+= c;
-			break;
-		default:
-			ungetchar(c);
-		}
-		break;
-	case '<':
-		c= getchar();
-		switch (c)
-		{
-		case '<':
-		case '=':
-			s+= c;
-			break;
-		default:
-			ungetchar(c);
-		}
-		break;
-	case '=':
-		c= getchar();
-		switch (c)
-		{
-		case ':':
-		case '=':
-			s+= c;
-			break;
-		default:
-			ungetchar(c);
-		}
-		break;
-	case '&':
-		c= getchar();
-		switch(c)
-		{
-		case '&':
-		case '=':
-			s+= c;
-			break;
-		default:
-			ungetchar(c);
-		}
-		break;
-	case '|':
-		c= getchar();
-		switch(c)
-		{
-		case '|':
-		case '=':
-			s+= c;
-			break;
-		default:
-			ungetchar(c);
-		}
-		break;
-	case '\'':
-		s= std::string();
-		while ((c= getchar()) && is && c != '\'' && c != '\n')
-			s+= c;
-		if ((!is) || c != '\'')
-			throw SyntaxError("Unterminated string", linenum);
-		return Token(TokenTSingleQuoted, s, linenum, name);
-	case '"':
-		s= quoted ();
-		return Token(TokenTQuoted, s, linenum, name);
-	case '0': case '1': case '2': case '3': case '4':
-	case '5': case '6': case '7': case '8': case '9':
-		while ((c= getchar()) && is && c >= '0' && c <= '9')
-			s+= c;
-		if (is)
-			ungetchar(c);
-		return Token(TokenTInteger, s, linenum, name);
-	case '+':
-		c= getchar();
-		switch (c) {
-		case '+':
-		case '=':
-			s+= c;
-			break;
-		default:
-			ungetchar(c);
-		}
-		break;
-	case '-':
-		c= getchar();
-		if (c == '-')
-			s+= c;
-		else
-			ungetchar(c);
-		break;
-	case '!':
-		c= getchar();
-		if (c == '=')
-			s+= c;
-		else
-			ungetchar(c);
-		break;
-	default:
-		if (isidentifierstart(c))
-		{
-			for (c= getchar(); isidentifier(c); c= getchar())
-				s+= c;
-			ungetchar(c);
-			return Token(TokenTIdentifier, s, linenum, name);
-		}
-	}
-	return Token(TokenTOperator, s, linenum, name);
+    unsigned int linenum = ln;
+    std::string s(1, c);
+    switch (c) {
+    case '#':
+        c= getchar();
+        while (c != '\0' && c != '\n')
+        {
+            s+= c;
+            c= getchar();
+        }
+        return Token(TokenTComment, s, linenum, name);
+    case '/':
+        switch((c = getchar()))
+        {
+        case '/':
+            for (; (!is.eof()) && c != '\n'; c= getchar())
+                s+= c;
+            return Token(TokenTComment, s, linenum, name);
+        case '*':
+            s+= c;
+            c= getchar();
+            do
+            {
+                while (is && c != '*') {
+                    s+= c;
+                    c= getchar();
+                }
+                c= getchar();
+            } while (is && c != '/');
+            s+= c;
+            return Token(TokenTComment, s, linenum, name);
+        default:
+            ungetchar(c);
+        }
+        break;
+    case ':':
+        switch ((c= getchar()))
+        {
+        case ':':
+            s+= c;
+            break;
+        default:
+            ungetchar(c);
+        }
+        break;
+    case '<':
+        switch ((c= getchar()))
+        {
+        case '<': case '=':
+            s+= c;
+            break;
+        default:
+            ungetchar(c);
+        }
+        break;
+    case '=':
+        switch ((c= getchar()))
+        {
+        case ':': case '=':
+            s+= c;
+            break;
+        default:
+            ungetchar(c);
+        }
+        break;
+    case '&':
+        switch ((c= getchar()))
+        {
+        case '&': case '=':
+            s+= c;
+            break;
+        default:
+            ungetchar(c);
+        }
+        break;
+    case '|':
+        switch ((c= getchar()))
+        {
+        case '|': case '=':
+            s+= c;
+            break;
+        default:
+            ungetchar(c);
+        }
+        break;
+    case '\'':
+        s= std::string();
+        while ((c= getchar()) && is && c != '\'' && c != '\n')
+            s+= c;
+        if ((!is) || c != '\'')
+            throw SyntaxError("Unterminated string", linenum);
+        return Token(TokenTSingleQuoted, s, linenum, name);
+    case '"':
+        s= quoted ();
+        return Token(TokenTQuoted, s, linenum, name);
+    case '0': case '1': case '2': case '3': case '4':
+    case '5': case '6': case '7': case '8': case '9':
+        while ((c= getchar()) && is && c >= '0' && c <= '9')
+            s+= c;
+        if (is)
+            ungetchar(c);
+        return Token(TokenTInteger, s, linenum, name);
+    case '+':
+        switch ((c= getchar()))
+	{
+        case '+': case '=':
+            s+= c;
+            break;
+        default:
+            ungetchar(c);
+        }
+        break;
+    case '-':
+        switch ((c= getchar()))
+        {
+        case '-': case '=':
+            s+= c;
+            break;
+        default:
+            ungetchar(c);
+        }
+        break;
+    case '!':
+        c= getchar();
+        if (c == '=')
+            s+= c;
+        else
+            ungetchar(c);
+        break;
+    default:
+        if (isidentifierstart(c))
+        {
+            for (c= getchar(); isidentifier(c); c= getchar())
+                s+= c;
+            ungetchar(c);
+            return Token(TokenTIdentifier, s, linenum, name);
+        }
+    }
+    return Token(TokenTOperator, s, linenum, name);
 }
 
 Token Tokenizer::get ()
 {
-	Token t;
-	while ((t= getany () ).isspace())
-		continue;
-	return t;
+    Token t;
+    while ((t= getany () ).isspace())
+        continue;
+    return t;
 }
 
 // End of token.cpp

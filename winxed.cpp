@@ -2263,6 +2263,37 @@ private:
 
 //**********************************************************************
 
+class OpSubToExpr : public CommonBinOpExpr
+{
+public:
+    OpSubToExpr(BlockBase &block,
+            Token t, BaseExpr *first, BaseExpr *second) :
+        CommonBinOpExpr(block, t, first, second)
+    {
+    }
+private:
+    bool isinteger() const { return true; }
+    BaseExpr *optimize()
+    {
+        optimize_operands();
+        return this;
+    }
+    void emit(Emit &e, const std::string &result)
+    {
+        if (efirst->isidentifier())
+        {
+            e << "sub " << efirst->getidentifier() << ", ";
+            esecond->emit(e, "");
+            e << '\n';
+            if (! result.empty())
+                e << "assign " << result << ", " <<
+                    efirst->getidentifier() << '\n';
+        }
+    }
+};
+
+//**********************************************************************
+
 class OpAddExpr : public CommonBinOpExpr
 {
 public:
@@ -3439,10 +3470,11 @@ BaseExpr * parseExpr_16(BlockBase &block, Tokenizer &tk)
 {
     BaseExpr *subexpr= parseExpr_14(block, tk);
     Token t;
-    while ((t= tk.get()).isop("+="))
+    while ((t= tk.get()).isop("+=") || t.isop("-="))
     {
         BaseExpr *subexpr2= parseExpr_14(block, tk);
-        subexpr= new OpAddToExpr(block, t, subexpr, subexpr2);
+        if (t.isop("+=")) subexpr= new OpAddToExpr(block, t, subexpr, subexpr2);
+        else              subexpr= new OpSubToExpr(block, t, subexpr, subexpr2);
     }
     tk.unget(t);
     return subexpr;
