@@ -2,66 +2,205 @@
 
 // Test Mysql usage via NCI
 
-class Mysql
+namespace WinxedMysql
 {
-    var libhandle;
+
+function getlib__private()
+{
+    string libs[] = [
+        'libmysqlclient',
+        'libmysqlclient.so.16',
+        'libmysqlclient.so.15'
+    ];
+    var l;
+    for (string lib in libs) {
+        l= loadlib(lib);
+        if (l) break;
+    }
+    return l;
+}
+
+function getlib()
+{
+    var l= getlib__private();
+    if (! l)
+        throw Error('Cannot load Mysql lib');
+    for (;;)
+        yield l;
+}
+
+class Row
+{
+    var mrow;
+    var nfields;
+    function init(var myrow, int n)
+    {
+        self.mrow= myrow;
+        self.nfields= n;
+    }
+    function get(int i)
+    {
+        var myrow= self.mrow;
+        string s= myrow[i];
+        return s;
+    }
+}
+
+class Result
+{
+    var mysql;
+    var myresult;
+    var nfields;
+    var desc;
+    function init(var my, var r)
+    {
+        using WinxedMysql.getlib;
+        self.mysql= my;
+        self.myresult= r;
+        var f= dlfunc(getlib(), 'mysql_field_count', 'ip');
+        int count= f(my);
+        self.nfields= count;
+        int desc [];
+        int i;
+        // Store the fields description for use in fetchs.
+        for (i= 0; i < count; ++i) {
+            __push_int(desc, -70);
+            __push_int(desc, 1);
+            __push_int(desc, 0);
+        }
+        self.desc= desc;
+    }
+    function field_count()
+    {
+        return self.nfields;
+    }
+    function fetch_row()
+    {
+        using WinxedMysql.getlib;
+        var f= dlfunc(getlib(), 'mysql_fetch_row', 'pp');
+        var frow= f(self.myresult);
+        var row;
+
+        if(is_null(frow)) return row;
+        var none = new 'UnManagedStruct';
+        if (frow == none) return row;
+
+        var desc= self.desc;
+        frow =: desc;
+        row= new WinxedMysql.Row;
+        row.init(frow, self.nfields);
+        return row;
+    }
+}
+
+class Connection
+{
     var mysql;
     function init [vtable]()
     {
-        string libs[] = [
-            'libmysqlclient',
-            'libmysqlclient.so.15'
-        ];
-        var l;
-        for (string lib in libs) {
-            l= loadlib(lib);
-            if (l) break;
-        }
-        if (! l)
-            throw Error('Cannot load Mysql lib');
-        self.libhandle= l;
-        var minit= dlfunc(l, 'mysql_init', 'pt');
+        using WinxedMysql.getlib;
+        var minit= dlfunc(getlib(), 'mysql_init', 'pt');
         string nothing;
         var my= minit(nothing);
         self.mysql= my;
     }
     function close()
     {
-        var mclose= dlfunc(self.libhandle, 'mysql_close', 'vp');
+        using WinxedMysql.getlib;
+        var mclose= dlfunc(getlib(), 'mysql_close', 'vp');
         mclose(self.mysql);
         var n= new 'Undef';
         self.mysql= n;
-        self.libhandle= n;
     }
     function get_client_info()
     {
-        var f= dlfunc(self.libhandle, 'mysql_get_client_info', 'tv');
+        using WinxedMysql.getlib;
+        var f= dlfunc(getlib(), 'mysql_get_client_info', 'tv');
         string s= f();
         return s;
     }
     function error()
     {
-        var f= dlfunc(self.libhandle, 'mysql_error', 'tp');
+        using WinxedMysql.getlib;
+        var f= dlfunc(getlib(), 'mysql_error', 'tp');
         string s= f(self.mysql);
         return s;
     }
     function connect(string host, string user, string pass, string database)
     {
-        var f= dlfunc(self.libhandle, 'mysql_real_connect', 'ppttttitl');
+        using WinxedMysql.getlib;
+        var f= dlfunc(getlib(), 'mysql_real_connect', 'ppttttitl');
         string snull;
         var p= f(self.mysql, host, user, pass, database, 0, snull, 0);
         // This doesn't detect failure, must check nci issues.
         if (is_null(p)) throw Error(self.error());
-        return(p);
+        var none = new 'UnManagedStruct';
+        if (p == none) throw Error(self.error());
+        return p;
+    }
+    function query(string stmt)
+    {
+        using WinxedMysql.getlib;
+        var f= dlfunc(getlib(), 'mysql_query', 'ipt');
+        int q= f(self.mysql, stmt);
+        if (q != 0) throw Error(self.error());
+    }
+    function use_result()
+    {
+        using WinxedMysql.getlib;
+        var f= dlfunc(getlib(), 'mysql_use_result', 'pp');
+        var r= f(self.mysql);
+        var none = new 'UnManagedStruct';
+        if (r == none) throw Error(self.error());
+        var result= new WinxedMysql.Result;
+        result.init(self.mysql, r);
+        return result;
     }
 }
 
-function main()
+} // namespace WinxedMysql
+
+function main(argv)
 {
-    var mysql= new Mysql;
-    say(mysql.get_client_info());
-    //mysql.close();
-    mysql.connect('localhost', 'parrot', 'baDworD', 'parrot');
-    say(mysql.error());
+    var mysql= new WinxedMysql.Connection;
+    say('Mysql version: ', mysql.get_client_info());
+
+    /*try*/ {
+        mysql.connect('localhost', 'parrot', 'baDworD', 'parrot');
+        string q= 'select * from hello;';
+        if (argv[1])
+            q= argv[1];
+        say("Query: '", q, "'");
+        mysql.query(q);
+        var result= mysql.use_result();
+        int fields= result.field_count();
+
+        int nrows= 0;
+        var row= result.fetch_row();
+        while (!is_null(row)) {
+            ++nrows;
+            print(nrows, ': ');
+            int i;
+            for (i= 0; i < fields; ++i) {
+                if (i > 0) print(", ");
+                //print(row.get(i));
+		var s= row.get(i);
+		print("'");
+		if (is_null(s) ) print('(null)');
+		else print(s);
+		print("'");
+            }
+            say();
+            row= result.fetch_row();
+        }
+        say('Total rows: ', nrows);
+    }
+/*
+    catch (e) {
+        say("\tERROR: ", e['message']);
+        mysql.close();
+        throw e;
+    }
+*/
     mysql.close();
 }
