@@ -991,21 +991,6 @@ private:
 
 //**********************************************************************
 
-class AssignStatement : public SubStatement
-{
-public:
-    AssignStatement(Block & block,
-        Tokenizer &tk, const Token &name);
-    BaseStatement *optimize();
-    void emit (Emit &e);
-private:
-    const Token tname;
-    std::string content;
-    BaseExpr *st;
-};
-
-//**********************************************************************
-
 class AssignToStatement : public SubStatement
 {
 public:
@@ -1348,8 +1333,6 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
     if (t.isidentifier() )
     {
         Token t2= tk.get();
-        if (t2.isop('='))
-            return new AssignStatement(block, tk, t);
         if (t2.isop("=:"))
             return new AssignToStatement(block, tk, t);
         else if (t2.isop(':'))
@@ -2232,9 +2215,83 @@ public:
         BinOpExpr(block, t, first, second)
     {
     }
-    void emit(Emit &/*e*/, const std::string &/*result*/)
+private:
+    bool isinteger() const { return esecond->isinteger(); }
+    bool isstring() const { return esecond->isstring(); }
+    void emit(Emit &e, const std::string &result)
     {
-        throw Unsupported("Only simple assignments for a now", start);
+        if (efirst->isidentifier())
+        {
+            std::string varname= efirst->getidentifier();
+            char type= checklocal(varname);
+            switch (type)
+            {
+            case 'I':
+                if (!(esecond->isinteger() || esecond->isstring()))
+                {
+                    std::string r= genlocalregister('P');
+                    esecond->emit(e, r);
+                    e.annotate(start);
+                    e << varname << " = " << r << '\n';
+                    if (! result.empty() )
+                        e << result << " = " << r << '\n';
+                }
+                else {
+                    if (result.empty() )
+                        esecond->emit(e, varname);
+                    else
+                    {
+                        std::string r= genlocalregister('I');
+                        esecond->emit(e, r);
+                        e.annotate(start);
+                        e << varname << " = " << r << '\n';
+                        e << result << " = " << r << '\n';
+                    }
+                }
+                break;
+            case 'S':
+                if (!(esecond->isinteger() || esecond->isstring()))
+                {
+                    std::string r= genlocalregister('S');
+                    esecond->emit(e, r);
+                    e.annotate(start);
+                    e << varname << " = " << r << '\n';
+                    if (! result.empty() )
+                        e << result << " = " << r << '\n';
+                }
+                else {
+                    if (result.empty() )
+                        esecond->emit(e, varname);
+                    else
+                    {
+                        std::string r= genlocalregister('S');
+                        esecond->emit(e, r);
+                        e.annotate(start);
+                        e << varname << " = " << r << '\n';
+                        e << result << " = " << r << '\n';
+                    }
+                }
+                break;
+            default:
+                if (esecond->isinteger() || esecond->isstring() )
+                {
+                    e.annotate(start);
+                    e << "box " << varname << ", ";
+                    esecond->emit(e, std::string());
+                    e << '\n';
+                    if (! result.empty() )
+                        e << result << " = " << varname << '\n';
+                }
+                else
+                {
+                    esecond->emit(e, varname);
+                    if (! result.empty() )
+                        e << result << " = " << varname << '\n';
+                }
+            }
+        }
+        else
+            throw Unsupported("Only simple assignments for a now", start);
     }
 };
 
@@ -3545,7 +3602,7 @@ BaseExpr * parseExpr_16(BlockBase &block, Tokenizer &tk)
     AssignOp op;
     while ((op= getAssignOp(t= tk.get())) != AssignOpNone)
     {
-        BaseExpr *subexpr2= parseExpr_14(block, tk);
+        BaseExpr *subexpr2= parseExpr_16(block, tk);
         switch (op)
         {
         case SimpleAssignOp:
@@ -3944,88 +4001,6 @@ void YieldStatement::emit (Emit &e)
     if (values)
         values->emit(e);
     e << " )\n";
-}
-
-//**********************************************************************
-
-AssignStatement::AssignStatement(Block & block,
-        Tokenizer &tk, const Token &name) :
-    SubStatement (block), tname(name), st(0)
-{
-    //std::cerr << "AssignStatement\n";
-    Token t= tk.get();
-    if (t.iskeyword("new"))
-    {
-        st = new NewExpr(block, tk, t);
-        return;
-    }
-    else
-    {
-        tk.unget(t);
-        st = parseExpr(block, tk);
-    }
-    ExpectOp(';', tk);
-    //std::cerr << "AssignStatement end\n";
-}
-
-BaseStatement *AssignStatement::optimize()
-{
-    optimize_branch(st);
-    return this;
-}
-
-void AssignStatement::emit (Emit &e)
-{
-    std::string varname = tname.identifier();
-    if (content.empty() )
-    {
-        if (st)
-        {
-            //std::cerr << "AssignStatement::emit\n";
-
-            char type = checklocal(varname);
-            switch (type)
-            {
-            case 'I':
-                if (!(st->isinteger() || st->isstring() ))
-                {
-                    std::string r= genlocalregister('P');
-                    st->emit(e, r);
-                    e.annotate(tname);
-                    e << varname << " = " << r << '\n';
-                }
-                else
-                    st->emit(e, varname);
-                break;
-            case 'S':
-                if (!(st->isinteger() || st->isstring() ))
-                {
-                    std::string r= genlocalregister('S');
-                    st->emit(e, r);
-                    e.annotate(tname);
-                    e << varname << " = " << r << '\n';
-                }
-                else
-                    st->emit(e, varname);
-                break;
-            default:
-                if (st->isinteger() || st->isstring() )
-                {
-                    e.annotate(tname);
-                    e << varname << " = box ";
-                    st->emit(e, std::string());
-                    e << '\n';
-                }
-                else
-                    st->emit(e, varname);
-            }
-        }
-    }
-    else
-    {
-        e.annotate(tname);
-        e << varname << " = " << content << '\n';
-    }
 }
 
 //**********************************************************************
