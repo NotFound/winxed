@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 5-nov-2009
+// Revision 6-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -1121,6 +1121,23 @@ private:
 
 //**********************************************************************
 
+class DoStatement : public BlockStatement
+{
+public:
+    DoStatement(Block &block, Tokenizer &tk);
+private:
+    BaseStatement *optimize();
+    std::string getbreaklabel() const;
+    std::string getcontinuelabel() const;
+    void emit (Emit &e);
+    Condition *condition;
+    BaseStatement *st;
+    std::string labelcontinue;
+    std::string labelend;
+};
+
+//**********************************************************************
+
 class ForeachStatement : public BlockStatement
 {
 public:
@@ -1364,6 +1381,8 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
         return new SwitchStatement(block, tk);
     if (t.iskeyword("while"))
         return new WhileStatement(block, tk);
+    if (t.iskeyword("do"))
+        return new DoStatement(block, tk);
     if (t.iskeyword("for"))
         return parseFor(block, tk);
     if (t.iskeyword("throw"))
@@ -4808,6 +4827,59 @@ void WhileStatement::emit(Emit &e)
         e << "goto " << labelcontinue << '\n' <<
             labelend << ":\n";
     }
+}
+
+//**********************************************************************
+
+DoStatement::DoStatement(Block &block, Tokenizer &tk) :
+    BlockStatement (block),
+    st(new EmptyStatement())
+{
+    st= parseStatement(*this, tk);
+    Token t= tk.get();
+    if (!t.iskeyword("while"))
+        throw Expected("while", t);
+    condition = new Condition(*this, tk);
+}
+
+BaseStatement *DoStatement::optimize()
+{
+    condition= condition->optimize();
+    optimize_branch(st);
+    return this;
+}
+
+std::string DoStatement::getbreaklabel() const
+{
+    return labelend;
+}
+
+std::string DoStatement::getcontinuelabel() const
+{
+    return labelcontinue;
+}
+
+void DoStatement::emit(Emit &e)
+{
+    std::string label= genlabel();
+    std::string labelstart= label + "_DO";
+    labelcontinue= label + "_DO_continue";
+    labelend= label + "_ENDDO";
+    bool forever= condition->getvalue() == Condition::CVtrue;
+    e << labelstart << ":\n";
+
+    if (!st->isempty())
+        st->emit(e);
+    e << labelcontinue << ":\n";
+    if (! forever)
+    {
+        std::string reg= condition->emit(e);
+        e << '\n' <<
+            "if " << reg << " goto " << labelstart << '\n';
+    }
+    else
+        e << "goto " << labelstart << '\n';
+    e << labelend << ":\n";
 }
 
 //**********************************************************************
