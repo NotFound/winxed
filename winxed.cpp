@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 4-nov-2009
+// Revision 5-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -273,6 +273,9 @@ const PredefFunction PredefFunction::predefs[]= {
     PredefFunction("clone",
         "clone {res}, {arg0}",
         'P', 'P'),
+    PredefFunction("compreg",
+        "compreg {res}, {arg0}",
+        'P', 'S'),
     PredefFunction("loadlib",
         "loadlib {res}, {arg0}",
         'P', 'S'),
