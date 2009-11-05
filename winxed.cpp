@@ -366,6 +366,10 @@ public:
     {
         throw std::runtime_error("No break allowed");
     }
+    virtual std::string getcontinuelabel() const
+    {
+        throw std::runtime_error("No continue allowed");
+    }
     virtual ~BlockBase() { }
 };
 
@@ -403,6 +407,10 @@ public:
     std::string getbreaklabel() const
     {
         return bl.getbreaklabel();
+    }
+    std::string getcontinuelabel() const
+    {
+        return bl.getcontinuelabel();
     }
     char checklocal(const std::string &name) const
     {
@@ -524,6 +532,7 @@ public:
     {
     }
     std::string getbreaklabel() const;
+    std::string getcontinuelabel() const;
     bool islocal(std::string name) const;
     char checklocal(const std::string &name) const;
     char checkconstant(const std::string &name) const;
@@ -547,6 +556,11 @@ unsigned int SubBlock::blockid()
 std::string SubBlock::getbreaklabel() const
 {
     return parent.getbreaklabel();
+}
+
+std::string SubBlock::getcontinuelabel() const
+{
+    return parent.getcontinuelabel();
 }
 
 std::string SubBlock::genlocalregister(char type)
@@ -1040,6 +1054,25 @@ private:
     }
 };
 
+//**********************************************************************
+
+class ContinueStatement : public SubStatement
+{
+public:
+    ContinueStatement(Block &block, Tokenizer &tk) :
+        SubStatement(block)
+    {
+        ExpectOp(';', tk);
+    }
+private:
+    void emit (Emit &e)
+    {
+        e << "goto " << getcontinuelabel() << " # continue\n";
+    }
+};
+
+//**********************************************************************
+
 class SwitchStatement : public BlockStatement
 {
 public:
@@ -1078,9 +1111,11 @@ public:
 private:
     BaseStatement *optimize();
     std::string getbreaklabel() const;
+    std::string getcontinuelabel() const;
     void emit (Emit &e);
     Condition *condition;
     BaseStatement *st;
+    std::string labelcontinue;
     std::string labelend;
 };
 
@@ -1092,9 +1127,11 @@ public:
     ForeachStatement(Block &block, Tokenizer &tk);
 private:
     std::string getbreaklabel() const;
+    std::string getcontinuelabel() const;
     BaseStatement *optimize();
     void emit (Emit &e);
 
+    std::string continuelabel;
     std::string breaklabel;
     std::string varname;
     char vartype;
@@ -1110,9 +1147,11 @@ public:
     ForStatement(Block &block, Tokenizer &tk);
 private:
     std::string getbreaklabel() const;
+    std::string getcontinuelabel() const;
     BaseStatement *optimize();
     void emit (Emit &e);
 
+    std::string continuelabel;
     std::string breaklabel;
     BaseStatement * initializer;
     BaseExpr * condition;
@@ -1317,6 +1356,8 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
         return new GotoStatement(block, tk, t);
     if (t.iskeyword("break"))
         return new BreakStatement(block, tk);
+    if (t.iskeyword("continue"))
+        return new ContinueStatement(block, tk);
     if (t.iskeyword("if"))
         return new IfStatement(block, tk);
     if (t.iskeyword("switch"))
@@ -4215,10 +4256,15 @@ std::string ForeachStatement::getbreaklabel() const
     return breaklabel;
 }
 
+std::string ForeachStatement::getcontinuelabel() const
+{
+    return continuelabel;
+}
+
 void ForeachStatement::emit(Emit &e)
 {
     std::string label= genlabel();
-    std::string l_for = label + "_FOR";
+    continuelabel = label + "_FOR";
     breaklabel= label + "_END";
 
     std::string container_ = genlocalregister('P');
@@ -4237,12 +4283,12 @@ void ForeachStatement::emit(Emit &e)
     e << ".local pmc iter_" << varname << "\n"
         "iter_" << varname << " = iter " << container_ << "\n"
         "iter_" << varname << " = .ITERATE_FROM_START\n" <<
-        l_for << ":\n" <<
+        continuelabel << ":\n" <<
         "unless " << "iter_" << varname << " goto " << breaklabel<< "\n"
         "shift " << varname << ", iter_" << varname << '\n'
         ;
     st->emit(e);
-    e << "goto " << l_for << '\n' <<
+    e << "goto " << continuelabel << '\n' <<
         breaklabel << ":\n";
 }
 
@@ -4292,11 +4338,16 @@ std::string ForStatement::getbreaklabel() const
     return breaklabel;
 }
 
+std::string ForStatement::getcontinuelabel() const
+{
+    return continuelabel;
+}
+
 void ForStatement::emit(Emit &e)
 {
     e.comment("for loop");
 
-    std::string l_iteration= genlabel();
+    continuelabel= genlabel();
     std::string l_condition= (initializer && iteration) ?
         genlabel() :
         std::string();
@@ -4307,7 +4358,7 @@ void ForStatement::emit(Emit &e)
         if (!l_condition.empty())
             e << "goto " << l_condition << " # for condition\n";
     }
-    e << l_iteration << ": # for iteration\n";
+    e << continuelabel << ": # for iteration\n";
     if (iteration)
     {
         iteration->emit(e, std::string());
@@ -4324,7 +4375,7 @@ void ForStatement::emit(Emit &e)
     }
     e << "# for body\n";
     st->emit(e);
-    e << "goto " << l_iteration << " # for iteration\n" <<
+    e << "goto " << continuelabel << " # for iteration\n" <<
         breaklabel << ": # for end\n";
     e.comment("for loop end");
 }
@@ -4727,13 +4778,18 @@ std::string WhileStatement::getbreaklabel() const
     return labelend;
 }
 
+std::string WhileStatement::getcontinuelabel() const
+{
+    return labelcontinue;
+}
+
 void WhileStatement::emit(Emit &e)
 {
     std::string label= genlabel();
-    std::string l_while= label + "_WHILE";
+    labelcontinue= label + "_WHILE";
     labelend= label + "_ENDWHILE";
     bool forever= condition->getvalue() == Condition::CVtrue;
-    e << l_while << ":\n";
+    e << labelcontinue << ":\n";
     std::string reg;
     if (! forever)
     {
@@ -4743,13 +4799,13 @@ void WhileStatement::emit(Emit &e)
     if (st->isempty()) {
         if (! forever)
             e << "if " << reg << ' ';
-        e << "goto " << l_while << '\n';
+        e << "goto " << labelcontinue << '\n';
     }
     else {
         if (! forever)
             e << "unless " << reg << " goto " << labelend << '\n';
         st->emit(e);
-        e << "goto " << l_while << '\n' <<
+        e << "goto " << labelcontinue << '\n' <<
             labelend << ":\n";
     }
 }
