@@ -173,12 +173,21 @@ function main(argv)
     var opts = getopts.get_options(argv);
     string host = opts['host'];
     string user = opts['user'];
-    string pass = opts['password'];
+    var vpass = opts['password'];
     string database = opts['database'];
 
     if (host == null || host == '') host = 'localhost';
     if (user == null || user == '') user = 'parrot';
-    if (pass == null || pass == '') pass = 'baDworD';
+
+    // Need a ver here, keyed string access returns empty
+    // string instead of null in current parrot versions.
+    string pass;
+    if (vpass == null) pass = 'baDworD';
+    else {
+        pass= vpass;
+        if (pass == '') die("Sorry, asking for password not implemented");
+    }
+
     if (database == null || database == '') database = 'parrot';
 
     var mysql= new WinxedMysql.Connection;
