@@ -60,13 +60,13 @@ class Result
         var f= dlfunc(getlib(), 'mysql_field_count', 'ip');
         int count= f(my);
         self.nfields= count;
-        int desc [];
+        int desc [3 * count];
         int i;
         // Store the fields description for use in fetchs.
         for (i= 0; i < count; ++i) {
-            __push_int(desc, -70);
-            __push_int(desc, 1);
-            __push_int(desc, 0);
+            desc[i * 3]    = -70;
+            desc[i * 3 + 1]= 1;
+            desc[i * 3 + 2]= 0;
         }
         self.desc= desc;
     }
