@@ -162,14 +162,33 @@ class Connection
 
 function main(argv)
 {
+    using extern Getopt.Obj;
+    var getopts = new 'Getopt::Obj';
+    getopts.notOptStop(1);
+    getopts.push_string('host|h=s');
+    getopts.push_string('user|u=s');
+    getopts.push_string('password|p:s');
+    getopts.push_string('database|D=s');
+    argv.shift();
+    var opts = getopts.get_options(argv);
+    string host = opts['host'];
+    string user = opts['user'];
+    string pass = opts['password'];
+    string database = opts['database'];
+
+    if (host == null || host == '') host = 'localhost';
+    if (user == null || user == '') user = 'parrot';
+    if (pass == null || pass == '') pass = 'baDworD';
+    if (database == null || database == '') database = 'parrot';
+
     var mysql= new WinxedMysql.Connection;
     say('Mysql version: ', mysql.get_client_info());
 
     try {
-        mysql.connect('localhost', 'parrot', 'baDworD', 'parrot');
+        mysql.connect(host, user, pass, database);
         string q= 'select * from hello;';
-        if (argv[1])
-            q= argv[1];
+        if (argv[0])
+            q= argv[0];
         say("Query: '", q, "'");
         mysql.query(q);
         var result= mysql.use_result();
