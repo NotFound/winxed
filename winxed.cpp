@@ -1992,18 +1992,18 @@ BaseExpr *OpEqualExpr::optimize()
 void OpEqualExpr::emit(Emit &e, const std::string &result)
 {
     std::string res= genlocalregister('I');
-    if (isstring())
+    if (efirst->isinteger() && esecond->isinteger())
     {
-        std::string op1= genlocalregister('S');
-        std::string op2= genlocalregister('S');
+        std::string op1= genlocalregister('I');
+        std::string op2= genlocalregister('I');
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = iseq " << op1 << " , " << op2;
     }
-    else if (efirst->isinteger() && esecond->isinteger())
+    else if (efirst->isstring() && esecond->isstring())
     {
-        std::string op1= genlocalregister('I');
-        std::string op2= genlocalregister('I');
+        std::string op1= genlocalregister('S');
+        std::string op2= genlocalregister('S');
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = iseq " << op1 << " , " << op2;
@@ -2082,18 +2082,18 @@ BaseExpr *OpNotEqualExpr::optimize()
 void OpNotEqualExpr::emit(Emit &e, const std::string &result)
 {
     std::string res= genlocalregister('I');
-    if (isstring())
+    if (efirst->isinteger() && esecond->isinteger())
     {
-        std::string op1= genlocalregister('S');
-        std::string op2= genlocalregister('S');
+        std::string op1= genlocalregister('I');
+        std::string op2= genlocalregister('I');
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = isne " << op1 << " , " << op2;
     }
-    else if (efirst->isinteger() && esecond->isinteger())
+    else if (efirst->isstring() && esecond->isstring())
     {
-        std::string op1= genlocalregister('I');
-        std::string op2= genlocalregister('I');
+        std::string op1= genlocalregister('S');
+        std::string op2= genlocalregister('S');
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = isne " << op1 << " , " << op2;
