@@ -807,6 +807,11 @@ public:
     {
         return this;
     }
+    virtual bool isleft() const { return false; }
+    virtual void emitleft(Emit &)
+    {
+        throw InternalError("Not a left-side expression");
+    }
     virtual void emit(Emit &e, const std::string &result) = 0;
     virtual bool issimple() const { return false; }
     virtual const Token &gettoken() const
@@ -2351,7 +2356,14 @@ private:
             }
         }
         else
-            throw Unsupported("Only simple assignments for a now", start);
+        {
+            if (!efirst->isleft() )
+                throw SyntaxError("Not a left-side expression for '='", start);
+            std::string reg= genlocalregister(esecond->checkresult());
+            esecond->emit(e, reg);
+            efirst->emitleft(e);
+            e << " = " << reg << '\n';
+        }
     }
 };
 
@@ -3354,7 +3366,9 @@ class IndexExpr : public BaseExpr
 public:
     IndexExpr(BlockBase &block, Tokenizer &tk, Token tname);
 private:
+    bool isleft() const { return true; }
     void emit(Emit &e, const std::string &result);
+    void emitleft(Emit &e);
     std::string name;
     BaseExpr *arg;
 };
@@ -3390,6 +3404,22 @@ void IndexExpr::emit(Emit &e, const std::string &result)
     e << ']';
     if (!result.empty() )
         e << '\n';
+}
+
+void IndexExpr::emitleft(Emit &e)
+{
+    std::string reg;
+    if (! arg->issimple() )
+    {
+        reg= genlocalregister(arg->checkresult());
+        arg->emit(e, reg);
+    }
+    e << name << '[';
+    if (arg->issimple() )
+        arg->emit(e, std::string());
+    else
+        e << reg;
+    e << ']';
 }
 
 //**********************************************************************
