@@ -81,7 +81,7 @@ class Result
         var frow= f(self.myresult);
         var row;
 
-        if(is_null(frow)) return row;
+        if(frow == null) return row;
         var none = new 'UnManagedStruct';
         if (frow == none) return row;
 
@@ -133,7 +133,7 @@ class Connection
         string snull;
         var p= f(self.mysql, host, user, pass, database, 0, snull, 0);
         // This doesn't detect failure, must check nci issues.
-        if (is_null(p)) throw Error(self.error());
+        if (p == null) throw Error(self.error());
         var none = new 'UnManagedStruct';
         if (p == none) throw Error(self.error());
         return p;
@@ -177,14 +177,14 @@ function main(argv)
 
         int nrows= 0;
         var row= result.fetch_row();
-        while (!is_null(row)) {
+        while (row != null) {
             ++nrows;
             print(nrows, ': ');
             int i;
             for (i= 0; i < fields; ++i) {
                 if (i > 0) print(", ");
                 var s= row.get(i);
-                if (is_null(s) ) print('(null)');
+                if (s == null) print('(null)');
                 else print("'", s, "'");
             }
             say();

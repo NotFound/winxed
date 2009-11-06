@@ -239,9 +239,6 @@ const PredefFunction PredefFunction::predefs[]= {
         "root_new {res}, ['parrot';'Exception']\n"
         "{res}['message'] = {arg0}\n"
         , 'P', 'S'),
-    PredefFunction("is_null",
-        "isnull {res}, {arg0}",
-        'I', 'P'),
     PredefFunction("length",
         "length {res}, {arg0}",
         'I', 'S'),
@@ -819,6 +816,11 @@ public:
     virtual bool isidentifier() const { return false; }
     virtual std::string getidentifier() const
     { throw InternalError("Not an identifier"); }
+    virtual bool isnull() const
+    {
+        if (!issimple() ) return false;
+        return gettoken().iskeyword("null");
+    }
     virtual bool isliteralinteger() const { return false; }
     virtual bool isinteger() const { return false; }
     virtual int getintegervalue () const
@@ -1583,8 +1585,10 @@ void SimpleExpr::emit(Emit &e, const std::string &result)
         e << t.pirliteralstring();
     else if (isliteralinteger())
         e << getintegervalue();
+    else if (isidentifier())
+        e << getidentifier();
     else
-        e << t.str();
+        throw InternalError("Unexpected value usage");
     if (!result.empty() )
         e << '\n';
 }
@@ -1596,6 +1600,8 @@ bool SimpleExpr::isidentifier() const
 
 std::string SimpleExpr::getidentifier() const
 {
+    if (isnull())
+        throw SyntaxError("Invalid 'null' usage", gettoken());
     return t.identifier();
 }
 
@@ -1756,6 +1762,11 @@ private:
     BaseExpr *optimize()
     {
         optimize_branch(expr);
+        if (expr->isnull() )
+        {
+            Token newt= Token(1, start);
+            return new SimpleExpr(*this, newt);
+        }
         if (expr->isliteralinteger() )
         {
             const int n= expr->getintegervalue();
@@ -1973,6 +1984,11 @@ BaseExpr *OpEqualExpr::optimize()
     optimize_operands();
     if (efirst->issimple() && esecond->issimple())
     {
+        if (efirst->isnull() && esecond->isnull())
+        {
+            Token newt= Token(1, efirst->gettoken());
+            return new SimpleExpr(*this, newt);
+        }
         if (efirst->isliteralinteger() && esecond->isliteralinteger())
         {
             Token newt= Token(efirst->getintegervalue() == esecond->getintegervalue(), efirst->gettoken());
@@ -1992,7 +2008,25 @@ BaseExpr *OpEqualExpr::optimize()
 void OpEqualExpr::emit(Emit &e, const std::string &result)
 {
     std::string res= genlocalregister('I');
-    if (efirst->isinteger() && esecond->isinteger())
+    if (efirst->isnull() || esecond->isnull())
+    {
+        char type;
+        std::string op;
+        if (efirst->isnull())
+        {
+            type= esecond->checkresult();
+            op= genlocalregister(type);
+            esecond->emit(e, op);
+        }
+        else
+        {
+            type= efirst->checkresult();
+            op= genlocalregister(type);
+            efirst->emit(e, op);
+        }
+        e << res << " = isnull " << op;
+    }
+    else if (efirst->isinteger() && esecond->isinteger())
     {
         std::string op1= genlocalregister('I');
         std::string op2= genlocalregister('I');
@@ -2065,6 +2099,11 @@ BaseExpr *OpNotEqualExpr::optimize()
     optimize_operands();
     if (efirst->issimple() && esecond->issimple())
     {
+        if (efirst->isnull() && esecond->isnull())
+        {
+            Token newt= Token(0, efirst->gettoken());
+            return new SimpleExpr(*this, newt);
+        }
         if (efirst->isliteralinteger() && esecond->isliteralinteger())
         {
             Token newt= Token(efirst->getintegervalue() != esecond->getintegervalue(), efirst->gettoken());
@@ -2082,7 +2121,26 @@ BaseExpr *OpNotEqualExpr::optimize()
 void OpNotEqualExpr::emit(Emit &e, const std::string &result)
 {
     std::string res= genlocalregister('I');
-    if (efirst->isinteger() && esecond->isinteger())
+    if (efirst->isnull() || esecond->isnull())
+    {
+        char type;
+        std::string op;
+        if (efirst->isnull())
+        {
+            type= esecond->checkresult();
+            op= genlocalregister(type);
+            esecond->emit(e, op);
+        }
+        else
+        {
+            type= efirst->checkresult();
+            op= genlocalregister(type);
+            efirst->emit(e, op);
+        }
+        e << res << " = isnull " << op << "\n"
+            "not " << res;
+    }
+    else if (efirst->isinteger() && esecond->isinteger())
     {
         std::string op1= genlocalregister('I');
         std::string op2= genlocalregister('I');
@@ -2315,7 +2373,12 @@ private:
                 }
                 break;
             case 'S':
-                if (!(esecond->isinteger() || esecond->isstring()))
+                if (esecond->isnull())
+                {
+                    e.annotate(start);
+                    e << "null " << varname << '\n';
+                }
+                else if (!(esecond->isinteger() || esecond->isstring()))
                 {
                     std::string r= genlocalregister('S');
                     esecond->emit(e, r);
@@ -2338,7 +2401,12 @@ private:
                 }
                 break;
             default:
-                if (esecond->isinteger() || esecond->isstring() )
+                if (esecond->isnull())
+                {
+                    e.annotate(start);
+                    e << "null " << varname << '\n';
+                }
+                else if (esecond->isinteger() || esecond->isstring() )
                 {
                     e.annotate(start);
                     e << "box " << varname << ", ";
@@ -4529,8 +4597,8 @@ public:
     Condition (Block &block, Tokenizer &tk);
     Condition *optimize();
     bool issimple() const;
-    bool isinteger() const { return expr->isinteger(); }
-    bool isstring() const { return expr->isstring(); }
+    bool isinteger() const { return true; }
+    //bool isstring() const { return expr->isstring(); }
     bool isliteralinteger() const;
     std::string value() const;
     std::string emit(Emit &e);
@@ -4574,6 +4642,8 @@ Condition::Value Condition::getvalue() const
 {
     if (issimple())
     {
+        if (expr->isnull())
+            return CVfalse;
         if (isliteralinteger())
         {
             int n = dynamic_cast<SimpleExpr &>(*expr).getintegervalue();;
@@ -4589,13 +4659,26 @@ Condition::Value Condition::getvalue() const
 std::string Condition::emit(Emit &e)
 {
     std::string reg;
+    if (expr->issimple())
+        e.annotate(expr->gettoken());
     if (expr->isidentifier() && expr->isinteger())
         reg= expr->getstringvalue();
     else
     {
-        char type = expr->isstring() ? 'S' : expr->isinteger() ? 'I' : 'P';
+        char type= expr->checkresult();
         reg = genlocalregister(type);
         expr->emit(e, reg);
+        if (type == 'P' || type == 'S')
+        {
+            std::string reg2= reg;
+            reg= genlocalregister('I');
+            std::string nocase= genlocallabel();
+            e << reg << " = 0\n"
+                "if_null " << reg2 << ", " << nocase << "\n"
+                "unless " << reg2 << " goto " << nocase << "\n"
+                "inc " << reg << '\n' <<
+                nocase << ":\n";
+        }
     }
     return reg;
 }
@@ -4778,11 +4861,6 @@ void IfStatement::emit(Emit &e)
     std::string l_endif= label + "_ENDIF";
     std::string reg = condition->emit(e);
     e << "\n";
-    if (!(condition->isinteger() || condition->isstring()))
-    {
-        e << "if null " << reg << " goto " <<
-            (!stelse->isempty() ? l_else : l_endif) << '\n';
-    }
     e <<
         "unless " << reg << " goto " <<
             (!stelse->isempty() ? l_else : l_endif) << '\n';
@@ -4896,6 +4974,7 @@ void DoStatement::emit(Emit &e)
     labelcontinue= label + "_DO_continue";
     labelend= label + "_ENDDO";
     bool forever= condition->getvalue() == Condition::CVtrue;
+    bool oneshot = condition->getvalue() == Condition::CVfalse;
     e << labelstart << ":\n";
 
     if (!st->isempty())
@@ -4903,9 +4982,11 @@ void DoStatement::emit(Emit &e)
     e << labelcontinue << ":\n";
     if (! forever)
     {
-        std::string reg= condition->emit(e);
-        e << '\n' <<
-            "if " << reg << " goto " << labelstart << '\n';
+        if (!oneshot) {
+            std::string reg= condition->emit(e);
+            e << '\n' <<
+                "if " << reg << " goto " << labelstart << '\n';
+        }
     }
     else
         e << "goto " << labelstart << '\n';
@@ -5312,6 +5393,8 @@ void Winxed::parse (Tokenizer &tk)
 void Winxed::optimize()
 {
     //std::cerr << "Winxed::optimize\n";
+
+    root_ns.genconstant("null", 'n', Token(TokenTIdentifier, "null", 0, "(predef"));
 
     for (size_t i= 0; i < namespaces.size(); ++i)
         namespaces[i]->optimize();
