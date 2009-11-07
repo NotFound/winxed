@@ -180,8 +180,7 @@ class Tokenizer
     function init(handle)
     {
         self.h= handle;
-        var pending= new 'String';
-        self.pending= pending;
+        self.pending= new 'String';;
         self.line= 1;
         var select = {
             '"': { '': getquoted },
@@ -314,7 +313,7 @@ class FunctionStatement
         }
     }
 
-    function showinfo()
+    function report()
     {
             print('function ', self.name);
             var modifiers= self.modifiers;
@@ -343,10 +342,8 @@ class ClassStatement
 
     function init [vtable] ()
     {
-        var functions= [];
-        var bases= [];
-        self.functions = functions;
-        self.bases= bases;
+        self.functions = [];
+        self.bases= [];
     }
 
     function parse(tk)
@@ -379,48 +376,62 @@ class ClassStatement
         }
     }
 
-    function showinfo()
+    function report()
     {
-        var f;
         print('class ', self.name);
         string sep= ' : ';
-        for (f in self.bases) {
-            print (sep, f);
+        for (var b in self.bases) {
+            print (sep, b);
             sep= ' ,';
         }
         say(' {');
-        for (f in self.functions)
-            f.showinfo();
+        for (var f in self.functions)
+            f.report();
         say('}');
     }
 }
 
-class MiniWinxed
+class Namespace
 {
-    var balance1;
-    var balance2;
-    var balance3;
-    var functions;
+    var parent;
+    var name;
+    var namespaces;
     var classes;
+    var functions;
     function init [vtable] ()
     {
-        self.balance1= 0;
-        self.balance2= 0;
-        self.balance3= 0;
-        var functions= [];
-        self.functions = functions;
-        var classes= [];
-        self.classes= classes;
+        self.namespaces= [];
+        self.classes= [];
+        self.functions = [];
+    }
+    function init_child(parent, string name)
+    {
+        self.parent= parent;
+        self.name= name;
     }
     function parse(tk)
     {
+        string namespace[];
         var t= tk.get();
         int balance1= 0;
         int balance2= 0;
         int balance3= 0;
         while (! t)
         {
-            if (t.iskeyword('function'))
+            if (t.iskeyword('namespace'))
+            {
+                t= tk.get();
+                string name= t;
+                namespace.push(name);
+                t= tk.get();
+                if (!t.isop('{'))
+                    throw Error("Expected '{'");
+                var child= new Namespace;
+                child.init_child(self, name);
+                self.namespaces.push(child);
+                child.parse(tk);
+            }
+            else if (t.iskeyword('function'))
             {
                 var f= new FunctionStatement;
                 f.parse(tk);
@@ -434,37 +445,48 @@ class MiniWinxed
                 var classes= self.classes;
                 classes.push(c);
             }
-            else if (t.type == 5)
+            else if (t.isop('}'))
             {
-                string s= t;
-                switch(s)
+                int n= namespace;
+                if (n < 1)
                 {
-                case '(': ++balance1; break;
-                case ')': --balance1; break;
-                case '{': ++balance2; break;
-                case '}': --balance2; break;
-                case '[': ++balance3; break;
-                case ']': --balance3; break;
+                    if (self.parent != null) return;
+                    throw Error('Unclosed namespace');
                 }
+                namespace.pop();
             }
             t= tk.get();
         }
-        self.balance1= balance1;
-        self.balance2= balance2;
-        self.balance3= balance3;
     }
     function report()
     {
-        var f;
-        for (f in self.functions)
-            f.showinfo();
-        var c;
-        for (c in self.classes)
-            c.showinfo();
+        if (self.parent != null)
+            say('namespace ', self.name, ' {');
+        for (var n in self.namespaces)
+            n.report();
+        for (var c in self.classes)
+            c.report();
+        for (var f in self.functions)
+            f.report();
+        if (self.parent != null)
+            say('} // namespace ', self.name);
+    }
+}
 
-        if (self.balance1) say('Unbalanced ( ): ', self.balance1);
-        if (self.balance2) say('Unbalanced [ ]: ', self.balance2);
-        if (self.balance3) say('Unbalanced { }: ', self.balance3);
+class MiniWinxed
+{
+    var rootns;
+    function init [vtable] ()
+    {
+        self.rootns= new Namespace;
+    }
+    function parse(tk)
+    {
+        self.rootns.parse(tk);
+    }
+    function report()
+    {
+        self.rootns.report();
     }
 }
 
