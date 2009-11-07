@@ -216,6 +216,14 @@ const PredefFunction PredefFunction::predefs[]= {
     PredefFunction("compreg",
         "compreg {res}, {arg0}",
         'P', 'S'),
+    PredefFunction("load_language",
+        "load_language {arg0}\n"
+        "compreg {res}, {arg0}",
+        'P', 'S'),
+    PredefFunction("load_language",
+        "load_language {arg0}\n"
+        "compreg {res}, {arg1}",
+        'P', 'S', 'S'),
     PredefFunction("loadlib",
         "loadlib {res}, {arg0}",
         'P', 'S'),
@@ -4095,9 +4103,14 @@ UsingStatement::UsingStatement(Block &bl,
 
 void UsingStatement::emit (Emit &e)
 {
-    e << ".local pmc " << n << '\n' << n <<
-        " = get_hll_global " << ns.get_key() <<
-        ", '" << n << "'\n";
+    e << ".local pmc " << n << '\n';
+    if (! ns.isroot() )
+        e  << n <<
+            " = get_hll_global " << ns.get_key() <<
+            ", '" << n << "'\n";
+    else
+        e  << n <<
+            " = get_hll_global " << n << ", '" << n << "'\n";
 }
 
 //**********************************************************************
