@@ -1,10 +1,10 @@
 # Makefile for Winxed
 
 CXX = g++
-CFLAGS = -g -Wall -Wextra
+CFLAGS = -g -Wall
 
-winxed: winxed.o token.o errors.o predef.o
-	$(CXX) -o winxed winxed.o token.o errors.o predef.o
+winxed: winxed.o token.o errors.o predef.o emit.o
+	$(CXX) -o winxed winxed.o token.o errors.o predef.o emit.o
 
 winxed.o: winxed.cpp token.h errors.h predef.h
 	$(CXX) $(CFLAGS) -c winxed.cpp
@@ -18,6 +18,9 @@ errors.o: errors.cpp errors.h token.h
 predef.o: predef.cpp predef.h
 	$(CXX) $(CFLAGS) -c predef.cpp
 
+emit.o: emit.cpp emit.h token.h
+	$(CXX) $(CFLAGS) -c emit.cpp
+
 %.pir: %.winxed winxed
 	./winxed -c $<
 
@@ -27,3 +30,8 @@ test: winxed
 
 testv: winxed
 	./winxed t/harness -rv t
+
+
+clean:
+	rm -f winxed
+	rm -f *.o

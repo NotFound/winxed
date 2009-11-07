@@ -4,6 +4,7 @@
 #include "token.h"
 #include "errors.h"
 #include "predef.h"
+#include "emit.h"
 
 #include <string>
 #include <iostream>
@@ -117,66 +118,6 @@ inline void ExpectOp(char name, Tokenizer &tk)
 }
 
 //**********************************************************************
-
-class Emit
-{
-public:
-    Emit (std::ostream &out) :
-        o(out),
-        with_an(true),
-        line(0)
-    { }
-    void omit_annotations()
-    {
-        with_an= false;
-    }
-    void comment(const std::string &msg)
-    {
-        o << "# " << msg << '\n';
-    }
-    void boxedcomment(const std::string &msg)
-    {
-        const size_t n= msg.size();
-        comment('+' + std::string(n + 2, '-') + '+');
-        comment("| " + msg + " |");
-        comment('+' + std::string(n + 2, '-') + '+');
-    }
-    void annotate(const Token &t)
-    {
-        if (with_an)
-        {
-            if (t.file() != file)
-            {
-                file= t.file();
-                line= t.linenum();
-                o << ".annotate 'file', '" << file << "'\n";
-                if (line)
-                    o << ".annotate 'line', " << line << '\n';
-            }
-            else if (t.linenum() != line)
-            {
-                line= t.linenum();
-                if (line)
-                    o << ".annotate 'line', " << line << '\n';
-            }
-        }
-    }
-    std::ostream & get() { return o; }
-    template <typename T>
-    friend Emit & operator << (Emit &e, const T &t);
-private:
-    std::ostream &o;
-    bool with_an;
-    std::string file;
-    unsigned int line;
-};
-
-template <typename T>
-Emit & operator << (Emit &e, const T &t)
-{
-    e.o << t;
-    return e;
-}
 
 template <typename T>
 void emit_group(const std::vector<T *> &group, Emit &e)
