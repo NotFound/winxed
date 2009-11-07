@@ -182,6 +182,17 @@ const PredefFunction PredefFunction::predefs[]= {
         "root_new {res}, ['parrot';'Exception']\n"
         "{res}['message'] = {arg0}\n"
         , 'P', 'S'),
+    PredefFunction("Error",
+        "root_new {res}, ['parrot';'Exception']\n"
+        "{res}['message'] = {arg0}\n"
+        "{res}['severity'] = {arg1}\n"
+        , 'P', 'S', 'I'),
+    PredefFunction("Error",
+        "root_new {res}, ['parrot';'Exception']\n"
+        "{res}['message'] = {arg0}\n"
+        "{res}['severity'] = {arg1}\n"
+        "{res}['type'] = {arg2}\n"
+        , 'P', 'S', 'I', 'I'),
     PredefFunction("length",
         "length {res}, {arg0}",
         'I', 'S'),
@@ -816,6 +827,99 @@ void BaseStatement::optimize_branch(BaseExpr *&branch)
 
 //**********************************************************************
 
+class Modifier
+{
+public:
+    Modifier(BlockBase &block, Tokenizer &tk)
+    {
+        Token t= tk.get();
+        if (!t.isidentifier())
+                throw Expected("Modifier name", t);
+        name= t.identifier();
+        t= tk.get();
+        if (!t.isop('('))
+            tk.unget(t);
+        else
+        {
+            do
+            {
+                args.push_back(parseExpr(block, tk));
+            } while ((t= tk.get()).isop(','));
+            RequireOp(')', t);
+        }
+    }
+    std::string getname() const { return name; }
+    void optimize()
+    {
+        for (size_t i= 0; i < args.size(); ++i)
+            args[i]= args[i]->optimize();
+    }
+    size_t numargs() const { return args.size(); }
+    int getintegervalue(size_t narg) const
+    {
+        BaseExpr *arg= args.at(narg);
+        return arg->getintegervalue();
+    }
+private:
+    std::string name;
+    std::vector <BaseExpr *> args;
+};
+
+//**********************************************************************
+
+class Modifiers
+{
+public:
+    bool has_modifier(const std::string &name) const
+    {
+        return modifiers.find(name) != modifiers.end();
+    }
+    const Modifier * getmodifier(const std::string &name) const
+    {
+        ModifierList::const_iterator it= modifiers.find(name);
+        if (it != modifiers.end())
+            return &it->second;
+        else
+            return NULL;
+    }
+    void parse(BlockBase &block, Tokenizer &tk)
+    {
+        Token t;
+        do {
+            Modifier m(block, tk);
+            std::string name= m.getname();
+            modifiers.insert(std::make_pair(name, m));
+        } while ((t= tk.get()).isop(','));
+        RequireOp(']', t);
+    }
+    void optimize()
+    {
+        for (ModifierList::iterator it= modifiers.begin();
+                it != modifiers.end(); ++it)
+           it->second.optimize();
+    }
+protected:
+    typedef std::map<std::string, Modifier> ModifierList;
+    ModifierList modifiers;
+};
+
+//**********************************************************************
+
+class FunctionModifiers : public Modifiers
+{
+public:
+    FunctionModifiers(BlockBase &block, Tokenizer &tk, const NamespaceKey &)
+    {
+        Token t= tk.get();
+        if (! t.isop('[') )
+            tk.unget(t);
+        else
+            parse(block, tk);
+    }
+};
+
+//**********************************************************************
+
 class ArgumentList : public InBlock
 {
 public:
@@ -1136,51 +1240,10 @@ private:
     BaseStatement *optimize();
     void emit (Emit &e);
     Token start;
+    Modifiers modifiers;
     BaseStatement *stry;
     BaseStatement *scatch;
     std::string exname;
-};
-
-//**********************************************************************
-
-class Modifiers
-{
-public:
-    bool has_modifier(const std::string &name) const
-    {
-        return find(modifiers.begin(), modifiers.end(), name)
-            != modifiers.end();
-    }
-    void parse(Tokenizer &tk)
-    {
-        Token t;
-        do {
-            t= tk.get();
-            if (! t.isidentifier())
-                throw Expected("Modifier name", t);
-            add(t.identifier());
-            t= tk.get();
-        } while (t.isop(','));
-        RequireOp(']', t);
-    }
-protected:
-    void add(std::string name) { modifiers.push_back(name); }
-    std::vector<std::string> modifiers;
-};
-
-//**********************************************************************
-
-class FunctionModifiers : public Modifiers
-{
-public:
-    FunctionModifiers(Tokenizer &tk, const NamespaceKey &)
-    {
-        Token t= tk.get();
-        if (! t.isop('[') )
-            tk.unget(t);
-        else
-            parse(tk);
-    }
 };
 
 //**********************************************************************
@@ -4409,6 +4472,13 @@ TryStatement::TryStatement(Block &block, Tokenizer &tk, Token t) :
     start(t),
     stry(0), scatch(0)
 {
+    t= tk.get();
+    if (t.isop('['))
+    {
+        modifiers.parse(*this, tk);
+    }
+    else
+        tk.unget(t);
     stry = parseStatement (block, tk);
     t= tk.get();
     if (! t.iskeyword("catch"))
@@ -4425,6 +4495,7 @@ TryStatement::TryStatement(Block &block, Tokenizer &tk, Token t) :
 
 BaseStatement *TryStatement::optimize()
 {
+    modifiers.optimize();
     optimize_branch(stry);
     optimize_branch(scatch);
     return this;
@@ -4440,7 +4511,35 @@ void TryStatement::emit (Emit &e)
         genlocalregister('P') :
         exname;
 
-    e << "push_eh " << handler << '\n';
+    std::string reghandler= genlocalregister('P');
+    e << reghandler << " = new 'ExceptionHandler'\n"
+        "set_addr " << reghandler << ", " << handler << '\n';
+    static const char * const ehattrs[] = {
+        "min_severity", "max_severity"
+    };
+    for (size_t i= 0; i < sizeof(ehattrs) / sizeof(ehattrs[0]); ++i)
+        if (const Modifier *m= modifiers.getmodifier(ehattrs[i]))
+        {
+            if (m->numargs() != 1)
+                throw CompileError("Wrong args");
+            int n= m->getintegervalue(0);
+            e << reghandler << ".'" << ehattrs[i] << "'(" << n << ")\n";
+        }
+    if (const Modifier *m= modifiers.getmodifier("handle_types"))
+    {
+        size_t n= m->numargs();
+        e << reghandler << ".'handle_types'(";
+        for (size_t i= 0; i < n; ++i)
+        {
+            int value= m->getintegervalue(i);
+            if (i > 0) e << ",";
+            e << value;
+        }
+        e << ")\n";
+    }
+
+    e << "push_eh " << reghandler << '\n';
+
     stry->emit(e);
     e <<
         "pop_eh\n"
@@ -4869,7 +4968,7 @@ void DoStatement::emit(Emit &e)
 Function::Function(Tokenizer &tk,
         Block &parent,
         const NamespaceKey & ns_a, const std::string &funcname) :
-    FunctionModifiers(tk, ns_a),
+    FunctionModifiers(parent, tk, ns_a),
     FunctionBlock(parent),
     ns(ns_a), name(funcname)
 {
@@ -4894,7 +4993,7 @@ Function::Function(Tokenizer &tk,
             Modifiers modifiers;
             if (t.isop('['))
             {
-                modifiers.parse(tk);
+                modifiers.parse(*this, tk);
                 t= tk.get();
             }
 
