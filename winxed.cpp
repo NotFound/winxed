@@ -5393,20 +5393,33 @@ void winxed_main (int argc, char **argv)
     std::string pirfile = target == TargetPbc ?
         genfile(inputname, "pir") : outputfile;
 
-    output.open(pirfile.c_str());
-    if (!output.is_open() )
-        throw CompileError(std::string("Cant't open ") + outputfile);
+    std::streambuf *savecout= NULL;
+    if (outputfile == "-")
+    {
+        if (target != TargetPir)
+            throw CompileError("Output to stdout requieres pir target");
+    }
+    else
+    {
+        output.open(pirfile.c_str());
+        if (!output.is_open() )
+            throw CompileError(std::string("Cant't open ") + outputfile);
+        savecout= std::cout.rdbuf();
+        std::cout.rdbuf(output.rdbuf());
+    }
 
     Winxed winxed;
     Tokenizer tk (std::cin, inputname.c_str());
     winxed.parse (tk);
     winxed.optimize();
     {
-        Emit e(output);
+        Emit e(std::cout);
         if (noan)
             e.omit_annotations();
         winxed.emit(e);
     }
+    if (savecout)
+        std::cout.rdbuf(savecout);
     output.close();
 
     char parrot[]= "parrot;";
