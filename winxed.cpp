@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 6-nov-2009
+// Revision 7-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -20,6 +20,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/wait.h>
+
+#include <typeinfo>
 
 //**********************************************************************
 
@@ -807,24 +809,32 @@ public:
     virtual bool isleft() const { return false; }
     virtual void emitleft(Emit &)
     {
+        std::cerr << typeid(*this).name() << '\n';
         throw InternalError("Not a left-side expression");
+    }
+    virtual void emitassign(Emit &, BaseExpr &, const std::string &)
+    {
+        std::cerr << typeid(*this).name() << '\n';
+        throw InternalError("Not an assignable expression");
     }
     virtual void emit(Emit &e, const std::string &result) = 0;
     virtual bool issimple() const { return false; }
     virtual const Token &gettoken() const
-    { throw InternalError("Not a simple expression"); }
+    {
+        std::cerr << typeid(*this).name() << '\n';
+        throw InternalError("In gettoken: Not a simple expression");
+    }
     virtual bool isidentifier() const { return false; }
     virtual std::string getidentifier() const
     { throw InternalError("Not an identifier"); }
-    virtual bool isnull() const
-    {
-        if (!issimple() ) return false;
-        return gettoken().iskeyword("null");
-    }
+    virtual bool isnull() const { return false; }
     virtual bool isliteralinteger() const { return false; }
     virtual bool isinteger() const { return false; }
     virtual int getintegervalue () const
-    { throw InternalError("Not an integer"); }
+    {
+        std::cerr << typeid(*this).name() << '\n';
+        throw InternalError("Not an integer");
+    }
     virtual bool isliteralstring() const { return false; }
     virtual std::string getstringvalue () const
     { throw InternalError("Not a string"); }
@@ -917,10 +927,11 @@ private:
 class IntStatement : public ValueStatement
 {
 public:
-    IntStatement(Block & block, Tokenizer &tk);
+    IntStatement(Block & block, const Token &st, Tokenizer &tk);
     void emit (Emit &e);
     using ValueStatement::emit;
 private:
+    const Token start;
     std::string name;
 };
 
@@ -1008,36 +1019,6 @@ public:
     void emit (Emit &e);
 private:
     ArgumentList *values;
-};
-
-//**********************************************************************
-
-class AssignToStatement : public SubStatement
-{
-public:
-    AssignToStatement(Block & block,
-        Tokenizer &tk, const Token &name);
-    BaseStatement *optimize();
-    void emit (Emit &e);
-private:
-    const Token tname;
-    std::string content;
-    BaseExpr *st;
-};
-
-//**********************************************************************
-
-class AttributeAssignStatement : public SubStatement
-{
-public:
-    AttributeAssignStatement(Block &block,
-        Tokenizer &tk, const Token &object, const Token &name);
-private:
-    void emit (Emit &e);
-private:
-    const Token tobject;
-    const Token tname;
-    BaseExpr *st;
 };
 
 //**********************************************************************
@@ -1362,7 +1343,7 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
     switch(nativetype(t))
     {
     case 'I':
-        return new IntStatement(block, tk);
+        return new IntStatement(block, t, tk);
     case 'S':
         return new StringStatement(block, tk);
     case 'P':
@@ -1400,25 +1381,8 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
     if (t.isidentifier() )
     {
         Token t2= tk.get();
-        if (t2.isop("=:"))
-            return new AssignToStatement(block, tk, t);
-        else if (t2.isop(':'))
+        if (t2.isop(':'))
             return new LabelStatement(block, t.identifier());
-        else if (t2.isop('.'))
-        {
-            Token t3= tk.get();
-            Token t4= tk.get();
-            if (t4.isop('='))
-                return new AttributeAssignStatement(block, tk, t, t3);
-            else
-            {
-                tk.unget(t4);
-                tk.unget(t3);
-                tk.unget(t2);
-                tk.unget(t);
-                return new ExprStatement(block, tk);
-            }
-        }
         else
         {
             tk.unget(t2);
@@ -1523,112 +1487,106 @@ void ArgumentList::emit(Emit &e)
 
 //**********************************************************************
 
-class SimpleExpr : public BaseExpr
+class SimpleBaseExpr : public BaseExpr
 {
 public:
-    SimpleExpr(BlockBase &block, Token token) :
+    SimpleBaseExpr(BlockBase &block, Token token) :
         BaseExpr(block),
         t(token)
     { }
-    BaseExpr *optimize();
-    void emit(Emit &e, const std::string &result);
-    bool issimple() const { return true; }
-    const Token &gettoken() const { return t; }
-    bool isidentifier() const;
-    std::string getidentifier() const;
-    bool isliteralinteger() const;
-    bool isinteger() const;
-    int getintegervalue () const;
-    bool isliteralstring() const;
-    bool isstring() const;
-    bool issinglequoted() const;
-    Token get() const;
-    std::string getstringvalue() const;
 private:
-    Token t;
+    const Token &gettoken() const { return t; }
+    bool issimple() const { return true; }
+protected:
+    const Token t;
 };
 
-BaseExpr *SimpleExpr::optimize()
-{
-    //std::cerr << "SimpleExpr::optimize\n";
-    if (t.isidentifier())
-    {
-        //std::cerr << "SimpleExpr::optimize id\n";
-        char type= checkconstant(t.identifier());
-        //std::cerr << "SimpleExpr::optimize " << t.identifier() << " id " << type << "\n";
-        switch (type)
-        {
-        case 'I':
-            //std::cerr << "SimpleExpr::optimize id int\n";
-            {
-            Token value = getconstant(t.identifier()).value();
-            Token newt(value.getinteger(), t);
-            //std::cerr << "SimpleExpr::optimize id int " << value.getinteger() << "\n";
-            return new SimpleExpr(*this, newt);
-            }
-        case 'S':
-            {
-            Token value = getconstant(t.identifier()).value();
-            return new SimpleExpr(*this, value);
-            }
-        default: /* Not a constant */ ;
-        }
-    }
-    return this;
-}
+//**********************************************************************
 
-void SimpleExpr::emit(Emit &e, const std::string &result)
+class StringExpr : public SimpleBaseExpr
 {
-    if (!result.empty() )
-        e << result << " = ";
-    if (isliteralstring())
+public:
+    StringExpr(BlockBase &block, Token token) :
+        SimpleBaseExpr(block, token)
+    {
+        if (! t.isliteralstring())
+            throw InternalError("Invalid literal string");
+    }
+private:
+    bool isliteralstring() const { return true; }
+    bool isstring() const { return true; }
+    bool issinglequoted() const
+    {
+        return t.issinglequoted();
+    }
+    std::string getstringvalue() const
+    {
+        return t.str();
+    }
+    void emit(Emit &e, const std::string &result)
+    {
+        if (!result.empty() )
+            e << result << " = ";
         e << t.pirliteralstring();
-    else if (isliteralinteger())
-        e << getintegervalue();
-    else if (isidentifier())
-        e << getidentifier();
-    else
-        throw InternalError("Unexpected value usage");
-    if (!result.empty() )
-        e << '\n';
-}
-
-bool SimpleExpr::isidentifier() const
-{
-    return t.isidentifier();
-}
-
-std::string SimpleExpr::getidentifier() const
-{
-    if (isnull())
-        throw SyntaxError("Invalid 'null' usage", gettoken());
-    return t.identifier();
-}
-
-bool SimpleExpr::isliteralinteger() const
-{
-    if (t.isinteger())
-        return true;
-    if (t.isidentifier())
-    {
-        if (checkconstant(t.identifier()) == 'I')
-            return true;
+        if (!result.empty() )
+            e << '\n';
     }
-    return false;
-}
+};
 
-bool SimpleExpr::isinteger() const
-{
-    if (isliteralinteger())
-        return true;
-    else if (isidentifier())
-        return checklocal(t.str()) == 'I';
-    else return false;
-}
+//**********************************************************************
 
-int SimpleExpr::getintegervalue () const
+class IntegerExpr : public SimpleBaseExpr
 {
-    if (t.isidentifier())
+public:
+    IntegerExpr(BlockBase &block, Token token) :
+        SimpleBaseExpr(block, token),
+        value (t.getinteger())
+    {
+    }
+    IntegerExpr(BlockBase &block, Token token, int n) :
+        SimpleBaseExpr(block, Token(n, token)),
+        value (n)
+    {
+    }
+private:
+    bool isliteralinteger() const { return true; }
+    bool isinteger() const { return true; }
+    int getintegervalue () const { return value; }
+
+    void emit(Emit &e, const std::string &result)
+    {
+        if (!result.empty() )
+            e << result << " = ";
+        e << getintegervalue();
+        if (!result.empty() )
+            e << '\n';
+    }
+    int value;
+};
+
+//**********************************************************************
+
+class IdentifierExpr : public SimpleBaseExpr
+{
+public:
+    IdentifierExpr(BlockBase &block, Token token) :
+        SimpleBaseExpr(block, token)
+    { }
+private:
+    bool isnull() const
+    {
+        return t.iskeyword("null");
+    }
+    bool isidentifier() const { return true; }
+    std::string getidentifier() const
+    {
+        if (isnull())
+            throw SyntaxError("Invalid 'null' usage", t);
+        return t.identifier();
+    }
+    bool isinteger() const
+        { return checklocal(t.str()) == 'I'; }
+    int getintegervalue () const
     {
         if (checkconstant(t.identifier()) == 'I')
         {
@@ -1636,37 +1594,13 @@ int SimpleExpr::getintegervalue () const
             if (cv.type () == 'I')
                 return cv.value().getinteger();
         }
+        throw SyntaxError("Not an integer value", t);
     }
-    return t.getinteger();
-}
-
-bool SimpleExpr::isliteralstring() const
-{
-    return t.isliteralstring();
-}
-
-bool SimpleExpr::isstring() const
-{
-    if (isliteralstring())
-        return true;
-    else if (isidentifier())
+    bool isstring() const
+    {
         return checklocal(t.str()) == 'S';
-    else return false;
-}
-
-bool SimpleExpr::issinglequoted() const
-{
-    return t.issinglequoted();
-}
-
-Token SimpleExpr::get() const
-{
-    return t;
-}
-
-std::string SimpleExpr::getstringvalue() const
-{
-    if (t.isidentifier())
+    }
+    std::string getstringvalue() const
     {
         if (checkconstant(t.identifier()) == 'S')
         {
@@ -1674,8 +1608,40 @@ std::string SimpleExpr::getstringvalue() const
             if (cv.type () == 'S')
                 return cv.value().str();
         }
+        throw SyntaxError("Not a string value", t);
     }
-    return t.str();
+
+    BaseExpr *optimize();
+    void emit(Emit &e, const std::string &result);
+};
+
+BaseExpr *IdentifierExpr::optimize()
+{
+    char type= checkconstant(t.identifier());
+    switch (type)
+    {
+    case 'I':
+        {
+        Token value = getconstant(t.identifier()).value();
+        return new IntegerExpr(*this, t, value.getinteger());
+        }
+    case 'S':
+        {
+        Token value = getconstant(t.identifier()).value();
+        return new StringExpr(*this, value);
+        }
+    default: /* Not a constant */ ;
+    }
+    return this;
+}
+
+void IdentifierExpr::emit(Emit &e, const std::string &result)
+{
+    if (!result.empty() )
+        e << result << " = ";
+    e << getidentifier();
+    if (! result.empty() )
+        e << '\n';
 }
 
 //**********************************************************************
@@ -1731,8 +1697,7 @@ private:
         if (expr->isliteralinteger() )
         {
             const int n= expr->getintegervalue();
-            Token newt= Token(-n, start);
-            return new SimpleExpr(*this, newt);
+            return new IntegerExpr(*this, start, -n);
         }
         return this;
     }
@@ -1763,15 +1728,11 @@ private:
     {
         optimize_branch(expr);
         if (expr->isnull() )
-        {
-            Token newt= Token(1, start);
-            return new SimpleExpr(*this, newt);
-        }
+            return new IntegerExpr(*this, start, 1);
         if (expr->isliteralinteger() )
         {
             const int n= expr->getintegervalue();
-            Token newt= Token(! n, start);
-            return new SimpleExpr(*this, newt);
+            return new IntegerExpr(*this, start, !n);
         }
         return this;
     }
@@ -1975,6 +1936,7 @@ public:
         CompareOpExpr(block, t, first, second)
     { }
 private:
+    bool isinteger() const { return true; }
     BaseExpr *optimize();
     void emit(Emit &e, const std::string &result);
 };
@@ -1986,20 +1948,18 @@ BaseExpr *OpEqualExpr::optimize()
     {
         if (efirst->isnull() && esecond->isnull())
         {
-            Token newt= Token(1, efirst->gettoken());
-            return new SimpleExpr(*this, newt);
+            return new IntegerExpr(*this, start, 1);
         }
         if (efirst->isliteralinteger() && esecond->isliteralinteger())
         {
-            Token newt= Token(efirst->getintegervalue() == esecond->getintegervalue(), efirst->gettoken());
-            return new SimpleExpr(*this, newt);
+            return new IntegerExpr(*this, start,
+                efirst->getintegervalue() == esecond->getintegervalue());
         }
         if (efirst->isliteralstring() && esecond->isliteralstring())
         {
             std::string s1= efirst->getstringvalue();
             std::string s2= esecond->getstringvalue();
-            Token newt= Token(s1 == s2, efirst->gettoken());
-            return new SimpleExpr(*this, newt);
+            return new IntegerExpr(*this, start, s1 == s2);
         }
     }
     return this;
@@ -2100,20 +2060,13 @@ BaseExpr *OpNotEqualExpr::optimize()
     if (efirst->issimple() && esecond->issimple())
     {
         if (efirst->isnull() && esecond->isnull())
-        {
-            Token newt= Token(0, efirst->gettoken());
-            return new SimpleExpr(*this, newt);
-        }
+            return new IntegerExpr(*this, start, 0);
         if (efirst->isliteralinteger() && esecond->isliteralinteger())
-        {
-            Token newt= Token(efirst->getintegervalue() != esecond->getintegervalue(), efirst->gettoken());
-            return new SimpleExpr(*this, newt);
-        }
+            return new IntegerExpr(*this, start,
+                efirst->getintegervalue() != esecond->getintegervalue());
         if (efirst->isliteralstring() && esecond->isliteralstring())
-        {
-            Token newt= Token(efirst->getstringvalue() != esecond->getstringvalue(), efirst->gettoken());
-            return new SimpleExpr(*this, newt);
-        }
+            return new IntegerExpr(*this, start,
+                efirst->getstringvalue() != esecond->getstringvalue());
     }
     return this;
 }
@@ -2427,26 +2380,60 @@ private:
         {
             if (!efirst->isleft() )
                 throw SyntaxError("Not a left-side expression for '='", start);
-            std::string reg= genlocalregister(esecond->checkresult());
-            esecond->emit(e, reg);
-            efirst->emitleft(e);
-            e << " = " << reg << '\n';
+
+            std::string reg= result.empty() ? std::string() :
+                genlocalregister(esecond->checkresult());
+            efirst->emitassign(e, *esecond, reg);
+            if (! result.empty() )
+                e << result << " = " << reg << '\n';
         }
     }
 };
 
 //**********************************************************************
 
-class OpAssignToExpr : public BinOpExpr
+class OpAssignToExpr : public CommonBinOpExpr
 {
 public:
     OpAssignToExpr(BlockBase &block,
             Token t, BaseExpr *first, BaseExpr *second) :
-        BinOpExpr(block, t, first, second)
+        CommonBinOpExpr(block, t, first, second)
     {
     }
-    void emit(Emit &/*e*/, const std::string &/*result*/)
+private:
+    BaseExpr *optimize()
     {
+        optimize_operands();
+        return this;
+    }
+    void emit(Emit &e, const std::string &/*result*/)
+    {
+        if (efirst->isidentifier())
+        {
+            std::string varname= efirst->getidentifier();
+            char type= checklocal(varname);
+            switch(type)
+            {
+            case 'I':
+            case 'S':
+                if (!(esecond->isinteger() || esecond->isstring()))
+                {
+                    std::string r= genlocalregister(type == 'S' ? 'S' : 'P');
+                    esecond->emit(e, r);
+                    e.annotate(start);
+                    e << varname << " = " << r << '\n';
+                }
+                else
+                    esecond->emit(e, varname);
+                return;
+            default:
+                e.annotate(start);
+                e << "assign " << varname << ", ";
+                esecond->emit(e, std::string());
+                e << '\n';
+                return;
+            }
+        }
         throw Unsupported("Only simple assignments for a now", start);
     }
 };
@@ -2556,14 +2543,14 @@ BaseExpr *OpAddExpr::optimize()
         if (efirst->isliteralinteger() && esecond->isliteralinteger())
         {
             //std::cerr << "OpAddExpr::optimize int\n";
-            Token newt= Token(efirst->getintegervalue() + esecond->getintegervalue(), efirst->gettoken());
-            return new SimpleExpr(*this, newt);
+            return new IntegerExpr(*this, start,
+                efirst->getintegervalue() + esecond->getintegervalue());
         }
         if (efirst->isliteralstring() && esecond->isliteralstring())
         {
             //std::cerr << "OpAddExpr::optimize string\n";
             Token newt= Token(TokenTQuoted, efirst->getstringvalue() + esecond->getstringvalue(), efirst->gettoken());
-            return new SimpleExpr(*this, newt);
+            return new StringExpr(*this, newt);
         }
     }
     return this;
@@ -2671,14 +2658,10 @@ BaseExpr *OpSubExpr::optimize()
         if (efirst->isliteralinteger() && esecond->isliteralinteger())
         {
             //std::cerr << "OpSubExpr::optimize int\n";
-
             int n1= efirst->getintegervalue();
             int n2= esecond->getintegervalue();
-
             //std::cerr << n1 << " " << n2 << '\n';
-
-            Token newt= Token(n1 - n2, efirst->gettoken());
-            return new SimpleExpr(*this, newt);
+            return new IntegerExpr(*this, start, n1 - n2);
         }
     }
     return this;
@@ -2740,14 +2723,14 @@ private:
     bool isinteger() const { return true; }
     void emit(Emit &e, const std::string &result)
     {
-    std::string res= result.empty() ? genlocalregister('I') : result;
-    std::string op1= genlocalregister('I');
-    std::string op2= genlocalregister('I');
-    efirst->emit(e, op1);
-    esecond->emit(e, op2);
-    e << res << " = band " << op1 << ", " << op2;
-    if (!result.empty())
-        e << '\n';
+        std::string res= result.empty() ? genlocalregister('I') : result;
+        std::string op1= genlocalregister('I');
+        std::string op2= genlocalregister('I');
+        efirst->emit(e, op1);
+        esecond->emit(e, op2);
+        e << res << " = band " << op1 << ", " << op2;
+        if (!result.empty())
+            e << '\n';
     }
 };
 
@@ -2788,6 +2771,12 @@ public:
     { }
 private:
     bool isinteger() const { return true; }
+    BaseExpr *optimize()
+    {
+        optimize_branch(efirst);
+        optimize_branch(esecond);
+        return this;
+    }
     void emit(Emit &e, const std::string &result);
     BaseExpr *efirst;
     BaseExpr *esecond;
@@ -3080,6 +3069,38 @@ public:
         default:
             left->emit(e, result);
         }
+    }
+    bool isleft() const { return true; }
+    void emitleft(Emit &)
+    {
+        throw InternalError("here");
+    }
+    void emitassign(Emit &e, BaseExpr& value, const std::string &to)
+    {
+        //std::cerr << typeid(right).name() << '\n';
+        e.annotate(start);
+        std::string reg = genlocalregister('P');
+        left->emit(e, reg);
+        char typevalue= value.checkresult();
+        std::string regval= genlocalregister(typevalue);
+        if (value.isnull())
+            e << "null " << regval << '\n';
+        else
+            value.emit(e, regval);
+        e << '\n';
+        std::string regattrval;
+        if (typevalue == 'P')
+            regattrval= regval;
+        else
+        {
+            regattrval= genlocalregister('P');
+            e << op_box(regattrval, regval) << '\n';
+        }
+        e << "setattribute " << reg << ", '" << right.identifier() <<
+                "', " << regattrval << '\n';
+
+        if (! to.empty())
+            e << "set " << to << ", " << regattrval << '\n';
     }
 private:
     Token start;
@@ -3437,6 +3458,7 @@ private:
     bool isleft() const { return true; }
     void emit(Emit &e, const std::string &result);
     void emitleft(Emit &e);
+    void emitassign(Emit &e, BaseExpr& value, const std::string &to);
     std::string name;
     BaseExpr *arg;
 };
@@ -3490,6 +3512,37 @@ void IndexExpr::emitleft(Emit &e)
     e << ']';
 }
 
+void IndexExpr::emitassign(Emit &e, BaseExpr& value, const std::string &to)
+{
+    std::string reg2;
+    if (value.isnull()) {
+        reg2= genlocalregister('P');
+        e << "null " << reg2 << '\n';
+    }
+    else
+    {
+        reg2= genlocalregister(value.checkresult());
+        value.emit(e, reg2);
+        e << '\n';
+    }
+
+    std::string reg;
+    if (! arg->issimple() )
+    {
+        reg= genlocalregister(arg->checkresult());
+        arg->emit(e, reg);
+    }
+    e << name << '[';
+    if (arg->issimple() )
+        arg->emit(e, std::string());
+    else
+        e << reg;
+    e << "] = " << reg2 << '\n';
+
+    if (!to.empty())
+        e << "set " << to << ", " << reg2 << '\n';
+}
+
 //**********************************************************************
 
 BaseExpr * parseExpr_16(BlockBase &block, Tokenizer &tk);
@@ -3536,7 +3589,14 @@ BaseExpr * parseExpr_0(BlockBase &block, Tokenizer &tk)
         else
         {
             tk.unget(t2);
-            subexpr = new SimpleExpr(block, t);
+            if (t.isidentifier())
+                subexpr = new IdentifierExpr(block, t);
+            else if (t.isinteger())
+                subexpr = new IntegerExpr(block, t);
+            else if (t.isliteralstring())
+                subexpr = new StringExpr(block, t);
+            else
+                throw SyntaxError("Invalid statement", t);
         }
     }
 
@@ -3946,8 +4006,9 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
 
 //**********************************************************************
 
-IntStatement::IntStatement(Block &block, Tokenizer &tk) :
-    ValueStatement (block)
+IntStatement::IntStatement(Block &block,  const Token &st, Tokenizer &tk) :
+    ValueStatement (block),
+    start(st)
 {
     Token t= tk.get();
     name= t.identifier();
@@ -3972,6 +4033,7 @@ IntStatement::IntStatement(Block &block, Tokenizer &tk) :
 
 void IntStatement::emit (Emit &e)
 {
+    e.annotate(start);
     emit(e, name, 'I');
 }
 
@@ -4059,9 +4121,7 @@ ConstStatement::ConstStatement(Block & block, Tokenizer &tk, Token startpos) :
 
 BaseStatement *ConstStatement::optimize()
 {
-    //std::cerr << "ConstStatement::optimize\n";
     optimize_branch(value);
-    //std::cerr << "ConstStatement::optimize "  << name << " : " << type << "\n";
 
     // Reusing the optimize phase as constant evaluation phase.
     // Maybe a separate phase will be added later.
@@ -4159,149 +4219,6 @@ void YieldStatement::emit (Emit &e)
     if (values)
         values->emit(e);
     e << " )\n";
-}
-
-//**********************************************************************
-
-AssignToStatement::AssignToStatement(Block & block,
-        Tokenizer &tk, const Token &name) :
-    SubStatement (block), tname(name), st(0)
-{
-    //std::cerr << "AssignToStatement\n";
-    Token t= tk.get();
-    if (t.iskeyword("new"))
-    {
-        st = new NewExpr(block, tk, t);
-        return;
-    }
-    else
-    {
-        tk.unget(t);
-        st = parseExpr(block, tk);
-    }
-    ExpectOp(';', tk);
-    //std::cerr << "AssignToStatement end\n";
-}
-
-BaseStatement *AssignToStatement::optimize()
-{
-    optimize_branch(st);
-    return this;
-}
-
-void AssignToStatement::emit (Emit &e)
-{
-    std::string varname = tname.identifier();
-    if (content.empty() )
-    {
-        if (st)
-        {
-            //std::cerr << "AssignToStatement::emit\n";
-
-            char type = checklocal(varname);
-            switch (type)
-            {
-            case 'I':
-                if (!(st->isinteger() || st->isstring() ))
-                {
-                    std::string r= genlocalregister('P');
-                    st->emit(e, r);
-                    e.annotate(tname);
-                    e << varname << " = " << r << '\n';
-                }
-                else
-                    st->emit(e, varname);
-                break;
-            case 'S':
-                if (!(st->isinteger() || st->isstring() ))
-                {
-                    std::string r= genlocalregister('S');
-                    st->emit(e, r);
-                    e.annotate(tname);
-                    e << varname << " = " << r << '\n';
-                }
-                else
-                    st->emit(e, varname);
-                break;
-            default:
-                if (st->isinteger() || st->isstring() )
-                {
-                    e.annotate(tname);
-                    e << "assign " << varname << ", ";
-                    st->emit(e, std::string());
-                    e << '\n';
-                }
-                else
-                {
-                    e << "assign " << varname << ", ";
-                    st->emit(e, std::string());
-                    e << '\n';
-                }
-            }
-        }
-    }
-    else
-    {
-        e.annotate(tname);
-        e << varname << " = " << content << '\n';
-    }
-}
-
-//**********************************************************************
-
-AttributeAssignStatement::AttributeAssignStatement(Block & block,
-        Tokenizer &tk, const Token &object, const Token &name) :
-    SubStatement (block),
-    tobject(object),
-    tname(name),
-    st(0)
-{
-    Token t= tk.get();
-    if (t.iskeyword("new"))
-    {
-        st = new NewExpr(block, tk, t);
-        return;
-    }
-    else
-    {
-        tk.unget(t);
-        st = parseExpr(block, tk);
-    }
-    ExpectOp(';', tk);
-}
-
-void AttributeAssignStatement::emit (Emit &e)
-{
-    e.annotate(tname);
-    std::string varname = tname.identifier();
-    optimize_branch(st);
-
-    std::string r= genlocalregister('P');
-    const std::string objname= tobject.identifier();
-    if (st->isinteger() || st->isstring())
-    {
-        e << "getattribute " << r << ", " << objname <<
-            ", '" << varname << "'\n";
-        std::string l= genlocallabel();
-        e << "unless null " << r << " goto " << l << "\n"
-            "new " << r << ", '" <<
-                (st->isinteger() ? "Integer" : "String") <<
-                "'\n"
-            "setattribute "<< objname << ", '" <<
-                varname << "', " << r << '\n' <<
-            l << ":\n";
-        e << "assign " << r << ", ";
-        st->emit(e, std::string());
-        e << '\n';
-    }
-    else
-    {
-        e << "set " << r << ", ";
-        st->emit(e, std::string());
-        e << "\n"
-            "setattribute " << objname << ", '" << varname <<
-                "', " << r << '\n';
-    }
 }
 
 //**********************************************************************
@@ -4646,7 +4563,7 @@ Condition::Value Condition::getvalue() const
             return CVfalse;
         if (isliteralinteger())
         {
-            int n = dynamic_cast<SimpleExpr &>(*expr).getintegervalue();;
+            int n = expr->getintegervalue();
             if (n != 0)
                 return CVtrue;
             else
@@ -4662,7 +4579,7 @@ std::string Condition::emit(Emit &e)
     if (expr->issimple())
         e.annotate(expr->gettoken());
     if (expr->isidentifier() && expr->isinteger())
-        reg= expr->getstringvalue();
+        reg= expr->getidentifier();
     else
     {
         char type= expr->checkresult();
@@ -5177,6 +5094,7 @@ public:
     Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a);
     void emit (Emit &e);
     std::vector <std::string> attributes() const { return attrs; }
+    void optimize();
 private:
     unsigned int subblocks;
     unsigned int blockid()
@@ -5281,14 +5199,19 @@ Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
     }
 }
 
+void Class::optimize()
+{
+    for (size_t i= 0; i < constants.size(); ++i)
+        constants[i]->optimize();
+    for (size_t i= 0; i < functions.size(); ++i)
+        functions[i]->optimize();
+}
+
 void Class::emit (Emit &e)
 {
     ns.emit (e);
 
-    for (size_t i= 0; i < constants.size(); ++i)
-        constants[i]->optimize();
     emit_group(constants, e);
-
 
     e << ".sub Winxed_class_init :anon :load :init\n"
         "$P0 = newclass " << ns.get_key() << "\n";
@@ -5398,6 +5321,8 @@ void Winxed::optimize()
 
     for (size_t i= 0; i < namespaces.size(); ++i)
         namespaces[i]->optimize();
+    for (size_t i= 0; i < classes.size(); ++i)
+        classes[i]->optimize();
     for (size_t i= 0; i < functions.size(); ++i)
         functions[i]->optimize();
 
