@@ -1157,7 +1157,7 @@ public:
         do {
             t= tk.get();
             if (! t.isidentifier())
-                throw Expected("Attribute name", t);
+                throw Expected("Modifier name", t);
             add(t.identifier());
             t= tk.get();
         } while (t.isop(','));
