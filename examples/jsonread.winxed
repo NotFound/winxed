@@ -1,0 +1,23 @@
+#! winxed
+
+function read_data(string file)
+{
+    var json= load_language('data_json');
+    var code= json.compile((new 'FileHandle').open(file).readall());
+    var data= code();
+    return data;
+}
+
+function main(argv)
+{
+    try {
+        var data= read_data(argv[1]);
+    }
+    catch (e)
+    {
+       say('Error reading data: ', e['message']);
+       return;
+    }
+    // This example expects an array of integers:
+    for (int i in data) say(i);
+}
