@@ -339,6 +339,8 @@ public:
     virtual ConstantValue getconstant(const std::string &name) const = 0;
     virtual void genconstant(const std::string &name, char type, const Token &value) = 0;
     virtual std::string genlocallabel() = 0;
+    virtual std::string genlocalregister(char type)= 0;
+    virtual void freelocalregister(const std::string &)= 0;
     virtual std::string gentemp(char type)
     {
         throw std::runtime_error("No temp registers here!");
@@ -417,6 +419,14 @@ public:
     std::string genlocallabel()
     {
         return bl.genlocallabel();
+    }
+    std::string genlocalregister(char type)
+    {
+        return bl.genlocalregister(type);
+    }
+    void freelocalregister(const std::string &reg)
+    {
+        bl.freelocalregister(reg);
     }
     std::string gentemp(char type)
     {
@@ -522,7 +532,14 @@ public:
     char checklocal(const std::string &name) const;
     char checkconstant(const std::string &name) const;
     ConstantValue getconstant(const std::string &name) const;
-    std::string genlocalregister(char type);
+    std::string genlocalregister(char type)
+    {
+        return parent.genlocalregister(type);
+    }
+    void freelocalregister(const std::string &reg)
+    {
+        parent.freelocalregister(reg);
+    }
     std::string gentemp(char type)
     {
         return parent.gentemp(type);
@@ -660,16 +677,25 @@ public:
     std::string genlocallabel();
     std::string genlocalregister(char type);
     std::string gentemp(char type);
+    std::string genregister(char type);
+    void freelocalregister(const std::string &reg);
+    void freeregister(const std::string &reg);
 protected:
     size_t tempsused() const
     {
-        return tempi.size() + temps.size() + tempp.size();
+        return tempi.size() + temps.size() + tempp.size() +
+            + freetempi.size() + freetemps.size() + freetempp.size();
     }
     void freetempregs()
     {
-        freetempi= tempi;
-        freetemps= temps;
-        freetempp= tempp;
+        using std::copy;
+        using std::back_inserter;
+        copy(tempi.begin(), tempi.end(), back_inserter(freetempi));
+        tempi= std::vector<std::string>();
+        copy(temps.begin(), temps.end(), back_inserter(freetemps));
+        temps= std::vector<std::string>();
+        copy(tempp.begin(), tempp.end(), back_inserter(freetempp));
+        tempp= std::vector<std::string>();
     }
 private:
     std::string getnamedlabel(const std::string &name);
@@ -687,9 +713,35 @@ private:
 
 std::string FunctionBlock::genlocalregister(char type)
 {
+    if (type != 'I' && type != 'S' && type != 'P')
+        throw InternalError("invalid register type");
     std::ostringstream l;
     l << '$' << type << ++nreg;
     return l.str();
+}
+
+void FunctionBlock::freelocalregister(const std::string &reg)
+{
+    //std::cerr << "Free " << reg << "!\n";
+    if (reg.at(0) != '$')
+        throw InternalError("invalid free register");
+    switch(reg.at(1))
+    {
+    case 'I': freetempi.push_back(reg); break;
+    case 'S': freetemps.push_back(reg); break;
+    case 'P':  freetempp.push_back(reg); break;
+    default: throw InternalError("invalid free register");
+    }
+}
+
+void FunctionBlock::freeregister(const std::string &reg)
+{
+   return freelocalregister(reg);
+}
+
+std::string FunctionBlock::genregister(char type)
+{
+    return genlocalregister(type);
 }
 
 std::string FunctionBlock::gentemp(char type)
@@ -776,13 +828,11 @@ private:
 class BlockStatement : public BaseStatement, public SubBlock
 {
 public:
-    BlockStatement (Block &parentblock);
+    BlockStatement (Block &parentblock) :
+            SubBlock(parentblock)
+    {
+    }
 };
-
-BlockStatement::BlockStatement (Block &parentblock) :
-    SubBlock(parentblock)
-{
-}
 
 //**********************************************************************
 
@@ -4433,8 +4483,7 @@ void ForeachStatement::emit(Emit &e)
     std::string label= genlabel();
     continuelabel = label + "_FOR";
     breaklabel= label + "_END";
-
-    std::string container_ = gentemp('P');
+    std::string container_ = genlocalregister('P');
     if (container-> isstring() )
     {
         std::string value= gentemp('S');
@@ -4446,17 +4495,19 @@ void ForeachStatement::emit(Emit &e)
 
     if (vartype != '\0')
         e << ".local " << nameoftype(vartype) << ' ' << varname << '\n';
+    const std::string iter= "iter_" + varname;
 
-    e << ".local pmc iter_" << varname << "\n"
-        "iter_" << varname << " = iter " << container_ << "\n"
-        "iter_" << varname << " = .ITERATE_FROM_START\n" <<
+    e << ".local pmc " << iter << "\n" <<
+        iter << " = iter " << container_ << "\n" <<
+        iter << " = .ITERATE_FROM_START\n" <<
         continuelabel << ":\n" <<
-        "unless " << "iter_" << varname << " goto " << breaklabel<< "\n"
-        "shift " << varname << ", iter_" << varname << '\n'
+        "unless " << iter << " goto " << breaklabel<< "\n"
+        "shift " << varname << ", " << iter << '\n'
         ;
     st->emit(e);
     e << "goto " << continuelabel << '\n' <<
         breaklabel << ":\n";
+    freelocalregister(container_);
 }
 
 //**********************************************************************
@@ -5219,6 +5270,8 @@ private:
     std::string getnamedlabel(const std::string&)
     { throw InternalError("No Namespace labels"); }
     std::string genlocalregister(char)
+    { throw InternalError("No Namespace registers"); }
+    void freelocalregister(const std::string&)
     { throw InternalError("No Namespace registers"); }
     unsigned int subblocks;
     unsigned int blockid()
