@@ -49,6 +49,12 @@ char nativetype(const Token &name)
 //**********************************************************************
 
 inline
+std::string op(const char *name, const std::string &op1)
+{
+    return std::string(name) + ' ' + op1;
+}
+
+inline
 std::string op(const char *name,
     const std::string &op1, const std::string &op2)
 {
@@ -64,15 +70,15 @@ std::string op(const char *name,
 }
 
 inline
-std::string op_set(const std::string &to, const std::string &from)
+std::string op_set(const std::string &res, const std::string &op1)
 {
-    return op("set", to, from);
+    return op("set", res, op1);
 }
 
 inline
-std::string op_box(const std::string &to, const std::string &from)
+std::string op_box(const std::string &res, const std::string &op1)
 {
-    return op("box", to, from);
+    return op("box", res, op1);
 }
 
 inline
@@ -87,6 +93,18 @@ std::string op_sub(const std::string &res,
     const std::string &op1, const std::string &op2)
 {
     return op("sub", res, op1, op2);
+}
+
+inline
+std::string op_null(const std::string &res)
+{
+    return op("null", res);
+}
+
+inline
+std::string op_isnull(const std::string &res, const std::string &op1)
+{
+    return op("isnull", res, op1);
 }
 
 inline
@@ -2051,7 +2069,7 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
             op= gentemp(type);
             efirst->emit(e, op);
         }
-        e << res << " = isnull " << op;
+        e << op_isnull(res, op);
     }
     else if (efirst->isinteger() && esecond->isinteger())
     {
@@ -2157,7 +2175,7 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
             op= gentemp(type);
             efirst->emit(e, op);
         }
-        e << res << " = isnull " << op << "\n"
+        e << op_isnull(res, op) << '\n' <<
             "not " << res;
     }
     else if (efirst->isinteger() && esecond->isinteger())
@@ -2396,7 +2414,7 @@ private:
                 if (esecond->isnull())
                 {
                     e.annotate(start);
-                    e << "null " << varname << '\n';
+                    e << op_null(varname) << '\n';
                 }
                 else if (!(esecond->isinteger() || esecond->isstring()))
                 {
@@ -2424,7 +2442,7 @@ private:
                 if (esecond->isnull())
                 {
                     e.annotate(start);
-                    e << "null " << varname << '\n';
+                    e << op_null(varname) << '\n';
                 }
                 else if (esecond->isinteger() || esecond->isstring() )
                 {
@@ -2679,7 +2697,7 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
             e << op1 << " = new 'String'\n";
             break;
         default:
-            e << "null " << op1 << '\n';
+            e << op_null(op1) << '\n';
         }
         switch (esecond->checkresult() )
         {
@@ -2690,7 +2708,7 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
             e << op2 << " = new 'String'\n";
             break;
         default:
-            e << "null " << op2 << '\n';
+            e << op_null(op2) << '\n';
         }
         efirst->emit(e, op1);
         esecond->emit(e, op2);
@@ -3151,7 +3169,7 @@ public:
         char typevalue= value.checkresult();
         std::string regval= gentemp(typevalue);
         if (value.isnull())
-            e << "null " << regval << '\n';
+            e << op_null(regval) << '\n';
         else
             value.emit(e, regval);
         e << '\n';
@@ -3611,7 +3629,7 @@ void IndexExpr::emitassign(Emit &e, BaseExpr& value, const std::string &to)
     std::string reg2;
     if (value.isnull()) {
         reg2= gentemp('P');
-        e << "null " << reg2 << '\n';
+        e << op_null(reg2) << '\n';
     }
     else
     {
@@ -4066,7 +4084,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
                 value[i]->emit(e, reg);
                 e << name << '[' << i << "] = " << reg << '\n';
                 if (type == 'P')
-                    e << "null " << reg << '\n';
+                    e << op_null(reg) << '\n';
             }
         }
         break;
@@ -4098,7 +4116,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
                 value[i]->emit(e, reg);
                 e << name << '[' << i << "] = " << reg << '\n';
                 if (type == 'P')
-                    e << "null " << reg << '\n';
+                    e << op_null(reg) << '\n';
             }
         }
         }
