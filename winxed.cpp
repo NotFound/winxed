@@ -221,6 +221,9 @@ const PredefFunction PredefFunction::predefs[]= {
         "push {arg0}, {arg1}",
         '\0', 'P', 'S'),
 
+    PredefFunction("getinterp",
+        "getinterp {res}",
+        'P'),
     PredefFunction("clone",
         "clone {res}, {arg0}",
         'P', 'P'),
