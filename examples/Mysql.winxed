@@ -208,7 +208,7 @@ function main(argv)
     say('Mysql version: ', mysql.get_client_info());
     var result;
 
-    try [min_severity(ERROR),max_severity(ERROR),handled_types(TYPE)] {
+    try [min_severity(ERROR),max_severity(ERROR),handle_types(TYPE)] {
         mysql.connect(host, user, pass, database);
         string q= 'select * from hello;';
         if (argv[0])
