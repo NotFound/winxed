@@ -2,6 +2,10 @@
 
 // Test Mysql usage via NCI
 
+// Severity and type of the exceptions explicitly thrown.
+const int ERROR = 2;
+const int TYPE= 99;
+
 namespace WinxedMysql
 {
 
@@ -24,7 +28,7 @@ function getlib()
 {
     var l= getlib__private();
     if (! l)
-        throw Error('Cannot load Mysql lib');
+        throw Error('Cannot load Mysql lib', ERROR, TYPE);
     for (;;)
         yield l;
 }
@@ -143,9 +147,9 @@ class Connection
         string snull;
         var p= f(self.mysql, host, user, pass, database, 0, snull, 0);
         // This doesn't detect failure, must check nci issues.
-        if (p == null) throw Error(self.error());
+        if (p == null) throw Error(self.error(), ERROR, TYPE);
         var none = new 'UnManagedStruct';
-        if (p == none) throw Error(self.error());
+        if (p == none) throw Error(self.error(), ERROR, TYPE);
         return p;
     }
     function query(string stmt)
@@ -153,7 +157,7 @@ class Connection
         using WinxedMysql.getlib;
         var f= dlfunc(getlib(), 'mysql_query', 'ipt');
         int q= f(self.mysql, stmt);
-        if (q != 0) throw Error(self.error());
+        if (q != 0) throw Error(self.error(), ERROR, TYPE);
     }
     function use_result()
     {
@@ -161,7 +165,7 @@ class Connection
         var f= dlfunc(getlib(), 'mysql_use_result', 'pp');
         var r= f(self.mysql);
         var none = new 'UnManagedStruct';
-        if (r == none) throw Error(self.error());
+        if (r == none) throw Error(self.error(), ERROR, TYPE);
         var result= new WinxedMysql.Result;
         result.init(self.mysql, r);
         return result;
@@ -204,7 +208,7 @@ function main(argv)
     say('Mysql version: ', mysql.get_client_info());
     var result;
 
-    /*try*/ {
+    try [min_severity(ERROR),max_severity(ERROR),handled_types(TYPE)] {
         mysql.connect(host, user, pass, database);
         string q= 'select * from hello;';
         if (argv[0])
@@ -232,13 +236,11 @@ function main(argv)
         result.close();
         say('Total rows: ', nrows);
     }
-/*
     catch (e) {
         say("\tERROR: ", e['message']);
         if (result != null) result.close();
         mysql.close();
-        throw e;
+	return;
     }
-*/
     mysql.close();
 }
