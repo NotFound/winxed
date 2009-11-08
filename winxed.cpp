@@ -956,8 +956,10 @@ public:
     CompoundStatement(Block &parentblock, Tokenizer &tk);
     BaseStatement *optimize();
     void emit (Emit &e);
+    Token getend() const { return tend; }
 private:
     std::vector <BaseStatement *> subst;
+    Token tend;
 };
 
 //**********************************************************************
@@ -1288,6 +1290,7 @@ private:
     std::map <std::string, ParamInfo> paraminfo;
     std::vector <std::string> loc;
     BaseStatement *body;
+    Token tend;
 };
 
 //**********************************************************************
@@ -3486,7 +3489,7 @@ IndexExpr::IndexExpr(BlockBase &block, Tokenizer &tk, Token tname) :
     Token t;
     do {
         BaseExpr *newarg = parseExpr(block, tk);
-	arg.push_back(newarg);
+        arg.push_back(newarg);
     } while ((t= tk.get()).isop(','));
     RequireOp (']', t);
 }
@@ -3512,7 +3515,7 @@ void IndexExpr::emit(Emit &e, const std::string &result)
             else
                 reg= genlocalregister('P');
             arg[i]->emit(e, reg);
-	    argvalue[i]= reg;
+            argvalue[i]= reg;
         }
     }
     if (!result.empty() )
@@ -3542,7 +3545,7 @@ void IndexExpr::emitleft(Emit &e)
         {
             reg= genlocalregister('P');
             arg[i]->emit(e, reg);
-	    argvalue[i]= reg;
+            argvalue[i]= reg;
         }
     }
     e << name << '[';
@@ -3580,7 +3583,7 @@ void IndexExpr::emitassign(Emit &e, BaseExpr& value, const std::string &to)
         {
             reg= genlocalregister(arg[i]->checkresult());
             arg[i]->emit(e, reg);
-	    argvalue[i]= reg;
+            argvalue[i]= reg;
         }
     }
     e << name << '[';
@@ -4287,12 +4290,14 @@ CompoundStatement::CompoundStatement(Block &parentblock,
         Tokenizer &tk) :
     BlockStatement (parentblock)
 {
-    for (Token t= tk.get(); ! t.isop('}'); t= tk.get() )
+    Token t;
+    for (t= tk.get(); ! t.isop('}'); t= tk.get() )
     {
         tk.unget(t);
         BaseStatement *st= parseStatement(*this, tk);
         subst.push_back(st);
     }
+    tend= t;
 }
 
 BaseStatement *CompoundStatement::optimize ()
@@ -5050,7 +5055,9 @@ Function::Function(Tokenizer &tk,
     RequireOp(')', t);
     ExpectOp('{', tk);
 
-    body = new CompoundStatement(*this, tk);
+    CompoundStatement *cbody = new CompoundStatement(*this, tk);
+    tend= cbody->getend();
+    body= cbody;
 }
 
 void Function::local(std::string name)
@@ -5090,6 +5097,7 @@ void Function::emitbody (Emit &e)
 {
     e.annotate(start);
     body->emit(e);
+    e.annotate(tend);
 }
 
 void Function::emit (Emit &e)
