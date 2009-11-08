@@ -4,7 +4,7 @@ function aux()
     var cont;
     int i= 0;
     for (cont= interp['continuation']; cont; cont= cont.continuation()) {
-	say(cont);
+        say(cont);
         var ann= interp['annotations', ++i];
         string file= ann['file'];
         int line= ann['line'];
