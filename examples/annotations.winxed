@@ -5,9 +5,9 @@ function aux()
     for (int i= 1; outer.caller() != null; ++i) {
         var ann= interp['annotations', i];
         string file= ann['file'];
-	int line= ann['line'];
-	say(outer, "\n\t", file, ': ', line);
-	int j= i-1;
+        int line= ann['line'];
+        say(outer, "\n\t", file, ': ', line);
+        int j= i-1;
         outer= interp['continuation', i];
     }
 }
