@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 7-nov-2009
+// Revision 8-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -3468,6 +3468,7 @@ public:
     IndexExpr(BlockBase &block, Tokenizer &tk, Token tname);
 private:
     bool isleft() const { return true; }
+    BaseExpr *optimize() { arg= arg->optimize(); return this; }
     void emit(Emit &e, const std::string &result);
     void emitleft(Emit &e);
     void emitassign(Emit &e, BaseExpr& value, const std::string &to);
