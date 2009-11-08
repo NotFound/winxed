@@ -3471,42 +3471,61 @@ public:
     IndexExpr(BlockBase &block, Tokenizer &tk, Token tname);
 private:
     bool isleft() const { return true; }
-    BaseExpr *optimize() { arg= arg->optimize(); return this; }
+    BaseExpr *optimize();
     void emit(Emit &e, const std::string &result);
     void emitleft(Emit &e);
     void emitassign(Emit &e, BaseExpr& value, const std::string &to);
     std::string name;
-    BaseExpr *arg;
+    std::vector <BaseExpr *> arg;
 };
 
 IndexExpr::IndexExpr(BlockBase &block, Tokenizer &tk, Token tname) :
     BaseExpr(block),
-    name(tname.identifier()),
-    arg(0)
+    name(tname.identifier())
 {
-    arg = parseExpr(block, tk);
-    Token t= tk.get();
+    Token t;
+    do {
+        BaseExpr *newarg = parseExpr(block, tk);
+	arg.push_back(newarg);
+    } while ((t= tk.get()).isop(','));
     RequireOp (']', t);
+}
+
+BaseExpr *IndexExpr::optimize()
+{
+    for (size_t i= 0; i < arg.size(); ++i)
+        arg[i]= arg[i]->optimize();
+    return this;
 }
 
 void IndexExpr::emit(Emit &e, const std::string &result)
 {
     std::string reg;
-    if (! arg->issimple() )
+    size_t nitems= arg.size();
+    std::vector <std::string> argvalue(nitems);
+    for (size_t i= 0; i < nitems; ++i)
     {
-        if (! result.empty() && result.substr(0, 2) == "$S")
-            reg= genlocalregister('S');
-        else
-            reg= genlocalregister('P');
-        arg->emit(e, reg);
+        if (! arg[i]->issimple() )
+        {
+            if (! result.empty() && result.substr(0, 2) == "$S")
+                reg= genlocalregister('S');
+            else
+                reg= genlocalregister('P');
+            arg[i]->emit(e, reg);
+	    argvalue[i]= reg;
+        }
     }
     if (!result.empty() )
         e << result << " = ";
     e << name << '[';
-    if (arg->issimple() )
-        arg->emit(e, std::string());
-    else
-        e << reg;
+    for (size_t i= 0; i < nitems; ++i)
+    {
+        if (i > 0) e << ';';
+        if (argvalue[i].empty() )
+            arg[i]->emit(e, std::string());
+        else
+            e << argvalue[i];
+    }
     e << ']';
     if (!result.empty() )
         e << '\n';
@@ -3515,16 +3534,26 @@ void IndexExpr::emit(Emit &e, const std::string &result)
 void IndexExpr::emitleft(Emit &e)
 {
     std::string reg;
-    if (! arg->issimple() )
+    size_t nitems= arg.size();
+    std::vector <std::string> argvalue(nitems);
+    for (size_t i= 0; i < nitems; ++i)
     {
-        reg= genlocalregister(arg->checkresult());
-        arg->emit(e, reg);
+        if (! arg[i]->issimple() )
+        {
+            reg= genlocalregister('P');
+            arg[i]->emit(e, reg);
+	    argvalue[i]= reg;
+        }
     }
     e << name << '[';
-    if (arg->issimple() )
-        arg->emit(e, std::string());
-    else
-        e << reg;
+    for (size_t i= 0; i < nitems; ++i)
+    {
+        if (i > 0) e << ';';
+        if (argvalue[i].empty() )
+            arg[i]->emit(e, std::string());
+        else
+            e << argvalue[i];
+    }
     e << ']';
 }
 
@@ -3543,16 +3572,26 @@ void IndexExpr::emitassign(Emit &e, BaseExpr& value, const std::string &to)
     }
 
     std::string reg;
-    if (! arg->issimple() )
+    size_t nitems= arg.size();
+    std::vector <std::string> argvalue(nitems);
+    for (size_t i= 0; i < nitems; ++i)
     {
-        reg= genlocalregister(arg->checkresult());
-        arg->emit(e, reg);
+        if (! arg[i]->issimple() )
+        {
+            reg= genlocalregister(arg[i]->checkresult());
+            arg[i]->emit(e, reg);
+	    argvalue[i]= reg;
+        }
     }
     e << name << '[';
-    if (arg->issimple() )
-        arg->emit(e, std::string());
-    else
-        e << reg;
+    for (size_t i= 0; i < nitems; ++i)
+    {
+        if (i > 0) e << ';';
+        if (argvalue[i].empty() )
+            arg[i]->emit(e, std::string());
+        else
+            e << argvalue[i];
+    }
     e << "] = " << reg2 << '\n';
 
     if (!to.empty())
