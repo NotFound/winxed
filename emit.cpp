@@ -1,11 +1,13 @@
 // emit.cpp
-// Revision 7-nov-2009
+// Revision 8-nov-2009
 
 #include "emit.h"
 
 Emit::Emit (std::ostream &out) :
     o(out),
     with_an(true),
+    pendingf(false),
+    pendingl(false),
     line(0)
 { }
 
@@ -27,6 +29,20 @@ void Emit::boxedcomment(const std::string &msg)
     comment('+' + std::string(n + 2, '-') + '+');
 }
 
+void Emit::preemit()
+{
+    if (pendingf)
+    {
+        o << ".annotate 'file', '" << file << "'\n";
+        pendingf= false;
+    }
+    if (pendingl)
+    {
+        o << ".annotate 'line', " << line << '\n';
+        pendingl= false;
+    }
+}
+
 void Emit::annotate(const Token &t)
 {
     if (with_an)
@@ -34,16 +50,15 @@ void Emit::annotate(const Token &t)
         if (t.file() != file)
         {
             file= t.file();
-            line= t.linenum();
-            o << ".annotate 'file', '" << file << "'\n";
-            if (line)
-                o << ".annotate 'line', " << line << '\n';
+            pendingf= true;
+            pendingl= false;
+            line= 0;
         }
-        else if (t.linenum() != line)
+        if (t.linenum() != line)
         {
             line= t.linenum();
             if (line)
-                o << ".annotate 'line', " << line << '\n';
+                pendingl= true;
         }
     }
 }

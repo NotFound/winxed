@@ -2,7 +2,7 @@
 #define INCLUDE_EMIT_H
 
 // emit.h
-// Revision 7-nov-2009
+// Revision 8-nov-2009
 
 #include "token.h"
 
@@ -20,8 +20,11 @@ public:
     template <typename T>
     friend Emit & operator << (Emit &e, const T &t);
 private:
+    void preemit();
     std::ostream &o;
     bool with_an;
+    bool pendingf;
+    bool pendingl;
     std::string file;
     unsigned int line;
 };
@@ -29,6 +32,7 @@ private:
 template <typename T>
 Emit & operator << (Emit &e, const T &t)
 {
+    e.preemit();
     e.o << t;
     return e;
 }

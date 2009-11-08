@@ -6,7 +6,7 @@ CFLAGS = -g -Wall
 winxed: winxed.o token.o errors.o predef.o emit.o
 	$(CXX) -o winxed winxed.o token.o errors.o predef.o emit.o
 
-winxed.o: winxed.cpp token.h errors.h predef.h
+winxed.o: winxed.cpp emit.h token.h errors.h predef.h
 	$(CXX) $(CFLAGS) -c winxed.cpp
 
 token.o: token.cpp token.h errors.h
