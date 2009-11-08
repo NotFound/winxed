@@ -2,7 +2,7 @@
 #define INCLUDE_ERRORS_H
 
 // errors.h
-// Revision 31-oct-2009
+// Revision 8-nov-2009
 
 #include "token.h"
 
@@ -19,13 +19,11 @@ class CompileError : public std::runtime_error
 {
 public:
 	CompileError(const std::string &msg);
-	CompileError(const std::string &msg, unsigned int line);
 	CompileError(const std::string &msg, const Token &where);
 	~CompileError() throw () {}
 	unsigned int linenum() const;
 	std::string file() const;
 private:
-	unsigned int ln;
 	Token w;
 };
 
@@ -38,7 +36,6 @@ public:
 class SyntaxError : public CompileError
 {
 public:
-	SyntaxError(const std::string &msg, unsigned int line);
 	SyntaxError(const std::string &msg, const Token &where);
 };
 

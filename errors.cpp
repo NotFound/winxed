@@ -1,5 +1,5 @@
 // errors.cpp
-// Revision 31-oct-2009
+// Revision 8-nov-2009
 
 #include "errors.h"
 
@@ -17,22 +17,15 @@ CompileError::CompileError(const std::string &msg) :
 {
 }
 
-CompileError::CompileError(const std::string &msg, unsigned int line) :
-	std::runtime_error(msg),
-	ln(line)
-{
-}
-
 CompileError::CompileError(const std::string &msg, const Token &where) :
 	std::runtime_error(msg + " (found: " + where.describe() + " )"),
-	ln(where.linenum() ),
 	w(where)
 {
 }
 
 unsigned int CompileError::linenum() const
 {
-	return ln;
+	return w.linenum();
 }
 
 std::string CompileError::file() const
@@ -48,11 +41,6 @@ Unsupported::Unsupported(const std::string &msg, const Token &where) :
 }
 
 //**********************************************************************
-
-SyntaxError::SyntaxError(const std::string &msg, unsigned int line) :
-	CompileError("Syntax error: " + msg, line)
-{
-}
 
 SyntaxError::SyntaxError(const std::string &msg, const Token &where) :
 	CompileError("Syntax error: " + msg, where)

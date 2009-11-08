@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 4-nov-2009
+// Revision 8-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -280,7 +280,8 @@ std::string Tokenizer::quoted()
             s+= c;
     }
     if ((!is) || c != '"')
-        throw SyntaxError ("Unterminated string ", line);
+        throw SyntaxError ("Unterminated string ",
+            Token(TokenTQuoted, s, line, name));
     return s;
 }
 
@@ -393,7 +394,10 @@ Token Tokenizer::getany ()
         while ((c= getchar()) && is && c != '\'' && c != '\n')
             s+= c;
         if ((!is) || c != '\'')
-            throw SyntaxError("Unterminated string", linenum);
+        {
+            throw SyntaxError("Unterminated string",
+                Token(TokenTSingleQuoted, s, linenum, name));
+        }
         return Token(TokenTSingleQuoted, s, linenum, name);
     case '"':
         s= quoted ();
