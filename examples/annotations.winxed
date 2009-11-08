@@ -1,14 +1,14 @@
 function aux()
 {
     var interp=getinterp();
-    var outer= interp['continuation', 0];
-    for (int i= 1; outer.caller() != null; ++i) {
-        var ann= interp['annotations', i];
+    var cont;
+    int i= 0;
+    for (cont= interp['continuation']; cont; cont= cont.continuation()) {
+	say(cont);
+        var ann= interp['annotations', ++i];
         string file= ann['file'];
         int line= ann['line'];
-        say(outer, "\n\t", file, ': ', line);
-        int j= i-1;
-        outer= interp['continuation', i];
+        say("\t", file, ': ', line);
     }
 }
 

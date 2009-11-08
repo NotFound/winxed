@@ -3510,10 +3510,7 @@ void IndexExpr::emit(Emit &e, const std::string &result)
     {
         if (! arg[i]->issimple() )
         {
-            if (! result.empty() && result.substr(0, 2) == "$S")
-                reg= genlocalregister('S');
-            else
-                reg= genlocalregister('P');
+            reg= genlocalregister(arg[i]->checkresult());
             arg[i]->emit(e, reg);
             argvalue[i]= reg;
         }
