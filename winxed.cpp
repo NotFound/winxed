@@ -321,7 +321,14 @@ public:
     virtual ConstantValue getconstant(const std::string &name) const = 0;
     virtual void genconstant(const std::string &name, char type, const Token &value) = 0;
     virtual std::string genlocallabel() = 0;
-    virtual std::string genlocalregister(char type) = 0;
+    virtual std::string gentemp(char type)
+    {
+        throw std::runtime_error("No temp registers here!");
+    }
+    virtual void freetempregs()
+    {
+        throw std::runtime_error("No temp registers here!");
+    }
     virtual void genlocal(const std::string &name, char type) = 0;
     virtual bool islocal(std::string /*name*/) const = 0;
     virtual std::string getbreaklabel() const
@@ -340,7 +347,6 @@ class Block : public BlockBase
 public:
     Block();
     virtual unsigned int blockid() = 0;
-    std::string genregister(char type);
     void genlocal(const std::string &name, char type);
     bool islocal(std::string name) const;
     void genconstant(const std::string &name, char type, const Token &value);
@@ -394,9 +400,13 @@ public:
     {
         return bl.genlocallabel();
     }
-    std::string genlocalregister(char type)
+    std::string gentemp(char type)
     {
-        return bl.genlocalregister(type);
+        return bl.gentemp(type);
+    }
+    void freetempregs()
+    {
+        bl.freetempregs();
     }
     void genlocal(const std::string &name, char type)
     {
@@ -455,11 +465,6 @@ ConstantValue Block::getconstant(const std::string &name) const
     throw InternalError("No such constant");
 }
 
-std::string Block::genregister(char type)
-{
-    return genlocalregister(type);
-}
-
 std::string Block::genlabel()
 {
     return genlocallabel();
@@ -500,6 +505,14 @@ public:
     char checkconstant(const std::string &name) const;
     ConstantValue getconstant(const std::string &name) const;
     std::string genlocalregister(char type);
+    std::string gentemp(char type)
+    {
+        return parent.gentemp(type);
+    }
+    void freetempregs()
+    {
+        parent.freetempregs();
+    }
     std::string genlocallabel();
     std::string getnamedlabel(const std::string &name);
 private:
@@ -523,11 +536,6 @@ std::string SubBlock::getbreaklabel() const
 std::string SubBlock::getcontinuelabel() const
 {
     return parent.getcontinuelabel();
-}
-
-std::string SubBlock::genlocalregister(char type)
-{
-    return parent.genlocalregister(type);
 }
 
 char SubBlock::checklocal(const std::string &name) const
@@ -633,12 +641,30 @@ public:
 public:
     std::string genlocallabel();
     std::string genlocalregister(char type);
+    std::string gentemp(char type);
+protected:
+    size_t tempsused() const
+    {
+        return tempi.size() + temps.size() + tempp.size();
+    }
+    void freetempregs()
+    {
+        freetempi= tempi;
+        freetemps= temps;
+        freetempp= tempp;
+    }
 private:
     std::string getnamedlabel(const std::string &name);
 
     unsigned int subblocks;
     unsigned int nreg;
     unsigned int nlabel;
+    std::vector <std::string> tempi;
+    std::vector <std::string> temps;
+    std::vector <std::string> tempp;
+    std::vector <std::string> freetempi;
+    std::vector <std::string> freetemps;
+    std::vector <std::string> freetempp;
 };
 
 std::string FunctionBlock::genlocalregister(char type)
@@ -646,6 +672,29 @@ std::string FunctionBlock::genlocalregister(char type)
     std::ostringstream l;
     l << '$' << type << ++nreg;
     return l.str();
+}
+
+std::string FunctionBlock::gentemp(char type)
+{
+    std::vector<std::string> &usefree= type == 'I' ? freetempi :
+        type == 'S' ? freetemps : freetempp;
+    std::string temp;
+    if (usefree.size() > 0)
+    {
+        temp= usefree.back();
+        usefree.pop_back();
+    }
+    else
+    {
+        temp= genlocalregister(type);
+        switch(type)
+        {
+        case 'I': tempi.push_back(temp); break;
+        case 'S': temps.push_back(temp); break;
+        default:  tempp.push_back(temp); break;
+        }
+    }
+    return temp;
 }
 
 std::string FunctionBlock::genlocallabel()
@@ -1479,7 +1528,7 @@ void ArgumentList::prepare(Emit &e)
     {
         if (! args[i]->issimple() )
         {
-            std::string reg= genlocalregister(args[i]->checkresult());
+            std::string reg= gentemp(args[i]->checkresult());
             args[i]->emit(e, reg);
             argregs.push_back(reg);
         }
@@ -1721,9 +1770,9 @@ private:
     }
     void emit(Emit &e, const std::string &result)
     {
-        std::string arg= genlocalregister('I');
+        std::string arg= gentemp('I');
         expr->emit(e, arg);
-        std::string r= result.empty() ? genlocalregister('I') : result;
+        std::string r= result.empty() ? gentemp('I') : result;
         annotate(e);
         e << r << " = neg " << arg;
         if (! result.empty() )
@@ -1756,10 +1805,10 @@ private:
     }
     void emit(Emit &e, const std::string &result)
     {
-        std::string arg= genlocalregister(expr->isinteger() ? 'I' : 'P');
+        std::string arg= gentemp(expr->isinteger() ? 'I' : 'P');
         expr->emit(e, arg);
         std::string r= result.empty() ?
-            genlocalregister('I') :
+            gentemp('I') :
             result;
         annotate(e);
         if (expr->isinteger())
@@ -1844,7 +1893,7 @@ private:
     void emit(Emit &e, const std::string &result)
     {
         std::string var= getvar();
-        std::string reg= genlocalregister('I');
+        std::string reg= gentemp('I');
         annotate(e);
         e << reg << " = " << var << "\n"
             "inc " << var << '\n';
@@ -1866,7 +1915,7 @@ private:
     void emit(Emit &e, const std::string &result)
     {
         std::string var= getvar();
-        std::string reg= genlocalregister('I');
+        std::string reg= gentemp('I');
         annotate(e);
         e << reg << " = " << var << "\n"
             "dec " << var << '\n';
@@ -1985,7 +2034,7 @@ BaseExpr *OpEqualExpr::optimize()
 
 void OpEqualExpr::emit(Emit &e, const std::string &result)
 {
-    std::string res= genlocalregister('I');
+    std::string res= gentemp('I');
     if (efirst->isnull() || esecond->isnull())
     {
         char type;
@@ -1993,46 +2042,46 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
         if (efirst->isnull())
         {
             type= esecond->checkresult();
-            op= genlocalregister(type);
+            op= gentemp(type);
             esecond->emit(e, op);
         }
         else
         {
             type= efirst->checkresult();
-            op= genlocalregister(type);
+            op= gentemp(type);
             efirst->emit(e, op);
         }
         e << res << " = isnull " << op;
     }
     else if (efirst->isinteger() && esecond->isinteger())
     {
-        std::string op1= genlocalregister('I');
-        std::string op2= genlocalregister('I');
+        std::string op1= gentemp('I');
+        std::string op2= gentemp('I');
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = iseq " << op1 << " , " << op2;
     }
     else if (efirst->isstring() && esecond->isstring())
     {
-        std::string op1= genlocalregister('S');
-        std::string op2= genlocalregister('S');
+        std::string op1= gentemp('S');
+        std::string op2= gentemp('S');
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = iseq " << op1 << " , " << op2;
     }
     else
     {
-        std::string op1= genlocalregister('P');
-        std::string op2= genlocalregister('P');
+        std::string op1= gentemp('P');
+        std::string op2= gentemp('P');
         if (efirst->isinteger() )
         {
-            std::string aux= genlocalregister('I');
+            std::string aux= gentemp('I');
             efirst->emit(e, aux);
             e << op_box(res, aux) << '\n';
         }
         else if (efirst->isstring() )
         {
-            std::string aux= genlocalregister('S');
+            std::string aux= gentemp('S');
             efirst->emit(e, aux);
             e << op_box(op1, aux) << '\n';
         }
@@ -2040,13 +2089,13 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
             efirst->emit(e, op1);
         if (esecond->isinteger() )
         {
-            std::string aux= genlocalregister('I');
+            std::string aux= gentemp('I');
             esecond->emit(e, aux);
             e << op_box(op2, aux) << '\n';
         }
         else if (esecond->isstring() )
         {
-            std::string aux= genlocalregister('S');
+            std::string aux= gentemp('S');
             esecond->emit(e, aux);
             e << op_box(op2, aux) << '\n';
         }
@@ -2091,7 +2140,7 @@ BaseExpr *OpNotEqualExpr::optimize()
 
 void OpNotEqualExpr::emit(Emit &e, const std::string &result)
 {
-    std::string res= genlocalregister('I');
+    std::string res= gentemp('I');
     if (efirst->isnull() || esecond->isnull())
     {
         char type;
@@ -2099,13 +2148,13 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
         if (efirst->isnull())
         {
             type= esecond->checkresult();
-            op= genlocalregister(type);
+            op= gentemp(type);
             esecond->emit(e, op);
         }
         else
         {
             type= efirst->checkresult();
-            op= genlocalregister(type);
+            op= gentemp(type);
             efirst->emit(e, op);
         }
         e << res << " = isnull " << op << "\n"
@@ -2113,33 +2162,33 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
     }
     else if (efirst->isinteger() && esecond->isinteger())
     {
-        std::string op1= genlocalregister('I');
-        std::string op2= genlocalregister('I');
+        std::string op1= gentemp('I');
+        std::string op2= gentemp('I');
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = isne " << op1 << " , " << op2;
     }
     else if (efirst->isstring() && esecond->isstring())
     {
-        std::string op1= genlocalregister('S');
-        std::string op2= genlocalregister('S');
+        std::string op1= gentemp('S');
+        std::string op2= gentemp('S');
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = isne " << op1 << " , " << op2;
     }
     else
     {
-        std::string op1= genlocalregister('P');
-        std::string op2= genlocalregister('P');
+        std::string op1= gentemp('P');
+        std::string op2= gentemp('P');
         if (efirst->isinteger() )
         {
-            std::string aux= genlocalregister('I');
+            std::string aux= gentemp('I');
             efirst->emit(e, aux);
             e << op_box(op1, aux) << '\n';
         }
         else if (efirst->isstring() )
         {
-            std::string aux= genlocalregister('S');
+            std::string aux= gentemp('S');
             efirst->emit(e, aux);
             e << op_box(op1, aux) << '\n';
         }
@@ -2147,13 +2196,13 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
             efirst->emit(e, op1);
         if (esecond->isinteger() )
         {
-            std::string aux= genlocalregister('I');
+            std::string aux= gentemp('I');
             esecond->emit(e, aux);
             e << op_box(op2, aux) << '\n';
         }
         else if (esecond->isstring() )
         {
-            std::string aux= genlocalregister('S');
+            std::string aux= gentemp('S');
             esecond->emit(e, aux);
             e << op_box(op2, aux) << '\n';
         }
@@ -2181,24 +2230,24 @@ private:
 
 void OpLessExpr::emit(Emit &e, const std::string &result)
 {
-    std::string res= result.empty() ? genlocalregister('I') : result;
+    std::string res= result.empty() ? gentemp('I') : result;
     char type1= efirst->checkresult();
     char type2= esecond->checkresult();
     if (type1 == 'I' || type2 == 'I')
     {
-        std::string op1= genlocalregister('I');
-        std::string op2= genlocalregister('I');
+        std::string op1= gentemp('I');
+        std::string op2= gentemp('I');
         if (type1 == 'I')
             efirst->emit(e, op1);
         else {
-            std::string aux= genlocalregister('P');
+            std::string aux= gentemp('P');
             efirst->emit(e, aux);
             e << op1 << " = " << aux << '\n';
         }
         if (type2 == 'I')
             esecond->emit(e, op2);
         else {
-            std::string aux= genlocalregister('P');
+            std::string aux= gentemp('P');
             esecond->emit(e, aux);
             e << op2 << " = " << aux << '\n';
         }
@@ -2208,19 +2257,19 @@ void OpLessExpr::emit(Emit &e, const std::string &result)
     }
     else if (type1 == 'S' || type2 == 'S')
     {
-        std::string op1= genlocalregister('S');
-        std::string op2= genlocalregister('S');
+        std::string op1= gentemp('S');
+        std::string op2= gentemp('S');
         if (type1 == 'S')
             efirst->emit(e, op1);
         else {
-            std::string aux= genlocalregister('P');
+            std::string aux= gentemp('P');
             efirst->emit(e, aux);
             e << op1 << " = " << aux << '\n';
         }
         if (type2 == 'S')
             esecond->emit(e, op2);
         else {
-            std::string aux= genlocalregister('P');
+            std::string aux= gentemp('P');
             esecond->emit(e, aux);
             e << op2 << " = " << aux << '\n';
         }
@@ -2248,24 +2297,24 @@ private:
 
 void OpGreaterExpr::emit(Emit &e, const std::string &result)
 {
-    std::string res= result.empty() ? genlocalregister('I') : result;
+    std::string res= result.empty() ? gentemp('I') : result;
     char type1= efirst->checkresult();
     char type2= esecond->checkresult();
     if (type1 == 'I' || type2 == 'I')
     {
-        std::string op1= genlocalregister('I');
-        std::string op2= genlocalregister('I');
+        std::string op1= gentemp('I');
+        std::string op2= gentemp('I');
         if (type1 == 'I')
             efirst->emit(e, op1);
         else {
-            std::string aux= genlocalregister('P');
+            std::string aux= gentemp('P');
             efirst->emit(e, aux);
             e << op_set(op1, aux) << '\n';
         }
         if (type2 == 'I')
             esecond->emit(e, op2);
         else {
-            std::string aux= genlocalregister('P');
+            std::string aux= gentemp('P');
             esecond->emit(e, aux);
             e << op_set(op2, aux) << '\n';
         }
@@ -2275,19 +2324,19 @@ void OpGreaterExpr::emit(Emit &e, const std::string &result)
     }
     else if (type1 == 'S' || type2 == 'S')
     {
-        std::string op1= genlocalregister('S');
-        std::string op2= genlocalregister('S');
+        std::string op1= gentemp('S');
+        std::string op2= gentemp('S');
         if (type1 == 'S')
             efirst->emit(e, op1);
         else {
-            std::string aux= genlocalregister('P');
+            std::string aux= gentemp('P');
             efirst->emit(e, aux);
             e << op_set(op1, aux) << '\n';
         }
         if (type2 == 'S')
             esecond->emit(e, op2);
         else {
-            std::string aux= genlocalregister('P');
+            std::string aux= gentemp('P');
             esecond->emit(e, aux);
             e << op_set(op2, aux) << '\n';
         }
@@ -2323,7 +2372,7 @@ private:
             case 'I':
                 if (!(esecond->isinteger() || esecond->isstring()))
                 {
-                    std::string r= genlocalregister('P');
+                    std::string r= gentemp('P');
                     esecond->emit(e, r);
                     e.annotate(start);
                     e << varname << " = " << r << '\n';
@@ -2335,7 +2384,7 @@ private:
                         esecond->emit(e, varname);
                     else
                     {
-                        std::string r= genlocalregister('I');
+                        std::string r= gentemp('I');
                         esecond->emit(e, r);
                         e.annotate(start);
                         e << varname << " = " << r << '\n';
@@ -2351,7 +2400,7 @@ private:
                 }
                 else if (!(esecond->isinteger() || esecond->isstring()))
                 {
-                    std::string r= genlocalregister('S');
+                    std::string r= gentemp('S');
                     esecond->emit(e, r);
                     e.annotate(start);
                     e << varname << " = " << r << '\n';
@@ -2363,7 +2412,7 @@ private:
                         esecond->emit(e, varname);
                     else
                     {
-                        std::string r= genlocalregister('S');
+                        std::string r= gentemp('S');
                         esecond->emit(e, r);
                         e.annotate(start);
                         e << varname << " = " << r << '\n';
@@ -2400,7 +2449,7 @@ private:
                 throw SyntaxError("Not a left-side expression for '='", start);
 
             std::string reg= result.empty() ? std::string() :
-                genlocalregister(esecond->checkresult());
+                gentemp(esecond->checkresult());
             efirst->emitassign(e, *esecond, reg);
             if (! result.empty() )
                 e << result << " = " << reg << '\n';
@@ -2436,7 +2485,7 @@ private:
             case 'S':
                 if (!(esecond->isinteger() || esecond->isstring()))
                 {
-                    std::string r= genlocalregister(type == 'S' ? 'S' : 'P');
+                    std::string r= gentemp(type == 'S' ? 'S' : 'P');
                     esecond->emit(e, r);
                     e.annotate(start);
                     e << varname << " = " << r << '\n';
@@ -2480,7 +2529,7 @@ private:
         {
             if (efirst->isstring())
             {
-                std::string reg= genlocalregister('S');
+                std::string reg= gentemp('S');
                 esecond->emit(e, reg);
                 e << "concat " << efirst->getidentifier() <<
                     ", " << reg << '\n';
@@ -2578,28 +2627,28 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
 {
     if (efirst->isstring() && esecond->isstring())
     {
-        std::string res= result.empty() ? genlocalregister('S') : result;
-        std::string op1= genlocalregister('S');
-        std::string op2= genlocalregister('S');
+        std::string res= result.empty() ? gentemp('S') : result;
+        std::string op1= gentemp('S');
+        std::string op2= gentemp('S');
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = concat " << op1 << " , " << op2;
     }
     else if (isinteger())
     {
-        std::string res= result.empty() ? genlocalregister('I') : result;
-        std::string op1= genlocalregister('I');
-        std::string op2= genlocalregister('I');
+        std::string res= result.empty() ? gentemp('I') : result;
+        std::string op1= gentemp('I');
+        std::string op2= gentemp('I');
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << op_add(res, op1, op2);
     }
     else if (efirst->isstring() && esecond->isinteger())
     {
-        std::string res= result.empty() ? genlocalregister('S') : result;
-        std::string op1= genlocalregister('S');
-        std::string op2= genlocalregister('I');
-        std::string op2_s= genlocalregister('S');
+        std::string res= result.empty() ? gentemp('S') : result;
+        std::string op1= gentemp('S');
+        std::string op2= gentemp('I');
+        std::string op2_s= gentemp('S');
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << op_set(op2_s, op2) << '\n' <<
@@ -2607,10 +2656,10 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
     }
     else if (efirst->isinteger() && esecond->isstring())
     {
-        std::string res= result.empty() ? genlocalregister('S') : result;
-        std::string op1= genlocalregister('I');
-        std::string op2= genlocalregister('S');
-        std::string op1_s= genlocalregister('S');
+        std::string res= result.empty() ? gentemp('S') : result;
+        std::string op1= gentemp('I');
+        std::string op2= gentemp('S');
+        std::string op1_s= gentemp('S');
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << op_set(op1_s, op1) << '\n' <<
@@ -2618,9 +2667,9 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
     }
     else
     {
-        std::string res= result.empty() ? genlocalregister('P') : result;
-        std::string op1= genlocalregister('P');
-        std::string op2= genlocalregister('P');
+        std::string res= result.empty() ? gentemp('P') : result;
+        std::string op1= gentemp('P');
+        std::string op2= gentemp('P');
         switch (efirst->checkresult() )
         {
         case 'I':
@@ -2687,9 +2736,9 @@ BaseExpr *OpSubExpr::optimize()
 
 void OpSubExpr::emit(Emit &e, const std::string &result)
 {
-    std::string res= result.empty() ? genlocalregister('I') : result;
-    std::string op1= genlocalregister('I');
-    std::string op2= genlocalregister('I');
+    std::string res= result.empty() ? gentemp('I') : result;
+    std::string op1= gentemp('I');
+    std::string op2= gentemp('I');
     efirst->emit(e, op1);
     esecond->emit(e, op2);
     e << op_sub(res, op1, op2);
@@ -2717,9 +2766,9 @@ private:
 
 void OpBoolOrExpr::emit(Emit &e, const std::string &result)
 {
-    std::string res= result.empty() ? genlocalregister('I') : result;
-    std::string op1= genlocalregister('I');
-    std::string op2= genlocalregister('I');
+    std::string res= result.empty() ? gentemp('I') : result;
+    std::string op1= gentemp('I');
+    std::string op2= gentemp('I');
     efirst->emit(e, op1);
     esecond->emit(e, op2);
     e << res << " = or " << op1 << ", " << op2;
@@ -2741,9 +2790,9 @@ private:
     bool isinteger() const { return true; }
     void emit(Emit &e, const std::string &result)
     {
-        std::string res= result.empty() ? genlocalregister('I') : result;
-        std::string op1= genlocalregister('I');
-        std::string op2= genlocalregister('I');
+        std::string res= result.empty() ? gentemp('I') : result;
+        std::string op1= gentemp('I');
+        std::string op2= gentemp('I');
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = band " << op1 << ", " << op2;
@@ -2766,9 +2815,9 @@ private:
     bool isinteger() const { return true; }
     void emit(Emit &e, const std::string &result)
     {
-        std::string res= result.empty() ? genlocalregister('I') : result;
-        std::string op1= genlocalregister('I');
-        std::string op2= genlocalregister('I');
+        std::string res= result.empty() ? gentemp('I') : result;
+        std::string op1= gentemp('I');
+        std::string op2= gentemp('I');
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = bor " << op1 << ", " << op2;
@@ -2802,9 +2851,9 @@ private:
 
 void OpBoolAndExpr::emit(Emit &e, const std::string &result)
 {
-    std::string res= result.empty() ? genlocalregister('I') : result;
-    std::string op1= genlocalregister('I');
-    std::string op2= genlocalregister('I');
+    std::string res= result.empty() ? gentemp('I') : result;
+    std::string op1= gentemp('I');
+    std::string op2= gentemp('I');
     efirst->emit(e, op1);
     esecond->emit(e, op2);
     e << res << " = and " << op1 << ", " << op2;
@@ -2841,19 +2890,19 @@ private:
 
 void OpMulExpr::emit(Emit &e, const std::string &result)
 {
-    std::string op2= genlocalregister('I');
+    std::string op2= gentemp('I');
     esecond->emit(e, op2);
     if (isstring())
     {
-        std::string res= result.empty() ? genlocalregister('S') : result;
-        std::string op1= genlocalregister('S');
+        std::string res= result.empty() ? gentemp('S') : result;
+        std::string op1= gentemp('S');
         efirst->emit(e, op1);
         e << "repeat " << res << ", " << op1 << ", " << op2;
     }
     else
     {
-        std::string res= result.empty() ? genlocalregister('I') : result;
-        std::string op1= genlocalregister('I');
+        std::string res= result.empty() ? gentemp('I') : result;
+        std::string op1= gentemp('I');
         efirst->emit(e, op1);
         e << res << " = " << op1 << " * " << op2;
     }
@@ -2877,9 +2926,9 @@ private:
 
 void OpDivExpr::emit(Emit &e, const std::string &result)
 {
-    std::string res= result.empty() ? genlocalregister('I') : result;
-    std::string op1= genlocalregister('I');
-    std::string op2= genlocalregister('I');
+    std::string res= result.empty() ? gentemp('I') : result;
+    std::string op1= gentemp('I');
+    std::string op2= gentemp('I');
     efirst->emit(e, op1);
     esecond->emit(e, op2);
     e << res << " = " << op1 << " / " << op2;
@@ -2919,12 +2968,12 @@ private:
 
 void ArrayExpr::emit(Emit &e, const std::string &result)
 {
-    std::string reg = genlocalregister('P');
+    std::string reg = gentemp('P');
     e << reg << " = root_new ['parrot';'ResizablePMCArray']\n";
     for (size_t i= 0; i < elems.size(); ++i)
     {
         BaseExpr *elem= elems[i];
-        std::string el = genlocalregister('P');
+        std::string el = gentemp('P');
         if (elem->issimple() && !elem->isidentifier())
         {
             e << el << " = box ";
@@ -3010,24 +3059,24 @@ public:
                 reg= id;
             else
             {
-                reg = bl.genlocalregister('P');
+                reg = bl.gentemp('P');
                 (*e) << "get_hll_global " << reg << ", '" <<
                     id << "'\n";
             }
         }
         else if (value->isinteger())
         {
-            reg = bl.genlocalregister('I');
+            reg = bl.gentemp('I');
             value->emit(*e, reg);
         }
         else if (value->isstring())
         {
-            reg = bl.genlocalregister('S');
+            reg = bl.gentemp('S');
             value->emit(*e, reg);
         }
         else
         {
-            reg = bl.genlocalregister('P');
+            reg = bl.gentemp('P');
             value->emit(*e, reg);
         }
         (*e) << r << " [" << elem.first << "] = " << reg << '\n';
@@ -3040,7 +3089,7 @@ private:
 
 void HashExpr::emit(Emit &e, const std::string &result)
 {
-    std::string reg = genlocalregister('P');
+    std::string reg = gentemp('P');
     e << reg << " = root_new ['parrot';'Hash']\n";
     std::for_each(elems.begin(), elems.end(), EmitItem(e, *this, reg) );
     if (!result.empty())
@@ -3065,8 +3114,8 @@ public:
     }
     void emit(Emit &e, const std::string &result)
     {
-        std::string reg = genlocalregister('P');
-        std::string r = result.empty() ? genlocalregister('P') : result;
+        std::string reg = gentemp('P');
+        std::string r = result.empty() ? gentemp('P') : result;
         left->emit(e, reg);
         e << "getattribute " << r << ", " << reg <<
             ", '" << right.identifier() << "'\n";
@@ -3079,7 +3128,7 @@ public:
         {
         case 'I': case 'S':
             {
-                std::string aux= genlocalregister(type);
+                std::string aux= gentemp(type);
                 left->emit(e, aux);
                 e << op_box(result, aux) << '\n';
             }
@@ -3097,10 +3146,10 @@ public:
     {
         //std::cerr << typeid(right).name() << '\n';
         e.annotate(start);
-        std::string reg = genlocalregister('P');
+        std::string reg = gentemp('P');
         left->emit(e, reg);
         char typevalue= value.checkresult();
-        std::string regval= genlocalregister(typevalue);
+        std::string regval= gentemp(typevalue);
         if (value.isnull())
             e << "null " << regval << '\n';
         else
@@ -3111,7 +3160,7 @@ public:
             regattrval= regval;
         else
         {
-            regattrval= genlocalregister('P');
+            regattrval= gentemp('P');
             e << op_box(regattrval, regval) << '\n';
         }
         e << "setattribute " << reg << ", '" << right.identifier() <<
@@ -3224,7 +3273,7 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
                     argregs.push_back(arg.getidentifier());
                 else
                 {
-                    std::string reg= genlocalregister('I');
+                    std::string reg= gentemp('I');
                     arg.emit(e, reg);
                     argregs.push_back(reg);
                 }
@@ -3236,21 +3285,21 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
                     argregs.push_back(arg.getidentifier());
                 else
                 {
-                    std::string reg= genlocalregister('S');
+                    std::string reg= gentemp('S');
                     arg.emit(e, reg);
                     argregs.push_back(reg);
                 }
                 break;
             default:
                 {
-                    std::string reg= genlocalregister('P');
+                    std::string reg= gentemp('P');
                     char type= arg.checkresult();
                     switch(type)
                     {
                     case 'I':
                     case 'S':
                         {
-                        std::string reg2= genlocalregister(type);
+                        std::string reg2= gentemp(type);
                         arg.emit(e, reg2);
                         e << op_box(reg, reg2) << '\n';
                         }
@@ -3267,7 +3316,7 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
 
             std::string r;
             if (result.empty())
-                r= genlocalregister(predef->resulttype());
+                r= gentemp(predef->resulttype());
             else
                 r= result;
             predef->emit(e, r, argregs);
@@ -3284,7 +3333,7 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
         BaseExpr &arg= * args[i];
         if (! arg.issimple() )
         {
-            std::string reg= genlocalregister(arg.checkresult());
+            std::string reg= gentemp(arg.checkresult());
             arg.emit(e, reg);
             argregs.push_back(reg);
         }
@@ -3306,10 +3355,10 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
     }
     else
     {
-        reg= genlocalregister('P');
+        reg= gentemp('P');
         if (MemberExpr *me= dynamic_cast<MemberExpr*>(called))
         {
-            std::string mefun= genlocalregister('P');
+            std::string mefun= gentemp('P');
             me->emitleft(e, mefun);
             e << reg << " = " << mefun << ".'" << me->getmember() << "'(";
         }
@@ -3373,12 +3422,12 @@ private:
     {
         if (! checked.isliteralstring())
             throw CompileError("Unimplemented", checked);
-        std::string reg= genlocalregister('P');
+        std::string reg= gentemp('P');
         obj->emit(e, reg);
         e.annotate(start);
 
         if (result.empty() ) {
-            std::string regcheck = genlocalregister('I');
+            std::string regcheck = gentemp('I');
             e << regcheck << " = isa " << reg << ", '" << checked.str() << "'\n";
         }
         else
@@ -3451,7 +3500,7 @@ void NewExpr::emit(Emit &e, const std::string &result)
     std::string reg;
     if (init)
     {
-        reg= genlocalregister('P');
+        reg= gentemp('P');
         init->emit(e, reg);
     }
 
@@ -3510,7 +3559,7 @@ void IndexExpr::emit(Emit &e, const std::string &result)
     {
         if (! arg[i]->issimple() )
         {
-            reg= genlocalregister(arg[i]->checkresult());
+            reg= gentemp(arg[i]->checkresult());
             arg[i]->emit(e, reg);
             argvalue[i]= reg;
         }
@@ -3540,7 +3589,7 @@ void IndexExpr::emitleft(Emit &e)
     {
         if (! arg[i]->issimple() )
         {
-            reg= genlocalregister('P');
+            reg= gentemp('P');
             arg[i]->emit(e, reg);
             argvalue[i]= reg;
         }
@@ -3561,12 +3610,12 @@ void IndexExpr::emitassign(Emit &e, BaseExpr& value, const std::string &to)
 {
     std::string reg2;
     if (value.isnull()) {
-        reg2= genlocalregister('P');
+        reg2= gentemp('P');
         e << "null " << reg2 << '\n';
     }
     else
     {
-        reg2= genlocalregister(value.checkresult());
+        reg2= gentemp(value.checkresult());
         value.emit(e, reg2);
         e << '\n';
     }
@@ -3578,7 +3627,7 @@ void IndexExpr::emitassign(Emit &e, BaseExpr& value, const std::string &to)
     {
         if (! arg[i]->issimple() )
         {
-            reg= genlocalregister(arg[i]->checkresult());
+            reg= gentemp(arg[i]->checkresult());
             arg[i]->emit(e, reg);
             argvalue[i]= reg;
         }
@@ -3999,7 +4048,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
                 value[0]->emit(e, name);
             else
             {
-                std::string reg= genlocalregister('P');
+                std::string reg= gentemp('P');
                 value[0]->emit(e, reg);
                 e << op_set(name, reg) << '\n';
             }
@@ -4011,7 +4060,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
                 "'Resizable" << arraytype << "Array' ]\n";
         if (value.size() > 0)
         {
-            std::string reg= genlocalregister(type);
+            std::string reg= gentemp(type);
             for (size_t i= 0; i < value.size(); ++i)
             {
                 value[i]->emit(e, reg);
@@ -4029,7 +4078,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
             vsize= esize->getintegervalue();
         else
         {
-            regsize= genlocalregister('I');
+            regsize= gentemp('I');
             esize->emit(e, regsize);
         }
         e << ".local pmc " << name << "\n"
@@ -4043,7 +4092,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
         e << '\n';
         if (value.size() > 0)
         {
-            std::string reg= genlocalregister(type);
+            std::string reg= gentemp(type);
             for (size_t i= 0; i < value.size(); ++i)
             {
                 value[i]->emit(e, reg);
@@ -4315,7 +4364,11 @@ void CompoundStatement::emit (Emit &e)
 {
     //std::cerr << "CompoundStatement::emit\n";
 
-    emit_group(subst, e);
+    for (size_t i= 0; i < subst.size(); ++i)
+    {
+        subst[i]->emit(e);
+        freetempregs();
+    }
 }
 
 //**********************************************************************
@@ -4363,10 +4416,10 @@ void ForeachStatement::emit(Emit &e)
     continuelabel = label + "_FOR";
     breaklabel= label + "_END";
 
-    std::string container_ = genlocalregister('P');
+    std::string container_ = gentemp('P');
     if (container-> isstring() )
     {
-        std::string value= genlocalregister('S');
+        std::string value= gentemp('S');
         container->emit(e, value);
         e << op_box(container_, value) << '\n';
     }
@@ -4465,7 +4518,7 @@ void ForStatement::emit(Emit &e)
     if (condition)
     {
         char type= condition->checkresult();
-        std::string reg= genregister(type);
+        std::string reg= gentemp(type);
         condition->emit(e, reg);
         e << "unless " << reg << " goto " << breaklabel << " # for end\n";
     }
@@ -4504,7 +4557,7 @@ void ThrowStatement::emit (Emit &e)
     }
     else
     {
-        std::string reg= genlocalregister('P');
+        std::string reg= gentemp('P');
         excep->emit(e, reg);
         e << "throw " << reg << '\n';
     }
@@ -4553,10 +4606,10 @@ void TryStatement::emit (Emit &e)
     std::string handler = label + "_HANDLER";
     std::string pasthandler = label + "_PAST_HANDLER";
     std::string except = exname.empty() ?
-        genlocalregister('P') :
+        gentemp('P') :
         exname;
 
-    std::string reghandler= genlocalregister('P');
+    std::string reghandler= gentemp('P');
     e << reghandler << " = new 'ExceptionHandler'\n"
         "set_addr " << reghandler << ", " << handler << '\n';
     static const char * const ehattrs[] = {
@@ -4681,12 +4734,12 @@ std::string Condition::emit(Emit &e)
     else
     {
         char type= expr->checkresult();
-        reg = genlocalregister(type);
+        reg = gentemp(type);
         expr->emit(e, reg);
         if (type == 'P' || type == 'S')
         {
             std::string reg2= reg;
-            reg= genlocalregister('I');
+            reg= gentemp('I');
             std::string nocase= genlocallabel();
             e << reg << " = 0\n"
                 "if_null " << reg2 << ", " << nocase << "\n"
@@ -4789,13 +4842,13 @@ void SwitchStatement::emit(Emit &e)
             if (type != newtype)
                 type= 'P';
     }
-    std::string reg= genregister(type);
+    std::string reg= gentemp(type);
 
         if (condition->checkresult() == type)
         condition->emit(e, reg);
     else
     {
-        std::string r= genregister(condition->checkresult());
+        std::string r= gentemp(condition->checkresult());
         condition->emit(e, r);
         e << op_set(reg, r) << '\n';
     }
@@ -4807,7 +4860,7 @@ void SwitchStatement::emit(Emit &e)
     {
         std::string label= genlabel();
         caselabel.push_back(label);
-        std::string value= genregister(type);
+        std::string value= gentemp(type);
         casevalue[i]->emit(e, value);
         e << "if " << reg << " == " << value <<
                 " goto " << label << '\n';
@@ -5114,6 +5167,8 @@ void Function::emit (Emit &e)
     emitbody(e);
 
     e << ".end\n\n";
+
+    //std::cerr << "Temporary used: " <<  tempsused() << '\n';
 }
 
 //**********************************************************************
