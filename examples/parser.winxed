@@ -269,6 +269,19 @@ class Tokenizer
 
 // This is a first step towards a possible bootstraped version.
 
+function namespacekey(var path)
+{
+    string s = '.namespace [';
+    string sep= '';
+    for (string n in path) {
+        s+= sep;
+        sep="; '";
+        s+= "'" + n + "'";
+    }
+    s+= " ]";
+    return s;
+}
+
 class FunctionStatement
 {
     var name;
@@ -315,22 +328,37 @@ class FunctionStatement
 
     function report()
     {
-            print('function ', self.name);
-            var modifiers= self.modifiers;
-            if (modifiers)
+        print('function ', self.name);
+        var modifiers= self.modifiers;
+        if (modifiers)
+        {
+            print(' [');
+            var m;
+            string sep= '';
+            for (m in modifiers)
             {
-                print(' [');
-                var m;
-                string sep= '';
-                for (m in modifiers)
-                {
-                    print(sep);
-                    sep= ', ';
-                    print(m);
-                }
-                print(']');
+                print(sep);
+                sep= ', ';
+                print(m);
             }
-            say(' ()');
+            print(']');
+        }
+        say(' ()');
+    }
+    function emit()
+    {
+        print('.sub ', self.name);
+        var modifiers= self.modifiers;
+        if (modifiers)
+        {
+            for (var m in modifiers)
+            {
+                print(' :', m);
+            }
+        }
+        say('');
+        
+        say('.end');
     }
 }
 
@@ -389,6 +417,9 @@ class ClassStatement
             f.report();
         say('}');
     }
+    function emit()
+    {
+    }
 }
 
 class Namespace
@@ -398,16 +429,31 @@ class Namespace
     var namespaces;
     var classes;
     var functions;
+    var items;
     function init [vtable] ()
     {
         self.namespaces= [];
         self.classes= [];
         self.functions = [];
+        self.items = [];
     }
     function init_child(parent, string name)
     {
         self.parent= parent;
         self.name= name;
+    }
+    function getpath()
+    {
+        if (self.parent != null) {
+            var path=self.parent.getpath();
+            path.push(self.name);
+            return path;
+        }
+        else
+        {
+            string path[];
+            return path;
+        }
     }
     function parse(tk)
     {
@@ -429,6 +475,7 @@ class Namespace
                 var child= new Namespace;
                 child.init_child(self, name);
                 self.namespaces.push(child);
+                self.items.push(child);
                 child.parse(tk);
             }
             else if (t.iskeyword('function'))
@@ -437,6 +484,7 @@ class Namespace
                 f.parse(tk);
                 var functions= self.functions;
                 functions.push(f);
+                self.items.push(f);
             }
             else if (t.iskeyword('class'))
             {
@@ -444,6 +492,7 @@ class Namespace
                 c.parse(tk);
                 var classes= self.classes;
                 classes.push(c);
+                self.items.push(c);
             }
             else if (t.isop('}'))
             {
@@ -471,6 +520,14 @@ class Namespace
         if (self.parent != null)
             say('} // namespace ', self.name);
     }
+    function emit()
+    {
+        var path= self.getpath();
+        string s= namespacekey(path);
+        say(s);
+        for (var item in self.items)
+            item.emit();
+    }
 }
 
 class MiniWinxed
@@ -488,13 +545,20 @@ class MiniWinxed
     {
         self.rootns.report();
     }
+    function emit()
+    {
+        self.rootns.emit();
+    }
 }
 
-function miniwinxed_parser(tk)
+function miniwinxed_parser(tk, int gen)
 {
         var winxed= new MiniWinxed;
         winxed.parse(tk);
-        winxed.report();
+        if (gen)
+            winxed.emit();
+        else
+            winxed.report();
 }
 
 //*********************************************
@@ -510,11 +574,13 @@ function parser(argv)
     getopts.notOptStop(1);
     getopts.push_string('withcomments');
     getopts.push_string('miniwinxed');
+    getopts.push_string('miniwinxedgen');
 
     argv.shift();
     var opts = getopts.get_options(argv);
     var withcomments= opts['withcomments'];
     var miniwinxed = opts['miniwinxed'];
+    var miniwinxedgen = opts['miniwinxedgen'];
 
     int argc= argv;
     if (argc == 0)
@@ -526,7 +592,9 @@ function parser(argv)
     t.init(file);
 
     if (miniwinxed)
-        miniwinxed_parser(t);
+        miniwinxed_parser(t, 0);
+    else if (miniwinxedgen)
+        miniwinxed_parser(t, 1);    
     else
     {
         var c;
