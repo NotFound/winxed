@@ -5338,7 +5338,7 @@ class Class : public SubBlock
 public:
     Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a);
     void emit (Emit &e);
-    std::vector <std::string> attributes() const { return attrs; }
+    std::vector <Token> attributes() const { return attrs; }
     void optimize();
 private:
     unsigned int subblocks;
@@ -5351,11 +5351,12 @@ private:
     std::string getnamedlabel(const std::string&) { throw InternalError("No Class labels"); }
     std::string genlocalregister(char) { throw InternalError("No Class registers"); }
 
+    Token start;
     std::string name;
     NamespaceKey ns;
     std::vector <Token> parents;
     std::vector <Function *> functions;
-    std::vector <std::string> attrs;
+    std::vector <Token> attrs;
     std::vector <ConstStatement *> constants;
 };
 
@@ -5401,9 +5402,9 @@ Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
         SubBlock(ns_b),
         subblocks(0)
 {
+    start= tk.get();
+    name= start.identifier();
     Token t= tk.get();
-    name= t.identifier();
-    t= tk.get();
     if (t.isop(':'))
     {
         t= tk.get();
@@ -5429,7 +5430,9 @@ Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
         {
             do {
                 Token name= tk.get();
-                attrs.push_back(name.identifier());
+                if (!name.isidentifier())
+                    throw Expected("identifier", name);
+                attrs.push_back(name);
                 t= tk.get();
             } while (t.isop(','));
             RequireOp(';', t);
@@ -5458,12 +5461,14 @@ void Class::emit (Emit &e)
 
     emit_group(constants, e);
 
-    e << ".sub Winxed_class_init :anon :load :init\n"
-        "$P0 = newclass " << ns.get_key() << "\n";
+    e << ".sub Winxed_class_init :anon :load :init\n";
+    e.annotate(start);
+    e << "$P0 = newclass " << ns.get_key() << "\n";
 
     for (size_t i= 0; i < parents.size(); ++i)
     {
         Token parent= parents[i];
+        e.annotate(parent);
         std::ostringstream oss;
         oss << "$P" << i + 1;
         std::string p= oss.str();
@@ -5479,8 +5484,9 @@ void Class::emit (Emit &e)
     }
     for (size_t i= 0; i < attrs.size(); ++i)
     {
-        std::string attr= attrs[i];
-        e << "addattribute $P0, '" << attr << "'\n";
+        const Token &attrname= attrs[i];
+        e.annotate(attrname);
+        e << "addattribute $P0, '" << attrname.identifier() << "'\n";
     }
 
     e << ".end\n";
