@@ -25,9 +25,8 @@ function run_test(string filename)
 
 function max_length(var args)
 {
-    var filename;
     int l= 0;
-    for (filename in args) {
+    for (var filename in args) {
         int i = length(filename);
         if (i > l)
             l= i;
@@ -46,13 +45,9 @@ function run_test_list(var args, int verbose)
     int failed;
 
     int l= max_length(args) + 2;
-    var filename;
-    for (filename in args)
+    for (var filename in args)
     {
-        print(filename);
-        int i= length(filename);
-        while (i++ < l)
-            print('.');
+        print(filename, '.' * (l - length(filename)));
         ++total_files;
         passed= 0;
         failed= 0;
@@ -61,14 +56,11 @@ function run_test_list(var args, int verbose)
         var plan_parts= split('..', output[0]);
         int num_tests = plan_parts[1];
         output.shift();
-        if (verbose) {
+        if (verbose)
             say(1 , '..', num_tests);
-        }
-        string line;
-        for (line in output) {
+        for (string line in output) {
             debugmsg(line);
-            if (line != '')
-            {
+            if (line != '') {
                 if (verbose) say(line);
                 var line_parts = split('ok ', line);
                 int test_number= line_parts[1];
@@ -113,19 +105,16 @@ function run_test_list(var args, int verbose)
 
 function add_file(var result, string path)
 {
-    if (length(path) > 2) {
-        string ext= substr(path, -2);
-        if (ext == '.t')
+    if (length(path) > 2)
+        if (substr(path, -2) == '.t')
             result.push(path);
-    }
 }
 
 function build_from_dir(var result, string path, int recursive)
 {
     var os = new 'OS';
     var dir = os.readdir(path);
-    string dirent;
-    for (dirent in dir)
+    for (string dirent in dir)
         if ((dirent != '.') && (dirent != '..')) {
             string newpath;
             if (path == '.') newpath = dirent;
@@ -143,8 +132,7 @@ function build_from_dir(var result, string path, int recursive)
 function build_file_list(var result, var args, int recursive)
 {
     var os = new 'OS';
-    string path;
-    for (path in args) {
+    for (string path in args) {
         var st= os.stat(path);
         int mode = st[2];
         int isdir = (mode & 16384) != 0;
