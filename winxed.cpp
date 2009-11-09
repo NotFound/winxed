@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 8-nov-2009
+// Revision 9-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -1602,7 +1602,14 @@ void ArgumentList::prepare(Emit &e)
         }
         else
         {
-            argregs.push_back(std::string());
+            if (args[i]->isnull())
+            {
+                std::string reg= gentemp('P');
+                e << op_null(reg) << '\n';
+                argregs.push_back(reg);
+            }
+            else
+                argregs.push_back(std::string());
         }
     }
 }
@@ -3407,6 +3414,12 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
         }
         else
         {
+            if (arg.isnull())
+            {
+                std::string reg= gentemp('P');
+                e << op_null(reg) << '\n';
+                argregs.push_back(reg);
+            }
             argregs.push_back(std::string());
         }
     }
@@ -4264,11 +4277,16 @@ void VarStatement::emit (Emit &e)
     e << ".local pmc " << name << '\n';
     if (value.size() == 1)
     {
-        if (value[0]->isinteger())
-            e << name << " = root_new ['parrot'; 'Integer']\n";
-        else if (value[0]->isstring())
-            e << name << " = root_new ['parrot'; 'String']\n";
-        value[0]->emit(e, name);
+        if (value[0]->isnull())
+            e << op_null(name) << '\n';
+        else
+        {
+            if (value[0]->isinteger())
+                e << name << " = root_new ['parrot'; 'Integer']\n";
+            else if (value[0]->isstring())
+                e << name << " = root_new ['parrot'; 'String']\n";
+            value[0]->emit(e, name);
+        }
     }
 }
 
