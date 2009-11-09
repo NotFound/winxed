@@ -6,6 +6,10 @@
 const int ERROR = 2;
 const int TYPE= 99;
 
+// Note:
+// null results from dlfuncs are checked in a convoluted way
+// to be able to work with buggy versions of parrot.
+
 namespace WinxedMysql
 {
 
@@ -146,7 +150,6 @@ class Connection
         var f= dlfunc(getlib(), 'mysql_real_connect', 'ppttttitl');
         string snull;
         var p= f(self.mysql, host, user, pass, database, 0, snull, 0);
-        // This doesn't detect failure, must check nci issues.
         if (p == null) throw Error(self.error(), ERROR, TYPE);
         var none = new 'UnManagedStruct';
         if (p == none) throw Error(self.error(), ERROR, TYPE);
@@ -164,6 +167,7 @@ class Connection
         using WinxedMysql.getlib;
         var f= dlfunc(getlib(), 'mysql_use_result', 'pp');
         var r= f(self.mysql);
+        if (p == null) throw Error(self.error(), ERROR, TYPE);
         var none = new 'UnManagedStruct';
         if (r == none) throw Error(self.error(), ERROR, TYPE);
         var result= new WinxedMysql.Result;
