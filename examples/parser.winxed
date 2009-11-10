@@ -46,7 +46,7 @@ class Token
     var line;
     function get_bool[vtable]()
     {
-        return self.type == TypeEof;
+        return self.type != TypeEof;
     }
     function iseof()
     {
@@ -284,11 +284,13 @@ function namespacekey(var path)
 
 class FunctionStatement
 {
+    var owner;
     var name;
     var modifiers;
 
-    function parse(tk)
+    function parse(tk, owner)
     {
+        self.owner= owner;
         var t= tk.get();
         self.name= t;
         t= tk.get();
@@ -364,6 +366,7 @@ class FunctionStatement
 
 class ClassStatement
 {
+    var parent;
     var name;
     var bases;
     var functions;
@@ -374,8 +377,9 @@ class ClassStatement
         self.bases= [];
     }
 
-    function parse(tk)
+    function parse(tk, parent)
     {
+        self.parent= parent;
         var t= tk.get();
         self.name= t;
         t= tk.get();
@@ -396,7 +400,7 @@ class ClassStatement
             if (t.iskeyword('function'))
             {
                 var f= new FunctionStatement;
-                f.parse(tk);
+                f.parse(tk, self);
                 var functions= self.functions;
                 functions.push(f);
             }
@@ -419,6 +423,11 @@ class ClassStatement
     }
     function emit()
     {
+        var classns= self.parent.getpath();
+        classns.push(self.name);
+        say(namespacekey(classns));
+        for (var f in self.functions)
+            f.emit();
     }
 }
 
@@ -458,11 +467,11 @@ class Namespace
     function parse(tk)
     {
         string namespace[];
-        var t= tk.get();
         int balance1= 0;
         int balance2= 0;
         int balance3= 0;
-        while (! t)
+        var t;
+        while (t= tk.get())
         {
             if (t.iskeyword('namespace'))
             {
@@ -481,7 +490,7 @@ class Namespace
             else if (t.iskeyword('function'))
             {
                 var f= new FunctionStatement;
-                f.parse(tk);
+                f.parse(tk, self);
                 var functions= self.functions;
                 functions.push(f);
                 self.items.push(f);
@@ -489,7 +498,7 @@ class Namespace
             else if (t.iskeyword('class'))
             {
                 var c= new ClassStatement;
-                c.parse(tk);
+                c.parse(tk, self);
                 var classes= self.classes;
                 classes.push(c);
                 self.items.push(c);
@@ -504,7 +513,6 @@ class Namespace
                 }
                 namespace.pop();
             }
-            t= tk.get();
         }
     }
     function report()
@@ -526,10 +534,16 @@ class Namespace
         string s= namespacekey(path);
         say(s);
 
+        int activate= 1;
         for (var item in self.items) {
+/*
+            if ((item instanceof Namespace) || (item instanceof Class))
+                activate= 1;
+            else
+*/
+                if (activate)
+                    say(s);
             item.emit();
-            if (item instanceof Namespace)
-                say(s);
         }
     }
 }
@@ -603,8 +617,7 @@ function parser(argv)
     {
         var c;
         int line= 0;
-        c= t.get(withcomments);
-        while (! c)
+        while (c= t.get(withcomments))
         {
             int newline= c.line;
             if (newline != line)
@@ -613,7 +626,6 @@ function parser(argv)
                 say(); print(line, ': ');
             }
             print(" [", c, "]");
-            c= t.get(withcomments);
         }
         say('');
     }
