@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 9-nov-2009
+// Revision 10-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -5653,10 +5653,10 @@ void winxed_main (int argc, char **argv)
         throw CompileError("No arguments");
     std::string inputname;
     std::string expr;
-    std::string outputfile;
+    std::string outputname;
     bool compileonly= false;
     bool noan= false;
-    enum Target { TargetRun, TargetPir, TargetPbc } target = TargetPir;
+    enum Target { TargetRun, TargetPir, TargetPbc } target = TargetRun;
     std::vector <std::string> addlib;
 
     int i;
@@ -5664,7 +5664,7 @@ void winxed_main (int argc, char **argv)
     {
         if (strcmp(argv[i], "-o") == 0)
         {
-            outputfile= argv[++i];
+            outputname= argv[++i];
         }
         else if (strcmp(argv[i], "-c") == 0)
             compileonly= true;
@@ -5687,15 +5687,18 @@ void winxed_main (int argc, char **argv)
             noan= true;
         else break;
     }
+    if (compileonly && target == TargetRun)
+        target= TargetPir;
 
-    std::ifstream ifile;
-    std::istringstream iss;
+    std::istream *input;
+    std::ifstream inputfile;
+    std::istringstream inputstring;
+
     if (! expr.empty() )
     {
         expr = "function main(argv) {" + expr + ";}\n";
-        iss.str(expr);
-        std::streambuf *aux= iss.rdbuf();
-        std::cin.rdbuf(aux);
+        inputstring.str(expr);
+        input = &inputstring;
         inputname = "##eval##";
     }
     else
@@ -5703,47 +5706,50 @@ void winxed_main (int argc, char **argv)
         if (i < argc)
             inputname= argv[i++];
         if (!inputname.empty())
-            ifile.open(inputname.c_str());
-        if (! ifile.is_open() )
-            throw CompileError(std::string("Cant't open ") + inputname);
-        std::cin.rdbuf(ifile.rdbuf());
+            inputfile.open(inputname.c_str());
+        if (! inputfile.is_open() )
+            throw CompileError(std::string("Cant't open input file ") + inputname);
+        input= &inputfile;
     }
-
-    if (outputfile.empty() )
-        outputfile= genfile (inputname, target == TargetPbc ? "pbc" : "pir");
-
-    std::ofstream output;
+    if (outputname.empty() )
+        outputname= genfile(inputname, target == TargetPbc ? "pbc" : "pir");
     std::string pirfile = target == TargetPbc ?
-        genfile(inputname, "pir") : outputfile;
-
-    std::streambuf *savecout= NULL;
-    if (outputfile == "-")
-    {
-        if (target != TargetPir)
-            throw CompileError("Output to stdout requieres pir target");
-    }
-    else
-    {
-        output.open(pirfile.c_str());
-        if (!output.is_open() )
-            throw CompileError(std::string("Cant't open ") + outputfile);
-        savecout= std::cout.rdbuf();
-        std::cout.rdbuf(output.rdbuf());
-    }
+        genfile(inputname, "pir") : outputname;
 
     Winxed winxed;
-    Tokenizer tk (std::cin, inputname.c_str());
-    winxed.parse (tk);
+    {
+        Tokenizer tk (*input, inputname.c_str());
+        winxed.parse (tk);
+    }
+    if (input == &inputfile)
+        inputfile.close();
+
     winxed.optimize();
     {
-        Emit e(std::cout);
+        std::ostream *output;
+        std::ofstream outputfile;
+
+        if (outputname == "-")
+        {
+            if (target != TargetPir)
+                throw CompileError("Output to stdout requieres pir target");
+            output= &std::cout;
+        }
+        else
+        {
+            outputfile.open(pirfile.c_str());
+            if (!outputfile.is_open() )
+                throw CompileError(std::string("Cant't open output file ") + pirfile);
+            output= &outputfile;
+        }
+
+        Emit e(*output);
         if (noan)
             e.omit_annotations();
         winxed.emit(e);
+        if (output == &outputfile)
+            outputfile.close();
     }
-    if (savecout)
-        std::cout.rdbuf(savecout);
-    output.close();
 
     char parrot[]= "parrot;";
     if (!compileonly)
@@ -5757,12 +5763,12 @@ void winxed_main (int argc, char **argv)
             args [pos++]= strdup("-L");
             args [pos++]= strdup(addlib[l].c_str());
         }
-        args[pos++]= strdup(outputfile.c_str());
+        args[pos++]= strdup(outputname.c_str());
         for (int a= 0; a < n; ++a)
             args[a + pos]= argv[a + i];
         args[2 + n + 2 * addlib.size()]= NULL;
         int r= execute(args);
-        unlink(outputfile.c_str());
+        unlink(outputname.c_str());
         if (r)
             throw CompileError("Run failed");
     }
@@ -5771,7 +5777,7 @@ void winxed_main (int argc, char **argv)
         char *args[5];
         args[0] = parrot;
         args[1] = strdup("-o");
-        args[2]= strdup(outputfile.c_str());
+        args[2]= strdup(outputname.c_str());
         args[3]= strdup(pirfile.c_str());
         args[4]= NULL;
         int r= execute(args);
