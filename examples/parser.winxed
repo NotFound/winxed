@@ -525,8 +525,12 @@ class Namespace
         var path= self.getpath();
         string s= namespacekey(path);
         say(s);
-        for (var item in self.items)
+
+        for (var item in self.items) {
             item.emit();
+            if (item instanceof Namespace)
+                say(s);
+        }
     }
 }
 

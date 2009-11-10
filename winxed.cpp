@@ -121,6 +121,13 @@ std::string op_isgt(const std::string &res,
     return op("isgt", res, op1, op2);
 }
 
+inline
+std::string op_isa(const std::string &res,
+    const std::string &op1, const std::string &op2)
+{
+    return op("isa", res, op1, op2);
+}
+
 //**********************************************************************
 
 inline void RequireOp(char name, const Token &t)
@@ -3501,19 +3508,25 @@ private:
     }
     void emit(Emit &e, const std::string &result)
     {
-        if (! checked.isliteralstring())
+        std::string checkedval;
+        if (checked.isliteralstring())
+            checkedval= checked.pirliteralstring();
+        else if (checked.isidentifier())
+            checkedval= "'" + checked.identifier() + "'";
+        else
             throw CompileError("Unimplemented", checked);
+
         std::string reg= gentemp('P');
         obj->emit(e, reg);
         e.annotate(start);
 
         if (result.empty() ) {
             std::string regcheck = gentemp('I');
-            e << regcheck << " = isa " << reg << ", '" << checked.str() << "'\n";
+            e << op_isa(regcheck, reg, checkedval) << '\n';
         }
         else
         {
-            e << result << " = isa " << reg << ", '" << checked.str() << "'\n";
+            e << op_isa(result, reg, checkedval) << '\n';
         }
     }
     Token start;
