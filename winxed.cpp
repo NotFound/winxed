@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 10-nov-2009
+// Revision 11-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -5235,6 +5235,8 @@ void Function::emitparams (Emit &e)
         const ParamInfo &info= paraminfo[param];
         e << ".param " << nameoftype(info.type()) << ' ' <<
                 param;
+        if (info.has_modifier("slurpy"))
+            e << " :slurpy";
         if (info.has_modifier("optional"))
             e << " :optional";
         if (info.has_modifier("opt_flag"))
