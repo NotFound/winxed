@@ -39,10 +39,20 @@ const int TypeQuoted       = 2;
 const int TypeSingleQuoted = 3;
 const int TypeIdentifier   = 4;
 
+function TokenError(string msg, tk, int line)
+{
+   string sline= line;
+   string file= tk.filename;
+   string m= msg + ' in '+ file + ' line ' + sline;
+   var ex= Error(m, 2, 555);
+   return ex;
+}
+
 class Token
 {
     var type;
     var str;
+    var file;
     var line;
     function get_bool[vtable]()
     {
@@ -78,10 +88,10 @@ class Token
     }
 }
 
-function newToken(int type, string s, int line)
+function newToken(int type, string s, var file, int line)
 {
     var t= new Token;
-    t.type= type; t.str= s; t.line= line;
+    t.type= type; t.str= s; t.file= file; t.line= line;
     return t;
 }
 
@@ -96,11 +106,11 @@ function getquoted(tk, string start, int line)
     while (c != '"')
     {
         if (c == '' || c == "\n")
-            throw Error('Unterminated string in ' + line);
+            throw TokenError('Unterminated string', tk, line);
         s+= c;
         c= tk.getchar();
     }
-    return newToken(TypeQuoted, s, line);
+    return newToken(TypeQuoted, s, tk.filename, line);
 }
 
 function getsinglequoted(tk, string start, int line)
@@ -110,11 +120,11 @@ function getsinglequoted(tk, string start, int line)
     while (c != "'")
     {
         if (c == '' || c == "\n")
-            throw Error('Unterminated string in ' + line);
+            throw TokenError('Unterminated string', tk, line);
         s+= c;
         c= tk.getchar();
     }
-    return newToken(TypeSingleQuoted, s, line);
+    return newToken(TypeSingleQuoted, s, tk.filename, line);
 }
 
 function getident(tk, string start, int line)
@@ -127,7 +137,7 @@ function getident(tk, string start, int line)
         c= tk.getchar();
     }
     tk.ungetchar(c);
-    return newToken(TypeIdentifier, s, line);
+    return newToken(TypeIdentifier, s, tk.filename, line);
 }
 
 function getlinecomment(tk, string start, int line)
@@ -139,7 +149,7 @@ function getlinecomment(tk, string start, int line)
         s+= c;
         c= tk.getchar();
     }
-    return newToken(TypeComment, s, line);
+    return newToken(TypeComment, s, tk.filename, line);
 }
 
 function getcomment(tk, string start, int line)
@@ -157,14 +167,14 @@ next:
     if (c != '/')
     { s+= '*' + c; goto next; }
     s+= '*/';
-    return newToken(TypeComment, s, line);
+    return newToken(TypeComment, s, tk.filename, line);
 }
 
 function getop(tk, string start, int line)
 {
     string s= start;
     var t= new Token;
-    return newToken(TypeOp, s, line);
+    return newToken(TypeOp, s, tk.filename, line);
 }
 
 //*********************************************
@@ -176,11 +186,15 @@ class Tokenizer
     var h;
     var pending;
     var select;
+    var stacked;
+    var filename;
     var line;
-    function init(handle)
+    function init(handle, string filename)
     {
         self.h= handle;
-        self.pending= new 'String';;
+        self.pending= new 'String';
+        self.stacked= [];
+        self.filename= filename;
         self.line= 1;
         var select = {
             '"': { '': getquoted },
@@ -222,6 +236,10 @@ class Tokenizer
     }
     function get_token()
     {
+        if (self.stacked) {
+            var t= self.stacked.pop();
+            return t;
+        }
         string c= self.getchar();
         while (isspace(c))
                 c= self.getchar();
@@ -261,6 +279,7 @@ class Tokenizer
            t= self.get_token();
         return t;
     }
+    function unget(t) { self.stacked.push(t); }
 }
 
 //*********************************************
@@ -272,21 +291,162 @@ class Tokenizer
 function namespacekey(var path)
 {
     string s = '.namespace [';
-    string sep= '';
+    string sep= " '";
     for (string n in path) {
         s+= sep;
-        sep="; '";
-        s+= "'" + n + "'";
+        sep=" ; '";
+        s+= n + "'";
     }
     s+= " ]";
     return s;
 }
 
-class FunctionStatement
+//*********************************************
+//            Emit
+//*********************************************
+
+class Emit
+{
+    var handle;
+    var file;
+    var line;
+    var pendingf;
+    var pendingl;
+    function initialize(var handle)
+    {
+        self.handle= handle;
+        self.file= '';
+        self.line= 0;
+        self.pendingf= 0;
+        self.pendingl= 0;
+    }
+    function updateannot()
+    {
+        if (self.pendingf) {
+            self.handle.print(".annotate 'file', '");
+            self.handle.print(self.file);
+            self.handle.print("'");
+            self.handle.print("\n");
+            self.pendingf= 0;
+        }
+        if (self.pendingl) {
+            self.handle.print(".annotate 'line', ");
+            self.handle.print(self.line);
+            self.handle.print("\n");
+            self.pendingl= 0;
+        }
+    }
+    function vprint(var args)
+    {
+        for (var s in args)
+            self.handle.print(s);
+    }
+    function print(var args [slurpy])
+    {
+        self.updateannot();
+        self.vprint(args);
+    }
+    function say(var args [slurpy])
+    {
+        self.updateannot();
+        self.vprint(args);
+        self.handle.print("\n");
+    }
+    function annotate(var t)
+    {
+        if (self.file != t.file) {
+            self.file= t.file;
+            self.pendingf= 1;
+            self.line= 0;
+        }
+        if (self.line != t.line) {
+            self.line= t.line;
+            self.pendingl= 1;
+        }
+    }
+    function comment(string s)
+    {
+        self.handle.print('# ' + s + "\n");
+    }
+}
+
+//*********************************************
+//       Auxiliary classes and functions
+//*********************************************
+
+class Item
+{
+    function isNamespace() { return 0; }
+    function isClass() { return 0; }
+}
+
+function parseStatement(tk, owner)
+{
+    var t= tk.get();
+    if (t.isop('{')) {
+        var c = new CompoundStatement;
+        c.parse(tk, owner);
+        return c;
+    }
+    return null;
+}
+
+//*********************************************
+//            CompoundStatement
+//*********************************************
+
+class CompoundStatement : Item
+{
+    var statements;
+    var end;
+    function parse(tk, owner)
+    {
+        //say('<<{');
+        self.statements= [];
+        var t;
+        while (! (t= tk.get()).isop('}')) {
+            tk.unget(t);
+            //say (t.line);
+            var c = parseStatement(tk, self);
+            if (c == null) {
+                while (! ( (t = tk.get()).isop(';') || t.isop('}') ) ) {
+                    //say('-- ', t);
+                    if (t.isop('{')) {
+                        var c= new CompoundStatement;
+                        c.parse(tk, self);
+                    }
+                }
+                if (t.isop('}')) break;
+            }
+            else
+                self.statements.push(c);
+        }
+        //say('}', t.line);
+        self.end= t;
+    }
+    function getend() { return self.end; }
+    function report()
+    {
+    }
+    function emit(var e)
+    {
+        e.comment('{');
+        for (var st in self.statements)
+            st.emit(e);
+        e.comment('}');
+    }
+}
+
+//*********************************************
+//            FunctionStatement
+//*********************************************
+
+class FunctionStatement : Item
 {
     var owner;
     var name;
     var modifiers;
+    var body;
 
     function parse(tk, owner)
     {
@@ -314,9 +474,13 @@ class FunctionStatement
         t= tk.get();
         while (! t.isop(')'))
             t= tk.get();
+
         t= tk.get();
         if (!t.isop('{'))
             throw Error("Expected '{'");
+        self.body= new CompoundStatement;
+        self.body.parse(tk, self);
+/*
         int blocklevel= 1;
         while (blocklevel > 0)
         {
@@ -326,6 +490,8 @@ class FunctionStatement
             else if (t.isop('}'))
                 --blocklevel;
         }
+        self.end= t;
+*/
     }
 
     function report()
@@ -347,30 +513,39 @@ class FunctionStatement
         }
         say(' ()');
     }
-    function emit()
+    function emit(var e)
     {
-        print('.sub ', self.name);
+        e.print('.sub ', self.name);
+        if (self.owner.isClass())
+            e.print(' :method');
         var modifiers= self.modifiers;
-        if (modifiers)
-        {
+        if (modifiers) {
             for (var m in modifiers)
-            {
-                print(' :', m);
-            }
+                e.print(' :', m);
         }
-        say('');
-        
-        say('.end');
+        e.say();
+        e.annotate(self.name);
+
+        e.comment('Body');
+        self.body.emit(e);
+
+        e.annotate(self.body.getend());
+        e.say('.end');
     }
 }
 
-class ClassStatement
+//*********************************************
+//            ClassStatement
+//*********************************************
+
+class ClassStatement : Item
 {
     var parent;
     var name;
     var bases;
     var functions;
 
+    function isClass() { return 1; }
     function init [vtable] ()
     {
         self.functions = [];
@@ -421,17 +596,21 @@ class ClassStatement
             f.report();
         say('}');
     }
-    function emit()
+    function emit(var e)
     {
         var classns= self.parent.getpath();
         classns.push(self.name);
         say(namespacekey(classns));
         for (var f in self.functions)
-            f.emit();
+            f.emit(e);
     }
 }
 
-class Namespace
+//*********************************************
+//            Namespace
+//*********************************************
+
+class Namespace : Item
 {
     var parent;
     var name;
@@ -439,6 +618,8 @@ class Namespace
     var classes;
     var functions;
     var items;
+
+    function isNamespace() { return 1; }
     function init [vtable] ()
     {
         self.namespaces= [];
@@ -509,7 +690,8 @@ class Namespace
                 if (n < 1)
                 {
                     if (self.parent != null) return;
-                    throw Error('Unclosed namespace');
+                    string line= t.line;
+                    throw Error('Unclosed namespace in ' + line);
                 }
                 namespace.pop();
             }
@@ -528,25 +710,28 @@ class Namespace
         if (self.parent != null)
             say('} // namespace ', self.name);
     }
-    function emit()
+    function emit(var e)
     {
         var path= self.getpath();
         string s= namespacekey(path);
-        say(s);
 
         int activate= 1;
         for (var item in self.items) {
-/*
-            if ((item instanceof Namespace) || (item instanceof Class))
+            if (item.isNamespace() || item.isClass())
                 activate= 1;
             else
-*/
-                if (activate)
-                    say(s);
-            item.emit();
+                if (activate) {
+                    e.say(s);
+                    activate= 0;
+                }
+            item.emit(e);
         }
     }
 }
+
+//*********************************************
+//            MiniWinxed
+//*********************************************
 
 class MiniWinxed
 {
@@ -563,9 +748,9 @@ class MiniWinxed
     {
         self.rootns.report();
     }
-    function emit()
+    function emit(var e)
     {
-        self.rootns.emit();
+        self.rootns.emit(e);
     }
 }
 
@@ -573,8 +758,12 @@ function miniwinxed_parser(tk, int gen)
 {
         var winxed= new MiniWinxed;
         winxed.parse(tk);
-        if (gen)
-            winxed.emit();
+        if (gen) {
+            var handle= getinterp().stdhandle(1);
+            var emit= new Emit;
+            emit.initialize(handle);
+            winxed.emit(emit);
+        }
         else
             winxed.report();
 }
@@ -603,11 +792,12 @@ function parser(argv)
     int argc= argv;
     if (argc == 0)
         throw Error('No file');
+    string filename= argv[0];
     var file= new 'FileHandle';
-    file.open(argv[0]); // Must throw on error
+    file.open(filename); // Must throw on error
 
     var t= new Tokenizer;
-    t.init(file);
+    t.init(file, filename);
 
     if (miniwinxed)
         miniwinxed_parser(t, 0);
