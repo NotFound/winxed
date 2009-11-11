@@ -167,7 +167,7 @@ class Connection
         using WinxedMysql.getlib;
         var f= dlfunc(getlib(), 'mysql_use_result', 'pp');
         var r= f(self.mysql);
-        if (p == null) throw Error(self.error(), ERROR, TYPE);
+        if (r == null) throw Error(self.error(), ERROR, TYPE);
         var none = new 'UnManagedStruct';
         if (r == none) throw Error(self.error(), ERROR, TYPE);
         var result= new WinxedMysql.Result;
