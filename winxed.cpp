@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 11-nov-2009
+// Revision 12-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -1091,7 +1091,7 @@ private:
 class ValueStatement : public SubStatement
 {
 public:
-    ValueStatement(Block & block);
+    ValueStatement(Block & block, const Token &st);
 protected:
     void parseArray(Tokenizer &tk);
     void emit (Emit &e, const std::string &name, char type);
@@ -1100,6 +1100,7 @@ protected:
     ValueType vtype;
     BaseExpr *esize;
     std::vector<BaseExpr *> value;
+    const Token start;
 private:
     BaseStatement *optimize();
 };
@@ -1113,7 +1114,6 @@ public:
     void emit (Emit &e);
     using ValueStatement::emit;
 private:
-    const Token start;
     std::string name;
 };
 
@@ -1122,7 +1122,7 @@ private:
 class StringStatement : public ValueStatement
 {
 public:
-    StringStatement(Block & block, Tokenizer &tk);
+    StringStatement(Block & block, const Token &st, Tokenizer &tk);
     void emit (Emit &e);
     using ValueStatement::emit;
 private:
@@ -1134,10 +1134,9 @@ private:
 class VarStatement : public ValueStatement
 {
 public:
-    VarStatement(Block & block, Tokenizer &tk, Token startpos);
+    VarStatement(Block & block, const Token &st, Tokenizer &tk);
     void emit (Emit &e);
 private:
-    const Token start;
     std::string name;
 };
 
@@ -1146,11 +1145,10 @@ private:
 class ConstStatement : public ValueStatement
 {
 public:
-    ConstStatement(Block & block, Tokenizer &tk, Token startpos);
+    ConstStatement(Block & block, const Token &st, Tokenizer &tk);
     BaseStatement *optimize();
     void emit (Emit &e);
 private:
-    const Token start;
     char type;
     std::string name;
     BaseExpr *value;
@@ -1171,7 +1169,7 @@ private:
 class GotoStatement: public SubStatement
 {
 public:
-    GotoStatement(Block &block, Tokenizer &tk, Token startpos);
+    GotoStatement(Block &block, const Token &st, Tokenizer &tk);
     void emit (Emit &e);
 private:
     Token start;
@@ -1351,7 +1349,7 @@ private:
 class ThrowStatement : public SubStatement
 {
 public:
-    ThrowStatement(Block &block, Tokenizer &tk, Token t);
+    ThrowStatement(Block &block, const Token &st, Tokenizer &tk);
 private:
     BaseStatement *optimize();
     void emit (Emit &e);
@@ -1364,7 +1362,7 @@ private:
 class TryStatement : public BlockStatement
 {
 public:
-    TryStatement(Block &block, Tokenizer &tk, Token t);
+    TryStatement(Block &block, const Token &st, Tokenizer &tk);
 private:
     BaseStatement *optimize();
     void emit (Emit &e);
@@ -1487,20 +1485,20 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
     case 'I':
         return new IntStatement(block, t, tk);
     case 'S':
-        return new StringStatement(block, tk);
+        return new StringStatement(block, t, tk);
     case 'P':
-        return new VarStatement(block, tk, t);
+        return new VarStatement(block, t, tk);
     default: /* Not a declaration */ ;
     }
     if (t.iskeyword("const"))
-        return new ConstStatement(block, tk, t);
+        return new ConstStatement(block, t, tk);
 
     if (t.iskeyword("return"))
         return new ReturnStatement(block, tk);
     if (t.iskeyword("yield"))
         return new YieldStatement(block, tk);
     if (t.iskeyword("goto"))
-        return new GotoStatement(block, tk, t);
+        return new GotoStatement(block, t, tk);
     if (t.iskeyword("break"))
         return new BreakStatement(block, tk);
     if (t.iskeyword("continue"))
@@ -1516,9 +1514,9 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
     if (t.iskeyword("for"))
         return parseFor(block, tk);
     if (t.iskeyword("throw"))
-        return new ThrowStatement(block, tk, t);
+        return new ThrowStatement(block, t, tk);
     if (t.iskeyword("try"))
-        return new TryStatement(block, tk, t);
+        return new TryStatement(block, t, tk);
 
     if (t.isidentifier() )
     {
@@ -1556,9 +1554,9 @@ void LabelStatement::emit (Emit &e)
 
 //**********************************************************************
 
-GotoStatement::GotoStatement(Block &block, Tokenizer &tk, Token startpos) :
+GotoStatement::GotoStatement(Block &block, const Token &st, Tokenizer &tk) :
     SubStatement(block),
-    start(startpos),
+    start(st),
     bl(block)
 {
     Token t= tk.get();
@@ -4069,7 +4067,7 @@ void ExprStatement::emit (Emit &e)
 
 //**********************************************************************
 
-ValueStatement::ValueStatement(Block & block) :
+ValueStatement::ValueStatement(Block & block, const Token &st) :
     SubStatement (block),
     vtype(ValueSimple),
     esize(0)
@@ -4136,8 +4134,8 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
             ' ' << name << '\n';
         if (value.size() == 1)
         {
-            if ((type == 'I' && value[0]->isinteger()) ||
-                    (type == 'S' && value[0]->isstring())||
+            char vtype= value[0]->checkresult();
+            if (vtype == 'I' || vtype == 'S' ||
                     (dynamic_cast<IndexExpr *>(value[0])))
                 value[0]->emit(e, name);
             else
@@ -4205,8 +4203,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
 //**********************************************************************
 
 IntStatement::IntStatement(Block &block,  const Token &st, Tokenizer &tk) :
-    ValueStatement (block),
-    start(st)
+    ValueStatement (block, st)
 {
     Token t= tk.get();
     name= t.identifier();
@@ -4237,8 +4234,8 @@ void IntStatement::emit (Emit &e)
 
 //**********************************************************************
 
-StringStatement::StringStatement(Block & block, Tokenizer &tk) :
-    ValueStatement (block)
+StringStatement::StringStatement(Block & block, const Token &st, Tokenizer &tk) :
+    ValueStatement (block, st)
 {
     Token t= tk.get();
     name= t.identifier();
@@ -4263,14 +4260,14 @@ StringStatement::StringStatement(Block & block, Tokenizer &tk) :
 
 void StringStatement::emit (Emit &e)
 {
+    e.annotate(start);
     emit(e, name, 'S');
 }
 
 //**********************************************************************
 
-VarStatement::VarStatement(Block & block, Tokenizer &tk, Token startpos) :
-    ValueStatement (block),
-    start(startpos)
+VarStatement::VarStatement(Block & block, const Token &st, Tokenizer &tk) :
+    ValueStatement (block, st)
 {
     Token t= tk.get();
     name= t.identifier();
@@ -4305,9 +4302,8 @@ void VarStatement::emit (Emit &e)
 
 //**********************************************************************
 
-ConstStatement::ConstStatement(Block & block, Tokenizer &tk, Token startpos) :
-    ValueStatement (block),
-    start(startpos),
+ConstStatement::ConstStatement(Block & block, const Token &st, Tokenizer &tk) :
+    ValueStatement (block, st),
     value(0)
 {
     Token t= tk.get();
@@ -4631,10 +4627,10 @@ void ForStatement::emit(Emit &e)
 
 //**********************************************************************
 
-ThrowStatement::ThrowStatement(Block &block,
-        Tokenizer &tk, Token t) :
+ThrowStatement::ThrowStatement(Block &block, const Token &st,
+        Tokenizer &tk) :
     SubStatement (block),
-    pos(t), excep(0)
+    pos(st), excep(0)
 {
     excep = parseExpr(block, tk);
 }
@@ -4665,12 +4661,12 @@ void ThrowStatement::emit (Emit &e)
 
 //**********************************************************************
 
-TryStatement::TryStatement(Block &block, Tokenizer &tk, Token t) :
+TryStatement::TryStatement(Block &block, const Token &st, Tokenizer &tk) :
     BlockStatement (block),
-    start(t),
+    start(st),
     stry(0), scatch(0)
 {
-    t= tk.get();
+    Token t= tk.get();
     if (t.isop('['))
     {
         modifiers.parse(*this, tk);
@@ -5454,7 +5450,7 @@ Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
         }
         else if (t.iskeyword("const"))
         {
-            ConstStatement *cst= new ConstStatement(*this, tk, t);
+            ConstStatement *cst= new ConstStatement(*this, t, tk);
             constants.push_back(cst);
         }
         else
@@ -5551,7 +5547,7 @@ void Winxed::parse (Tokenizer &tk)
         }
         else if (t.iskeyword("const"))
         {
-            ConstStatement *cst= new ConstStatement(*cur_nsblock, tk, t);
+            ConstStatement *cst= new ConstStatement(*cur_nsblock, t, tk);
             cur_nsblock->addconstant(cst);
         }
         else if (t.iskeyword("class"))
