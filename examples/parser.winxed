@@ -11,6 +11,11 @@ function isspace(string c)
     return c == ' ' || c == "\n" || c == "\t";
 }
 
+function isdigit(string c)
+{
+    return indexof('0123456789', c) > -1;
+}
+
 function isidentstart(string c)
 {
     return indexof(
@@ -28,6 +33,7 @@ function isident(string c)
         c) > -1;
 }
 
+
 //*********************************************
 //                Token
 //*********************************************
@@ -38,6 +44,7 @@ const int TypeOp           = 1;
 const int TypeQuoted       = 2;
 const int TypeSingleQuoted = 3;
 const int TypeIdentifier   = 4;
+const int TypeInteger      = 5;
 
 function TokenError(string msg, tk, int line)
 {
@@ -58,11 +65,13 @@ class Token
     {
         return self.type != TypeEof;
     }
-    function iseof()
+    function iseof()     { return self.type == TypeEof; }
+    function iscomment() { return self.type == TypeComment; }
+    function isint()     { return self.type == TypeInteger; }
+    function isstring()
     {
-        return self.type == TypeEof;
+        return self.type == TypeQuoted || self.type == TypeSingleQuoted;
     }
-    function iscomment() { return self.type == 0; }
     function iskeyword(string name)
     {
         return self.type == TypeIdentifier && self.str == name;
@@ -270,6 +279,15 @@ class Tokenizer
                     return current2(self, c, line);
             }
         }
+        if (isdigit(c)) {
+            string s;
+            do {
+                s+= c;
+                c= self.getchar();
+            } while (isdigit(c));
+            self.ungetchar(c);
+            return newToken(TypeInteger, s, self.filename, line);
+        }
         return getop(self, c, line);
     }
     function get(int withcomments [optional])
@@ -429,6 +447,8 @@ class PrintStatement : Item
             tk.unget(t);
             do {
                 t= tk.get();
+                    if (!(t.isint() || t.isstring()))
+                    throw SyntaxError("Only int and string literals allowed", t);
                 self.items.push(t);
                 t= tk.get();
             } while (t.isop(','));
@@ -538,18 +558,6 @@ class FunctionStatement : Item
             throw Error("Expected '{'");
         self.body= new CompoundStatement;
         self.body.parse(tk, self);
-/*
-        int blocklevel= 1;
-        while (blocklevel > 0)
-        {
-            t= tk.get();
-            if (t.isop('{'))
-                ++blocklevel;
-            else if (t.isop('}'))
-                --blocklevel;
-        }
-        self.end= t;
-*/
     }
 
     function report()
