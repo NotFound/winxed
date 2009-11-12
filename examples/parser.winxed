@@ -374,6 +374,15 @@ class Emit
 //       Auxiliary classes and functions
 //*********************************************
 
+function SyntaxError(string msg, var pos)
+{
+   string sline= pos.line;
+   string file= pos.file;
+   string m= msg + ' in '+ file + ' line ' + sline;
+   var ex= Error(m, 2, 555);
+   return ex;
+}
+
 class Item
 {
     function isNamespace() { return 0; }
@@ -388,7 +397,56 @@ function parseStatement(tk, owner)
         c.parse(tk, owner);
         return c;
     }
+    else if (t.iskeyword('print')) {
+        var c= new PrintStatement;
+        tk.unget(t);
+        c.parse(tk, owner);
+        return c;
+    }
     return null;
+}
+
+//*********************************************
+//            PrintStatement
+//*********************************************
+
+// This is a temporal way to be enable generation
+// of some working and viewable code.
+
+class PrintStatement : Item
+{
+    var start;
+    var items;
+    function parse(tk, owner)
+    {
+        self.items= [];
+        self.start= tk.get();
+        var t= tk.get();
+        if (! t.isop('('))
+            throw SyntaxError("Expected '('", t);
+        t= tk.get();
+        if (! t.isop(')')) {
+            tk.unget(t);
+            do {
+                t= tk.get();
+                self.items.push(t);
+                t= tk.get();
+            } while (t.isop(','));
+            if (! t.isop(')'))
+                throw SyntaxError("Expected ')'", t);
+        }
+        t= tk.get();
+        if (! t.isop(';'))
+            throw SyntaxError("Expected ';'", t);
+    }
+    function emit(e)
+    {
+        e.annotate(self.start);
+        for (var item in self.items) {
+            string s= item;
+            e.say("print ", s);
+        }
+    }
 }
 
 //*********************************************
