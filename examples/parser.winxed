@@ -891,14 +891,27 @@ function parser(argv)
 
 function main(argv)
 {
-    /*try*/ parser(argv);
-    /*
+    try parser(argv);
     catch (e)
     {
         string msg= e['message'];
         say('Error: ', msg);
+        var bt= e.backtrace();
+        int i= 1;
+        for (var t in bt) {
+            var sub= t['sub'];
+            if (sub == null) continue;
+            string subname= sub;
+            string ns= sub.get_namespace();
+            if (ns != '' && ns != 'parrot') subname= ns + '.' + subname;
+            var ann= t['annotations'];
+            string file= ann['file'];
+            if (file != '') {
+                int line= ann['line'];
+                say(' ' * (2 * i++), "at ", subname, " in '", file, "' line ", line);
+            }
+        }
     }
-    */
 }
 
 // End
