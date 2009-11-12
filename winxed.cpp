@@ -2828,20 +2828,16 @@ void OpSubExpr::emit(Emit &e, const std::string &result)
 
 //**********************************************************************
 
-class OpBoolOrExpr : public OpBaseExpr
+class OpBoolOrExpr : public BinOpExpr
 {
 public:
     OpBoolOrExpr(BlockBase &block,
             Token t, BaseExpr *first, BaseExpr *second) :
-        OpBaseExpr(block, t),
-        efirst(first),
-        esecond(second)
+        BinOpExpr(block, t, first, second)
     { }
 private:
     bool isinteger() const { return true; }
     void emit(Emit &e, const std::string &result);
-    BaseExpr *efirst;
-    BaseExpr *esecond;
 };
 
 void OpBoolOrExpr::emit(Emit &e, const std::string &result)
