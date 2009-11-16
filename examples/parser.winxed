@@ -425,18 +425,32 @@ function parseStatement(tk, owner)
 }
 
 //*********************************************
+//            Statement
+//*********************************************
+
+class Statement : Item
+{
+    var start;
+    var owner;
+    function annotate(e)
+    {
+        e.annotate(self.start);
+    }
+}
+
+//*********************************************
 //            PrintStatement
 //*********************************************
 
 // This is a temporal way to be enable generation
 // of some working and viewable code.
 
-class PrintStatement : Item
+class PrintStatement : Statement
 {
-    var start;
     var items;
     function parse(tk, owner)
     {
+        self.owner= owner;
         self.items= [];
         self.start= tk.get();
         var t= tk.get();
@@ -461,9 +475,9 @@ class PrintStatement : Item
     }
     function emit(e)
     {
-        e.annotate(self.start);
         for (var item in self.items) {
             string s= item;
+            self.annotate(e);
             e.say("print ", s);
         }
     }
@@ -473,13 +487,14 @@ class PrintStatement : Item
 //            CompoundStatement
 //*********************************************
 
-class CompoundStatement : Item
+class CompoundStatement : Statement
 {
     var statements;
     var end;
     function parse(tk, owner)
     {
         //say('<<{');
+        self.owner= owner;
         self.statements= [];
         var t;
         while (! (t= tk.get()).isop('}')) {
