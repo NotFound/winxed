@@ -439,6 +439,56 @@ class Statement : Item
 }
 
 //*********************************************
+//            Expr
+//*********************************************
+
+class Expr
+{
+    function issimple() { return 0; }
+}
+
+class SimpleExpr : Expr
+{
+    function issimple() { return 1; }
+}
+
+class StringLiteral : SimpleExpr
+{
+    var strval;
+    function checkResult() { return 'S'; }
+    function getPirString() { return self.strval; }
+}
+
+class IntegerLiteral : SimpleExpr
+{
+    var numval;
+    function checkResult() { return 'I'; }
+    function getIntegerValue()
+    {
+        string aux= self.numval;
+        int i= aux;
+        return i;
+    }
+}
+
+function parseExpr(tk)
+{
+    var t= tk.get();
+    var expr;
+    if (t.isstring()) {
+        expr= new StringLiteral;
+        expr.strval= t;
+        return expr;
+    }
+    if (t.isint()) {
+        expr= new IntegerLiteral;
+        expr.numval= t;
+        return expr;
+    }
+    throw SyntaxError('Lots of things unsupported', t);
+}
+
+//*********************************************
 //            PrintStatement
 //*********************************************
 
@@ -460,12 +510,9 @@ class PrintStatement : Statement
         if (! t.isop(')')) {
             tk.unget(t);
             do {
-                t= tk.get();
-                    if (!(t.isint() || t.isstring()))
-                    throw SyntaxError("Only int and string literals allowed", t);
-                self.items.push(t);
-                t= tk.get();
-            } while (t.isop(','));
+                var exp= parseExpr(tk);
+                self.items.push(exp);
+            } while ((t= tk.get()).isop(','));
             if (! t.isop(')'))
                 throw SyntaxError("Expected ')'", t);
         }
@@ -476,9 +523,18 @@ class PrintStatement : Statement
     function emit(e)
     {
         for (var item in self.items) {
-            string s= item;
+            var expr= item;
             self.annotate(e);
-            e.say("print ", s);
+            switch (expr.checkResult()) {
+            case 'S':
+                string s= expr.getPirString();
+                e.say("print ", s);
+                break;
+            case 'I':
+                int n= expr.getIntegerValue();
+                e.say("print ", n);
+                break;
+            }
         }
     }
 }
