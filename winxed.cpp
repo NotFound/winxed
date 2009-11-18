@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 18-nov-2009
+// Revision 19-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -133,6 +133,20 @@ std::string op_isgt(const std::string &res,
     const std::string &op1, const std::string &op2)
 {
     return op("isgt", res, op1, op2);
+}
+
+inline
+std::string op_isle(const std::string &res,
+    const std::string &op1, const std::string &op2)
+{
+    return op("isle", res, op1, op2);
+}
+
+inline
+std::string op_isge(const std::string &res,
+    const std::string &op1, const std::string &op2)
+{
+    return op("isge", res, op1, op2);
 }
 
 inline
@@ -2310,19 +2324,22 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
 
 //**********************************************************************
 
-class OpLessExpr : public CompareOpExpr
+class ComparatorBaseExpr : public CompareOpExpr
 {
-public:
-    OpLessExpr(BlockBase &block,
+protected:
+    ComparatorBaseExpr(BlockBase &block,
             Token t, BaseExpr *first, BaseExpr *second) :
         CompareOpExpr(block, t, first, second)
     {
     }
+    virtual void emitop(Emit &e, 
+        const std::string &res,
+        const std::string &op1, const std::string &op2) = 0;
 private:
     void emit(Emit &e, const std::string &result);
 };
 
-void OpLessExpr::emit(Emit &e, const std::string &result)
+void ComparatorBaseExpr::emit(Emit &e, const std::string &result)
 {
     std::string res= result.empty() ? gentemp('I') : result;
     char type1= efirst->checkresult();
@@ -2345,7 +2362,7 @@ void OpLessExpr::emit(Emit &e, const std::string &result)
             esecond->emit(e, aux);
             e << op2 << " = " << aux << '\n';
         }
-        e << op_islt(res, op1, op2);
+        emitop(e, res, op1, op2);
         if (!result.empty())
             e << '\n';
     }
@@ -2367,7 +2384,7 @@ void OpLessExpr::emit(Emit &e, const std::string &result)
             esecond->emit(e, aux);
             e << op2 << " = " << aux << '\n';
         }
-        e << op_islt(res, op1, op2);
+        emitop(e, res, op1, op2);
         if (!result.empty())
             e << '\n';
     }
@@ -2377,70 +2394,79 @@ void OpLessExpr::emit(Emit &e, const std::string &result)
 
 //**********************************************************************
 
-class OpGreaterExpr : public CompareOpExpr
+class OpLessExpr : public ComparatorBaseExpr
+{
+public:
+    OpLessExpr(BlockBase &block,
+            Token t, BaseExpr *first, BaseExpr *second) :
+        ComparatorBaseExpr(block, t, first, second)
+    {
+    }
+private:
+    void emitop(Emit &e, 
+        const std::string &res,
+        const std::string &op1, const std::string &op2)
+    {
+        e << op_islt(res, op1, op2);
+    }
+};
+
+//**********************************************************************
+
+class OpGreaterExpr : public ComparatorBaseExpr
 {
 public:
     OpGreaterExpr(BlockBase &block,
             Token t, BaseExpr *first, BaseExpr *second) :
-        CompareOpExpr(block, t, first, second)
+        ComparatorBaseExpr(block, t, first, second)
     {
     }
 private:
-    void emit(Emit &e, const std::string &result);
+    void emitop(Emit &e, 
+        const std::string &res,
+        const std::string &op1, const std::string &op2)
+    {
+        e << op_isgt(res, op1, op2);
+    }
 };
 
-void OpGreaterExpr::emit(Emit &e, const std::string &result)
+//**********************************************************************
+
+class OpLessEqualExpr : public ComparatorBaseExpr
 {
-    std::string res= result.empty() ? gentemp('I') : result;
-    char type1= efirst->checkresult();
-    char type2= esecond->checkresult();
-    if (type1 == 'I' || type2 == 'I')
+public:
+    OpLessEqualExpr(BlockBase &block,
+            Token t, BaseExpr *first, BaseExpr *second) :
+        ComparatorBaseExpr(block, t, first, second)
     {
-        std::string op1= gentemp('I');
-        std::string op2= gentemp('I');
-        if (type1 == 'I')
-            efirst->emit(e, op1);
-        else {
-            std::string aux= gentemp('P');
-            efirst->emit(e, aux);
-            e << op_set(op1, aux) << '\n';
-        }
-        if (type2 == 'I')
-            esecond->emit(e, op2);
-        else {
-            std::string aux= gentemp('P');
-            esecond->emit(e, aux);
-            e << op_set(op2, aux) << '\n';
-        }
-        e << op_isgt(res, op1, op2);
-        if (!result.empty())
-            e << '\n';
     }
-    else if (type1 == 'S' || type2 == 'S')
+private:
+    void emitop(Emit &e, 
+        const std::string &res,
+        const std::string &op1, const std::string &op2)
     {
-        std::string op1= gentemp('S');
-        std::string op2= gentemp('S');
-        if (type1 == 'S')
-            efirst->emit(e, op1);
-        else {
-            std::string aux= gentemp('P');
-            efirst->emit(e, aux);
-            e << op_set(op1, aux) << '\n';
-        }
-        if (type2 == 'S')
-            esecond->emit(e, op2);
-        else {
-            std::string aux= gentemp('P');
-            esecond->emit(e, aux);
-            e << op_set(op2, aux) << '\n';
-        }
-        e << op_isgt(res, op1, op2);
-        if (!result.empty())
-            e << '\n';
+        e << op_isle(res, op1, op2);
     }
-    else
-        throw Unsupported(std::string(" operator > for operands (") + type1 + "," + type2 + ")", start);
-}
+};
+
+//**********************************************************************
+
+class OpGreaterEqualExpr : public ComparatorBaseExpr
+{
+public:
+    OpGreaterEqualExpr(BlockBase &block,
+            Token t, BaseExpr *first, BaseExpr *second) :
+        ComparatorBaseExpr(block, t, first, second)
+    {
+    }
+private:
+    void emitop(Emit &e, 
+        const std::string &res,
+        const std::string &op1, const std::string &op2)
+    {
+        e << op_isge(res, op1, op2);
+    }
+};
 
 //**********************************************************************
 
@@ -3998,6 +4024,16 @@ BaseExpr * parseExpr_9(BlockBase &block, Tokenizer &tk)
     {
         BaseExpr *subexpr2= parseExpr_8(block, tk);
         subexpr= new OpGreaterExpr(block, t, subexpr, subexpr2);
+    }
+    else if (t.isop("<="))
+    {
+        BaseExpr *subexpr2= parseExpr_8(block, tk);
+        subexpr= new OpLessEqualExpr(block, t, subexpr, subexpr2);
+    }
+    else if (t.isop(">="))
+    {
+        BaseExpr *subexpr2= parseExpr_8(block, tk);
+        subexpr= new OpGreaterEqualExpr(block, t, subexpr, subexpr2);
     }
     else
     {
