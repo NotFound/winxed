@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 8-nov-2009
+// Revision 18-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -436,6 +436,13 @@ Token Tokenizer::getany ()
         else
             ungetchar(c);
         break;
+    case '%':
+        c= getchar();
+        if (c == '%')
+            s+= c;
+        else
+            ungetchar(c);
+        break;        
     default:
         if (isidentifierstart(c))
         {

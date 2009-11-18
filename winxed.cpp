@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 16-nov-2009
+// Revision 18-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -100,6 +100,13 @@ std::string op_mod(const std::string &res,
     const std::string &op1, const std::string &op2)
 {
     return op("mod", res, op1, op2);
+}
+
+inline
+std::string op_cmod(const std::string &res,
+    const std::string &op1, const std::string &op2)
+{
+    return op("cmod", res, op1, op2);
 }
 
 inline
@@ -3030,20 +3037,43 @@ public:
     {
     }
 private:
-    void emit(Emit &e, const std::string &result);
+    void emit(Emit &e, const std::string &result)
+    {
+        std::string res= result.empty() ? gentemp('I') : result;
+        std::string op1= gentemp('I');
+        std::string op2= gentemp('I');
+        efirst->emit(e, op1);
+        esecond->emit(e, op2);
+        e << op_mod(res, op1, op2);
+        if (!result.empty())
+            e << '\n';
+    }
 };
 
-void OpModExpr::emit(Emit &e, const std::string &result)
+
+//**********************************************************************
+
+class OpCModExpr : public CommonBinOpExpr
 {
-    std::string res= result.empty() ? gentemp('I') : result;
-    std::string op1= gentemp('I');
-    std::string op2= gentemp('I');
-    efirst->emit(e, op1);
-    esecond->emit(e, op2);
-    e << op_mod(res, op1, op2);
-    if (!result.empty())
-        e << '\n';
-}
+public:
+    OpCModExpr(BlockBase &block,
+            Token t, BaseExpr *first, BaseExpr *second) :
+        CommonBinOpExpr(block, t, first, second)
+    {
+    }
+private:
+    void emit(Emit &e, const std::string &result)
+    {
+        std::string res= result.empty() ? gentemp('I') : result;
+        std::string op1= gentemp('I');
+        std::string op2= gentemp('I');
+        efirst->emit(e, op1);
+        esecond->emit(e, op2);
+        e << op_cmod(res, op1, op2);
+        if (!result.empty())
+            e << '\n';
+    }
+};
 
 //**********************************************************************
 
@@ -3898,15 +3928,17 @@ BaseExpr * parseExpr_5(BlockBase &block, Tokenizer &tk)
 {
     BaseExpr *subexpr= parseExpr_4(block, tk);
     Token t;
-    while ((t= tk.get()).isop('*') || t.isop('/') || t.isop('%'))
+    while ((t= tk.get()).isop('*') || t.isop('/') || t.isop('%') || t.isop("%%"))
     {
         BaseExpr *subexpr2= parseExpr_4(block, tk);
         if (t.isop('*'))
             subexpr= new OpMulExpr(block, t, subexpr, subexpr2);
         else if (t.isop('/'))
             subexpr= new OpDivExpr(block, t, subexpr, subexpr2);
-        else
+        else if (t.isop('%'))
             subexpr= new OpModExpr(block, t, subexpr, subexpr2);
+        else
+            subexpr= new OpCModExpr(block, t, subexpr, subexpr2);
     }
     tk.unget(t);
     return subexpr;
