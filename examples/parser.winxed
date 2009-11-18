@@ -72,6 +72,7 @@ class Token
     {
         return self.type == TypeQuoted || self.type == TypeSingleQuoted;
     }
+    function isidentifier() { return self.type == TypeIdentifier; }
     function iskeyword(string name)
     {
         return self.type == TypeIdentifier && self.str == name;
@@ -216,6 +217,7 @@ class Tokenizer
             '<': { '<': getop, '=': getop },
             '>': { '>': getop, '=': getop },
             '!': { '=': getop },
+            '%': { '%': getop },
             '/': { '/': getlinecomment, '*': getcomment },
             '#': { '': getlinecomment }
         };
@@ -415,6 +417,11 @@ function parseStatement(tk, owner)
         c.parse(tk, owner);
         return c;
     }
+    else if (t.iskeyword('int')) {
+        var c = new IntStatement;
+        c.parse(tk, owner);
+        return c;
+    }
     else if (t.iskeyword('print')) {
         var c= new PrintStatement;
         tk.unget(t);
@@ -471,6 +478,17 @@ class IntegerLiteral : SimpleExpr
     }
 }
 
+class IdentifierExpr : SimpleExpr
+{
+    var name;
+    function checkResult() { return ''; }
+    function getIdentifier()
+    {
+        string s= self.name.str;
+        return s;
+    }
+}
+
 function parseExpr(tk)
 {
     var t= tk.get();
@@ -483,6 +501,11 @@ function parseExpr(tk)
     if (t.isint()) {
         expr= new IntegerLiteral;
         expr.numval= t;
+        return expr;
+    }
+    if (t.isidentifier()) {
+        expr= new IdentifierExpr;
+        expr.name= t;
         return expr;
     }
     throw SyntaxError('Lots of things unsupported', t);
@@ -534,8 +557,36 @@ class PrintStatement : Statement
                 int n= expr.getIntegerValue();
                 e.say("print ", n);
                 break;
+            case '':
+                e.say("print ", expr.getIdentifier());
+                break;
             }
         }
+    }
+}
+
+//*********************************************
+//            IntStatement
+//*********************************************
+
+class IntStatement : Statement
+{
+    var name;
+    function parse(tk, owner)
+    {
+        var t= tk.get();
+        if (!t.isidentifier())
+            throw SyntaxError('Identifier expected', t);
+        self.name= t;
+        t= tk.get();
+        if (!t.isop(';'))
+            throw SyntaxError("Expected ';'", t);
+    }
+    function emit(var e)
+    {
+        e.annotate(self.name);
+        string name= self.name;
+        e.say('.local int ', name);
     }
 }
 
