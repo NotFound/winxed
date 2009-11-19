@@ -439,9 +439,21 @@ class Statement : Item
 {
     var start;
     var owner;
+    var nreg;
     function annotate(e)
     {
         e.annotate(self.start);
+    }
+    function tempreg(string type)
+    {
+        if (self.nreg == null)
+            self.nreg= new 'Integer';
+        var n= self.nreg;
+        string reg= n;
+        n = n + 1;
+        self.nreg = n;
+        reg = '$' + type + reg;
+        return reg;
     }
 }
 
@@ -492,19 +504,37 @@ class IdentifierExpr : SimpleExpr
 class OpAddExpr : Expr
 {
     var start;
+    var owner;
     var eleft;
     var eright;
     function checkResult() { return 'I'; }
     function emit(e, result)
     {
-        int nleft= self.eleft.getIntegerValue();
-        int nright= self.eright.getIntegerValue();
-        e.annotate(self.start);
-        e.say('add ', result, ', ', nleft, ', ', nright);
+        string rleft;
+        string rright;
+        int nleft;
+        int nright;
+        if (! self.eleft.issimple()) {
+            string rleft= self.owner.tempreg('I');
+            self.eleft.emit(e, rleft);
+        }
+        else {
+            nleft= self.eleft.getIntegerValue();
+            rleft= nleft;
+        }
+        if (! self.eright.issimple()) {
+            string rright= self.owner.tempreg('I');
+            self.eright.emit(e, rleft);
+        }
+        else {
+            nright= self.eright.getIntegerValue();
+            rright= nright;
+        }
+        e.say('add ', result, ', ', rleft, ', ', rright);
     }
 }
 
-function parseExpr_0(tk)
+function parseExpr_0(tk, owner)
 {
     var t= tk.get();
     var expr;
@@ -526,14 +556,15 @@ function parseExpr_0(tk)
     throw SyntaxError('Lots of things unsupported', t);
 }
 
-function parseExpr_6(tk)
+function parseExpr_6(tk, owner)
 {
-    var eleft= parseExpr_0(tk);
+    var eleft= parseExpr_0(tk, owner);
     var t;
     while ((t= tk.get()).isop('+')) {
-        var eright= parseExpr_0(tk);
+        var eright= parseExpr_0(tk, owner);
         var expr= new OpAddExpr;
         expr.start= t;
+        expr.owner= owner;
         expr.eleft= eleft;
         expr.eright= eright;
         eleft= expr;
@@ -542,9 +573,9 @@ function parseExpr_6(tk)
     return eleft;
 }
 
-function parseExpr(tk)
+function parseExpr(tk, owner)
 {
-    return parseExpr_6(tk);
+    return parseExpr_6(tk, owner);
 }
 
 //*********************************************
@@ -569,7 +600,7 @@ class PrintStatement : Statement
         if (! t.isop(')')) {
             tk.unget(t);
             do {
-                var exp= parseExpr(tk);
+                var exp= parseExpr(tk, self);
                 self.items.push(exp);
             } while ((t= tk.get()).isop(','));
             if (! t.isop(')'))
@@ -600,7 +631,7 @@ class PrintStatement : Statement
                 }
             }
             else {
-                string result= '$I0';
+                string result= self.tempreg('I');
                 expr.emit(e, result);
                 e.say("print ", result);
             }
