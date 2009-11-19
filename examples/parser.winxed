@@ -489,7 +489,22 @@ class IdentifierExpr : SimpleExpr
     }
 }
 
-function parseExpr(tk)
+class OpAddExpr : Expr
+{
+    var start;
+    var eleft;
+    var eright;
+    function checkResult() { return 'I'; }
+    function emit(e, result)
+    {
+        int nleft= self.eleft.getIntegerValue();
+        int nright= self.eright.getIntegerValue();
+        e.annotate(self.start);
+        e.say('add ', result, ', ', nleft, ', ', nright);
+    }
+}
+
+function parseExpr_0(tk)
 {
     var t= tk.get();
     var expr;
@@ -509,6 +524,27 @@ function parseExpr(tk)
         return expr;
     }
     throw SyntaxError('Lots of things unsupported', t);
+}
+
+function parseExpr_6(tk)
+{
+    var eleft= parseExpr_0(tk);
+    var t;
+    while ((t= tk.get()).isop('+')) {
+        var eright= parseExpr_0(tk);
+        var expr= new OpAddExpr;
+        expr.start= t;
+        expr.eleft= eleft;
+        expr.eright= eright;
+        eleft= expr;
+    }
+    tk.unget(t);
+    return eleft;
+}
+
+function parseExpr(tk)
+{
+    return parseExpr_6(tk);
 }
 
 //*********************************************
@@ -547,19 +583,26 @@ class PrintStatement : Statement
     {
         for (var item in self.items) {
             var expr= item;
-            self.annotate(e);
-            switch (expr.checkResult()) {
-            case 'S':
-                string s= expr.getPirString();
-                e.say("print ", s);
-                break;
-            case 'I':
-                int n= expr.getIntegerValue();
-                e.say("print ", n);
-                break;
-            case '':
-                e.say("print ", expr.getIdentifier());
-                break;
+            if (expr.issimple()) {
+                self.annotate(e);
+                switch (expr.checkResult()) {
+                case 'S':
+                    string s= expr.getPirString();
+                    e.say("print ", s);
+                    break;
+                case 'I':
+                    int n= expr.getIntegerValue();
+                    e.say("print ", n);
+                    break;
+                case '':
+                    e.say("print ", expr.getIdentifier());
+                    break;
+                }
+            }
+            else {
+                string result= '$I0';
+                expr.emit(e, result);
+                e.say("print ", result);
             }
         }
     }
