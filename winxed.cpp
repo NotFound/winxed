@@ -2389,7 +2389,15 @@ void ComparatorBaseExpr::emit(Emit &e, const std::string &result)
             e << '\n';
     }
     else
-        throw Unsupported(" operator < for non int", start);
+    {
+        std::string op1= gentemp('P');
+        std::string op2= gentemp('P');
+        efirst->emit(e, op1);
+        esecond->emit(e, op2);
+        emitop(e, res, op1, op2);
+        if (!result.empty())
+            e << '\n';
+    }
 }
 
 //**********************************************************************
