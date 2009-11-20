@@ -743,13 +743,13 @@ class GotoStatement : Statement
     var label;
     function parse(tk, owner)
     {
-            self.owner= owner;
+        self.owner= owner;
         var t= tk.get();
         if (!t.isidentifier())
             throw SyntaxError('Identifier expected', t);
         self.start= t;
         string s= t;
-        self.label= s;
+        self.label= t;
         t= tk.get();
         if (!t.isop(';'))
             throw SyntaxError("Expected ';'", t);
