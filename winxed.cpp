@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 20-nov-2009
+// Revision 21-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -93,6 +93,20 @@ std::string op_sub(const std::string &res,
     const std::string &op1, const std::string &op2)
 {
     return op("sub", res, op1, op2);
+}
+
+inline
+std::string op_mul(const std::string &res,
+    const std::string &op1, const std::string &op2)
+{
+    return op("mul", res, op1, op2);
+}
+
+inline
+std::string op_div(const std::string &res,
+    const std::string &op1, const std::string &op2)
+{
+    return op("div", res, op1, op2);
 }
 
 inline
@@ -2997,10 +3011,7 @@ public:
 private:
     bool isinteger() const
     {
-        if (efirst->isstring() && esecond->isinteger())
-            return false;
-        else
-            return true;
+        return efirst->isinteger() && esecond->isinteger();
     }
     bool isstring() const
     {
@@ -3014,21 +3025,24 @@ private:
 
 void OpMulExpr::emit(Emit &e, const std::string &result)
 {
-    std::string op2= gentemp('I');
-    esecond->emit(e, op2);
     if (isstring())
     {
         std::string res= result.empty() ? gentemp('S') : result;
         std::string op1= gentemp('S');
+        std::string op2= gentemp('I');
         efirst->emit(e, op1);
+        esecond->emit(e, op2);
         e << "repeat " << res << ", " << op1 << ", " << op2;
     }
     else
     {
-        std::string res= result.empty() ? gentemp('I') : result;
-        std::string op1= gentemp('I');
+        char type= efirst->isinteger() && esecond->isinteger() ? 'I' : 'P';
+        std::string res= result.empty() ? gentemp(type) : result;
+        std::string op1= gentemp(type);
+        std::string op2= gentemp(type);
         efirst->emit(e, op1);
-        e << res << " = " << op1 << " * " << op2;
+        esecond->emit(e, op2);
+        e << op_mul(res, op1, op2);
     }
     if (!result.empty())
         e << '\n';
@@ -3045,20 +3059,33 @@ public:
     {
     }
 private:
-    void emit(Emit &e, const std::string &result);
+    void emit(Emit &e, const std::string &result)
+    {
+        char type= efirst->isinteger() && esecond->isinteger() ? 'I' : 'P';
+        std::string res= result.empty() ? gentemp(type) : result;
+        std::string op1= gentemp(type);
+        std::string op2= gentemp(type);
+        if (efirst->isinteger() && type != 'I') {
+            std::string i1= gentemp('I');
+            efirst->emit(e, i1);
+            e << op_box(op1, i1);
+        }
+        else
+            efirst->emit(e, op1);
+        if (esecond->isinteger() && type != 'I') {
+            std::string i2= gentemp('I');
+            esecond->emit(e, i2);
+            e << op_box(op2, i2) << '\n';
+        }
+        else
+            esecond->emit(e, op2);
+        if (result.empty())
+            e << "new " << res << ", 'Integer'" << '\n';
+        e << op_div(res, op1, op2);
+        if (!result.empty())
+            e << '\n';
+    }
 };
-
-void OpDivExpr::emit(Emit &e, const std::string &result)
-{
-    std::string res= result.empty() ? gentemp('I') : result;
-    std::string op1= gentemp('I');
-    std::string op2= gentemp('I');
-    efirst->emit(e, op1);
-    esecond->emit(e, op2);
-    e << res << " = " << op1 << " / " << op2;
-    if (!result.empty())
-        e << '\n';
-}
 
 //**********************************************************************
 
@@ -3073,9 +3100,10 @@ public:
 private:
     void emit(Emit &e, const std::string &result)
     {
-        std::string res= result.empty() ? gentemp('I') : result;
-        std::string op1= gentemp('I');
-        std::string op2= gentemp('I');
+        char type= efirst->isinteger() && esecond->isinteger() ? 'I' : 'P';
+        std::string res= result.empty() ? gentemp(type) : result;
+        std::string op1= gentemp(type);
+        std::string op2= gentemp(type);
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << op_mod(res, op1, op2);
@@ -3098,9 +3126,10 @@ public:
 private:
     void emit(Emit &e, const std::string &result)
     {
-        std::string res= result.empty() ? gentemp('I') : result;
-        std::string op1= gentemp('I');
-        std::string op2= gentemp('I');
+        char type= efirst->isinteger() && esecond->isinteger() ? 'I' : 'P';
+        std::string res= result.empty() ? gentemp(type) : result;
+        std::string op1= gentemp(type);
+        std::string op2= gentemp(type);
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << op_cmod(res, op1, op2);
