@@ -1,5 +1,5 @@
 // winxed.cpp
-// Revision 19-nov-2009
+// Revision 20-nov-2009
 
 #include "token.h"
 #include "errors.h"
@@ -1940,8 +1940,8 @@ protected:
     }
     std::string getvar()
     {
-        if (! (expr->isidentifier() && expr->isinteger()))
-            throw SyntaxError("int var required", start);
+        if ( (! expr->isidentifier() ) || expr->isstring())
+            throw SyntaxError("invalid type", start);
         return expr->getidentifier();
     }
 private:
