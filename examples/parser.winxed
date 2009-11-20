@@ -422,11 +422,25 @@ function parseStatement(tk, owner)
         c.parse(tk, owner);
         return c;
     }
+    else if (t.iskeyword('goto')) {
+        var c = new GotoStatement;
+        c.parse(tk, owner);
+        return c;
+    }
     else if (t.iskeyword('print')) {
         var c= new PrintStatement;
         tk.unget(t);
         c.parse(tk, owner);
         return c;
+    }
+    else if (t.isidentifier()) {
+        var t2= tk.get();
+        if (t2.isop(':')) {
+            var c= new LabelStatement;
+            c.set(owner, t);
+            return c;
+        }
+        tk.unget(t2);
     }
     return null;
 }
@@ -450,6 +464,18 @@ class Statement : Item
     function freetemps()
     {
         self.owner.freetemps();
+    }
+    function genlabel()
+    {
+        return self.owner.genlabel();
+    }
+    function getlabel(name)
+    {
+        return self.owner.getlabel(name);
+    }
+    function createlabel(name)
+    {
+        return self.owner.createlabel(name);
     }
 }
 
@@ -686,6 +712,57 @@ class PrintStatement : Statement
 }
 
 //*********************************************
+//            LabelStatement
+//*********************************************
+
+class LabelStatement : Statement
+{
+    var name;
+    var value;
+    function set(owner, n)
+    {
+            self.owner= owner;
+        self.start= n;
+        self.name= n;
+        string value= self.owner.createlabel(n);
+        self.value= value;
+    }
+    function emit(e)
+    {
+        self.annotate(e);
+        e.say(self.value, ':');
+    }
+}
+
+//*********************************************
+//            GotoStatement
+//*********************************************
+
+class GotoStatement : Statement
+{
+    var label;
+    function parse(tk, owner)
+    {
+            self.owner= owner;
+        var t= tk.get();
+        if (!t.isidentifier())
+            throw SyntaxError('Identifier expected', t);
+        self.start= t;
+        string s= t;
+        self.label= s;
+        t= tk.get();
+        if (!t.isop(';'))
+            throw SyntaxError("Expected ';'", t);
+    }
+    function emit(e)
+    {
+        self.annotate(e);
+        string value= self.getlabel(self.label);
+        e.say('goto ', value);
+    }
+}
+
+//*********************************************
 //            IntStatement
 //*********************************************
 
@@ -718,6 +795,33 @@ class CompoundStatement : Statement
 {
     var statements;
     var end;
+    var labels;
+
+    function init [vtable] ()
+    {
+        self.labels= new 'Hash';
+    }
+    function getlabel(var name)
+    {
+        string s= name;
+        var labels= self.labels;
+        string exist= labels[s];
+        if (exist == null || exist == '')
+            throw SyntaxError('Label not defined', name);
+        return exist;
+    }
+    function createlabel(var name)
+    {
+        string s= name;
+        var labels= self.labels;
+        string exist= labels[s];
+        if (exist != null && exist != '')
+            throw SyntaxError('Label already defined', name);
+        string value= self.genlabel();
+        labels[s]= value;
+        return value;
+    }
+
     function parse(tk, owner)
     {
         //say('<<{');
@@ -772,11 +876,13 @@ class FunctionStatement : Item
     var nreg;
     var tempI;
     var freeI;
+    var nlabel;
 
     function init [vtable]()
     {
-       self.tempI= new 'ResizableStringArray';
-       self.freeI= new 'ResizableStringArray';
+        self.tempI= new 'ResizableStringArray';
+        self.freeI= new 'ResizableStringArray';
+        self.nlabel= 0;
     }
     function createreg(string type)
     {
@@ -813,6 +919,14 @@ class FunctionStatement : Item
     {
         for (string s in self.tempI)
             self.freeI.unshift(s);
+    }
+    function genlabel()
+    {
+        var nlabel = self.nlabel;
+        int n= nlabel;
+        string s= '__label_' + n++;
+        nlabel =: n;
+        return s;
     }
 
     function parse(tk, owner)
@@ -1189,10 +1303,11 @@ function main(argv)
         int i= 1;
         for (var t in bt) {
             var sub= t['sub'];
-            if (sub == null) continue;
-            string subname= sub;
-            string ns= sub.get_namespace();
-            if (ns != '' && ns != 'parrot') subname= ns + '.' + subname;
+            if (sub != null) {
+                string subname= sub;
+                string ns= sub.get_namespace();
+                if (ns != '' && ns != 'parrot') subname= ns + '.' + subname;
+            }
             var ann= t['annotations'];
             string file= ann['file'];
             if (file != '') {
