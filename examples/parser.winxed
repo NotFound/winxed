@@ -439,21 +439,17 @@ class Statement : Item
 {
     var start;
     var owner;
-    var nreg;
     function annotate(e)
     {
         e.annotate(self.start);
     }
     function tempreg(string type)
     {
-        if (self.nreg == null)
-            self.nreg= new 'Integer';
-        var n= self.nreg;
-        string reg= n;
-        n = n + 1;
-        self.nreg = n;
-        reg = '$' + type + reg;
-        return reg;
+        return self.owner.tempreg(type);
+    }
+    function freetemps()
+    {
+        self.owner.freetemps();
     }
 }
 
@@ -755,8 +751,10 @@ class CompoundStatement : Statement
     function emit(var e)
     {
         e.comment('{');
-        for (var st in self.statements)
+        for (var st in self.statements) {
             st.emit(e);
+            self.freetemps();
+        }
         e.comment('}');
     }
 }
@@ -771,6 +769,51 @@ class FunctionStatement : Item
     var name;
     var modifiers;
     var body;
+    var nreg;
+    var tempI;
+    var freeI;
+
+    function init [vtable]()
+    {
+       self.tempI= new 'ResizableStringArray';
+       self.freeI= new 'ResizableStringArray';
+    }
+    function createreg(string type)
+    {
+        if (self.nreg == null)
+            self.nreg= new 'Integer';
+        var n= self.nreg;
+        string reg= n;
+        n = n + 1;
+        self.nreg = n;
+        reg = '$' + type + reg;
+        return reg;
+    }
+    function tempreg(string type)
+    {
+        int n;
+        string reg;
+        switch(type)
+        {
+        case 'I':
+            n= self.freeI;
+            if (n > 0) {
+                reg= self.freeI.pop();
+                return reg;
+            }
+            break;
+        default:
+            throw Error("Invalid register type " + type);
+        }
+        reg= self.createreg(type);
+        self.tempI.push(reg);
+        return reg;
+    }
+    function freetemps()
+    {
+        for (string s in self.tempI)
+            self.freeI.unshift(s);
+    }
 
     function parse(tk, owner)
     {
