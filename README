@@ -34,6 +34,6 @@ Default values:
 - Compiler driver:
 
 Compile it with:
-    winxedst --target pbc winxed.winxed
+    winxedst0 --target pbc winxed.winxed
 Run and insructions:
     parrot winxed.pbc --help
