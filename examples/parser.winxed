@@ -417,8 +417,18 @@ function parseStatement(tk, owner)
         c.parse(tk, owner);
         return c;
     }
+    else if (t.iskeyword('string')) {
+        var c = new StringStatement;
+        c.parse(tk, owner);
+        return c;
+    }
     else if (t.iskeyword('int')) {
         var c = new IntStatement;
+        c.parse(tk, owner);
+        return c;
+    }
+    else if (t.iskeyword('float')) {
+        var c = new FloatStatement;
         c.parse(tk, owner);
         return c;
     }
@@ -457,6 +467,10 @@ class Statement : Item
     {
         e.annotate(self.start);
     }
+    function createreg(string type)
+    {
+        return self.owner.createreg(type);
+    }
     function tempreg(string type)
     {
         return self.owner.tempreg(type);
@@ -477,6 +491,14 @@ class Statement : Item
     {
         return self.owner.createlabel(name);
     }
+    function createvar(name, string type)
+    {
+        return self.owner.createvar(name, type);
+    }
+    function getvar(name)
+    {
+        return self.owner.getvar(name);
+    }
 }
 
 //*********************************************
@@ -485,6 +507,7 @@ class Statement : Item
 
 class Expr
 {
+    var owner;
     function issimple() { return 0; }
 }
 
@@ -518,7 +541,8 @@ class IdentifierExpr : SimpleExpr
     function checkResult() { return ''; }
     function getIdentifier()
     {
-        string s= self.name.str;
+        var desc = self.owner.getvar(self.name);
+        string s= desc['reg'];
         return s;
     }
 }
@@ -526,7 +550,6 @@ class IdentifierExpr : SimpleExpr
 class OpAddExpr : Expr
 {
     var start;
-    var owner;
     var eleft;
     var eright;
     function checkResult() { return 'I'; }
@@ -559,7 +582,6 @@ class OpAddExpr : Expr
 class OpMulExpr : Expr
 {
     var start;
-    var owner;
     var eleft;
     var eright;
     function checkResult() { return 'I'; }
@@ -605,6 +627,7 @@ function parseExpr_0(tk, owner)
     }
     if (t.isidentifier()) {
         expr= new IdentifierExpr;
+        expr.owner= owner;
         expr.name= t;
         return expr;
     }
@@ -618,8 +641,8 @@ function parseExpr_5(tk, owner)
     while ((t= tk.get()).isop('*')) {
         var eright= parseExpr_0(tk, owner);
         var expr= new OpMulExpr;
-        expr.start= t;
         expr.owner= owner;
+        expr.start= t;
         expr.eleft= eleft;
         expr.eright= eright;
         eleft= expr;
@@ -635,8 +658,8 @@ function parseExpr_6(tk, owner)
     while ((t= tk.get()).isop('+')) {
         var eright= parseExpr_5(tk, owner);
         var expr= new OpAddExpr;
-        expr.start= t;
         expr.owner= owner;
+        expr.start= t;
         expr.eleft= eleft;
         expr.eright= eright;
         eleft= expr;
@@ -763,18 +786,22 @@ class GotoStatement : Statement
 }
 
 //*********************************************
-//            IntStatement
+//            StringStatement
 //*********************************************
 
-class IntStatement : Statement
+class StringStatement : Statement
 {
     var name;
+    var reg;
     function parse(tk, owner)
     {
+        self.owner= owner;
         var t= tk.get();
         if (!t.isidentifier())
             throw SyntaxError('Identifier expected', t);
         self.name= t;
+        string reg= self.createvar(t, 'S');
+        self.reg= reg;
         t= tk.get();
         if (!t.isop(';'))
             throw SyntaxError("Expected ';'", t);
@@ -783,7 +810,68 @@ class IntStatement : Statement
     {
         e.annotate(self.name);
         string name= self.name;
-        e.say('.local int ', name);
+        //e.say('.local int ', name);
+        e.say('null ', self.reg, ' # string ', name);
+    }
+}
+
+//*********************************************
+//            IntStatement
+//*********************************************
+
+class IntStatement : Statement
+{
+    var name;
+    var reg;
+    function parse(tk, owner)
+    {
+        self.owner= owner;
+        var t= tk.get();
+        if (!t.isidentifier())
+            throw SyntaxError('Identifier expected', t);
+        self.name= t;
+        string reg= self.createvar(t, 'I');
+        self.reg= reg;
+        t= tk.get();
+        if (!t.isop(';'))
+            throw SyntaxError("Expected ';'", t);
+    }
+    function emit(var e)
+    {
+        e.annotate(self.name);
+        string name= self.name;
+        //e.say('.local int ', name);
+        e.say('set ', self.reg, ', 0', ' # int ', name);
+    }
+}
+
+//*********************************************
+//            FloatStatement
+//*********************************************
+
+class FloatStatement : Statement
+{
+    var name;
+    var reg;
+    function parse(tk, owner)
+    {
+        self.owner= owner;
+        var t= tk.get();
+        if (!t.isidentifier())
+            throw SyntaxError('Identifier expected', t);
+        self.name= t;
+        string reg= self.createvar(t, 'N');
+        self.reg= reg;
+        t= tk.get();
+        if (!t.isop(';'))
+            throw SyntaxError("Expected ';'", t);
+    }
+    function emit(var e)
+    {
+        e.annotate(self.name);
+        string name= self.name;
+        //e.say('.local int ', name);
+        e.say('set ', self.reg, ', 0', ' # float ', name);
     }
 }
 
@@ -796,6 +884,7 @@ class CompoundStatement : Statement
     var statements;
     var end;
     var labels;
+    var locals;
 
     function init [vtable] ()
     {
@@ -820,6 +909,31 @@ class CompoundStatement : Statement
         string value= self.genlabel();
         labels[s]= value;
         return value;
+    }
+    function createvar(var name, string type)
+    {
+        if (self.locals == null)
+            self.locals = new 'Hash';
+        var locals= self.locals;
+        string sname= name;
+        var exist= locals[sname];
+        if (exist != null)
+            throw SyntaxError('Redeclared', name);
+        string reg= self.createreg(type);
+        var descriptor= new 'Hash';
+        descriptor['type'] = type;
+        descriptor['reg'] = reg;
+        descriptor['const']= 0;
+        locals[sname]= descriptor;
+        return reg;
+    }
+    function getvar(var name)
+    {
+        var locals= self.locals;
+        if (locals == null) return null;
+        string sname= name;
+        var exist= locals[sname];
+        return exist;
     }
 
     function parse(tk, owner)
