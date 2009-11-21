@@ -533,6 +533,10 @@ class IntegerLiteral : SimpleExpr
         int i= aux;
         return i;
     }
+    function emit(e, result)
+    {
+        e.say('set ', result, ', ', self.getIntegerValue());
+    }
 }
 
 class IdentifierExpr : SimpleExpr
@@ -544,6 +548,10 @@ class IdentifierExpr : SimpleExpr
         var desc = self.owner.getvar(self.name);
         string s= desc['reg'];
         return s;
+    }
+    function emit(e, result)
+    {
+        e.say('set ', result, ', ', self.getIdentifier());
     }
 }
 
@@ -604,8 +612,16 @@ class OpMulExpr : Expr
             self.eright.emit(e, rright);
         }
         else {
-            nright= self.eright.getIntegerValue();
-            rright= nright;
+            string type = self.eright.checkResult();
+            switch(type) {
+            case 'I':
+                nright= self.eright.getIntegerValue();
+                rright= nright;
+                break;
+            default:
+                string rright= self.owner.tempreg('I');
+                self.eright.emit(e, rright);
+            }
         }
         e.say('mul ', result, ', ', rleft, ', ', rright);
     }
@@ -823,6 +839,7 @@ class IntStatement : Statement
 {
     var name;
     var reg;
+    var init;
     function parse(tk, owner)
     {
         self.owner= owner;
@@ -833,6 +850,10 @@ class IntStatement : Statement
         string reg= self.createvar(t, 'I');
         self.reg= reg;
         t= tk.get();
+        if (t.isop('=')) {
+            self.init = parseExpr(tk, self);
+            t= tk.get();
+        }
         if (!t.isop(';'))
             throw SyntaxError("Expected ';'", t);
     }
@@ -840,8 +861,9 @@ class IntStatement : Statement
     {
         e.annotate(self.name);
         string name= self.name;
-        //e.say('.local int ', name);
-        e.say('set ', self.reg, ', 0', ' # int ', name);
+        e.comment('int ' + name);
+        if (self.init != null)
+            self.init.emit(e, self.reg);
     }
 }
 
@@ -1408,7 +1430,8 @@ function parser(argv)
 
 function main(argv)
 {
-    try parser(argv);
+    /*try*/ parser(argv);
+    /*
     catch (e)
     {
         string msg= e['message'];
@@ -1430,6 +1453,7 @@ function main(argv)
             }
         }
     }
+    */
 }
 
 // End
