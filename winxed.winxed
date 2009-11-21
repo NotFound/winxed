@@ -1,0 +1,115 @@
+#! winxed
+
+// Winxed compiler driver.
+// Parses command line options, calls the compiler backend
+// and eventually runs the generated program.
+
+function showhelp(string name, options)
+{
+    say('Usage: ', name, ' [options] [program] [args]');
+    say('  Available options:');
+    int l= 0;
+    int i;
+    var o;
+    for (o in options) {
+        i= length(o[0]) + 4;
+        if (i > l) l= i;
+    }
+    for (o in options) {
+        string s= o[0];
+        if (length(s) > 1 && substr(s, 1, 1) != '=')
+            s= '--' + s;
+        else
+            s= '-' + s;
+        i= l - length(s);
+        say('    ', s, ' ' * i, '->  ', o[1]);
+    }
+}
+
+function main [main] (argv)
+{
+    var options = [
+      [ 'c',        'Compile only' ],
+      [ 'e=s',      'Evaluate' ],
+      [ 'o=s',      'Object name' ],
+      [ 'noan',     'No annotations' ],
+      [ 'target=s', 'Set target type: pir or pbc' ],
+      [ 'help',     'Show this help' ]
+    ];
+
+    using extern Getopt.Obj;
+    var getopts = new 'Getopt::Obj';
+    getopts.notOptStop(1);
+    for (var o in options)
+        getopts.push_string(o[0]);
+    string name= argv.shift();
+    var opts = getopts.get_options(argv);
+    var help = opts['help'];
+    if (help != null) {
+        showhelp(name, options);
+        return;
+    }
+
+    var compileonly = opts['c'];
+    var opt_o = opts['o'];
+    string obj = '';
+    if (opt_o != null)
+        obj = opt_o;
+    var noan = opts['noan'];
+    var eval = opts['e'];
+
+    const int TargetRun = 0;
+    const int TargetPir = 1;
+    const int TargetPbc = 2;
+    int target = TargetRun;
+    if (compileonly != null)
+        target = TargetPir;
+
+    string srcfile;
+    if (eval == null) {
+        int argc= argv;
+        if (argc < 1) {
+            say("ERROR: No program specified");
+            showhelp(name, options);
+            return;
+        }
+        srcfile = argv.shift();
+    }
+
+    string pirfile;
+    if (obj != '')
+        pirfile = obj;
+    else {
+        if (eval)
+            pirfile = '__eval__.pir';
+        else {
+            int l = length(srcfile);
+            if (l > 7 && substr(srcfile, -7) == '.winxed')
+                pirfile = substr(srcfile, 0, l - 7) + '.pir';
+            else
+                pirfile = srcfile + '.pir';
+        }
+    }
+
+    // Call backend compiler
+
+    string cmd[] = [ 'winxedst0', '-c'];
+    if (noan)
+        cmd.push('--noan');;
+    if (eval) {
+        cmd.push('-e');
+        cmd.push(eval);
+    }
+    cmd.push('-o');
+    cmd.push(pirfile);
+    cmd.push(srcfile);
+    spawnw(cmd);
+
+    // Execute result
+    if (target == TargetRun) {
+        string runit[] = [ 'parrot', pirfile ];
+        for (string a in argv)
+            runit.push(a);
+        spawnw(runit);
+    }
+}
