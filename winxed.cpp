@@ -245,6 +245,9 @@ const PredefFunction PredefFunction::predefs[]= {
     PredefFunction("exit",
         "exit {arg0}",
         '\0', 'I'),
+    PredefFunction("spawnw",
+        "spawnw {res}, {arg0}",
+        'I', 'P'),
     PredefFunction("Error",
         "root_new {res}, ['parrot';'Exception']\n"
         "{res}['message'] = {arg0}\n"
