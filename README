@@ -3,8 +3,10 @@ Version: 0.Work-in-progress
 
 (C) 2009 Julian Albo
 
+- Stage 0 compiler:
+
 Usage:
-	winxed [options] sourcefile
+	winxedst [options] sourcefile
 
 Command line options:
 
@@ -28,3 +30,10 @@ Default values:
 
 	When using -e the generated files are named '##eval##' with the
 	appropiate extension.
+
+- Compiler driver:
+
+Compile it with:
+    winxedst --target pbc winxed.winxed
+Run and insructions:
+    parrot winxed.pbc --help
