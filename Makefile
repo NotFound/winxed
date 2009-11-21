@@ -3,11 +3,11 @@
 CXX = g++
 CFLAGS = -g -Wall
 
-winxed: winxed.o token.o errors.o predef.o emit.o
-	$(CXX) -o winxed winxed.o token.o errors.o predef.o emit.o
+winxedst0: winxedst0.o token.o errors.o predef.o emit.o
+	$(CXX) -o winxedst0 winxedst0.o token.o errors.o predef.o emit.o
 
-winxed.o: winxed.cpp emit.h token.h errors.h predef.h
-	$(CXX) $(CFLAGS) -c winxed.cpp
+winxedst0.o: winxedst0.cpp emit.h token.h errors.h predef.h
+	$(CXX) $(CFLAGS) -c winxedst0.cpp
 
 token.o: token.cpp token.h errors.h
 	$(CXX) $(CFLAGS) -c token.cpp
@@ -22,16 +22,16 @@ emit.o: emit.cpp emit.h token.h
 	$(CXX) $(CFLAGS) -c emit.cpp
 
 %.pir: %.winxed winxed
-	./winxed -c $<
+	./winxedst0 -c $<
 
 
-test: winxed
-	./winxed t/harness -r t
+test: winxedst0
+	./winxedst0 t/harness -r t
 
-testv: winxed
-	./winxed t/harness -rv t
+testv: winxedst0
+	./winxedst0 t/harness -rv t
 
 
 clean:
-	rm -f winxed
+	rm -f winxedst0
 	rm -f *.o

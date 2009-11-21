@@ -1,5 +1,7 @@
-// winxed.cpp
+// winxedst0.cpp
 // Revision 21-nov-2009
+
+// Winxed compiler stage 0.
 
 #include "token.h"
 #include "errors.h"
@@ -5951,4 +5953,4 @@ int main (int argc, char **argv)
     return 1;
 }
 
-// End of winxed.cpp
+// End of winxedst0.cpp

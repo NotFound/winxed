@@ -12,7 +12,7 @@ function run_test(string filename)
 {
     var fh;
 
-    string s= './winxed ' + filename;
+    string s= './winxedst0 ' + filename;
     debugmsg(s);
 
     fh= new 'FileHandle';
