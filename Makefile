@@ -1,37 +1,83 @@
 # Makefile for Winxed
 
+#-----------------------------------------------------------------------
+# Modify this section to meet your operating system conventions and
+# compiler used.
+
 CXX = g++
 CFLAGS = -g -Wall
+OBJEXT = .o
+EXEEXT = 
 
-winxedst0: winxedst0.o token.o errors.o predef.o emit.o
-	$(CXX) -o winxedst0 winxedst0.o token.o errors.o predef.o emit.o
+#-----------------------------------------------------------------------
 
-winxedst0.o: winxedst0.cpp emit.h token.h errors.h predef.h
+default: winxedst0
+
+all: winxed$(EXEEXT)
+
+pbc: winxed.pbc
+
+help:
+	@echo "Targets:"
+	@echo "  default - Build the stage 0 compiler"
+	@echo "  all     - Build the compiler driver - native executable"
+	@echo "  pbc     - Build the compiler driver - parrot binary"
+	@echo "  test    - Run the test suite"
+	@echo "  help    - This message"
+
+#-----------------------------------------------------------------------
+
+#-------------------------------
+#    Compiler stage 0 
+#-------------------------------
+
+winxedst0$(EXEEXT): winxedst0$(OBJEXT) token$(OBJEXT) errors$(OBJEXT) predef$(OBJEXT) emit$(OBJEXT)
+	$(CXX) -o winxedst0 winxedst0$(OBJEXT) token$(OBJEXT) errors$(OBJEXT) predef$(OBJEXT) emit$(OBJEXT)
+
+winxedst0$(OBJEXT): winxedst0.cpp emit.h token.h errors.h predef.h
 	$(CXX) $(CFLAGS) -c winxedst0.cpp
 
-token.o: token.cpp token.h errors.h
+token$(OBJEXT): token.cpp token.h errors.h
 	$(CXX) $(CFLAGS) -c token.cpp
 
-errors.o: errors.cpp errors.h token.h
+errors$(OBJEXT): errors.cpp errors.h token.h
 	$(CXX) $(CFLAGS) -c errors.cpp
 
-predef.o: predef.cpp predef.h
+predef$(OBJEXT): predef.cpp predef.h
 	$(CXX) $(CFLAGS) -c predef.cpp
 
-emit.o: emit.cpp emit.h token.h
+emit$(OBJEXT): emit.cpp emit.h token.h
 	$(CXX) $(CFLAGS) -c emit.cpp
 
+#-------------------------------
+#      Driver
+#-------------------------------
+
+winxed$(EXEEXT): winxed.pbc
+	pbc_to_exe winxed.pbc
+
+winxed.pbc: winxed.pir
+	parrot -o winxed.pbc winxed.pir
+
+winxed.pir: winxed.winxed winxedst0$(EXEEXT)
+	./winxedst0$(EXEEXT) -c winxed.winxed
+
+#-----------------------------------------------------------------------
+
+# Useful for some tests
 %.pir: %.winxed winxed
-	./winxedst0 -c $<
+	./winxedst0$(EXEEXT) -c $<
 
 
-test: winxedst0
-	./winxedst0 t/harness -r t
+test: winxedst0$(EXEEXT)
+	./winxedst0$(EXEEXT) t/harness -r t
 
-testv: winxedst0
-	./winxedst0 t/harness -rv t
+testv: winxedst0$(EXEEXT)
+	./winxedst0$(EXEEXT) t/harness -rv t
 
 
 clean:
-	rm -f winxedst0
-	rm -f *.o
+	rm -f winxedst0$(EXEEXT)
+	rm -f *$(OBJEXT)
+
+# Makefile end
