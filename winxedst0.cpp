@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 21-nov-2009
+// Revision 22-nov-2009
 
 // Winxed compiler stage 0.
 
@@ -21,8 +21,15 @@
 
 #include <string.h>
 #include <errno.h>
+
+// Prepare to drop OS dependant features that are now
+// handled by the compiler driver.
+#define OS_DEPEND 1
+
+#if OS_DEPEND
 #include <unistd.h>
 #include <sys/wait.h>
+#endif
 
 #include <typeinfo>
 
@@ -5769,6 +5776,7 @@ std::string genfile(const std::string &filename, const std::string ext)
         return filename.substr(0, n) + "." + ext;
 }
 
+#if OS_DEPEND
 int execute(char **args)
 {
     pid_t p;
@@ -5785,6 +5793,7 @@ int execute(char **args)
         return WIFEXITED(stat) ? WEXITSTATUS(stat) : 127;
     }
 }
+#endif
 
 void winxed_main (int argc, char **argv)
 {
@@ -5890,9 +5899,12 @@ void winxed_main (int argc, char **argv)
             outputfile.close();
     }
 
+    #if OS_DEPEND
     char parrot[]= "parrot;";
+    #endif
     if (!compileonly)
     {
+        #if OS_DEPEND
         int n= argc - i;
         char *args[3 + n + 2 * addlib.size() ];
         args[0] = parrot;
@@ -5910,9 +5922,13 @@ void winxed_main (int argc, char **argv)
         unlink(outputname.c_str());
         if (r)
             throw CompileError("Run failed");
+        #else
+        throw InternalError("Feature not available in this platform");
+        #endif
     }
     else if (target == TargetPbc)
     {
+        #if OS_DEPEND
         char *args[5];
         args[0] = parrot;
         args[1] = strdup("-o");
@@ -5923,6 +5939,9 @@ void winxed_main (int argc, char **argv)
         unlink(pirfile.c_str());
         if (r)
             throw CompileError("PBC compile failed");
+        #else
+        throw InternalError("Feature not available in this platform");
+        #endif
     }
 }
 
