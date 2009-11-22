@@ -111,5 +111,8 @@ function main [main] (argv)
         for (string a in argv)
             runit.push(a);
         spawnw(runit);
+        // Delete the generated pir file.
+        var os = new 'OS';
+        os.rm(pirfile);
     }
 }
