@@ -45,6 +45,7 @@ const int TypeQuoted       = 2;
 const int TypeSingleQuoted = 3;
 const int TypeIdentifier   = 4;
 const int TypeInteger      = 5;
+const int TypeFloat        = 6;
 
 function TokenError(string msg, tk, int line)
 {
@@ -68,6 +69,7 @@ class Token
     function iseof()     { return self.type == TypeEof; }
     function iscomment() { return self.type == TypeComment; }
     function isint()     { return self.type == TypeInteger; }
+    function isfloat()   { return self.type == TypeFloat; }
     function isstring()
     {
         return self.type == TypeQuoted || self.type == TypeSingleQuoted;
@@ -287,8 +289,18 @@ class Tokenizer
                 s+= c;
                 c= self.getchar();
             } while (isdigit(c));
-            self.ungetchar(c);
-            return newToken(TypeInteger, s, self.filename, line);
+            if (c == '.') {
+                do {
+                    s+= c;
+                    c= self.getchar();
+                } while (isdigit(c));
+                self.ungetchar(c);
+                return newToken(TypeFloat, s, self.filename, line);
+            }
+            else {
+                self.ungetchar(c);
+                return newToken(TypeInteger, s, self.filename, line);
+            }
         }
         return getop(self, c, line);
     }
@@ -539,6 +551,24 @@ class IntegerLiteral : SimpleExpr
     }
 }
 
+class FloatLiteral : SimpleExpr
+{
+    var numval;
+    function checkResult() { return 'F'; }
+    function getFloatValue()
+    {
+        string aux= self.numval;
+        var n= new 'Float';
+        n =: aux;
+        return n;
+    }
+    function emit(e, result)
+    {
+        var n= self.getFloatValue();
+        e.say('set ', result, ', ', n);
+    }
+}
+
 class IdentifierExpr : SimpleExpr
 {
     var name;
@@ -638,6 +668,11 @@ function parseExpr_0(tk, owner)
     }
     if (t.isint()) {
         expr= new IntegerLiteral;
+        expr.numval= t;
+        return expr;
+    }
+    if (t.isfloat()) {
+        expr= new FloatLiteral;
         expr.numval= t;
         return expr;
     }
@@ -875,6 +910,7 @@ class FloatStatement : Statement
 {
     var name;
     var reg;
+    var init;
     function parse(tk, owner)
     {
         self.owner= owner;
@@ -885,6 +921,10 @@ class FloatStatement : Statement
         string reg= self.createvar(t, 'N');
         self.reg= reg;
         t= tk.get();
+        if (t.isop('=')) {
+            self.init = parseExpr(tk, self);
+            t= tk.get();
+        }
         if (!t.isop(';'))
             throw SyntaxError("Expected ';'", t);
     }
@@ -892,8 +932,9 @@ class FloatStatement : Statement
     {
         e.annotate(self.name);
         string name= self.name;
-        //e.say('.local int ', name);
-        e.say('set ', self.reg, ', 0', ' # float ', name);
+        e.comment('float ' + name);
+        if (self.init != null)
+            self.init.emit(e, self.reg);
     }
 }
 
@@ -1430,8 +1471,7 @@ function parser(argv)
 
 function main(argv)
 {
-    /*try*/ parser(argv);
-    /*
+    try parser(argv);
     catch (e)
     {
         string msg= e['message'];
@@ -1453,7 +1493,6 @@ function main(argv)
             }
         }
     }
-    */
 }
 
 // End
