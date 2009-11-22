@@ -26,14 +26,27 @@ function showhelp(string name, options)
     }
 }
 
+function extname(string filename, string ext)
+{
+    // Strip a possible .winxed extension from filename,
+    // add ext, and return the result.
+    string newname;
+    int l = length(filename);
+    if (l > 7 && substr(filename, -7) == '.winxed')
+        newname = substr(filename, 0, l - 7) + ext;
+    else
+        newname = filename + ext;
+    return newname;
+}
+
 function main [main] (argv)
 {
     var options = [
-      [ 'c',        'Compile only' ],
+      [ 'c',        'Compile only. Same as --target=pir' ],
       [ 'e=s',      'Evaluate' ],
       [ 'o=s',      'Object name' ],
-      [ 'noan',     'No annotations' ],
-      [ 'target=s', 'Set target type: pir or pbc' ],
+      [ 'noan',     'No code annotations' ],
+      [ 'target=s', 'Set target type: pir, pbc or run. Default is run.' ],
       [ 'help',     'Show this help' ]
     ];
 
@@ -44,26 +57,51 @@ function main [main] (argv)
         getopts.push_string(o[0]);
     string name= argv.shift();
     var opts = getopts.get_options(argv);
-    var help = opts['help'];
+
+    var help =        opts['help'];
+    var compileonly = opts['c'];
+    var noan =        opts['noan'];
+    var eval =        opts['e'];
+    var opt_o =       opts['o'];
+    var opt_target =  opts['target'];
+
     if (help != null) {
         showhelp(name, options);
         return;
     }
 
-    var compileonly = opts['c'];
-    var opt_o = opts['o'];
     string obj = '';
     if (opt_o != null)
         obj = opt_o;
-    var noan = opts['noan'];
-    var eval = opts['e'];
 
-    const int TargetRun = 0;
-    const int TargetPir = 1;
-    const int TargetPbc = 2;
-    int target = TargetRun;
-    if (compileonly != null)
+    const int TargetDefault = 0;
+    const int TargetRun     = 1;
+    const int TargetPir     = 2;
+    const int TargetPbc     = 3;
+    int target = TargetDefault;
+    if (opt_target != null) {
+        string starget = opt_target;
+        switch (starget) {
+        case 'pir':
+            target = TargetPir;
+            break;
+        case 'pbc':
+            target = TargetPbc;
+            break;
+        case 'run':
+            target = TargetRun;
+            break;
+        default:
+            die('Invalid target: ' + starget);
+        }
+    }
+    if (compileonly != null) {
+        if (target != TargetDefault)
+            die("Conflicting options");
         target = TargetPir;
+    }
+    if (target == TargetDefault)
+        target = TargetRun;
 
     string srcfile;
     if (eval == null) {
@@ -77,18 +115,13 @@ function main [main] (argv)
     }
 
     string pirfile;
-    if (obj != '')
+    if (obj != '' && target == TargetPir)
         pirfile = obj;
     else {
         if (eval)
             pirfile = '__eval__.pir';
-        else {
-            int l = length(srcfile);
-            if (l > 7 && substr(srcfile, -7) == '.winxed')
-                pirfile = substr(srcfile, 0, l - 7) + '.pir';
-            else
-                pirfile = srcfile + '.pir';
-        }
+        else
+            pirfile = extname(srcfile, '.pir');
     }
 
     // Call backend compiler
@@ -105,14 +138,35 @@ function main [main] (argv)
     cmd.push(srcfile);
     spawnw(cmd);
 
-    // Execute result
-    if (target == TargetRun) {
-        string runit[] = [ 'parrot', pirfile ];
+    // Use the OS pmc for file operations.
+    var os = new 'OS';
+    string runit[] = [ 'parrot' ];
+
+    switch (target) {
+    case TargetRun:
+        // Execute result
+        runit.push(pirfile);
         for (string a in argv)
             runit.push(a);
         spawnw(runit);
         // Delete the generated pir file.
-        var os = new 'OS';
         os.rm(pirfile);
+        break;
+    case TargetPbc:
+        // Call parrot to ceate the pbc
+        string objfile;
+        if (obj != '')
+            objfile = obj;
+        else
+            objfile = extname(srcfile, '.pbc');
+        runit.push('-o');
+        runit.push(objfile);
+        runit.push(pirfile);
+        spawnw(runit);
+        // Delete the generated pir file.
+        os.rm(pirfile);
+        break;
+    default:
+        ; // Otherwise, nothing to do.
     }
 }
