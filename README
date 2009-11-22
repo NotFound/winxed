@@ -6,7 +6,7 @@ Version: 0.Work-in-progress
 - Stage 0 compiler:
 
 Usage:
-	winxedst [options] sourcefile
+	winxedst0 [options] sourcefile
 
 Command line options:
 
@@ -31,9 +31,24 @@ Default values:
 	When using -e the generated files are named '##eval##' with the
 	appropiate extension.
 
+NOTE:
+	The only supported options from now on are -c and -o.
+	All others are now handled by the compiler driver and will be
+	dropped from the stage 0 compiler in a near future.
+
 - Compiler driver:
 
-Compile it with:
-    winxedst0 --target pbc winxed.winxed
-Run and insructions:
+The compiler driver is written in winxed, to compile it you need to build
+the stage 0 compiler first. Then you can do the following:
+
+Compile it to pir:
+    ./winxedst0 -c winxed.winxed
+Build a parrot pbc executable from the pir:
+    parrot -o winxed.pbc winxed.pir
+Build a native executable from the pbc:
+    pbc_to_exe winxed.pbc
+
+Run and insructions: depending on what you've built you can do
+    parrot winxed.pir --help
     parrot winxed.pbc --help
+    ./winxed --help
