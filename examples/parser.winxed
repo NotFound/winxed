@@ -538,6 +538,10 @@ class StringLiteral : SimpleExpr
     var strval;
     function checkResult() { return 'S'; }
     function getPirString() { return self.strval; }
+    function emit(e, result)
+    {
+        e.say('set ', result, ', ', self.getPirString());
+    }
 }
 
 class IntegerLiteral : SimpleExpr
@@ -559,7 +563,7 @@ class IntegerLiteral : SimpleExpr
 class FloatLiteral : SimpleExpr
 {
     var numval;
-    function checkResult() { return 'F'; }
+    function checkResult() { return 'N'; }
     function getFloatValue()
     {
         string aux= self.numval;
@@ -879,6 +883,7 @@ class VarStatement : Statement
 {
     var name;
     var reg;
+    var init;
     function parse(tk, owner)
     {
         self.owner= owner;
@@ -889,6 +894,10 @@ class VarStatement : Statement
         string reg= self.createvar(t, 'P');
         self.reg= reg;
         t= tk.get();
+        if (t.isop('=')) {
+            self.init = parseExpr(tk, self);
+            t= tk.get();
+        }
         if (!t.isop(';'))
             throw SyntaxError("Expected ';'", t);
     }
@@ -896,8 +905,34 @@ class VarStatement : Statement
     {
         e.annotate(self.name);
         string name= self.name;
-        //e.say('.local int ', name);
-        e.say('null ', self.reg, ' # var ', name);
+        e.comment('var ' + name);
+        if (self.init != null) {
+            string type = self.init.checkResult();
+            switch (type) {
+            case 'P':
+                self.init.emit(e, self.reg);
+                break;
+            case 'I':
+                string value = self.tempreg('I');
+                self.init.emit(e, value);
+                e.say('box ', self.reg, ', ', value);
+                break;
+            case 'N':
+                string value = self.tempreg('N');
+                self.init.emit(e, value);
+                e.say('box ', self.reg, ', ', value);
+                break;
+            case 'S':
+                string value = self.tempreg('S');
+                self.init.emit(e, value);
+                e.say('box ', self.reg, ', ', value);
+                break;
+            default:
+                throw SyntaxError("Invalid var initializer", self.name);
+            }
+        }
+        else
+            e.say('null ', self.reg, ' # var ', name);
     }
 }
 
@@ -1088,12 +1123,20 @@ class FunctionStatement : Item
     var nreg;
     var tempI;
     var freeI;
+    var tempN;
+    var freeN;
+    var tempS;
+    var freeS;
     var nlabel;
 
     function init [vtable]()
     {
         self.tempI= new 'ResizableStringArray';
         self.freeI= new 'ResizableStringArray';
+        self.tempN= new 'ResizableStringArray';
+        self.freeN= new 'ResizableStringArray';
+        self.tempS= new 'ResizableStringArray';
+        self.freeS= new 'ResizableStringArray';
         self.nlabel= 0;
     }
     function createreg(string type)
@@ -1115,22 +1158,44 @@ class FunctionStatement : Item
         {
         case 'I':
             n= self.freeI;
-            if (n > 0) {
+            if (n > 0)
                 reg= self.freeI.pop();
-                return reg;
+            else {
+                reg= self.createreg(type);
+                self.tempI.push(reg);
+            }
+            break;
+        case 'N':
+            n= self.freeN;
+            if (n > 0)
+                reg= self.freeN.pop();
+            else {
+                reg= self.createreg(type);
+                self.tempN.push(reg);
+            }
+            break;
+        case 'S':
+            n= self.freeS;
+            if (n > 0)
+                reg= self.freeS.pop();
+            else {
+                reg= self.createreg(type);
+                self.tempS.push(reg);
             }
             break;
         default:
             throw Error("Invalid register type " + type);
         }
-        reg= self.createreg(type);
-        self.tempI.push(reg);
         return reg;
     }
     function freetemps()
     {
         for (string s in self.tempI)
             self.freeI.unshift(s);
+        for (string s in self.tempN)
+            self.freeN.unshift(s);
+        for (string s in self.tempS)
+            self.freeS.unshift(s);
     }
     function genlabel()
     {
