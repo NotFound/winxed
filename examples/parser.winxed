@@ -460,6 +460,12 @@ function parseStatement(tk, owner)
         c.parse(tk, owner);
         return c;
     }
+    else if (t.iskeyword('say')) {
+        var c= new SayStatement;
+        tk.unget(t);
+        c.parse(tk, owner);
+        return c;
+    }
     else if (t.isidentifier()) {
         var t2= tk.get();
         if (t2.isop(':')) {
@@ -581,7 +587,14 @@ class FloatLiteral : SimpleExpr
 class IdentifierExpr : SimpleExpr
 {
     var name;
-    function checkResult() { return ''; }
+    function checkResult()
+    {
+        var desc = self.owner.getvar(self.name);
+        if (desc != null)
+            return desc['type'];
+        else
+            return '';
+    }
     function getIdentifier()
     {
         var desc = self.owner.getvar(self.name);
@@ -765,32 +778,28 @@ class PrintStatement : Statement
         if (! t.isop(';'))
             throw SyntaxError("Expected ';'", t);
     }
-    function emit(e)
+    function emit_print(e)
     {
         for (var item in self.items) {
             var expr= item;
-            if (expr.issimple()) {
-                self.annotate(e);
-                switch (expr.checkResult()) {
-                case 'S':
-                    string s= expr.getPirString();
-                    e.say("print ", s);
-                    break;
-                case 'I':
-                    int n= expr.getIntegerValue();
-                    e.say("print ", n);
-                    break;
-                case '':
-                    e.say("print ", expr.getIdentifier());
-                    break;
-                }
-            }
-            else {
-                string result= self.tempreg('I');
-                expr.emit(e, result);
-                e.say("print ", result);
-            }
+            string type = expr.checkResult();
+            string result= self.tempreg(type);
+            expr.emit(e, result);
+            e.say("print ", result);
         }
+    }
+    function emit(e)
+    {
+        self.emit_print(e);
+    }
+}
+
+class SayStatement : PrintStatement
+{
+    function emit(e)
+    {
+        self.emit_print(e);
+        e.say('print "\n"');
     }
 }
 
@@ -1127,6 +1136,8 @@ class FunctionStatement : Item
     var freeN;
     var tempS;
     var freeS;
+    var tempP;
+    var freeP;
     var nlabel;
 
     function init [vtable]()
@@ -1137,6 +1148,8 @@ class FunctionStatement : Item
         self.freeN= new 'ResizableStringArray';
         self.tempS= new 'ResizableStringArray';
         self.freeS= new 'ResizableStringArray';
+        self.tempP= new 'ResizableStringArray';
+        self.freeP= new 'ResizableStringArray';
         self.nlabel= 0;
     }
     function createreg(string type)
@@ -1183,6 +1196,15 @@ class FunctionStatement : Item
                 self.tempS.push(reg);
             }
             break;
+        case 'P':
+            n= self.freeP;
+            if (n > 0)
+                reg= self.freeP.pop();
+            else {
+                reg= self.createreg(type);
+                self.tempS.push(reg);
+            }
+            break;
         default:
             throw Error("Invalid register type " + type);
         }
@@ -1196,6 +1218,8 @@ class FunctionStatement : Item
             self.freeN.unshift(s);
         for (string s in self.tempS)
             self.freeS.unshift(s);
+        for (string s in self.tempP)
+            self.freeP.unshift(s);
     }
     function genlabel()
     {
