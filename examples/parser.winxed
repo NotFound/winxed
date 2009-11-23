@@ -429,6 +429,11 @@ function parseStatement(tk, owner)
         c.parse(tk, owner);
         return c;
     }
+    else if (t.iskeyword('var')) {
+        var c = new VarStatement;
+        c.parse(tk, owner);
+        return c;
+    }
     else if (t.iskeyword('string')) {
         var c = new StringStatement;
         c.parse(tk, owner);
@@ -863,6 +868,36 @@ class StringStatement : Statement
         string name= self.name;
         //e.say('.local int ', name);
         e.say('null ', self.reg, ' # string ', name);
+    }
+}
+
+//*********************************************
+//            VarStatement
+//*********************************************
+
+class VarStatement : Statement
+{
+    var name;
+    var reg;
+    function parse(tk, owner)
+    {
+        self.owner= owner;
+        var t= tk.get();
+        if (!t.isidentifier())
+            throw SyntaxError('Identifier expected', t);
+        self.name= t;
+        string reg= self.createvar(t, 'P');
+        self.reg= reg;
+        t= tk.get();
+        if (!t.isop(';'))
+            throw SyntaxError("Expected ';'", t);
+    }
+    function emit(var e)
+    {
+        e.annotate(self.name);
+        string name= self.name;
+        //e.say('.local int ', name);
+        e.say('null ', self.reg, ' # var ', name);
     }
 }
 
