@@ -101,7 +101,7 @@ class Token
 
 function newToken(int type, string s, var file, int line)
 {
-    var t= new Token;
+    var t= new Token();
     t.type= type; t.str= s; t.file= file; t.line= line;
     return t;
 }
@@ -202,7 +202,6 @@ next:
 function getop(tk, string start, int line)
 {
     string s= start;
-    var t= new Token;
     return newToken(TypeOp, s, tk.filename, line);
 }
 
@@ -273,7 +272,7 @@ class Tokenizer
                 c= self.getchar();
         int line= self.line;
         if (c == '') {
-            var t= new Token;
+            var t= new Token();
             t.type= TypeEof;
             return t;
         }
@@ -426,25 +425,25 @@ function parseStatement(tk, owner)
 {
     var t= tk.get();
     if (t.isop('{'))
-        return (new CompoundStatement).parse(tk, owner);
+        return new CompoundStatement().parse(tk, owner);
     else if (t.iskeyword('var'))
-        return (new VarStatement).parse(tk, owner);
+        return new VarStatement().parse(tk, owner);
     else if (t.iskeyword('string'))
-        return (new StringStatement).parse(tk, owner);
+        return new StringStatement().parse(tk, owner);
     else if (t.iskeyword('int'))
-        return (new IntStatement).parse(tk, owner);
+        return new IntStatement().parse(tk, owner);
     else if (t.iskeyword('float'))
-        return (new FloatStatement).parse(tk, owner);
+        return new FloatStatement().parse(tk, owner);
     else if (t.iskeyword('goto'))
-        return (new GotoStatement).parse(tk, owner);
+        return new GotoStatement().parse(tk, owner);
     else if (t.iskeyword('print')) {
-        var c= new PrintStatement;
+        var c= new PrintStatement();
         tk.unget(t);
         c.parse(tk, owner);
         return c;
     }
     else if (t.iskeyword('say')) {
-        var c= new SayStatement;
+        var c= new SayStatement();
         tk.unget(t);
         c.parse(tk, owner);
         return c;
@@ -452,7 +451,7 @@ function parseStatement(tk, owner)
     else if (t.isidentifier()) {
         var t2= tk.get();
         if (t2.isop(':'))
-            return (new LabelStatement).set(owner, t);
+            return new LabelStatement().set(owner, t);
         tk.unget(t2);
     }
     return null;
@@ -676,22 +675,22 @@ function parseExpr_0(tk, owner)
     var t= tk.get();
     var expr;
     if (t.isstring()) {
-        expr= new StringLiteral;
+        expr= new StringLiteral();
         expr.strval= t;
         return expr;
     }
     if (t.isint()) {
-        expr= new IntegerLiteral;
+        expr= new IntegerLiteral();
         expr.numval= t;
         return expr;
     }
     if (t.isfloat()) {
-        expr= new FloatLiteral;
+        expr= new FloatLiteral();
         expr.numval= t;
         return expr;
     }
     if (t.isidentifier()) {
-        expr= new IdentifierExpr;
+        expr= new IdentifierExpr();
         expr.owner= owner;
         expr.name= t;
         return expr;
@@ -705,7 +704,7 @@ function parseExpr_5(tk, owner)
     var t;
     while ((t= tk.get()).isop('*')) {
         var eright= parseExpr_0(tk, owner);
-        var expr= new OpMulExpr;
+        var expr= new OpMulExpr();
         expr.owner= owner;
         expr.start= t;
         expr.eleft= eleft;
@@ -722,7 +721,7 @@ function parseExpr_6(tk, owner)
     var t;
     while ((t= tk.get()).isop('+')) {
         var eright= parseExpr_5(tk, owner);
-        var expr= new OpAddExpr;
+        var expr= new OpAddExpr();
         expr.owner= owner;
         expr.start= t;
         expr.eleft= eleft;
@@ -1085,7 +1084,7 @@ class CompoundStatement : Statement
                 while (! ( (t = tk.get()).isop(';') || t.isop('}') ) ) {
                     //say('-- ', t);
                     if (t.isop('{')) {
-                        var c= new CompoundStatement;
+                        var c= new CompoundStatement();
                         c.parse(tk, self);
                     }
                 }
@@ -1183,10 +1182,10 @@ class FunctionStatement : Item
 
     function init [vtable]()
     {
-        self.regstI = (new RegisterStore).settype('I');
-        self.regstN = (new RegisterStore).settype('N');
-        self.regstS = (new RegisterStore).settype('S');
-        self.regstP = (new RegisterStore).settype('P');
+        self.regstI = new RegisterStore().settype('I');
+        self.regstN = new RegisterStore().settype('N');
+        self.regstS = new RegisterStore().settype('S');
+        self.regstP = new RegisterStore().settype('P');
         self.nlabel= 0;
     }
     function createreg(string type)
@@ -1271,7 +1270,7 @@ class FunctionStatement : Item
         t= tk.get();
         if (!t.isop('{'))
             throw Error("Expected '{'");
-        self.body= (new CompoundStatement).parse(tk, self);
+        self.body= new CompoundStatement().parse(tk, self);
         return self;
     }
 
@@ -1355,7 +1354,7 @@ class ClassStatement : Item
         {
             if (t.iskeyword('function'))
             {
-                var f= (new FunctionStatement).parse(tk, self);
+                var f= new FunctionStatement().parse(tk, self);
                 var functions= self.functions;
                 functions.push(f);
             }
@@ -1442,7 +1441,7 @@ class Namespace : Item
                 t= tk.get();
                 if (!t.isop('{'))
                     throw Error("Expected '{'");
-                var child= new Namespace;
+                var child= new Namespace();
                 child.init_child(self, name);
                 self.namespaces.push(child);
                 self.items.push(child);
@@ -1450,7 +1449,7 @@ class Namespace : Item
             }
             else if (t.iskeyword('function'))
             {
-                var f= new FunctionStatement;
+                var f= new FunctionStatement();
                 f.parse(tk, self);
                 var functions= self.functions;
                 functions.push(f);
@@ -1458,7 +1457,7 @@ class Namespace : Item
             }
             else if (t.iskeyword('class'))
             {
-                var c= new ClassStatement;
+                var c= new ClassStatement();
                 c.parse(tk, self);
                 var classes= self.classes;
                 classes.push(c);
@@ -1518,7 +1517,7 @@ class MiniWinxed
     var rootns;
     function init [vtable] ()
     {
-        self.rootns= new Namespace;
+        self.rootns= new Namespace();
     }
     function parse(tk)
     {
@@ -1536,11 +1535,11 @@ class MiniWinxed
 
 function miniwinxed_parser(tk, int gen)
 {
-        var winxed= new MiniWinxed;
+        var winxed= new MiniWinxed();
         winxed.parse(tk);
         if (gen) {
             var handle= getinterp().stdhandle(1);
-            var emit= new Emit;
+            var emit= new Emit();
             emit.initialize(handle);
             winxed.emit(emit);
         }
@@ -1576,7 +1575,7 @@ function parser(argv)
     var file= new 'FileHandle';
     file.open(filename); // Must throw on error
 
-    var t= new Tokenizer;
+    var t= new Tokenizer();
     t.init(file, filename);
 
     if (miniwinxed)

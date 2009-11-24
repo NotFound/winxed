@@ -95,7 +95,7 @@ class Result
 
         var desc= self.desc;
         frow =: desc;
-        row= new WinxedMysql.Row;
+        row= new WinxedMysql.Row();
         row.init(frow, self.nfields);
         return row;
     }
@@ -170,7 +170,7 @@ class Connection
         if (r == null) throw Error(self.error(), ERROR, TYPE);
         var none = new 'UnManagedStruct';
         if (r == none) throw Error(self.error(), ERROR, TYPE);
-        var result= new WinxedMysql.Result;
+        var result= new WinxedMysql.Result();
         result.init(self.mysql, r);
         return result;
     }
@@ -208,7 +208,7 @@ function main(argv)
 
     if (database == null || database == '') database = 'parrot';
 
-    var mysql= new WinxedMysql.Connection;
+    var mysql= new WinxedMysql.Connection();
     say('Mysql version: ', mysql.get_client_info());
     var result;
 

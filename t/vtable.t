@@ -15,7 +15,7 @@ function main()
     using Test.More.is;
 
     plan(1);
-    var f= new Foo;
+    var f= new Foo();
     string s= f;
     is (s, 'Hello, Foo', 'vtable get_string');
 }

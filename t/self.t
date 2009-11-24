@@ -22,7 +22,7 @@ function main()
 	using Test.More.is;
 	plan (1);
 
-	var f= new Foo;
+	var f= new Foo();
 	f.init(42);
 	is(f.get(), 42, 'set and get via self');
 }

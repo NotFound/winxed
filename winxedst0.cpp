@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 22-nov-2009
+// Revision 24-nov-2009
 
 // Winxed compiler stage 0.
 
@@ -3689,16 +3689,13 @@ NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
     if (t.issinglequoted())
     {
         value = "root_new ['parrot'; " + t.pirliteralstring() + " ]";
-        t= tk.get();
-        if ((! t.isop(';') && (!t.isop(')'))))
+        if ((t= tk.get()).isop('('))
         {
-            tk.unget(t);
             init = parseExpr(block, tk);
+            ExpectOp(')', tk);
         }
         else
-        {
             tk.unget(t);
-        }
     }
     else
     {
@@ -3716,7 +3713,8 @@ NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
             value+= "'" + prefix[i] + "';";
         }
         value+= "'" + name + "' ]";
-        tk.unget(t);
+        RequireOp('(', t);
+        ExpectOp(')', tk);
     }
     //std::cerr << "NewExpr::NewExpr end\n";
 }

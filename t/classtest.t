@@ -23,7 +23,7 @@ class Bar
 
 function main()
 {
-	var tests = [ new Foo, new Bar ];
+	var tests = [ new Foo(), new Bar() ];
 	var t;
 	int total= 0;
 	for (t in tests)

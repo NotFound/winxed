@@ -9,10 +9,10 @@ function aux()
 	catch ()
 	{
 		say("Hello");
-		throw new 'Exception' {
+		throw new 'Exception' ({
 			"message": "Hi, world",
 			"severity": 3
-		};
+		});
 	}
 }
 

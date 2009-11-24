@@ -2,7 +2,7 @@
 
 function aux()
 {
-    throw new 'Exception' { 'message': 'something bad' };
+    throw new 'Exception'({ 'message': 'something bad' });
 }
 
 function main()
