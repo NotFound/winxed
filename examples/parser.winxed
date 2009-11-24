@@ -424,6 +424,8 @@ class Item
 function parseStatement(tk, owner)
 {
     var t= tk.get();
+    if (t.isop(';'))
+        return new EmptyStatement();
     if (t.isop('{'))
         return new CompoundStatement().parse(tk, owner);
     else if (t.iskeyword('var'))
@@ -436,6 +438,8 @@ function parseStatement(tk, owner)
         return new FloatStatement().parse(tk, owner);
     else if (t.iskeyword('goto'))
         return new GotoStatement().parse(tk, owner);
+    else if (t.iskeyword('if'))
+        return new IfStatement().parse(tk, owner);
     else if (t.iskeyword('print')) {
         var c= new PrintStatement();
         tk.unget(t);
@@ -465,6 +469,7 @@ class Statement : Item
 {
     var start;
     var owner;
+    function isempty() { return 0; }
     function annotate(e)
     {
         e.annotate(self.start);
@@ -503,6 +508,15 @@ class Statement : Item
     }
 }
 
+class EmptyStatement : Statement
+{
+    function isempty() { return 0; }
+    function emit(e)
+    {
+        // Do nothing
+    }
+}
+
 //*********************************************
 //            Expr
 //*********************************************
@@ -512,6 +526,13 @@ class Expr
     var owner;
     function issimple() { return 0; }
     function isidentifier() { return 0; }
+    function emit_get(e)
+    {
+        string type = self.checkResult();
+        string reg = self.owner.tempreg(type);
+        self.emit(e, reg);
+        return reg;
+    }
 }
 
 class SimpleExpr : Expr
@@ -528,6 +549,10 @@ class StringLiteral : SimpleExpr
     {
         e.say('set ', result, ', ', self.getPirString());
     }
+    function emit_get(e)
+    {
+        return self.getPirString();
+    }
 }
 
 class IntegerLiteral : SimpleExpr
@@ -543,6 +568,10 @@ class IntegerLiteral : SimpleExpr
     function emit(e, result)
     {
         e.say('set ', result, ', ', self.getIntegerValue());
+    }
+    function emit_get(e)
+    {
+        return self.getIntegerValue();
     }
 }
 
@@ -561,6 +590,10 @@ class FloatLiteral : SimpleExpr
     {
         var n= self.getFloatValue();
         e.say('set ', result, ', ', n);
+    }
+    function emit_get(e)
+    {
+        return self.getFloatValue();
     }
 }
 
@@ -585,6 +618,10 @@ class IdentifierExpr : SimpleExpr
     function emit(e, result)
     {
         e.say('set ', result, ', ', self.getIdentifier());
+    }
+    function emit_get(e)
+    {
+        return self.getIdentifier();
     }
 }
 
@@ -676,16 +713,19 @@ function parseExpr_0(tk, owner)
     var expr;
     if (t.isstring()) {
         expr= new StringLiteral();
+        expr.owner= owner;
         expr.strval= t;
         return expr;
     }
     if (t.isint()) {
         expr= new IntegerLiteral();
+        expr.owner= owner;
         expr.numval= t;
         return expr;
     }
     if (t.isfloat()) {
         expr= new FloatLiteral();
+        expr.owner= owner;
         expr.numval= t;
         return expr;
     }
@@ -773,9 +813,7 @@ class PrintStatement : Statement
     {
         for (var item in self.items) {
             var expr= item;
-            string type = expr.checkResult();
-            string result= self.tempreg(type);
-            expr.emit(e, result);
+            string result = expr.emit_get(e);
             self.annotate(e);
             e.say("print ", result);
         }
@@ -815,7 +853,7 @@ class LabelStatement : Statement
     function emit(e)
     {
         self.annotate(e);
-        e.say(self.value, ':');
+        e.say(self.value, ': # label ', self.name);
     }
 }
 
@@ -844,7 +882,74 @@ class GotoStatement : Statement
     {
         self.annotate(e);
         string value= self.getlabel(self.label);
-        e.say('goto ', value);
+        e.say('goto ', value, ' # goto ', self.label);
+    }
+}
+
+//*********************************************
+//            IfStatement
+//*********************************************
+
+class IfStatement : Statement
+{
+    var condition;
+    var truebranch;
+    var falsebranch;
+    function parse(tk, owner)
+    {
+        self.owner= owner;
+        var t= tk.get();
+        if (!t.isop('('))
+            throw SyntaxError("Expected '('", t);
+        self.start = t;
+        self.condition = parseExpr(tk, self);
+        t= tk.get();
+        if (! t.isop(')'))
+            throw SyntaxError("Expected ')'", t);
+        self.truebranch = parseStatement(tk, self);
+        t = tk.get();
+        if (t.iskeyword("else"))
+            self.falsebranch = parseStatement(tk, self);
+        else {
+            self.falsebranch = new EmptyStatement();
+            tk.unget(t);
+        }
+        return self;
+    }
+    function emit(e)
+    {
+        string elselabel = '';
+        if (! self.falsebranch.isempty())
+            elselabel = self.genlabel();
+        string endlabel = self.genlabel();
+        string cond_false;
+        if (elselabel == '')
+            cond_false = endlabel;
+        else
+            cond_false = elselabel;
+        self.annotate(e);
+        var condition = self.condition;
+        string type = condition.checkResult();
+        string reg = self.tempreg(type);
+        condition.emit(e, reg);
+        switch(type) {
+        case 'S':
+        case 'P':
+            e.say('if_null ', reg, ', ', cond_false);
+        case 'I':
+        case 'N':
+            e.say('unless ', reg, ' goto ', cond_false);
+            break;
+        default:
+            InternalError('Invalid if condition');
+        }
+        self.truebranch.emit(e);
+        if (! self.falsebranch.isempty()) {
+            e.say('goto ', endlabel);
+            e.say(elselabel, ': #else');
+            self.falsebranch.emit(e);
+        }
+        e.say(endlabel, ': # endif');
     }
 }
 
