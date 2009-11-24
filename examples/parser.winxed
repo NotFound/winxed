@@ -440,6 +440,8 @@ function parseStatement(tk, owner)
         return new GotoStatement().parse(tk, owner);
     else if (t.iskeyword('if'))
         return new IfStatement().parse(tk, owner);
+    else if (t.iskeyword('for'))
+        return parseFor(t, tk, owner);
     else if (t.iskeyword('print')) {
         var c= new PrintStatement();
         tk.unget(t);
@@ -954,6 +956,59 @@ class IfStatement : Statement
 }
 
 //*********************************************
+//            ForeachStatement
+//*********************************************
+
+class ForeachStatement : Statement
+{
+    var varname;
+    var vartype;
+    var container;
+    var body;
+
+    function emit(e)
+    {
+        self.annotate(e);
+        string regcont = self.container.emit_get(e);
+        var itvar = self.getvar(self.varname);
+        string iterator = self.createreg('P');
+        string continuelabel = self.genlabel();
+        string breaklabel = self.genlabel();
+        e.say('iter ', iterator, ', ', regcont);
+        e.say('set ', iterator, ', 0');
+        e.say(continuelabel, ': # for iteration');
+        e.say('unless ', iterator, " goto ", breaklabel);
+        e.say('shift ', itvar['reg'], ', ', iterator);
+        self.body.emit(e);
+        e.say('goto ', continuelabel);
+        e.say(breaklabel, ': # endfor');
+    }
+}
+
+//*********************************************
+
+function parseFor(t, tk, owner)
+{
+    var aux= tk.get();
+    if (!aux.isop('('))
+        throw SyntaxError("Expected '('", aux);
+    var name = tk.get();
+    var in = tk.get();
+    if (! in.iskeyword('in'))
+        throw SyntaxError('Unimplemented', t);
+    var forst = new ForeachStatement();
+    forst.start = t;
+    forst.owner = owner;
+    forst.varname = name;
+    forst.container = parseExpr(tk, forst);
+    aux = tk.get();
+    if (!aux.isop(')'))
+        throw SyntaxError("Expected ')'", aux);
+    forst.body = parseStatement(tk, forst);
+    return forst;
+}
+
+//*********************************************
 //            DeclareStatement
 //*********************************************
 
@@ -1115,15 +1170,52 @@ class FloatStatement : DeclareStatement
 }
 
 //*********************************************
+//            VarContainer
+//*********************************************
+
+class VarContainer
+{
+    var locals;
+    function init [vtable] ()
+    {
+        self.locals = new 'Hash';
+    }
+    function createvar(var name, string type)
+    {
+        var locals= self.locals;
+        string sname= name;
+        var exist= locals[sname];
+        if (exist != null)
+            throw SyntaxError('Redeclared', name);
+        string reg= self.createreg(type);
+        var descriptor= new 'Hash';
+        descriptor['type'] = type;
+        descriptor['reg'] = reg;
+        descriptor['const']= 0;
+        locals[sname]= descriptor;
+        return reg;
+    }
+    function getvar(var name)
+    {
+        var locals= self.locals;
+        string sname= name;
+        var exist= locals[sname];
+        if (exist == null)
+            exist = self.owner.getvar(name);
+        return exist;
+    }
+}
+
+//*********************************************
 //            CompoundStatement
 //*********************************************
 
-class CompoundStatement : Statement
+class CompoundStatement : Statement, VarContainer
 {
     var statements;
     var end;
     var labels;
-    var locals;
+    //var locals;
 
     function init [vtable] ()
     {
@@ -1149,6 +1241,7 @@ class CompoundStatement : Statement
         labels[s]= value;
         return value;
     }
+/*
     function createvar(var name, string type)
     {
         if (self.locals == null)
@@ -1174,7 +1267,7 @@ class CompoundStatement : Statement
         var exist= locals[sname];
         return exist;
     }
-
+*/
     function parse(tk, owner)
     {
         //say('<<{');
@@ -1273,11 +1366,12 @@ class RegisterStore
 //            FunctionStatement
 //*********************************************
 
-class FunctionStatement : Item
+class FunctionStatement : Item, VarContainer
 {
     var owner;
     var name;
     var modifiers;
+    var args;
     var body;
     var regstI;
     var regstN;
@@ -1368,9 +1462,20 @@ class FunctionStatement : Item
         }
         if (! t.isop('('))
             throw Error("Expected '('");
+        self.args = new 'ResizableStringArray';
         t= tk.get();
-        while (! t.isop(')'))
-            t= tk.get();
+        if (! t.isop(')')) {
+            tk.unget(t);
+            do {
+                t= tk.get();
+                string s = t;
+                self.args.push(s);
+                self.createvar(s, 'P');
+                t= tk.get();
+            } while (t.isop(','));
+            if (!t.isop(')'))
+                throw Error("Expected ')'");
+        }
 
         t= tk.get();
         if (!t.isop('{'))
@@ -1410,6 +1515,13 @@ class FunctionStatement : Item
         }
         e.say();
         e.annotate(self.name);
+        var arg;
+        for (arg in self.args)
+            say('.param pmc ', arg);
+        for (arg in self.args) {
+            var a = self.getvar(arg);
+            say('set ', a['reg'], ', ', arg);
+        }
 
         e.comment('Body');
         self.body.emit(e);
