@@ -45,6 +45,8 @@ function main [main] (argv)
       [ 'c',        'Compile only. Same as --target=pir' ],
       [ 'e=s',      'Evaluate' ],
       [ 'o=s',      'Object name' ],
+      [ 'L=s',      'Add to parrot library search path' ],
+      [ 'I=s',      'Add to parrot include search path' ],
       [ 'noan',     'No code annotations' ],
       [ 'target=s', 'Set target type: pir, pbc or run. Default is run.' ],
       [ 'help',     'Show this help' ]
@@ -62,6 +64,8 @@ function main [main] (argv)
     var compileonly = opts['c'];
     var noan =        opts['noan'];
     var eval =        opts['e'];
+    var opt_L =       opts['L'];
+    var opt_I =       opts['I'];
     var opt_o =       opts['o'];
     var opt_target =  opts['target'];
 
@@ -73,6 +77,12 @@ function main [main] (argv)
     string obj = '';
     if (opt_o != null)
         obj = opt_o;
+    string libs = '';
+    if (opt_L != null)
+        libs = opt_L;
+    string incs = '';
+    if (opt_I != null)
+        incs = opt_I;
 
     const int TargetDefault = 0;
     const int TargetRun     = 1;
@@ -145,6 +155,14 @@ function main [main] (argv)
     switch (target) {
     case TargetRun:
         // Execute result
+        if (libs != '') {
+            runit.push('-L');
+            runit.push(libs);
+        }
+        if (incs != '') {
+            runit.push('-I');
+            runit.push(incs);
+        }
         runit.push(pirfile);
         for (string a in argv)
             runit.push(a);
