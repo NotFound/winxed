@@ -460,7 +460,8 @@ function parseStatement(tk, owner)
             return new LabelStatement().set(owner, t);
         tk.unget(t2);
     }
-    return null;
+    tk.unget(t);
+    return new ExprStatement().parse(tk, owner);
 }
 
 //*********************************************
@@ -516,6 +517,23 @@ class EmptyStatement : Statement
     function emit(e)
     {
         // Do nothing
+    }
+}
+
+//*********************************************
+//            ExprStatement
+//*********************************************
+
+class ExprStatement : Statement
+{
+    var expr;
+    function parse(tk, owner)
+    {
+        self.owner = owner;
+        self.expr = parseExpr(tk, self);
+    }
+    function emit(e)
+    {
     }
 }
 
@@ -674,6 +692,13 @@ class IdentifierExpr : SimpleExpr
     }
 }
 
+class OpAssignExpr : Expr
+{
+    var start;
+    var eleft;
+    var eright;
+}
+
 class OpAddExpr : Expr
 {
     var start;
@@ -821,9 +846,27 @@ function parseExpr_6(tk, owner)
     return eleft;
 }
 
+function parseExpr_16(tk, owner)
+{
+    var subexpr = parseExpr_6(tk, owner);
+    var t= tk.get();
+    while (t.isop('=')) {
+        var subexpr2 = parseExpr_16(tk, owner);
+        var expr = new OpAssignExpr();
+        expr.owner= owner;
+        expr.start= t;
+        expr.eleft= subexpr;
+        expr.eright= subexpr2;
+        subexpr = expr;
+        t= tk.get();
+    }
+    tk.unget(t);
+    return subexpr;
+}
+
 function parseExpr(tk, owner)
 {
-    return parseExpr_6(tk, owner);
+    return parseExpr_16(tk, owner);
 }
 
 //*********************************************
