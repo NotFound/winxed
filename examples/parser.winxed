@@ -520,6 +520,53 @@ class EmptyStatement : Statement
 }
 
 //*********************************************
+//            VarContainer
+//*********************************************
+
+class VarContainer
+{
+    var locals;
+    function init [vtable] ()
+    {
+        self.locals = new 'Hash';
+    }
+    function createvar(var name, string type)
+    {
+        var locals= self.locals;
+        string sname= name;
+        var exist= locals[sname];
+        if (exist != null)
+            throw SyntaxError("Redeclared '" + sname + "'", name);
+        string reg= self.createreg(type);
+        var descriptor= new 'Hash';
+        descriptor['type'] = type;
+        descriptor['reg'] = reg;
+        descriptor['const']= 0;
+        locals[sname]= descriptor;
+        return reg;
+    }
+    function getvar(var name)
+    {
+        var locals= self.locals;
+        string sname= name;
+        var exist= locals[sname];
+        if (exist == null)
+            exist = self.owner.getvar(name);
+        return exist;
+    }
+}
+
+//*********************************************
+//            BlockStatement
+//*********************************************
+
+// A BlockStatement is a Statement that can have local variables.
+
+class BlockStatement : VarContainer, Statement
+{
+}
+
+//*********************************************
 //            Expr
 //*********************************************
 
@@ -959,13 +1006,45 @@ class IfStatement : Statement
 //            ForeachStatement
 //*********************************************
 
-class ForeachStatement : Statement
+class ForeachStatement : BlockStatement
 {
     var varname;
-    var vartype;
     var container;
     var body;
 
+    function parse(t, tk, owner)
+    {
+        self.start = t;
+        self.owner = owner;
+        var name = tk.get();
+        string sname = name;
+        string type = '';
+        switch (sname)
+        {
+        case 'int':
+            type = 'I'; break;
+        case 'float':
+            type = 'N'; break;
+        case 'string':
+            type = 'S'; break;
+        case 'var':
+            type = 'P'; break;
+        }
+        if (type != '') {
+            name = tk.get();
+            sname = name;
+            self.createvar(sname, type);
+        }
+        var aux= tk.get();
+        self.varname = name;
+        self.container = parseExpr(tk, self);
+        var aux = tk.get();
+        if (!aux.isop(')'))
+            throw SyntaxError("Expected ')'", aux);
+        self.body = parseStatement(tk, self);
+
+        return self;
+    }
     function emit(e)
     {
         self.annotate(e);
@@ -989,23 +1068,19 @@ class ForeachStatement : Statement
 
 function parseFor(t, tk, owner)
 {
-    var aux= tk.get();
-    if (!aux.isop('('))
-        throw SyntaxError("Expected '('", aux);
-    var name = tk.get();
-    var in = tk.get();
-    if (! in.iskeyword('in'))
-        throw SyntaxError('Unimplemented', t);
-    var forst = new ForeachStatement();
-    forst.start = t;
-    forst.owner = owner;
-    forst.varname = name;
-    forst.container = parseExpr(tk, forst);
-    aux = tk.get();
-    if (!aux.isop(')'))
-        throw SyntaxError("Expected ')'", aux);
-    forst.body = parseStatement(tk, forst);
-    return forst;
+    var paren = tk.get();
+    if (!paren.isop('('))
+        throw SyntaxError("Expected '('", paren);
+    var aux = tk.get();
+    var in1 = tk.get();
+    var in2 = tk.get();
+    if (in1.iskeyword('in') || in2.iskeyword('in')) {
+        tk.unget(in2);
+        tk.unget(in1);
+        tk.unget(aux);
+        return new ForeachStatement().parse(t, tk, owner);
+    }
+    throw SyntaxError('Unimplemented', t);
 }
 
 //*********************************************
@@ -1170,47 +1245,10 @@ class FloatStatement : DeclareStatement
 }
 
 //*********************************************
-//            VarContainer
-//*********************************************
-
-class VarContainer
-{
-    var locals;
-    function init [vtable] ()
-    {
-        self.locals = new 'Hash';
-    }
-    function createvar(var name, string type)
-    {
-        var locals= self.locals;
-        string sname= name;
-        var exist= locals[sname];
-        if (exist != null)
-            throw SyntaxError('Redeclared', name);
-        string reg= self.createreg(type);
-        var descriptor= new 'Hash';
-        descriptor['type'] = type;
-        descriptor['reg'] = reg;
-        descriptor['const']= 0;
-        locals[sname]= descriptor;
-        return reg;
-    }
-    function getvar(var name)
-    {
-        var locals= self.locals;
-        string sname= name;
-        var exist= locals[sname];
-        if (exist == null)
-            exist = self.owner.getvar(name);
-        return exist;
-    }
-}
-
-//*********************************************
 //            CompoundStatement
 //*********************************************
 
-class CompoundStatement : Statement, VarContainer
+class CompoundStatement : BlockStatement
 {
     var statements;
     var end;
@@ -1241,33 +1279,6 @@ class CompoundStatement : Statement, VarContainer
         labels[s]= value;
         return value;
     }
-/*
-    function createvar(var name, string type)
-    {
-        if (self.locals == null)
-            self.locals = new 'Hash';
-        var locals= self.locals;
-        string sname= name;
-        var exist= locals[sname];
-        if (exist != null)
-            throw SyntaxError('Redeclared', name);
-        string reg= self.createreg(type);
-        var descriptor= new 'Hash';
-        descriptor['type'] = type;
-        descriptor['reg'] = reg;
-        descriptor['const']= 0;
-        locals[sname]= descriptor;
-        return reg;
-    }
-    function getvar(var name)
-    {
-        var locals= self.locals;
-        if (locals == null) return null;
-        string sname= name;
-        var exist= locals[sname];
-        return exist;
-    }
-*/
     function parse(tk, owner)
     {
         //say('<<{');
@@ -1366,7 +1377,7 @@ class RegisterStore
 //            FunctionStatement
 //*********************************************
 
-class FunctionStatement : Item, VarContainer
+class FunctionStatement : BlockStatement
 {
     var owner;
     var name;
