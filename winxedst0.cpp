@@ -5564,11 +5564,13 @@ Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
     Token t= tk.get();
     if (t.isop(':'))
     {
-        t= tk.get();
-        if (! (t.isidentifier () ||  t.isliteralstring()))
-            throw Expected("parent class", t);
-        parents.push_back(t);
-        t= tk.get();
+        do {
+            t= tk.get();
+            if (! (t.isidentifier () ||  t.isliteralstring()))
+                throw Expected("parent class", t);
+            parents.push_back(t);
+            t= tk.get();
+        } while (t.isop(','));
     }
     RequireOp('{', t);
 
