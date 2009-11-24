@@ -87,8 +87,7 @@ class Token
     function get_string[vtable]()
     {
         string str= self.str;
-        switch (self.type)
-        {
+        switch (self.type) {
         case TypeQuoted:
             str= '"' + str + '"';
             break;
@@ -115,8 +114,7 @@ function getquoted(tk, string start, int line)
 {
     string s;
     string c= tk.getchar();
-    while (c != '"')
-    {
+    while (c != '"') {
         if (c == '' || c == "\n")
             throw TokenError('Unterminated string', tk, line);
         s+= c;
@@ -129,8 +127,7 @@ function getsinglequoted(tk, string start, int line)
 {
     string s;
     string c= tk.getchar();
-    while (c != "'")
-    {
+    while (c != "'") {
         if (c == '' || c == "\n")
             throw TokenError('Unterminated string', tk, line);
         s+= c;
@@ -143,8 +140,7 @@ function getident(tk, string start, int line)
 {
     string s= start;
     string c= tk.getchar();
-    while (isident(c))
-    {
+    while (isident(c)) {
         s+= c;
         c= tk.getchar();
     }
@@ -152,12 +148,33 @@ function getident(tk, string start, int line)
     return newToken(TypeIdentifier, s, tk.filename, line);
 }
 
+function getnumber(tk, string start, int line)
+{
+    string s;
+    string c = start;
+    do {
+        s+= c;
+        c= tk.getchar();
+    } while (isdigit(c));
+    if (c == '.') {
+        do {
+            s+= c;
+            c= tk.getchar();
+        } while (isdigit(c));
+        tk.ungetchar(c);
+        return newToken(TypeFloat, s, tk.filename, line);
+    }
+    else {
+        tk.ungetchar(c);
+        return newToken(TypeInteger, s, tk.filename, line);
+    }
+}
+
 function getlinecomment(tk, string start, int line)
 {
     string s= start;
     string c= tk.getchar();
-    while (c != '' && c != "\n")
-    {
+    while (c != '' && c != "\n") {
         s+= c;
         c= tk.getchar();
     }
@@ -228,15 +245,13 @@ class Tokenizer
     function getchar()
     {
         string pending= self.pending;
-        if (pending != '')
-        {
+        if (pending != '') {
             self.pending= '';
             return pending;
         }
         var h= self.h;
         string c= h.read(1);
-        if (c == "\n")
-        {
+        if (c == "\n") {
                 int l=self.line;
                 ++l;
                 self.line= l;
@@ -257,49 +272,29 @@ class Tokenizer
         while (isspace(c))
                 c= self.getchar();
         int line= self.line;
-        if (c == '')
-        {
+        if (c == '') {
             var t= new Token;
             t.type= TypeEof;
             return t;
         }
-        if (isidentstart(c)) return getident(self, c, line);
+        if (isidentstart(c))
+            return getident(self, c, line);
+        if (isdigit(c))
+            return getnumber(self, c, line);
         var select = self.select;
         var current= select[c];
-        if (current)
-        {
+        if (current) {
             string c2= self.getchar();
             var current2= current[c2];
-            if (current2)
-            {
+            if (current2) {
                 c+= c2;
                 return current2(self, c, line);
             }
-            else
-            {
+            else {
                 self.ungetchar(c2);
                 current2= current[''];
                 if (current2)
                     return current2(self, c, line);
-            }
-        }
-        if (isdigit(c)) {
-            string s;
-            do {
-                s+= c;
-                c= self.getchar();
-            } while (isdigit(c));
-            if (c == '.') {
-                do {
-                    s+= c;
-                    c= self.getchar();
-                } while (isdigit(c));
-                self.ungetchar(c);
-                return newToken(TypeFloat, s, self.filename, line);
-            }
-            else {
-                self.ungetchar(c);
-                return newToken(TypeInteger, s, self.filename, line);
             }
         }
         return getop(self, c, line);
@@ -406,6 +401,12 @@ class Emit
 //       Auxiliary classes and functions
 //*********************************************
 
+function InternalError(string msg)
+{
+   var ex= Error(msg, 2, 555);
+   throw ex;
+}
+
 function SyntaxError(string msg, var pos)
 {
    string sline= pos.line;
@@ -424,36 +425,18 @@ class Item
 function parseStatement(tk, owner)
 {
     var t= tk.get();
-    if (t.isop('{')) {
-        var c = new CompoundStatement;
-        c.parse(tk, owner);
-        return c;
-    }
-    else if (t.iskeyword('var')) {
-        var c = new VarStatement;
-        c.parse(tk, owner);
-        return c;
-    }
-    else if (t.iskeyword('string')) {
-        var c = new StringStatement;
-        c.parse(tk, owner);
-        return c;
-    }
-    else if (t.iskeyword('int')) {
-        var c = new IntStatement;
-        c.parse(tk, owner);
-        return c;
-    }
-    else if (t.iskeyword('float')) {
-        var c = new FloatStatement;
-        c.parse(tk, owner);
-        return c;
-    }
-    else if (t.iskeyword('goto')) {
-        var c = new GotoStatement;
-        c.parse(tk, owner);
-        return c;
-    }
+    if (t.isop('{'))
+        return (new CompoundStatement).parse(tk, owner);
+    else if (t.iskeyword('var'))
+        return (new VarStatement).parse(tk, owner);
+    else if (t.iskeyword('string'))
+        return (new StringStatement).parse(tk, owner);
+    else if (t.iskeyword('int'))
+        return (new IntStatement).parse(tk, owner);
+    else if (t.iskeyword('float'))
+        return (new FloatStatement).parse(tk, owner);
+    else if (t.iskeyword('goto'))
+        return (new GotoStatement).parse(tk, owner);
     else if (t.iskeyword('print')) {
         var c= new PrintStatement;
         tk.unget(t);
@@ -468,11 +451,8 @@ function parseStatement(tk, owner)
     }
     else if (t.isidentifier()) {
         var t2= tk.get();
-        if (t2.isop(':')) {
-            var c= new LabelStatement;
-            c.set(owner, t);
-            return c;
-        }
+        if (t2.isop(':'))
+            return (new LabelStatement).set(owner, t);
         tk.unget(t2);
     }
     return null;
@@ -532,6 +512,7 @@ class Expr
 {
     var owner;
     function issimple() { return 0; }
+    function isidentifier() { return 0; }
 }
 
 class SimpleExpr : Expr
@@ -587,6 +568,7 @@ class FloatLiteral : SimpleExpr
 class IdentifierExpr : SimpleExpr
 {
     var name;
+    function isidentifier() { return 1; }
     function checkResult()
     {
         var desc = self.owner.getvar(self.name);
@@ -644,35 +626,45 @@ class OpMulExpr : Expr
     var start;
     var eleft;
     var eright;
-    function checkResult() { return 'I'; }
+    function checkResult()
+    {
+        if (self.eleft.checkResult() == 'I' && self.eright.checkResult() == 'I')
+            return 'I';
+        else
+            return 'N';
+    }
     function emit(e, result)
     {
+        var eleft = self.eleft;
+        var eright = self.eright;
         string rleft;
         string rright;
         int nleft;
         int nright;
-        if (! self.eleft.issimple()) {
-            string rleft= self.owner.tempreg('I');
-            self.eleft.emit(e, rleft);
+        if ((!eleft.issimple()) || eleft.isidentifier()) {
+            string rleft= self.owner.tempreg(self.checkResult());
+            eleft.emit(e, rleft);
         }
         else {
-            nleft= self.eleft.getIntegerValue();
+            nleft= eleft.getIntegerValue();
             rleft= nleft;
         }
-        if (! self.eright.issimple()) {
-            string rright= self.owner.tempreg('I');
-            self.eright.emit(e, rright);
+        if ((!eright.issimple()) || eright.isidentifier()) {
+            string rright= self.owner.tempreg(self.checkResult());
+            eright.emit(e, rright);
         }
         else {
-            string type = self.eright.checkResult();
+            string type = eright.checkResult();
             switch(type) {
+            case 'S':
+                string rright= self.owner.tempreg(self.checkResult());
+                eright.emit(e, rright);
+                break;
             case 'I':
-                nright= self.eright.getIntegerValue();
+            default:
+                nright= eright.getIntegerValue();
                 rright= nright;
                 break;
-            default:
-                string rright= self.owner.tempreg('I');
-                self.eright.emit(e, rright);
             }
         }
         e.say('mul ', result, ', ', rleft, ', ', rright);
@@ -785,6 +777,7 @@ class PrintStatement : Statement
             string type = expr.checkResult();
             string result= self.tempreg(type);
             expr.emit(e, result);
+            self.annotate(e);
             e.say("print ", result);
         }
     }
@@ -813,11 +806,12 @@ class LabelStatement : Statement
     var value;
     function set(owner, n)
     {
-            self.owner= owner;
+        self.owner= owner;
         self.start= n;
         self.name= n;
         string value= self.owner.createlabel(n);
         self.value= value;
+        return self;
     }
     function emit(e)
     {
@@ -845,6 +839,7 @@ class GotoStatement : Statement
         t= tk.get();
         if (!t.isop(';'))
             throw SyntaxError("Expected ';'", t);
+        return self;
     }
     function emit(e)
     {
@@ -855,13 +850,16 @@ class GotoStatement : Statement
 }
 
 //*********************************************
-//            StringStatement
+//            DeclareStatement
 //*********************************************
 
-class StringStatement : Statement
+class DeclareStatement : Statement
 {
     var name;
+    var t_reg;
+    var t_name;
     var reg;
+    var init;
     function parse(tk, owner)
     {
         self.owner= owner;
@@ -869,18 +867,40 @@ class StringStatement : Statement
         if (!t.isidentifier())
             throw SyntaxError('Identifier expected', t);
         self.name= t;
-        string reg= self.createvar(t, 'S');
+        string reg= self.createvar(t, self.t_reg);
         self.reg= reg;
         t= tk.get();
+        if (t.isop('=')) {
+            self.init = parseExpr(tk, self);
+            t= tk.get();
+        }
         if (!t.isop(';'))
             throw SyntaxError("Expected ';'", t);
+        return self;
     }
     function emit(var e)
     {
         e.annotate(self.name);
-        string name= self.name;
-        //e.say('.local int ', name);
-        e.say('null ', self.reg, ' # string ', name);
+        string tname = self.t_name;
+        string name = self.name;
+        string reg = self.reg;
+        e.comment(tname + ' ' + name + ': ' + reg);
+        if (self.init != null) {
+            string itype = self.init.checkResult();
+            if (itype == self.t_reg)
+                self.init.emit(e, reg);
+            else {
+                string ireg = self.tempreg(itype);
+                self.init.emit(e, ireg);
+                e.say('set ', reg, ', ', ireg);
+            }
+        }
+        else
+            self.defaultinit(e);
+    }
+    function defaultinit(var e)
+    {
+        InternalError('DeclareStatement.defaultinit must be overriden');
     }
 }
 
@@ -909,39 +929,50 @@ class VarStatement : Statement
         }
         if (!t.isop(';'))
             throw SyntaxError("Expected ';'", t);
+        return self;
     }
     function emit(var e)
     {
         e.annotate(self.name);
-        string name= self.name;
-        e.comment('var ' + name);
+        string name=  self.name;
+        string reg = self.reg;
+        e.comment('var ' + name + ': ' + reg);
         if (self.init != null) {
             string type = self.init.checkResult();
             switch (type) {
             case 'P':
-                self.init.emit(e, self.reg);
-                break;
-            case 'I':
-                string value = self.tempreg('I');
-                self.init.emit(e, value);
-                e.say('box ', self.reg, ', ', value);
-                break;
-            case 'N':
-                string value = self.tempreg('N');
-                self.init.emit(e, value);
-                e.say('box ', self.reg, ', ', value);
+                self.init.emit(e, reg);
                 break;
             case 'S':
-                string value = self.tempreg('S');
+            case 'I':
+            case 'N':
+                string value = self.tempreg(type);
                 self.init.emit(e, value);
-                e.say('box ', self.reg, ', ', value);
+                e.say('box ', reg, ', ', value);
                 break;
             default:
                 throw SyntaxError("Invalid var initializer", self.name);
             }
         }
         else
-            e.say('null ', self.reg, ' # var ', name);
+            e.say('null ', reg);
+    }
+}
+
+//*********************************************
+//            StringStatement
+//*********************************************
+
+class StringStatement : DeclareStatement
+{
+    function init [vtable] ()
+    {
+        self.t_reg = 'S';
+        self.t_name = 'string';
+    }
+    function defaultinit(var e)
+    {
+        e.say('null ', self.reg);
     }
 }
 
@@ -949,35 +980,16 @@ class VarStatement : Statement
 //            IntStatement
 //*********************************************
 
-class IntStatement : Statement
+class IntStatement : DeclareStatement
 {
-    var name;
-    var reg;
-    var init;
-    function parse(tk, owner)
+    function init [vtable] ()
     {
-        self.owner= owner;
-        var t= tk.get();
-        if (!t.isidentifier())
-            throw SyntaxError('Identifier expected', t);
-        self.name= t;
-        string reg= self.createvar(t, 'I');
-        self.reg= reg;
-        t= tk.get();
-        if (t.isop('=')) {
-            self.init = parseExpr(tk, self);
-            t= tk.get();
-        }
-        if (!t.isop(';'))
-            throw SyntaxError("Expected ';'", t);
+        self.t_reg = 'I';
+        self.t_name = 'int';
     }
-    function emit(var e)
+    function defaultinit(var e)
     {
-        e.annotate(self.name);
-        string name= self.name;
-        e.comment('int ' + name);
-        if (self.init != null)
-            self.init.emit(e, self.reg);
+        e.say('set ', self.reg, ', 0');
     }
 }
 
@@ -985,35 +997,16 @@ class IntStatement : Statement
 //            FloatStatement
 //*********************************************
 
-class FloatStatement : Statement
+class FloatStatement : DeclareStatement
 {
-    var name;
-    var reg;
-    var init;
-    function parse(tk, owner)
+    function init [vtable] ()
     {
-        self.owner= owner;
-        var t= tk.get();
-        if (!t.isidentifier())
-            throw SyntaxError('Identifier expected', t);
-        self.name= t;
-        string reg= self.createvar(t, 'N');
-        self.reg= reg;
-        t= tk.get();
-        if (t.isop('=')) {
-            self.init = parseExpr(tk, self);
-            t= tk.get();
-        }
-        if (!t.isop(';'))
-            throw SyntaxError("Expected ';'", t);
+        self.t_reg = 'N';
+        self.t_name = 'float';
     }
-    function emit(var e)
+    function defaultinit(var e)
     {
-        e.annotate(self.name);
-        string name= self.name;
-        e.comment('float ' + name);
-        if (self.init != null)
-            self.init.emit(e, self.reg);
+        e.say('set ', self.reg, ', 0.0');
     }
 }
 
@@ -1103,6 +1096,7 @@ class CompoundStatement : Statement
         }
         //say('}', t.line);
         self.end= t;
+        return self;
     }
     function getend() { return self.end; }
     function report()
@@ -1120,6 +1114,58 @@ class CompoundStatement : Statement
 }
 
 //*********************************************
+//            RegisterStore
+//*********************************************
+
+class RegisterStore
+{
+    var type;
+    var nreg;
+    var tempreg;
+    var freereg;
+    function init [vtable]()
+    {
+        self.nreg = 0;
+        self.tempreg= new 'ResizableStringArray';
+        self.freereg= new 'ResizableStringArray';
+    }
+    function settype(string type)
+    {
+        self.type = type;
+        return self;
+    }
+    function createreg()
+    {
+        var n = self.nreg;
+        int i = n;
+        string reg= i++;
+        n =: i;
+        string type = self.type;
+        reg = '$' + type + reg;
+        return reg;
+    }
+    function tempreg()
+    {
+        var freg = self.freereg;
+        var treg = self.tempreg;
+        int n= freg;
+        string reg;
+        if (n > 0)
+            reg= freg.pop();
+        else {
+            reg= self.createreg();
+            treg.push(reg);
+        }
+        return reg;
+    }
+    function freetemps()
+    {
+        for (string s in self.tempreg)
+            self.freereg.unshift(s);
+    }
+}
+
+//*********************************************
 //            FunctionStatement
 //*********************************************
 
@@ -1129,97 +1175,62 @@ class FunctionStatement : Item
     var name;
     var modifiers;
     var body;
-    var nreg;
-    var tempI;
-    var freeI;
-    var tempN;
-    var freeN;
-    var tempS;
-    var freeS;
-    var tempP;
-    var freeP;
+    var regstI;
+    var regstN;
+    var regstS;
+    var regstP;
     var nlabel;
 
     function init [vtable]()
     {
-        self.tempI= new 'ResizableStringArray';
-        self.freeI= new 'ResizableStringArray';
-        self.tempN= new 'ResizableStringArray';
-        self.freeN= new 'ResizableStringArray';
-        self.tempS= new 'ResizableStringArray';
-        self.freeS= new 'ResizableStringArray';
-        self.tempP= new 'ResizableStringArray';
-        self.freeP= new 'ResizableStringArray';
+        self.regstI = (new RegisterStore).settype('I');
+        self.regstN = (new RegisterStore).settype('N');
+        self.regstS = (new RegisterStore).settype('S');
+        self.regstP = (new RegisterStore).settype('P');
         self.nlabel= 0;
     }
     function createreg(string type)
     {
-        if (self.nreg == null)
-            self.nreg= new 'Integer';
-        var n= self.nreg;
-        string reg= n;
-        n = n + 1;
-        self.nreg = n;
-        reg = '$' + type + reg;
+        var store;
+        switch(type)
+        {
+        case 'I':
+            store = self.regstI; break;
+        case 'N':
+            store = self.regstN; break;
+        case 'S':
+            store = self.regstS; break;
+        case 'P':
+            store = self.regstP; break;
+        default:
+            InternalError('Invalid type in createreg');
+        }
+        string reg = store.createreg();
         return reg;
     }
     function tempreg(string type)
     {
-        int n;
-        string reg;
+        var store;
         switch(type)
         {
         case 'I':
-            n= self.freeI;
-            if (n > 0)
-                reg= self.freeI.pop();
-            else {
-                reg= self.createreg(type);
-                self.tempI.push(reg);
-            }
-            break;
+            store = self.regstI; break;
         case 'N':
-            n= self.freeN;
-            if (n > 0)
-                reg= self.freeN.pop();
-            else {
-                reg= self.createreg(type);
-                self.tempN.push(reg);
-            }
-            break;
+            store = self.regstN; break;
         case 'S':
-            n= self.freeS;
-            if (n > 0)
-                reg= self.freeS.pop();
-            else {
-                reg= self.createreg(type);
-                self.tempS.push(reg);
-            }
-            break;
+            store = self.regstS; break;
         case 'P':
-            n= self.freeP;
-            if (n > 0)
-                reg= self.freeP.pop();
-            else {
-                reg= self.createreg(type);
-                self.tempS.push(reg);
-            }
-            break;
+            store = self.regstP; break;
         default:
-            throw Error("Invalid register type " + type);
+            InternalError('Invalid type in tempreg');
         }
+        string reg = store.tempreg();
         return reg;
     }
     function freetemps()
     {
-        for (string s in self.tempI)
-            self.freeI.unshift(s);
-        for (string s in self.tempN)
-            self.freeN.unshift(s);
-        for (string s in self.tempS)
-            self.freeS.unshift(s);
-        for (string s in self.tempP)
-            self.freeP.unshift(s);
+        for (var st in [ self.regstI, self.regstN, self.regstS, self.regstP ] )
+            st.freetemps();
     }
     function genlabel()
     {
@@ -1260,8 +1271,8 @@ class FunctionStatement : Item
         t= tk.get();
         if (!t.isop('{'))
             throw Error("Expected '{'");
-        self.body= new CompoundStatement;
-        self.body.parse(tk, self);
+        self.body= (new CompoundStatement).parse(tk, self);
+        return self;
     }
 
     function report()
@@ -1344,8 +1355,7 @@ class ClassStatement : Item
         {
             if (t.iskeyword('function'))
             {
-                var f= new FunctionStatement;
-                f.parse(tk, self);
+                var f= (new FunctionStatement).parse(tk, self);
                 var functions= self.functions;
                 functions.push(f);
             }
@@ -1595,7 +1605,8 @@ function parser(argv)
 
 function main(argv)
 {
-    try parser(argv);
+    try [handle_types(555)]
+        parser(argv);
     catch (e)
     {
         string msg= e['message'];
