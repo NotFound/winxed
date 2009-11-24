@@ -5804,7 +5804,7 @@ void winxed_main (int argc, char **argv)
 
     if (outputname.empty() )
         outputname= genfile(inputname, "pir");
-    std::string pirfile = genfile(inputname, "pir");
+    std::string pirfile = genfile(outputname, "pir");
 
     Winxed winxed;
     {
