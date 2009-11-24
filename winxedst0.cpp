@@ -22,15 +22,6 @@
 #include <string.h>
 #include <errno.h>
 
-// Prepare to drop OS dependant features that are now
-// handled by the compiler driver.
-#define OS_DEPEND 1
-
-#if OS_DEPEND
-#include <unistd.h>
-#include <sys/wait.h>
-#endif
-
 #include <typeinfo>
 
 //**********************************************************************
@@ -5776,36 +5767,14 @@ std::string genfile(const std::string &filename, const std::string ext)
         return filename.substr(0, n) + "." + ext;
 }
 
-#if OS_DEPEND
-int execute(char **args)
-{
-    pid_t p;
-    int stat;
-    switch ((p= fork()) )
-    {
-    case pid_t(-1):
-        throw InternalError(std::string("fork failed: ") + strerror(errno) );
-    case 0:
-        execvp("parrot", args);
-        throw InternalError(std::string("exec failed: ") + strerror(errno) );
-    default:
-        waitpid(p, & stat, 0);
-        return WIFEXITED(stat) ? WEXITSTATUS(stat) : 127;
-    }
-}
-#endif
-
 void winxed_main (int argc, char **argv)
 {
     if (argc < 2)
         throw CompileError("No arguments");
     std::string inputname;
-    std::string expr;
     std::string outputname;
-    bool compileonly= false;
+    bool compileonly= true;
     bool noan= false;
-    enum Target { TargetRun, TargetPir, TargetPbc } target = TargetRun;
-    std::vector <std::string> addlib;
 
     int i;
     for (i = 1; i < argc; ++i)
@@ -5816,53 +5785,26 @@ void winxed_main (int argc, char **argv)
         }
         else if (strcmp(argv[i], "-c") == 0)
             compileonly= true;
-        else if (strcmp(argv[i], "--target") == 0)
-        {
-            std::string t= argv [++i];
-            if (t == "pir")
-                target= TargetPir;
-            else if (t == "pbc")
-                target= TargetPbc;
-            else
-                throw CompileError("Invalid target");
-            compileonly= true;
-        }
-        else if (strcmp(argv[i], "-L") == 0)
-            addlib.push_back(std::string(argv[++i]));
-        else if (strcmp(argv[i], "-e") == 0)
-            expr = argv[++i];
         else if (strcmp(argv[i], "--noan") == 0)
             noan= true;
         else break;
     }
-    if (compileonly && target == TargetRun)
-        target= TargetPir;
 
     std::istream *input;
     std::ifstream inputfile;
     std::istringstream inputstring;
 
-    if (! expr.empty() )
-    {
-        expr = "function main(argv) {" + expr + ";}\n";
-        inputstring.str(expr);
-        input = &inputstring;
-        inputname = "##eval##";
-    }
-    else
-    {
-        if (i < argc)
-            inputname= argv[i++];
-        if (!inputname.empty())
-            inputfile.open(inputname.c_str());
-        if (! inputfile.is_open() )
-            throw CompileError(std::string("Cant't open input file ") + inputname);
-        input= &inputfile;
-    }
+    if (i < argc)
+        inputname= argv[i++];
+    if (!inputname.empty())
+        inputfile.open(inputname.c_str());
+    if (! inputfile.is_open() )
+        throw CompileError(std::string("Cant't open input file ") + inputname);
+    input= &inputfile;
+
     if (outputname.empty() )
-        outputname= genfile(inputname, target == TargetPbc ? "pbc" : "pir");
-    std::string pirfile = target == TargetPbc ?
-        genfile(inputname, "pir") : outputname;
+        outputname= genfile(inputname, "pir");
+    std::string pirfile = genfile(inputname, "pir");
 
     Winxed winxed;
     {
@@ -5879,8 +5821,6 @@ void winxed_main (int argc, char **argv)
 
         if (outputname == "-")
         {
-            if (target != TargetPir)
-                throw CompileError("Output to stdout requieres pir target");
             output= &std::cout;
         }
         else
@@ -5897,51 +5837,6 @@ void winxed_main (int argc, char **argv)
         winxed.emit(e);
         if (output == &outputfile)
             outputfile.close();
-    }
-
-    #if OS_DEPEND
-    char parrot[]= "parrot;";
-    #endif
-    if (!compileonly)
-    {
-        #if OS_DEPEND
-        int n= argc - i;
-        char *args[3 + n + 2 * addlib.size() ];
-        args[0] = parrot;
-        int pos= 1;
-        for (size_t l= 0; l < addlib.size(); ++l)
-        {
-            args [pos++]= strdup("-L");
-            args [pos++]= strdup(addlib[l].c_str());
-        }
-        args[pos++]= strdup(outputname.c_str());
-        for (int a= 0; a < n; ++a)
-            args[a + pos]= argv[a + i];
-        args[2 + n + 2 * addlib.size()]= NULL;
-        int r= execute(args);
-        unlink(outputname.c_str());
-        if (r)
-            throw CompileError("Run failed");
-        #else
-        throw InternalError("Feature not available in this platform");
-        #endif
-    }
-    else if (target == TargetPbc)
-    {
-        #if OS_DEPEND
-        char *args[5];
-        args[0] = parrot;
-        args[1] = strdup("-o");
-        args[2]= strdup(outputname.c_str());
-        args[3]= strdup(pirfile.c_str());
-        args[4]= NULL;
-        int r= execute(args);
-        unlink(pirfile.c_str());
-        if (r)
-            throw CompileError("PBC compile failed");
-        #else
-        throw InternalError("Feature not available in this platform");
-        #endif
     }
 }
 

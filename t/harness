@@ -12,7 +12,7 @@ function run_test(string filename)
 {
     var fh;
 
-    string s= './winxedst0 ' + filename;
+    string s= 'parrot winxed.pbc ' + filename;
     debugmsg(s);
 
     fh= new 'FileHandle';

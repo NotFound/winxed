@@ -69,11 +69,11 @@ winxed.pir: winxed.winxed winxedst0$(EXEEXT)
 	./winxedst0$(EXEEXT) -c $<
 
 
-test: winxedst0$(EXEEXT)
-	./winxedst0$(EXEEXT) t/harness -r t
+test: winxed.pbc
+	parrot winxed.pbc t/harness -r t
 
-testv: winxedst0$(EXEEXT)
-	./winxedst0$(EXEEXT) t/harness -rv t
+testv: winxed.pbc
+	parrot winxed.pbc t/harness -rv t
 
 
 clean:
