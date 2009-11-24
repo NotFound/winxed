@@ -78,6 +78,10 @@ testv: winxed.pbc
 
 clean:
 	rm -f winxedst0$(EXEEXT)
+	rm -f winxed$(EXEEXT)
+	rm -f winxed.c
+	rm -f winxed.pbc
+	rm -f winxed.pir
 	rm -f *$(OBJEXT)
 
 # Makefile end
