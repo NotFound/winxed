@@ -595,6 +595,9 @@ class Expr
 {
     var owner;
     function issimple() { return 0; }
+    function isintegerliteral() { return 0; }
+    function isfloatliteral() { return 0; }
+    function isstringliteral() { return 0; }
     function isidentifier() { return 0; }
     function emit_get(e)
     {
@@ -615,6 +618,7 @@ class SimpleExpr : Expr
 class StringLiteral : SimpleExpr
 {
     var strval;
+    function isstringliteral() { return 1; }
     function checkResult() { return 'S'; }
     function getPirString() { return self.strval; }
     function emit(e, result)
@@ -632,6 +636,7 @@ class StringLiteral : SimpleExpr
 class IntegerLiteral : SimpleExpr
 {
     var numval;
+    function isintegerliteral() { return 1; }
     function checkResult() { return 'I'; }
     function getIntegerValue()
     {
@@ -654,6 +659,7 @@ class IntegerLiteral : SimpleExpr
 class FloatLiteral : SimpleExpr
 {
     var numval;
+    function isfloatliteral() { return 1; }
     function checkResult() { return 'N'; }
     function getFloatValue()
     {
@@ -742,34 +748,109 @@ class OpAssignExpr : Expr
 
 //*********************************************
 
+class OpEqualExpr : Expr
+{
+    var start;
+    var eleft;
+    var eright;
+    function set(owner, t, eleft, eright)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.eleft = eleft;
+        self.eright = eright;
+        return self;
+    }
+    function checkResult() { return 'I'; }
+    function emit(e, result)
+    {
+        string rl = self.eleft.checkResult();
+        string rr = self.eright.checkResult();
+        string regl = self.eleft.emit_get(e);
+        string regr = self.eright.emit_get(e);
+        e.annotate(self.start);
+        string aux;
+        if (rl == 'N' || rr == 'N')
+        {
+            if (rl == 'I') {
+                aux = self.owner.tempreg('N');
+                e.say('set ', aux, ', ', regl);
+                regl = aux;
+            }
+            if (rr == 'I') {
+                aux = self.owner.tempreg('N');
+                e.say('set ', aux, ', ', regr);
+                regr = aux;
+            }
+        }
+        e.say('iseq ', result, ', ', regl, ', ', regr);
+    }
+}
+
+//*********************************************
+
+class OpNotEqualExpr : Expr
+{
+    var start;
+    var eleft;
+    var eright;
+    function set(owner, t, eleft, eright)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.eleft = eleft;
+        self.eright = eright;
+        return self;
+    }
+    function checkResult() { return 'I'; }
+    function emit(e, result)
+    {
+        string rl = self.eleft.checkResult();
+        string rr = self.eright.checkResult();
+        string regl = self.eleft.emit_get(e);
+        string regr = self.eright.emit_get(e);
+        e.annotate(self.start);
+        string aux;
+        if (rl == 'N' || rr == 'N')
+        {
+            if (rl == 'I') {
+                aux = self.owner.tempreg('N');
+                e.say('set ', aux, ', ', regl);
+                regl = aux;
+            }
+            if (rr == 'I') {
+                aux = self.owner.tempreg('N');
+                e.say('set ', aux, ', ', regr);
+                regr = aux;
+            }
+        }
+        e.say('isne ', result, ', ', regl, ', ', regr);
+    }
+}
+
+//*********************************************
+
 class OpAddExpr : Expr
 {
     var start;
     var eleft;
     var eright;
-    function checkResult() { return 'I'; }
+    function checkResult()
+    {
+        string rl = self.eleft.checkResult();
+        string rr = self.eright.checkResult();
+        if (rl == 'N' && rr == 'N')
+            return 'N';
+        if (rl == 'I' && rr == 'N')
+            return 'N';
+        if (rl == 'N' && rr == 'I')
+            return 'N';
+        return 'I';
+    }
     function emit(e, result)
     {
-        string rleft;
-        string rright;
-        int nleft;
-        int nright;
-        if (! self.eleft.issimple()) {
-            string rleft= self.owner.tempreg('I');
-            self.eleft.emit(e, rleft);
-        }
-        else {
-            nleft= self.eleft.getIntegerValue();
-            rleft= nleft;
-        }
-        if (! self.eright.issimple()) {
-            string rright= self.owner.tempreg('I');
-            self.eright.emit(e, rright);
-        }
-        else {
-            nright= self.eright.getIntegerValue();
-            rright= nright;
-        }
+        string rleft = self.eleft.emit_get(e);
+        string rright = self.eright.emit_get(e);
         e.say('add ', result, ', ', rleft, ', ', rright);
     }
 }
@@ -893,9 +974,24 @@ function parseExpr_6(tk, owner)
     return eleft;
 }
 
+function parseExpr_8(tk, owner)
+{
+    var eleft = parseExpr_6(tk, owner);
+    var t;
+    while ((t= tk.get()).isop('==') || t.isop('!=')) {
+        var eright = parseExpr_6(tk, owner);
+        if (t.isop('=='))
+            eleft = new OpEqualExpr().set(owner, t, eleft, eright);
+        else
+            eleft = new OpNotEqualExpr().set(owner, t, eleft, eright);
+    }
+    tk.unget(t);
+    return eleft;
+}
+
 function parseExpr_16(tk, owner)
 {
-    var subexpr = parseExpr_6(tk, owner);
+    var subexpr = parseExpr_8(tk, owner);
     var t= tk.get();
     while (t.isop('=')) {
         var subexpr2 = parseExpr_16(tk, owner);
