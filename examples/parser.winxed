@@ -913,6 +913,13 @@ function parseExpr_0(tk, owner)
 {
     var t= tk.get();
     var expr;
+    if (t.isop('(')) {
+        expr = parseExpr(tk, owner);
+        t= tk.get();
+        if (!t.isop(')'))
+            throw SyntaxError("Expected ')'", t);
+        return expr;
+    }
     if (t.isstring()) {
         expr= new StringLiteral();
         expr.owner= owner;
