@@ -531,9 +531,12 @@ class ExprStatement : Statement
     {
         self.owner = owner;
         self.expr = parseExpr(tk, self);
+        return self;
     }
     function emit(e)
     {
+        var expr = self.expr;
+        self.expr.emit_get(e);
     }
 }
 
@@ -607,6 +610,8 @@ class SimpleExpr : Expr
     function issimple() { return 1; }
 }
 
+//*********************************************
+
 class StringLiteral : SimpleExpr
 {
     var strval;
@@ -621,6 +626,8 @@ class StringLiteral : SimpleExpr
         return self.getPirString();
     }
 }
+
+//*********************************************
 
 class IntegerLiteral : SimpleExpr
 {
@@ -641,6 +648,8 @@ class IntegerLiteral : SimpleExpr
         return self.getIntegerValue();
     }
 }
+
+//*********************************************
 
 class FloatLiteral : SimpleExpr
 {
@@ -664,6 +673,8 @@ class FloatLiteral : SimpleExpr
     }
 }
 
+//*********************************************
+
 class IdentifierExpr : SimpleExpr
 {
     var name;
@@ -678,12 +689,18 @@ class IdentifierExpr : SimpleExpr
     }
     function getIdentifier()
     {
-        var desc = self.owner.getvar(self.name);
+        var name = self.name;
+        var desc = self.owner.getvar(name);
+        if (desc == null) {
+            string sname = name;
+            throw SyntaxError("Variable '" + sname + "' is not defined", name);
+        }
         string s= desc['reg'];
         return s;
     }
     function emit(e, result)
     {
+        e.annotate(self.name);
         e.say('set ', result, ', ', self.getIdentifier());
     }
     function emit_get(e)
@@ -692,12 +709,38 @@ class IdentifierExpr : SimpleExpr
     }
 }
 
+//*********************************************
+
 class OpAssignExpr : Expr
 {
     var start;
     var eleft;
     var eright;
+    function checkResult()
+    {
+        if (self.eleft.isidentifier())
+            return self.eleft.checkResult();
+        else
+            InternalError('Unimplemented');
+    }
+    function emit(e, result)
+    {
+        string reg = self.emit_get(e);
+        e.annotate(self.start);
+        e.say('set ', result, ', ', reg);
+    }
+    function emit_get(e)
+    {
+        e.annotate(self.start);
+        string reg = self.eleft.emit_get(e);
+        string reg2 = self.eright.emit_get(e);
+        e.annotate(self.start);
+        e.say('set ', reg, ', ', reg2);
+        return reg;
+    }
 }
+
+//*********************************************
 
 class OpAddExpr : Expr
 {
@@ -730,6 +773,8 @@ class OpAddExpr : Expr
         e.say('add ', result, ', ', rleft, ', ', rright);
     }
 }
+
+//*********************************************
 
 class OpMulExpr : Expr
 {
@@ -780,6 +825,8 @@ class OpMulExpr : Expr
         e.say('mul ', result, ', ', rleft, ', ', rright);
     }
 }
+
+//*********************************************
 
 function parseExpr_0(tk, owner)
 {
@@ -1694,6 +1741,11 @@ class Namespace : Item
             string path[];
             return path;
         }
+    }
+    function getvar(name)
+    {
+        // Nothing for a now.
+        return null;
     }
     function parse(tk)
     {
