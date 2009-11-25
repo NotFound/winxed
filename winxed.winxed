@@ -134,9 +134,25 @@ function main [main] (argv)
             pirfile = extname(srcfile, '.pir');
     }
 
+    // Use the OS pmc for file operations.
+    var os = new 'OS';
+
     // Call backend compiler
 
-    string cmd[] = [ 'winxedst0', '-c'];
+    string cmd[]; // Command to execute
+
+    // Simple heuristic: if the stage 0 compiler is in the current
+    // directory and has no extension, use it.
+    // If not, assume it's in the PATH or we are on Windows.
+    var check = null;
+    try  check = os.stat('winxedst0');
+    catch () { }
+    if (check != null)
+        cmd.push('./winxedst0');
+    else
+        cmd.push('winxedst0');
+
+    cmd.push('-c');
     if (noan)
         cmd.push('--noan');;
     if (eval) {
@@ -148,8 +164,6 @@ function main [main] (argv)
     cmd.push(srcfile);
     spawnw(cmd);
 
-    // Use the OS pmc for file operations.
-    var os = new 'OS';
     string runit[] = [ 'parrot' ];
 
     switch (target) {
