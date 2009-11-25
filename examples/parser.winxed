@@ -909,6 +909,35 @@ class OpMulExpr : Expr
 
 //*********************************************
 
+class CallExpr : Expr
+{
+    var start;
+    var funref;
+
+    function parse(tk, owner, start, subexp)
+    {
+        self.owner = owner;
+        self.start = start;
+        self.funref = subexp;
+        var t = tk.get();
+        if (! t.isop(')'))
+            InternalError('No arguments ATM');
+        return self;
+    }
+    function checkResult() { return 'P'; }
+    function emit(e, result)
+    {
+        var funref = self.funref;
+        if (! funref.isidentifier())
+            InternalError("Unsupported");
+        string name = funref.name; // Internals abuse, provisional
+        e.annotate(self.start);
+        e.say(name, '()');
+    }
+}
+
+//*********************************************
+
 function parseExpr_0(tk, owner)
 {
     var t= tk.get();
@@ -947,12 +976,23 @@ function parseExpr_0(tk, owner)
     throw SyntaxError('Lots of things unsupported', t);
 }
 
+function parseExpr_2(tk, owner)
+{
+    var subexp = parseExpr_0(tk, owner);
+    var t = tk.get();
+    if (t.isop('('))
+        subexp = new CallExpr().parse(tk, owner, t, subexp);
+    else
+        tk.unget(t);
+    return subexp;
+}
+
 function parseExpr_5(tk, owner)
 {
-    var eleft= parseExpr_0(tk, owner);
+    var eleft= parseExpr_2(tk, owner);
     var t;
     while ((t= tk.get()).isop('*')) {
-        var eright= parseExpr_0(tk, owner);
+        var eright= parseExpr_2(tk, owner);
         var expr= new OpMulExpr();
         expr.owner= owner;
         expr.start= t;
