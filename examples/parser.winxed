@@ -913,15 +913,24 @@ class CallExpr : Expr
 {
     var start;
     var funref;
+    var args;
 
     function parse(tk, owner, start, subexp)
     {
         self.owner = owner;
         self.start = start;
         self.funref = subexp;
+        self.args = [];
         var t = tk.get();
-        if (! t.isop(')'))
-            InternalError('No arguments ATM');
+        if (! t.isop(')')) {
+            tk.unget(t);
+            do {
+                var expr = parseExpr(tk, owner);
+                self.args.push(expr);
+            } while ((t = tk.get()).isop(','));
+            if (! t.isop(')'))
+                throw SyntaxError("Expected ')' or ','", t);
+        }
         return self;
     }
     function checkResult() { return 'P'; }
@@ -931,8 +940,19 @@ class CallExpr : Expr
         if (! funref.isidentifier())
             InternalError("Unsupported");
         string name = funref.name; // Internals abuse, provisional
+        string argreg[];
+        for (var arg in self.args) {
+            string reg = arg.emit_get(e);
+            argreg.push(reg);
+        }
         e.annotate(self.start);
-        e.say(name, '()');
+        e.print(name, '(');
+        string sep = '';
+        for (string a in argreg) {
+            e.print(sep, a);
+            sep = ', ';
+        }
+        e.say(')');
     }
 }
 
@@ -1749,7 +1769,8 @@ class FunctionStatement : BlockStatement
     }
     function emit(var e)
     {
-        e.print('.sub ', self.name);
+        string name = self.name;
+        e.print('.sub ', name);
         if (self.owner.isClass())
             e.print(' :method');
         var modifiers= self.modifiers;
@@ -1771,7 +1792,7 @@ class FunctionStatement : BlockStatement
         self.body.emit(e);
 
         e.annotate(self.body.getend());
-        e.say('.end');
+        e.say('.end # ', name);
     }
 }
 
