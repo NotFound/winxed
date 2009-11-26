@@ -809,6 +809,39 @@ class IdentifierExpr : SimpleExpr
 
 //*********************************************
 
+class OpPreIncExpr : Expr
+{
+    var start;
+    var subexpr;
+
+    function checkResult()
+    {
+        return self.subexpr.checkResult();
+    }
+    function set(owner, t, subexpr)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.subexpr = subexpr;
+        return self;
+    }
+    function emit(e, result)
+    {
+        string reg = self.emit_get(e);
+        if (result != '')
+            e.say('set ', result, ', ', reg);
+    }
+    function emit_get(e)
+    {
+        string reg = self.subexpr.emit_get(e);
+        e.annotate(self.start);
+        e.say('inc ', reg);
+        return reg;
+    }
+}
+
+//*********************************************
+
 class OpAssignExpr : Expr
 {
     var start;
@@ -1099,12 +1132,25 @@ function parseExpr_2(tk, owner)
     return subexp;
 }
 
+function parseExpr_4(tk, owner)
+{
+    var t = tk.get();
+    if (t.isop('++')) {
+        var subexpr = parseExpr_4(tk, owner);
+        return new OpPreIncExpr().set(owner, t, subexpr);
+    }
+    else {
+        tk.unget(t);
+        return parseExpr_2(tk, owner);
+    }
+}
+
 function parseExpr_5(tk, owner)
 {
-    var eleft= parseExpr_2(tk, owner);
+    var eleft= parseExpr_4(tk, owner);
     var t;
     while ((t= tk.get()).isop('*')) {
-        var eright= parseExpr_2(tk, owner);
+        var eright= parseExpr_4(tk, owner);
         var expr= new OpMulExpr();
         expr.owner= owner;
         expr.start= t;
