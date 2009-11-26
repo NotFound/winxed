@@ -873,7 +873,7 @@ class OpAssignExpr : Expr
 
 //*********************************************
 
-class OpEqualExpr : Expr
+class ComparatorBaseExpr : Expr
 {
     var start;
     var eleft;
@@ -908,48 +908,67 @@ class OpEqualExpr : Expr
                 regr = aux;
             }
         }
+        self.emitop(e, result, regl, regr);
+    }
+}
+
+//*********************************************
+
+class OpEqualExpr : ComparatorBaseExpr
+{
+    function emitop(e, string result, string regl, string regr)
+    {
         e.say('iseq ', result, ', ', regl, ', ', regr);
     }
 }
 
 //*********************************************
 
-class OpNotEqualExpr : Expr
+class OpNotEqualExpr : ComparatorBaseExpr
 {
-    var start;
-    var eleft;
-    var eright;
-    function set(owner, t, eleft, eright)
+    function emitop(e, string result, string regl, string regr)
     {
-        self.owner = owner;
-        self.start = t;
-        self.eleft = eleft;
-        self.eright = eright;
-        return self;
-    }
-    function checkResult() { return 'I'; }
-    function emit(e, result)
-    {
-        string rl = self.eleft.checkResult();
-        string rr = self.eright.checkResult();
-        string regl = self.eleft.emit_get(e);
-        string regr = self.eright.emit_get(e);
-        e.annotate(self.start);
-        string aux;
-        if (rl == 'N' || rr == 'N')
-        {
-            if (rl == 'I') {
-                aux = self.owner.tempreg('N');
-                e.say('set ', aux, ', ', regl);
-                regl = aux;
-            }
-            if (rr == 'I') {
-                aux = self.owner.tempreg('N');
-                e.say('set ', aux, ', ', regr);
-                regr = aux;
-            }
-        }
         e.say('isne ', result, ', ', regl, ', ', regr);
+    }
+}
+
+//*********************************************
+
+class OpLessExpr : ComparatorBaseExpr
+{
+    function emitop(e, string result, string regl, string regr)
+    {
+        e.say('islt ', result, ', ', regl, ', ', regr);
+    }
+}
+
+//*********************************************
+
+class OpGreaterExpr : ComparatorBaseExpr
+{
+    function emitop(e, string result, string regl, string regr)
+    {
+        e.say('isgt ', result, ', ', regl, ', ', regr);
+    }
+}
+
+//*********************************************
+
+class OpLessEqualExpr : ComparatorBaseExpr
+{
+    function emitop(e, string result, string regl, string regr)
+    {
+        e.say('isle ', result, ', ', regl, ', ', regr);
+    }
+}
+
+//*********************************************
+
+class OpGreaterEqualExpr : ComparatorBaseExpr
+{
+    function emitop(e, string result, string regl, string regr)
+    {
+        e.say('isge ', result, ', ', regl, ', ', regr);
     }
 }
 
@@ -1194,9 +1213,28 @@ function parseExpr_8(tk, owner)
     return eleft;
 }
 
+function parseExpr_9(tk, owner)
+{
+    var eleft = parseExpr_8(tk, owner);
+    var t;
+    while ((t= tk.get()).isop('<') || t.isop('>') || t.isop('<=') || t.isop('>=')) {
+        var eright = parseExpr_8(tk, owner);
+        if (t.isop('<'))
+            eleft = new OpLessExpr().set(owner, t, eleft, eright);
+        else if (t.isop('>'))
+            eleft = new OpGreaterExpr().set(owner, t, eleft, eright);
+        else if (t.isop('<='))
+            eleft = new OpLessEqualExpr().set(owner, t, eleft, eright);
+        else
+            eleft = new OpGreaterEqualExpr().set(owner, t, eleft, eright);
+    }
+    tk.unget(t);
+    return eleft;
+}
+
 function parseExpr_16(tk, owner)
 {
-    var subexpr = parseExpr_8(tk, owner);
+    var subexpr = parseExpr_9(tk, owner);
     var t= tk.get();
     while (t.isop('=')) {
         var subexpr2 = parseExpr_16(tk, owner);
