@@ -983,6 +983,8 @@ class OpAddExpr : Expr
     {
         string rl = self.eleft.checkResult();
         string rr = self.eright.checkResult();
+        if (rl == 'S' && rr == 'S')
+            return 'S';
         if (rl == 'N' && rr == 'N')
             return 'N';
         if (rl == 'I' && rr == 'N')
@@ -995,7 +997,10 @@ class OpAddExpr : Expr
     {
         string rleft = self.eleft.emit_get(e);
         string rright = self.eright.emit_get(e);
-        e.say('add ', result, ', ', rleft, ', ', rright);
+        if (self.checkResult() == 'S')
+            e.say('concat ', result, ', ', rleft, ', ', rright);
+        else
+            e.say('add ', result, ', ', rleft, ', ', rright);
     }
 }
 
