@@ -75,6 +75,13 @@ class Token
         return self.type == TypeQuoted || self.type == TypeSingleQuoted;
     }
     function isidentifier() { return self.type == TypeIdentifier; }
+    function getidentifier()
+    {
+        if (self.type == TypeIdentifier)
+            return self.str;
+        else
+            throw SyntaxError('Identifier expected', self);
+    }
     function iskeyword(string name)
     {
         return self.type == TypeIdentifier && self.str == name;
@@ -428,6 +435,15 @@ function parseStatement(tk, owner)
         return new EmptyStatement();
     if (t.isop('{'))
         return new CompoundStatement().parse(tk, owner);
+    if (t.iskeyword('using')) {
+        var taux = tk.get();
+        if (taux.iskeyword('extern'))
+            return new ExternStatement().parse(tk, owner);
+        else {
+            tk.unget(taux);
+            return new UsingStatement().parse(tk, owner);
+        }
+    }
     else if (t.iskeyword('var'))
         return new VarStatement().parse(tk, owner);
     else if (t.iskeyword('string'))
@@ -517,6 +533,82 @@ class EmptyStatement : Statement
     function emit(e)
     {
         // Do nothing
+    }
+}
+
+//*********************************************
+//            ExternStatement
+//*********************************************
+
+class ExternStatement
+{
+    var path;
+    function parse(tk, owner)
+    {
+        string path[];
+        do {
+            var t= tk.get();
+            string s= t.getidentifier();
+            path.push(s);
+        } while ((t= tk.get()).isop('.'));
+        if (!t.isop(';'))
+            throw SyntaxError("Expected ';'", t);
+        self.path = path;
+        return self;
+    }
+    function emit(e)
+    {
+        string file;
+        string sep = '';
+        for (string p in self.path) {
+            file += sep;
+            file += p;
+            sep = '/';
+        }
+        e.say("load_bytecode '", file, ".pbc'");
+    }
+}
+
+//*********************************************
+//            UsingStatement
+//*********************************************
+
+class UsingStatement
+{
+    var path;
+    function parse(tk, owner)
+    {
+        string path[];
+        do {
+            var t= tk.get();
+            string s= t.getidentifier();
+            path.push(s);
+        } while ((t= tk.get()).isop('.'));
+        if (!t.isop(';'))
+            throw SyntaxError("Expected ';'", t);
+        self.path = path;
+        return self;
+    }
+    function emit(e)
+    {
+        var path = self.path;
+        string name = path.pop();
+        e.say('.local pmc ', name);
+        e.print('get_hll_global ', name, ', ');
+        int n = path;
+        switch (n) {
+        case 0:
+            e.say("'", name, "'");
+            break;
+        default:
+            e.print('[');
+            string sep = '';
+            for (string p in path) {
+                e.print(sep, "'", p, "'");
+                sep = '; ';
+            }
+            e.say(" ], '", name, "'");
+        }
     }
 }
 
