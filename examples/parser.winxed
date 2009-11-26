@@ -1971,7 +1971,7 @@ class FunctionStatement : BlockStatement
                 t= tk.get();
             } while (t.isop(','));
             if (!t.isop(')'))
-                throw Error("Expected ')'");
+                throw SyntaxError("Expected ')'", t);
         }
 
         t= tk.get();
