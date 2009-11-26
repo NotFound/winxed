@@ -1102,6 +1102,55 @@ class CallExpr : Expr
 
 //*********************************************
 
+class ArrayExpr : Expr
+{
+    var start;
+    var values;
+
+    function parse(tk, owner, t)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.values = [];
+        var t = tk.get();
+        if (! t.isop(']')) {
+            tk.unget(t);
+            do {
+                var item = parseExpr(tk, owner);
+                self.values.push(item);
+            } while ((t= tk.get()).isop(','));
+            if (!t.isop(']'))
+                throw SyntaxError("Expected ']' or ','", t);
+        }
+        return self;
+    }
+    function emit_get(e)
+    {
+        e.annotate(self.start);
+        string container = self.owner.tempreg('P');
+        e.say('root_new ', container, ", ['parrot';'ResizablePMCArray']");
+        string it_p = self.owner.tempreg('P');
+        string itemreg;
+        for (var item in self.values) {
+            string type = item.checkResult();
+            switch (type) {
+            case 'I': case 'N': case 'S':
+                string aux = item.emit_get(e);
+                e.say('box ', it_p, ', ', aux);
+                itemreg = it_p;
+                break;
+            default:
+                itemreg = item.emit_get(e);
+            }
+            e.annotate(self.start);
+            e.say(container, ".'push'(", itemreg, ")");
+        }
+        return container;
+    }
+}
+
+//*********************************************
+
 function parseExpr_0(tk, owner)
 {
     var t= tk.get();
@@ -1112,6 +1161,9 @@ function parseExpr_0(tk, owner)
         if (!t.isop(')'))
             throw SyntaxError("Expected ')'", t);
         return expr;
+    }
+    if (t.isop('[')) {
+        return new ArrayExpr().parse(tk, owner, t);
     }
     if (t.isstring()) {
         expr= new StringLiteral();
@@ -1694,7 +1746,7 @@ class CompoundStatement : BlockStatement
         var labels= self.labels;
         string exist= labels[s];
         if (exist == null || exist == '')
-            throw SyntaxError('Label not defined', name);
+            exist = self.owner.getlabel(name);
         return exist;
     }
     function createlabel(var name)
