@@ -1965,9 +1965,22 @@ class FunctionStatement : BlockStatement
             tk.unget(t);
             do {
                 t= tk.get();
+		string type = '';
+                if (t.iskeyword('int'))
+                    type = 'I';
+                else if (t.iskeyword('float'))
+                    type = 'F';
+                else if (t.iskeyword('string'))
+                    type = 'S';
+                else if (t.iskeyword('var'))
+                    type = 'P';
+                if (type != '')
+                    t= tk.get();
+                else
+                    type = 'P';
                 string s = t;
                 self.args.push(s);
-                self.createvar(s, 'P');
+                self.createvar(s, type);
                 t= tk.get();
             } while (t.isop(','));
             if (!t.isop(')'))
