@@ -42,6 +42,7 @@ function extname(string filename, string ext)
 function main [main] (argv)
 {
     var options = [
+      [ 'stage=i',  'Compiler stage to use' ],
       [ 'c',        'Compile only. Same as --target=pir' ],
       [ 'e=s',      'Evaluate' ],
       [ 'o=s',      'Object name' ],
@@ -60,19 +61,24 @@ function main [main] (argv)
     string name= argv.shift();
     var opts = getopts.get_options(argv);
 
-    var help =        opts['help'];
+    var help        = opts['help'];
+    var opt_stage   = opts['stage'];
     var compileonly = opts['c'];
-    var noan =        opts['noan'];
-    var eval =        opts['e'];
-    var opt_L =       opts['L'];
-    var opt_I =       opts['I'];
-    var opt_o =       opts['o'];
-    var opt_target =  opts['target'];
+    var noan        = opts['noan'];
+    var eval        = opts['e'];
+    var opt_L       = opts['L'];
+    var opt_I       = opts['I'];
+    var opt_o       = opts['o'];
+    var opt_target  = opts['target'];
 
     if (help != null) {
         showhelp(name, options);
         return;
     }
+
+    int stage = 0; // Default: stage 0
+    if (opt_stage != null)
+        stage = opt_stage;
 
     string obj = '';
     if (opt_o != null)
@@ -141,21 +147,33 @@ function main [main] (argv)
 
     string cmd[]; // Command to execute
 
-    // Simple heuristic: if the stage 0 compiler is in the current
-    // directory and has no extension, use it.
-    // If not, assume it's in the PATH or we are on Windows.
-    var check = null;
-    try  check = os.stat('winxedst0');
-    catch () { }
-    if (check != null)
-        cmd.push('./winxedst0');
-    else
-        cmd.push('winxedst0');
+    switch (stage) {
+    case 0:
+        // Simple heuristic: if the stage 0 compiler is in the current
+        // directory and has no extension, use it.
+        // If not, assume it's in the PATH or we are on Windows.
+        var check = null;
+        try  check = os.stat('winxedst0');
+        catch () { }
+        if (check != null)
+            cmd.push('./winxedst0');
+        else
+            cmd.push('winxedst0');
+        break;
+    case 1:
+        cmd.push('parrot');
+        cmd.push('winxedst1.pbc');
+        break;
+    default:
+        die('Invalid stage ');
+    }
 
     cmd.push('-c');
     if (noan)
         cmd.push('--noan');;
     if (eval) {
+        if (stage != 0)
+            die('Option -e not implemented in stage 1');
         cmd.push('-e');
         cmd.push(eval);
     }

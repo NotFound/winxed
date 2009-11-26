@@ -1,6 +1,6 @@
 #! winxed
 
-// parsing example
+// Winxed stage 1 compiler
 
 //*********************************************
 //          Character test functions
@@ -1793,9 +1793,6 @@ class CompoundStatement : BlockStatement
         return self;
     }
     function getend() { return self.end; }
-    function report()
-    {
-    }
     function emit(var e)
     {
         e.comment('{');
@@ -1965,7 +1962,7 @@ class FunctionStatement : BlockStatement
             tk.unget(t);
             do {
                 t= tk.get();
-		string type = '';
+                string type = '';
                 if (t.iskeyword('int'))
                     type = 'I';
                 else if (t.iskeyword('float'))
@@ -1992,26 +1989,6 @@ class FunctionStatement : BlockStatement
             throw Error("Expected '{'");
         self.body= new CompoundStatement().parse(tk, self);
         return self;
-    }
-
-    function report()
-    {
-        print('function ', self.name);
-        var modifiers= self.modifiers;
-        if (modifiers)
-        {
-            print(' [');
-            var m;
-            string sep= '';
-            for (m in modifiers)
-            {
-                print(sep);
-                sep= ', ';
-                print(m);
-            }
-            print(']');
-        }
-        say(' ()');
     }
     function emit(var e)
     {
@@ -2088,20 +2065,6 @@ class ClassStatement : Item
             }
             t= tk.get();
         }
-    }
-
-    function report()
-    {
-        print('class ', self.name);
-        string sep= ' : ';
-        for (var b in self.bases) {
-            print (sep, b);
-            sep= ' ,';
-        }
-        say(' {');
-        for (var f in self.functions)
-            f.report();
-        say('}');
     }
     function emit(var e)
     {
@@ -2209,19 +2172,6 @@ class Namespace : Item
             }
         }
     }
-    function report()
-    {
-        if (self.parent != null)
-            say('namespace ', self.name, ' {');
-        for (var n in self.namespaces)
-            n.report();
-        for (var c in self.classes)
-            c.report();
-        for (var f in self.functions)
-            f.report();
-        if (self.parent != null)
-            say('} // namespace ', self.name);
-    }
     function emit(var e)
     {
         var path= self.getpath();
@@ -2256,50 +2206,44 @@ class MiniWinxed
     {
         self.rootns.parse(tk);
     }
-    function report()
-    {
-        self.rootns.report();
-    }
     function emit(var e)
     {
         self.rootns.emit(e);
     }
 }
 
-function miniwinxed_parser(tk, int gen)
+function miniwinxed_parser(tk, string outputfile)
 {
-        var winxed= new MiniWinxed();
-        winxed.parse(tk);
-        if (gen) {
-            var handle= getinterp().stdhandle(1);
-            var emit= new Emit();
-            emit.initialize(handle);
-            winxed.emit(emit);
-        }
-        else
-            winxed.report();
+    var winxed= new MiniWinxed();
+    winxed.parse(tk);
+    var handle;
+    if (outputfile == '-')
+        handle = getinterp().stdhandle(1);
+    else
+        handle = new 'FileHandle'.open(outputfile, 'w');
+    var emit= new Emit();
+    emit.initialize(handle);
+    winxed.emit(emit);
 }
 
 //*********************************************
 //            Main functions
 //*********************************************
 
-function parser(argv)
+function stage1(argv)
 {
-    // Simple example, get tokens and prints them.
-
     using extern Getopt.Obj;
     var getopts = new 'Getopt::Obj';
     getopts.notOptStop(1);
-    getopts.push_string('withcomments');
-    getopts.push_string('miniwinxed');
-    getopts.push_string('miniwinxedgen');
+    getopts.push_string('o=s');
+    getopts.push_string('c');
+    getopts.push_string('noan');
 
     argv.shift();
     var opts = getopts.get_options(argv);
-    var withcomments= opts['withcomments'];
-    var miniwinxed = opts['miniwinxed'];
-    var miniwinxedgen = opts['miniwinxedgen'];
+    var opt_o = opts['o'];
+    var opt_c = opts['c'];
+    var noan  = opts['noan'];
 
     int argc= argv;
     if (argc == 0)
@@ -2311,26 +2255,10 @@ function parser(argv)
     var t= new Tokenizer();
     t.init(file, filename);
 
-    if (miniwinxed)
-        miniwinxed_parser(t, 0);
-    else if (miniwinxedgen)
-        miniwinxed_parser(t, 1);    
-    else
-    {
-        var c;
-        int line= 0;
-        while (c= t.get(withcomments))
-        {
-            int newline= c.line;
-            if (newline != line)
-            {
-                line= newline;
-                say(); print(line, ': ');
-            }
-            print(" [", c, "]");
-        }
-        say('');
-    }
+    string outputfile = '';
+    if (opt_o != null)
+        outputfile = opt_o;
+    miniwinxed_parser(t, outputfile);
 
     file.close();
 }
@@ -2338,7 +2266,7 @@ function parser(argv)
 function main(argv)
 {
     try [handle_types(555)]
-        parser(argv);
+        stage1(argv);
     catch (e)
     {
         string msg= e['message'];
