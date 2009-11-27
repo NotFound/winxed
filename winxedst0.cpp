@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 24-nov-2009
+// Revision 27-nov-2009
 
 // Winxed compiler stage 0.
 
@@ -5772,6 +5772,7 @@ void winxed_main (int argc, char **argv)
     if (argc < 2)
         throw CompileError("No arguments");
     std::string inputname;
+    std::string expr;
     std::string outputname;
     bool compileonly= true;
     bool noan= false;
@@ -5785,6 +5786,8 @@ void winxed_main (int argc, char **argv)
         }
         else if (strcmp(argv[i], "-c") == 0)
             compileonly= true;
+        else if (strcmp(argv[i], "-e") == 0)
+            expr = argv[++i];
         else if (strcmp(argv[i], "--noan") == 0)
             noan= true;
         else break;
@@ -5794,13 +5797,23 @@ void winxed_main (int argc, char **argv)
     std::ifstream inputfile;
     std::istringstream inputstring;
 
-    if (i < argc)
-        inputname= argv[i++];
-    if (!inputname.empty())
-        inputfile.open(inputname.c_str());
-    if (! inputfile.is_open() )
-        throw CompileError(std::string("Cant't open input file ") + inputname);
-    input= &inputfile;
+    if (! expr.empty() )
+    {
+        expr = "function main(argv) {" + expr + ";}\n";
+        inputstring.str(expr);
+        input = &inputstring;
+        inputname = "##eval##";
+    }
+    else
+    {
+        if (i < argc)
+            inputname= argv[i++];
+        if (!inputname.empty())
+            inputfile.open(inputname.c_str());
+        if (! inputfile.is_open() )
+            throw CompileError(std::string("Cant't open input file ") + inputname);
+        input= &inputfile;
+    }
 
     if (outputname.empty() )
         outputname= genfile(inputname, "pir");

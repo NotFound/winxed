@@ -172,8 +172,6 @@ function main [main] (argv)
     if (noan)
         cmd.push('--noan');;
     if (eval) {
-        if (stage != 0)
-            die('Option -e not implemented in stage 1');
         cmd.push('-e');
         cmd.push(eval);
     }

@@ -2002,15 +2002,14 @@ class FunctionStatement : BlockStatement
                 e.print(' :', m);
         }
         e.say();
-        e.annotate(self.name);
         var arg;
         for (arg in self.args)
-            say('.param pmc ', arg);
+            e.say('.param pmc ', arg);
         for (arg in self.args) {
             var a = self.getvar(arg);
-            say('set ', a['reg'], ', ', arg);
+            e.say('set ', a['reg'], ', ', arg);
         }
-
+        e.annotate(self.name);
         e.comment('Body');
         self.body.emit(e);
 
@@ -2236,21 +2235,38 @@ function stage1(argv)
     var getopts = new 'Getopt::Obj';
     getopts.notOptStop(1);
     getopts.push_string('o=s');
+    getopts.push_string('e=s');
     getopts.push_string('c');
     getopts.push_string('noan');
 
     argv.shift();
     var opts = getopts.get_options(argv);
     var opt_o = opts['o'];
+    var opt_e = opts['e'];
     var opt_c = opts['c'];
     var noan  = opts['noan'];
 
     int argc= argv;
-    if (argc == 0)
-        throw Error('No file');
-    string filename= argv[0];
-    var file= new 'FileHandle';
-    file.open(filename); // Must throw on error
+    string filename;
+    string expr;
+    var file;
+    if (opt_e == null) {
+        if (argc == 0)
+            throw Error('No file');
+
+        string filename= argv[0];
+        file = new 'FileHandle';
+        file.open(filename); // Must throw on error
+    }
+    else {
+        expr = opt_e;
+        expr = 'function main[main](argv){' + expr + ';}';
+        file = new 'StringHandle';
+        file.open('__eval__', 'w');
+        file.puts(expr);
+        file.close();
+        file.open('__eval__');
+    }
 
     var t= new Tokenizer();
     t.init(file, filename);
