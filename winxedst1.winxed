@@ -842,6 +842,34 @@ class OpPreIncExpr : Expr
 
 //*********************************************
 
+class OpPostIncExpr : Expr
+{
+    var start;
+    var subexpr;
+
+    function set(owner, t, subexpr)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.subexpr = subexpr;
+        return self;
+    }
+    function checkResult()
+    {
+        return self.subexpr.checkResult();
+    }
+    function emit(e, result)
+    {
+        string reg = self.subexpr.emit_get(e);
+        e.annotate(self.start);
+	e.say('set ', result, ', ', reg);
+        e.say('inc ', reg);
+        return reg;
+    }
+}
+
+//*********************************************
+
 class OpAssignExpr : Expr
 {
     var start;
@@ -1208,6 +1236,19 @@ function parseExpr_2(tk, owner)
     return subexp;
 }
 
+function parseExpr_3(tk, owner)
+{
+    var subexp = parseExpr_2(tk, owner);
+    var t = tk.get();
+    if (t.isop('++'))
+        return new OpPostIncExpr().set(owner, t, subexp);
+    else
+    {
+        tk.unget(t);
+        return subexp;
+    }
+}
+
 function parseExpr_4(tk, owner)
 {
     var t = tk.get();
@@ -1217,7 +1258,7 @@ function parseExpr_4(tk, owner)
     }
     else {
         tk.unget(t);
-        return parseExpr_2(tk, owner);
+        return parseExpr_3(tk, owner);
     }
 }
 
