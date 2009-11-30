@@ -50,6 +50,15 @@ emit$(OBJEXT): emit.cpp emit.h token.h
 	$(CXX) $(CFLAGS) -c emit.cpp
 
 #-------------------------------
+#    Compiler stage 1
+#-------------------------------
+
+stage1: winxedst1.pbc
+
+winxedst1.pbc: winxedst1.winxed winxed.pbc
+	parrot winxed.pbc --target=pbc winxedst1.winxed
+
+#-------------------------------
 #      Driver
 #-------------------------------
 
@@ -78,6 +87,7 @@ testv: winxed.pbc
 
 clean:
 	rm -f winxedst0$(EXEEXT)
+	rm -f winxedst1.pbc
 	rm -f winxed$(EXEEXT)
 	rm -f winxed.c
 	rm -f winxed.pbc
