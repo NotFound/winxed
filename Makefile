@@ -90,6 +90,7 @@ test1: winxed$(EXEEXT) winxedst1.pbc
 	./winxed --stage=1 t/add.t
 	./winxed --stage=1 t/label.t
 	./winxed --stage=1 t/postincdec.t
+	./winxed --stage=1 t/preincdec.t.winxed
 
 clean:
 	rm -f winxedst0$(EXEEXT)
