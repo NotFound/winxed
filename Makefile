@@ -20,9 +20,11 @@ pbc: winxed.pbc
 help:
 	@echo "Targets:"
 	@echo "  default - Build the stage 0 compiler"
+	@echo "  stage1  - Build the stage 1 compiler"
 	@echo "  all     - Build the compiler driver - native executable"
 	@echo "  pbc     - Build the compiler driver - parrot binary"
 	@echo "  test    - Run the test suite"
+	@echo "  test1   - Run part of the test suite with the stage 1 compiler"
 	@echo "  help    - This message"
 
 #-----------------------------------------------------------------------
@@ -84,6 +86,10 @@ test: winxed.pbc
 testv: winxed.pbc
 	parrot winxed.pbc t/harness -rv t
 
+test1: winxed$(EXEEXT) winxedst1.pbc
+	./winxed --stage=1 t/add.t
+	./winxed --stage=1 t/label.t
+	./winxed --stage=1 t/postincdec.t
 
 clean:
 	rm -f winxedst0$(EXEEXT)
