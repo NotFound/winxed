@@ -827,7 +827,7 @@ class OpNotExpr : Expr
     }
     function emit(e, result)
     {
-	string reg = self.subexpr.emit_get(e);
+        string reg = self.subexpr.emit_get(e);
         e.annotate(self.start);
         if (self.checkResult() == 'I')
             e.say('not ', result, ', ', reg);
@@ -891,7 +891,7 @@ class OpPostIncExpr : Expr
     {
         string reg = self.subexpr.emit_get(e);
         e.annotate(self.start);
-	e.say('set ', result, ', ', reg);
+        e.say('set ', result, ', ', reg);
         e.say('inc ', reg);
         return reg;
     }
@@ -952,7 +952,7 @@ class OpPostDecExpr : Expr
     {
         string reg = self.subexpr.emit_get(e);
         e.annotate(self.start);
-	e.say('set ', result, ', ', reg);
+        e.say('set ', result, ', ', reg);
         e.say('dec ', reg);
         return reg;
     }
@@ -981,10 +981,15 @@ class OpAssignExpr : Expr
     function emit_get(e)
     {
         e.annotate(self.start);
+        string typeleft = self.eleft.checkResult();
+        string typeright = self.eright.checkResult();
         string reg = self.eleft.emit_get(e);
         string reg2 = self.eright.emit_get(e);
         e.annotate(self.start);
-        e.say('set ', reg, ', ', reg2);
+        if (typeleft == 'P' && typeright != 'P')
+            e.say('box ', reg, ', ', reg2);
+        else
+            e.say('set ', reg, ', ', reg2);
         return reg;
     }
 }

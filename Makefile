@@ -92,7 +92,8 @@ TEST1 = \
 	t/not.t \
 	t/postincdec.t \
 	t/preincdec.t.winxed \
-	t/string.t
+	t/string.t \
+	t/var.t
 
 test1: winxed$(EXEEXT) winxedst1.pbc $(TEST1)
 	parrot winxed.pbc t/harness --stage=1 $(TEST1)
