@@ -1129,6 +1129,33 @@ class OpAddExpr : Expr
 
 //*********************************************
 
+class OpSubExpr : Expr
+{
+    var start;
+    var eleft;
+    var eright;
+    function checkResult()
+    {
+        string rl = self.eleft.checkResult();
+        string rr = self.eright.checkResult();
+        if (rl == 'N' && rr == 'N')
+            return 'N';
+        if (rl == 'I' && rr == 'N')
+            return 'N';
+        if (rl == 'N' && rr == 'I')
+            return 'N';
+        return 'I';
+    }
+    function emit(e, result)
+    {
+        string rleft = self.eleft.emit_get(e);
+        string rright = self.eright.emit_get(e);
+        e.say('sub ', result, ', ', rleft, ', ', rright);
+    }
+}
+
+//*********************************************
+
 class OpMulExpr : Expr
 {
     var start;
@@ -1388,9 +1415,13 @@ function parseExpr_6(tk, owner)
 {
     var eleft= parseExpr_5(tk, owner);
     var t;
-    while ((t= tk.get()).isop('+')) {
+    while ((t= tk.get()).isop('+') || t.isop('-')) {
         var eright= parseExpr_5(tk, owner);
-        var expr= new OpAddExpr();
+        var expr;
+        if (t.isop('+'))
+            expr= new OpAddExpr();
+        else
+            expr= new OpSubExpr();
         expr.owner= owner;
         expr.start= t;
         expr.eleft= eleft;
