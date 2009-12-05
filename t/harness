@@ -8,11 +8,12 @@ function debugmsg(string s)
         say(s);
 }
 
-function run_test(string filename)
+function run_test(string filename, int stage)
 {
     var fh;
 
-    string s= 'parrot winxed.pbc ' + filename;
+    string strstage = stage;
+    string s= 'parrot winxed.pbc --stage=' + strstage + ' ' + filename;
     debugmsg(s);
 
     fh= new 'FileHandle';
@@ -34,7 +35,7 @@ function max_length(var args)
     return l;
 }
 
-function run_test_list(var args, int verbose)
+function run_test_list(var args, int verbose, int stage)
 {
     int total_passed= 0;
     int total_failed= 0;
@@ -52,7 +53,7 @@ function run_test_list(var args, int verbose)
         passed= 0;
         failed= 0;
         curr_test= 0;
-        var output= run_test(filename);
+        var output= run_test(filename, stage);
         var plan_parts= split('..', output[0]);
         int num_tests = plan_parts[1];
         output.shift();
@@ -151,11 +152,16 @@ function main(var argv)
     getopts.notOptStop(1);
     getopts.push_string('v');
     getopts.push_string('r');
+    getopts.push_string('stage=i');
 
     argv.shift();
     var opts = getopts.get_options(argv);
     var verbose = opts['v'];
     var recursive = opts['r'];
+    var opt_stage = opts['stage'];
+    int stage = 0;
+    if (opt_stage != null)
+        stage = opt_stage;
 
     int argc= argv;
     if (argc == 0)
@@ -164,5 +170,5 @@ function main(var argv)
     var args= new 'ResizableStringArray';
     build_file_list(args, argv, recursive);
 
-    run_test_list(args, verbose);
+    run_test_list(args, verbose, stage);
 }
