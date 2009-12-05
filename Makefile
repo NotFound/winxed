@@ -86,12 +86,16 @@ test: winxed.pbc
 testv: winxed.pbc
 	parrot winxed.pbc t/harness -rv t
 
-test1: winxed$(EXEEXT) winxedst1.pbc
-	./winxed --stage=1 t/add.t
-	./winxed --stage=1 t/label.t
-	./winxed --stage=1 t/not.t
-	./winxed --stage=1 t/postincdec.t
-	./winxed --stage=1 t/preincdec.t.winxed
+TEST1 = \
+	t/add.t \
+	t/label.t \
+	t/not.t \
+	t/postincdec.t \
+	t/preincdec.t.winxed \
+	t/string.t
+
+test1: winxed$(EXEEXT) winxedst1.pbc $(TEST1)
+	parrot winxed.pbc t/harness $(TEST1)
 
 clean:
 	rm -f winxedst0$(EXEEXT)
