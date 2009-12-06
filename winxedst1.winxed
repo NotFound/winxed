@@ -452,6 +452,10 @@ function parseStatement(tk, owner)
         return new IntStatement().parse(tk, owner);
     else if (t.iskeyword('float'))
         return new FloatStatement().parse(tk, owner);
+    else if (t.iskeyword('return'))
+        return new ReturnStatement().parse(tk, owner);
+    else if (t.iskeyword('yield'))
+        return new YieldStatement().parse(tk, owner);
     else if (t.iskeyword('goto'))
         return new GotoStatement().parse(tk, owner);
     else if (t.iskeyword('if'))
@@ -1271,6 +1275,8 @@ class CallExpr : Expr
             argreg.push(reg);
         }
         e.annotate(self.start);
+        if (result != null)
+            e.print(result, ' = ');
         e.print(name, '(');
         string sep = '';
         for (string a in argreg) {
@@ -1572,6 +1578,51 @@ class SayStatement : PrintStatement
     {
         self.emit_print(e);
         e.say('print "\n"');
+    }
+}
+
+//*********************************************
+//            ReturnStatement
+//*********************************************
+
+class ReturnStatement : Statement
+{
+    var values;
+    function parse(tk, owner)
+    {
+        self.owner= owner;
+        var t = tk.get();
+        self.start = t;
+        if (! t.isop(';')) {
+            var values = [];
+            tk.unget(t);
+            do {
+                var expr = parseExpr(tk, self);
+                values.push(expr);
+            } while ((t = tk.get()).isop(','));
+        }
+        if (! t.isop(';'))
+            throw SyntaxError("Expected ';'", t);
+        self.values = values;
+        return self;
+    }
+    function emit(e)
+    {
+        var args = [];
+        var values = self.values;
+        int n = values;
+        for (int i= 0; i < n; ++i) {
+            string reg = values[i].emit_get(e);
+            args.push(reg);
+        }
+        self.annotate(e);
+        e.print('.return(');
+        string sep = '';
+        for (string arg in args) {
+            e.print(sep, arg);
+            sep= ', ';
+        }
+        e.say(')');
     }
 }
 

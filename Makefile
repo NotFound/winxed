@@ -94,6 +94,7 @@ TEST1 = \
 	t/preincdec.t.winxed \
 	t/string.t \
 	t/sub.t \
+	t/test.t \
 	t/var.t
 
 test1: winxed$(EXEEXT) winxedst1.pbc $(TEST1)

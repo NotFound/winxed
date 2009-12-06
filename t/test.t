@@ -37,7 +37,7 @@ function func_calls()
 	is(s, 'bar', 'function returning string');
 }
 
-function main()
+function main [main] ()
 {
 	using extern Test.More;
 	using Test.More.plan;
