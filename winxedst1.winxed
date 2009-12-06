@@ -809,6 +809,32 @@ class IdentifierExpr : SimpleExpr
 
 //*********************************************
 
+class OpUnaryMinusExpr : Expr
+{
+    var start;
+    var subexpr;
+
+    function checkResult()
+    {
+        return self.subexpr.checkResult();
+    }
+    function set(owner, t, subexpr)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.subexpr = subexpr;
+        return self;
+    }
+    function emit(e, result)
+    {
+        string reg = self.subexpr.emit_get(e);
+        e.annotate(self.start);
+        e.say('neg ', result, ', ', reg);
+    }
+}
+
+//*********************************************
+
 class OpNotExpr : Expr
 {
     var start;
@@ -1376,7 +1402,11 @@ function parseExpr_3(tk, owner)
 function parseExpr_4(tk, owner)
 {
     var t = tk.get();
-    if (t.isop('!')) {
+    if (t.isop('-')) {
+        var subexpr = parseExpr_4(tk, owner);
+        return new OpUnaryMinusExpr().set(owner, t, subexpr);
+    }
+    else if (t.isop('!')) {
         var subexpr = parseExpr_4(tk, owner);
         return new OpNotExpr().set(owner, t, subexpr);
     }
