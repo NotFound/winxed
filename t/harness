@@ -140,7 +140,7 @@ function build_file_list(var result, var args, int recursive)
         if (isdir && recursive)
             var newlist= build_from_dir(result, path, recursive);
         else
-            add_file(result, path);
+            result.push(path);
         
     }
 }

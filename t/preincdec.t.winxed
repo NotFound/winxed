@@ -6,7 +6,7 @@ function main()
         using extern Test.More;
         using Test.More.plan;
         using Test.More.is;
-        plan (4);
+        plan (3);
 
         int a = 69;
         int c;
@@ -19,6 +19,4 @@ function main()
 
         c = --(++a);
         is (c, 69);
-
-
 }
