@@ -1627,6 +1627,51 @@ class ReturnStatement : Statement
 }
 
 //*********************************************
+//            YieldStatement
+//*********************************************
+
+class YieldStatement : Statement
+{
+    var values;
+    function parse(tk, owner)
+    {
+        self.owner= owner;
+        var t = tk.get();
+        self.start = t;
+        if (! t.isop(';')) {
+            var values = [];
+            tk.unget(t);
+            do {
+                var expr = parseExpr(tk, self);
+                values.push(expr);
+            } while ((t = tk.get()).isop(','));
+        }
+        if (! t.isop(';'))
+            throw SyntaxError("Expected ';'", t);
+        self.values = values;
+        return self;
+    }
+    function emit(e)
+    {
+        var args = [];
+        var values = self.values;
+        int n = values;
+        for (int i= 0; i < n; ++i) {
+            string reg = values[i].emit_get(e);
+            args.push(reg);
+        }
+        self.annotate(e);
+        e.print('.yield(');
+        string sep = '';
+        for (string arg in args) {
+            e.print(sep, arg);
+            sep= ', ';
+        }
+        e.say(')');
+    }
+}
+
+//*********************************************
 //            LabelStatement
 //*********************************************
 
