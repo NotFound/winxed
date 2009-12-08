@@ -88,6 +88,7 @@ testv: winxed.pbc
 
 TEST1 = \
 	t/add.t \
+	t/assignto.t \
 	t/booland.t \
 	t/label.t \
 	t/not.t \
