@@ -14,7 +14,7 @@ function main()
     is (noinit instanceof 'ResizableStringArray', 1, 'type');
 
     string a []= [ 'foo', 'bar' ];
-    int n= a;
+    n= a;
     is (n, 2, 'size');
     is (a instanceof 'ResizableStringArray', 1, 'type');
     is (a[0], 'foo', 'first value');
