@@ -234,7 +234,7 @@ class Tokenizer
         var select = {
             '"': { '': getquoted },
             "'": { '': getsinglequoted },
-            '=': { '=': getop },
+            '=': { '=': getop, ':': getop },
             '+': { '+': getop, '=': getop },
             '-': { '-': getop, '=': getop },
             '|': { '|': getop },
@@ -1372,6 +1372,30 @@ class ArrayExpr : Expr
 
 //*********************************************
 
+class NewExpr : Expr
+{
+    var start;
+    var value;
+
+    function checkResult() { return 'P'; }
+    function parse(tk, owner, t)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.value = tk.get();
+        if (! self.value.isstring())
+            throw SyntaxError("Unimplemented", self.value);
+        return self;
+    }
+    function emit(e, result)
+    {
+        e.annotate(self.start);
+        e.say('root_new ', result, ", ['parrot'; ", self.value, " ]");
+    }
+}
+
+//*********************************************
+
 function parseExpr_0(tk, owner)
 {
     var t= tk.get();
@@ -1385,6 +1409,9 @@ function parseExpr_0(tk, owner)
     }
     if (t.isop('[')) {
         return new ArrayExpr().parse(tk, owner, t);
+    }
+    if (t.iskeyword('new')) {
+        return new NewExpr().parse(tk, owner, t);
     }
     if (t.isstring()) {
         expr= new StringLiteral();
@@ -1551,16 +1578,19 @@ function parseExpr_13(tk, owner)
 function parseExpr_16(tk, owner)
 {
     var subexpr = parseExpr_13(tk, owner);
-    var t= tk.get();
-    while (t.isop('=')) {
+    var t;
+    while ((t = tk.get()).isop('=') || t.isop('=:')) {
         var subexpr2 = parseExpr_16(tk, owner);
-        var expr = new OpAssignExpr();
+        var expr;
+        if (t.isop('='))
+            expr = new OpAssignExpr();
+        else
+            expr = new OpAssignToExpr();
         expr.owner= owner;
         expr.start= t;
         expr.eleft= subexpr;
         expr.eright= subexpr2;
         subexpr = expr;
-        t= tk.get();
     }
     tk.unget(t);
     return subexpr;
