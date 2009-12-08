@@ -8,7 +8,7 @@ class OtherArray : MyArray
 {
 }
 
-function main()
+function main [main] ()
 {
     using extern Test.More;
     using Test.More.plan;

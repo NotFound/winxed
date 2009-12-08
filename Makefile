@@ -90,6 +90,7 @@ TEST1 = \
 	t/add.t \
 	t/assignto.t \
 	t/booland.t \
+	t/instanceof.t \
 	t/label.t \
 	t/not.t \
 	t/postincdec.t \
@@ -97,7 +98,8 @@ TEST1 = \
 	t/string.t \
 	t/sub.t \
 	t/test.t \
-	t/var.t
+	t/var.t \
+	t/vtable.t
 
 test1: winxed$(EXEEXT) winxedst1.pbc $(TEST1)
 	parrot winxed.pbc t/harness --stage=1 $(TEST1)

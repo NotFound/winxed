@@ -319,7 +319,18 @@ class Tokenizer
 //            Miniwinxed
 //*********************************************
 
-// This is a first step towards a possible bootstraped version.
+function getkey(var path)
+{
+    string s = "[ ";
+    string sep= " '";
+    for (string n in path) {
+        s+= sep;
+        sep=" ; '";
+        s+= n + "'";
+    }
+    s+= " ]";
+    return s;
+}
 
 function namespacekey(var path)
 {
@@ -1331,7 +1342,7 @@ class CallExpr : Expr
     {
         var funref = self.funref;
         if (! funref.isidentifier())
-            InternalError("Unsupported");
+            throw SyntaxError("Unsupported", self.start);
         string name = funref.name; // Internals abuse, provisional
         string argreg[];
         for (var arg in self.args) {
@@ -1413,14 +1424,23 @@ class NewExpr : Expr
         self.owner = owner;
         self.start = t;
         self.value = tk.get();
-        if (! self.value.isstring())
+        if (! (self.value.isstring() || self.value.isidentifier()))
             throw SyntaxError("Unimplemented", self.value);
+        t = tk.get();
+        if (t.isop('(')) {
+            t = tk.get();
+        }
+        else
+            tk.unget(t);
         return self;
     }
     function emit(e, result)
     {
         e.annotate(self.start);
-        e.say('root_new ', result, ", ['parrot'; ", self.value, " ]");
+        if (self.value.isstring())
+            e.say('root_new ', result, ", ['parrot'; ", self.value, " ]");
+        else
+            e.say('new ', result, ", ['", self.value, "']");
     }
 }
 
@@ -2441,6 +2461,10 @@ class FunctionStatement : BlockStatement
             for (var m in modifiers)
                 e.print(' :', m);
         }
+	else {
+	    if (name == 'main')
+                e.print(' :main');
+	}
         e.say();
         var arg;
         for (arg in self.args)
@@ -2509,9 +2533,26 @@ class ClassStatement : Item
     {
         var classns= self.parent.getpath();
         classns.push(self.name);
-        say(namespacekey(classns));
+        e.say(namespacekey(classns));
         for (var f in self.functions)
             f.emit(e);
+
+        e.say('.sub Winxed_class_init :anon :load :init');
+
+        e.say('newclass $P0, ', getkey(classns) );
+        int n = 1;
+        for (var base in self.bases) {
+            string reg = "$P" + n++;
+            e.print('get_class ', reg, ', ');
+            if (base.isstring())
+                e.say(base);
+            else
+                e.say("'", base, "'");
+            e.comment(base);
+            e.say('addparent $P0, ', reg);
+        }
+
+        e.say('.end');
     }
 }
 
