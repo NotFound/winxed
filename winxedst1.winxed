@@ -1426,6 +1426,31 @@ class NewExpr : Expr
 
 //*********************************************
 
+class OpInstanceOfExpr : Expr
+{
+    var start;
+    var eleft;
+    var checked;
+
+    function checkResult() { return 'I'; }
+    function parse(owner, t, eleft, tk)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.eleft = eleft;
+        self.checked= tk.get();
+        return self;
+    }
+    function emit(e, result)
+    {
+        string r = self.eleft.emit_get(e);
+        e.annotate(self.start);
+        e.say('isa ', result, ', ', r, ', ', self.checked);
+    }
+}
+
+//*********************************************
+
 function parseExpr_0(tk, owner)
 {
     var t= tk.get();
@@ -1563,12 +1588,18 @@ function parseExpr_8(tk, owner)
 {
     var eleft = parseExpr_6(tk, owner);
     var t;
-    while ((t= tk.get()).isop('==') || t.isop('!=')) {
-        var eright = parseExpr_6(tk, owner);
-        if (t.isop('=='))
+    while ((t= tk.get()).isop('==') || t.isop('!=') || t.iskeyword('instanceof')) {
+        if (t.isop('==')) {
+            var eright = parseExpr_6(tk, owner);
             eleft = new OpEqualExpr().set(owner, t, eleft, eright);
-        else
+        }
+        else if (t.isop('!=')) {
+            var eright = parseExpr_6(tk, owner);
             eleft = new OpNotEqualExpr().set(owner, t, eleft, eright);
+        }
+        else { // instanceof
+            eleft = new OpInstanceOfExpr().parse(owner, t, eleft, tk);
+        }
     }
     tk.unget(t);
     return eleft;
