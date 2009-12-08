@@ -1026,6 +1026,36 @@ class OpAssignExpr : Expr
 
 //*********************************************
 
+class OpAssignToExpr : Expr
+{
+    var start;
+    var eleft;
+    var eright;
+    function checkResult()
+    {
+        if (self.eleft.isidentifier())
+            return self.eleft.checkResult();
+        else
+            InternalError('Unimplemented');
+    }
+    function emit(e, result)
+    {
+        string reg = self.emit_get(e);
+        e.annotate(self.start);
+        e.say('assign ', result, ', ', reg);
+    }
+    function emit_get(e)
+    {
+        e.annotate(self.start);
+        string reg = self.eleft.emit_get(e);
+        string reg2 = self.eright.emit_get(e);
+        e.say('assign ', reg, ', ', reg2);
+        return reg;
+    }
+}
+
+//*********************************************
+
 class ComparatorBaseExpr : Expr
 {
     var start;
