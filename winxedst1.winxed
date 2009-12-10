@@ -2038,7 +2038,9 @@ class DeclareStatement : Statement
     var name;
     var t_reg;
     var t_name;
+    var t_array;
     var reg;
+    var typearray;
     var init;
     function parse(tk, owner)
     {
@@ -2047,15 +2049,36 @@ class DeclareStatement : Statement
         if (!t.isidentifier())
             throw SyntaxError('Identifier expected', t);
         self.name= t;
-        string reg= self.createvar(t, self.t_reg);
-        self.reg= reg;
+        string reg;
+
         t= tk.get();
-        if (t.isop('=')) {
-            self.init = parseExpr(tk, self);
+        if (t.isop('[')) {
+            // Array
+            self.typearray = 1;
+            reg= self.createvar(self.name, 'P');
             t= tk.get();
+            if (t.isop(']')) {
+                // Variable length
+                t= tk.get();
+            }
+            else
+                InternalError("Unimplemented");
         }
+        else {
+            // Simple
+            self.typearray = 0;
+            reg= self.createvar(self.name, self.t_reg);
+            if (t.isop('=')) {
+                // Simple initializer
+                self.init = parseExpr(tk, self);
+                t= tk.get();
+            }
+        }
+
+        self.reg= reg;
         if (!t.isop(';'))
             throw SyntaxError("Expected ';'", t);
+
         return self;
     }
     function emit(var e)
@@ -2066,17 +2089,27 @@ class DeclareStatement : Statement
         string reg = self.reg;
         e.comment(tname + ' ' + name + ': ' + reg);
         if (self.init != null) {
+            e.comment('init');
             string itype = self.init.checkResult();
-            if (itype == self.t_reg)
+            if (itype == self.t_reg) {
+                e.comment('init same type');
                 self.init.emit(e, reg);
+            }
             else {
+                e.comment('init other type: ' + itype);
                 string ireg = self.tempreg(itype);
                 self.init.emit(e, ireg);
                 e.say('set ', reg, ', ', ireg);
             }
         }
         else
-            self.defaultinit(e);
+        {
+            if (self.typearray == 0)
+                self.defaultinit(e);
+            else {
+                e.say('root_new ', self.reg, ", ['parrot'; 'Resizable", self.t_array, "Array']");
+            }
+        }
     }
     function defaultinit(var e)
     {
@@ -2149,6 +2182,7 @@ class StringStatement : DeclareStatement
     {
         self.t_reg = 'S';
         self.t_name = 'string';
+        self.t_array = 'String';
     }
     function defaultinit(var e)
     {
@@ -2166,6 +2200,7 @@ class IntStatement : DeclareStatement
     {
         self.t_reg = 'I';
         self.t_name = 'int';
+        self.t_array = 'Integer';
     }
     function defaultinit(var e)
     {
@@ -2183,6 +2218,7 @@ class FloatStatement : DeclareStatement
     {
         self.t_reg = 'N';
         self.t_name = 'float';
+        self.t_array = 'Number';
     }
     function defaultinit(var e)
     {
@@ -2374,7 +2410,7 @@ class FunctionStatement : BlockStatement
         case 'P':
             store = self.regstP; break;
         default:
-            InternalError('Invalid type in tempreg');
+            InternalError("Invalid type in tempreg");
         }
         string reg = store.tempreg();
         return reg;
