@@ -2041,6 +2041,7 @@ class DeclareStatement : Statement
     var t_array;
     var reg;
     var typearray;
+    var size;
     var init;
     function parse(tk, owner)
     {
@@ -2061,8 +2062,14 @@ class DeclareStatement : Statement
                 // Variable length
                 t= tk.get();
             }
-            else
-                InternalError("Unimplemented");
+            else {
+                tk.unget(t);
+                self.size = parseExpr(tk, self);
+                t= tk.get();
+                if (! t.isop(']'))
+                    throw SyntaxError("Expected ']'", t);
+                t= tk.get();
+            }
         }
         else {
             // Simple
@@ -2107,7 +2114,14 @@ class DeclareStatement : Statement
             if (self.typearray == 0)
                 self.defaultinit(e);
             else {
-                e.say('root_new ', self.reg, ", ['parrot'; 'Resizable", self.t_array, "Array']");
+                var size = self.size;
+                if (size != null) {
+                    string regsize = size.emit_get(e);
+                    e.say('root_new ', self.reg, ", ['parrot'; 'Resizable", self.t_array, "Array']");
+                    e.say('set ', self.reg, ', ', regsize);
+                }
+                else
+                    e.say('root_new ', self.reg, ", ['parrot'; 'Resizable", self.t_array, "Array']");
             }
         }
     }
@@ -2497,10 +2511,10 @@ class FunctionStatement : BlockStatement
             for (var m in modifiers)
                 e.print(' :', m);
         }
-	else {
-	    if (name == 'main')
+        else {
+            if (name == 'main')
                 e.print(' :main');
-	}
+        }
         e.say();
         var arg;
         for (arg in self.args)
