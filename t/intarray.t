@@ -14,7 +14,7 @@ function main()
     is (noinit instanceof 'ResizableIntegerArray', 1, 'type');
 
     int a []= [ 7, 42 ];
-    int n= a;
+    n= a;
     is (n, 2, 'size');
     is (a instanceof 'ResizableIntegerArray', 1, 'type');
     is (a[0], 7, 'first value');
