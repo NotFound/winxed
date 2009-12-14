@@ -1539,6 +1539,7 @@ class NewExpr : Expr
 {
     var start;
     var value;
+    var initializer;
 
     function checkResult() { return 'P'; }
     function parse(tk, owner, t)
@@ -1551,6 +1552,13 @@ class NewExpr : Expr
         t = tk.get();
         if (t.isop('(')) {
             t = tk.get();
+            if (! t.isop(')')) {
+                tk.unget(t);
+                self.initializer = parseExpr(tk, owner);
+                t = tk.get();
+                if (!t.isop(')'))
+                    throw SyntaxError("Expected ')'", t);
+            }
         }
         else
             tk.unget(t);
@@ -1559,10 +1567,15 @@ class NewExpr : Expr
     function emit(e, result)
     {
         e.annotate(self.start);
+        string reginit = '';
+        if (self.initializer != null) {
+            reginit = self.initializer.emit_get(e);
+            reginit = ', ' + reginit;
+        }
         if (self.value.isstring())
-            e.say('root_new ', result, ", ['parrot'; ", self.value, " ]");
+            e.say('root_new ', result, ", ['parrot'; ", self.value, " ]", reginit);
         else
-            e.say('new ', result, ", ['", self.value, "']");
+            e.say('new ', result, ", ['", self.value, "']", reginit);
     }
 }
 
