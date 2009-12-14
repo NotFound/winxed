@@ -473,6 +473,8 @@ function parseStatement(tk, owner)
         return new IfStatement().parse(tk, owner);
     else if (t.iskeyword('for'))
         return parseFor(t, tk, owner);
+    else if (t.iskeyword('throw'))
+        return new ThrowStatement().parse(t, tk, owner);
     else if (t.iskeyword('print')) {
         var c= new PrintStatement();
         tk.unget(t);
@@ -2174,6 +2176,29 @@ function parseFor(t, tk, owner)
         return new ForeachStatement().parse(t, tk, owner);
     }
     throw SyntaxError('Unimplemented', t);
+}
+
+//*********************************************
+//            ThrowStatement
+//*********************************************
+
+class ThrowStatement : Statement
+{
+    var excep;
+
+    function parse(t, tk, owner)
+    {
+        self.start = t;
+        self.owner= owner;
+        self.excep = parseExpr(tk, self);
+        return self;
+    }
+    function emit(e)
+    {
+        string reg = self.excep.emit_get(e);
+        self.annotate(e);
+        e.say('throw ', reg);
+    }
 }
 
 //*********************************************
