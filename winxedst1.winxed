@@ -2083,6 +2083,24 @@ class DeclareStatement : Statement
         }
 
         self.reg= reg;
+        if (t.isop('=')) {
+            say('Initializer');
+            t = tk.get();
+            if (! t.isop('['))
+                throw SyntaxError("Array initializer expected", t);
+            self.init = new 'ResizablePMCArray';
+            t = tk.get();
+            if (! t.isop(']')) {
+                tk.unget(t);
+                do {
+                    var item = parseExpr(tk, self);
+                    self.init.push(item);
+                } while ((t = tk.get()).isop(','));
+                if (! t.isop(']'))
+                    throw SyntaxError("Expected ',' or ']'", t);
+            }
+            t = tk.get();
+        }
         if (!t.isop(';'))
             throw SyntaxError("Expected ';'", t);
 
@@ -2095,33 +2113,52 @@ class DeclareStatement : Statement
         string name = self.name;
         string reg = self.reg;
         e.comment(tname + ' ' + name + ': ' + reg);
-        if (self.init != null) {
-            e.comment('init');
-            string itype = self.init.checkResult();
-            if (itype == self.t_reg) {
-                e.comment('init same type');
-                self.init.emit(e, reg);
-            }
-            else {
-                e.comment('init other type: ' + itype);
-                string ireg = self.tempreg(itype);
-                self.init.emit(e, ireg);
-                e.say('set ', reg, ', ', ireg);
-            }
-        }
-        else
-        {
-            if (self.typearray == 0)
+
+        if (self.typearray == 0) {
+            if (self.init == null)
                 self.defaultinit(e);
             else {
-                var size = self.size;
-                if (size != null) {
-                    string regsize = size.emit_get(e);
-                    e.say('root_new ', self.reg, ", ['parrot'; 'Resizable", self.t_array, "Array']");
-                    e.say('set ', self.reg, ', ', regsize);
+                e.comment('init');
+                string itype = self.init.checkResult();
+                if (itype == self.t_reg) {
+                    e.comment('init same type');
+                    self.init.emit(e, reg);
                 }
-                else
-                    e.say('root_new ', self.reg, ", ['parrot'; 'Resizable", self.t_array, "Array']");
+                else {
+                    e.comment('init other type: ' + itype);
+                    string ireg = self.tempreg(itype);
+                    self.init.emit(e, ireg);
+                    e.say('set ', reg, ', ', ireg);
+                }
+            }
+        }
+        else {
+            var size = self.size;
+            if (size != null) {
+                // Fixed size array
+                string regsize = size.emit_get(e);
+                e.say('root_new ', self.reg, ", ['parrot'; 'Fixed", self.t_array, "Array']");
+                e.say('set ', self.reg, ', ', regsize);
+            }
+            else {
+                // Variable size array
+                e.say('root_new ', self.reg, ", ['parrot'; 'Resizable", self.t_array, "Array']");
+            }
+            if (self.init != null) {
+                string reg = self.tempreg(self.t_reg);
+                int n = self.init;
+                if (size == null) {
+                    if (n > 0) {
+                        // Allocate initializers size
+                        e.say('set ', self.reg, ', ', n);
+                    }
+                }
+                int i= 0;
+                for (var item in self.init) {
+                    item.emit(e, reg);
+                    e.say(self.reg, '[', i , '] = ', reg);
+                    ++i;
+                }
             }
         }
     }
