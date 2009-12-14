@@ -1202,6 +1202,74 @@ class OpBoolAndExpr : Expr
 
 //*********************************************
 
+class OpBinAndExpr : Expr
+{
+    var start;
+    var eleft;
+    var eright;
+    function checkResult()
+    {
+        return 'I';
+    }
+    function set(owner, t, eleft, eright)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.eleft = eleft;
+        self.eright = eright;
+        return self;
+    }
+    function emit(e, result)
+    {
+        string res;
+        if (result != null)
+            res = result;
+        else
+            res = self.owner.tempreg('I');
+        string op1 = self.owner.tempreg('I');
+        string op2 = self.owner.tempreg('I');
+        self.eleft.emit(e, op1);
+        self.eright.emit(e, op2);
+        e.say('band ', res, ', ', op1, ', ', op2);
+    }
+}
+
+//*********************************************
+
+class OpBinOrExpr : Expr
+{
+    var start;
+    var eleft;
+    var eright;
+    function checkResult()
+    {
+        return 'I';
+    }
+    function set(owner, t, eleft, eright)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.eleft = eleft;
+        self.eright = eright;
+        return self;
+    }
+    function emit(e, result)
+    {
+        string res;
+        if (result != null)
+            res = result;
+        else
+            res = self.owner.tempreg('I');
+        string op1 = self.owner.tempreg('I');
+        string op2 = self.owner.tempreg('I');
+        self.eleft.emit(e, op1);
+        self.eright.emit(e, op2);
+        e.say('bor ', res, ', ', op1, ', ', op2);
+    }
+}
+
+//*********************************************
+
 class OpAddExpr : Expr
 {
     var start;
@@ -1699,12 +1767,36 @@ function parseExpr_9(tk, owner)
     return eleft;
 }
 
-function parseExpr_13(tk, owner)
+function parseExpr_10(tk, owner)
 {
     var eleft = parseExpr_9(tk, owner);
     var t;
-    while ((t= tk.get()).isop('&&')) {
+    while ((t = tk.get()).isop('&')) {
         var eright = parseExpr_9(tk, owner);
+        eleft = new OpBinAndExpr().set(owner, t, eleft, eright);
+    }
+    tk.unget(t);
+    return eleft;
+}
+
+function parseExpr_12(tk, owner)
+{
+    var eleft = parseExpr_10(tk, owner);
+    var t;
+    while ((t = tk.get()).isop('|')) {
+        var eright = parseExpr_10(tk, owner);
+        eleft = new OpBinOrExpr().set(owner, t, eleft, eright);
+    }
+    tk.unget(t);
+    return eleft;
+}
+
+function parseExpr_13(tk, owner)
+{
+    var eleft = parseExpr_12(tk, owner);
+    var t;
+    while ((t= tk.get()).isop('&&')) {
+        var eright = parseExpr_12(tk, owner);
         eleft = new OpBoolAndExpr().set(owner, t, eleft, eright);
     }
     tk.unget(t);

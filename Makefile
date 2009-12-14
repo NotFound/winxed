@@ -90,6 +90,8 @@ TEST1 = \
 	t/add.t \
 	t/assignto.t \
 	t/booland.t \
+	t/binand.t \
+	t/binor.t \
 	t/instanceof.t \
 	t/label.t \
 	t/not.t \
