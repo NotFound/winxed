@@ -1413,6 +1413,58 @@ class ArrayExpr : Expr
 
 //*********************************************
 
+class HashExpr : Expr
+{
+    var start;
+    var values;
+
+    function checkResult() { return 'P'; }
+    function parse(tk, owner, t)
+    {
+        self.owner = owner;
+        self.start = t;
+        t = tk.get();
+        if (!t.isop('}')) {
+            var values = new 'Hash';
+            tk.unget(t);
+            do {
+                t = tk.get();
+                if (!(t.isstring() || t.isidentifier()))
+                    throw SyntaxError("Expected key", t);
+                string key = t;
+                t = tk.get();
+                if (! t.isop(':'))
+                    throw SyntaxError("Expected ':'", t);
+                var value = parseExpr(tk, self);
+                values[key] = value;
+            } while ((t = tk.get()).isop(','));
+            if (! t.isop('}'))
+                throw SyntaxError("Expeced ',' or '}'", t);
+            self.values = values;
+        }
+        return self;
+    }
+    function emit(e, result)
+    {
+        e.annotate(self.start);
+        e.say('root_new ', result, ", ['parrot';'Hash']");
+        var values = self.values;
+        for (string item in values) {
+            var value = values[item];
+            string itemreg = value.emit_get(e);
+            e.say(result, '[', item, '] = ', itemreg);
+        }
+    }
+    function emit_get(e)
+    {
+        string container = self.owner.tempreg('P');
+        self.emit(e, container);
+        return container;
+    }
+}
+
+//*********************************************
+
 class NewExpr : Expr
 {
     var start;
@@ -1484,6 +1536,9 @@ function parseExpr_0(tk, owner)
     }
     if (t.isop('[')) {
         return new ArrayExpr().parse(tk, owner, t);
+    }
+    if (t.isop('{')) {
+        return new HashExpr().parse(tk, owner, t);
     }
     if (t.iskeyword('new')) {
         return new NewExpr().parse(tk, owner, t);
