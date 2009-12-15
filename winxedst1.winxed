@@ -1434,6 +1434,50 @@ class CallExpr : Expr
 
 //*********************************************
 
+class IndexExpr : Expr
+{
+    var start;
+    var left;
+    var args;
+
+    function checkResult() { return 'P'; }
+    function parse(tk, owner, t, subexp)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.left = subexp;
+        self.args = new 'ResizablePMCArray';
+        do {
+            var arg = parseExpr(tk, self);
+            self.args.push(arg);
+        } while ( (t= tk.get()).isop(','));
+        if (! t.isop(']'))
+            throw SyntaxError("Expected ']' or ',' in index expr", t);
+        return self;
+    }
+    function emit(e, result)
+    {
+        if (! self.left.isidentifier())
+            throw SyntaxError("Unimplemented", self.start);
+        //int n = self.args;
+        var regleft = self.left.getIdentifier();
+        string argregs[];
+        for (var arg in self.args) {
+            string argreg = arg.emit_get(e);
+            argregs.push(argreg);
+        }
+        e.print(result, ' = ', regleft, '[');
+        string sep = '';
+        for (string reg in argregs) {
+            e.print(sep, reg);
+            sep = ', ';
+        }
+        e.say(']');
+    }
+}
+
+//*********************************************
+
 class ArrayExpr : Expr
 {
     var start;
@@ -1656,11 +1700,14 @@ function parseExpr_0(tk, owner)
 function parseExpr_2(tk, owner)
 {
     var subexp = parseExpr_0(tk, owner);
-    var t = tk.get();
-    if (t.isop('('))
-        subexp = new CallExpr().parse(tk, owner, t, subexp);
-    else
-        tk.unget(t);
+    var t;
+    while ((t = tk.get()).isop('(') || t.isop('[')) {
+        if (t.isop('('))
+            subexp = new CallExpr().parse(tk, owner, t, subexp);
+        else
+            subexp = new IndexExpr().parse(tk, owner, t, subexp);
+    }
+    tk.unget(t);
     return subexp;
 }
 
@@ -2269,7 +2316,7 @@ class DeclareStatement : Statement
 
         self.reg= reg;
         if (t.isop('=')) {
-            say('Initializer');
+            //say('Initializer');
             t = tk.get();
             if (! t.isop('['))
                 throw SyntaxError("Array initializer expected", t);

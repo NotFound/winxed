@@ -93,11 +93,13 @@ TEST1 = \
 	t/binand.t \
 	t/binor.t \
 	t/instanceof.t \
+	t/intarray.t \
 	t/label.t \
 	t/not.t \
 	t/postincdec.t \
 	t/preincdec.t.winxed \
 	t/string.t \
+	t/stringarray.t \
 	t/sub.t \
 	t/test.t \
 	t/var.t \
