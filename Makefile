@@ -102,6 +102,7 @@ TEST1 = \
 	t/stringarray.t \
 	t/sub.t \
 	t/test.t \
+	t/throw.t \
 	t/var.t \
 	t/vtable.t
 

@@ -475,6 +475,8 @@ function parseStatement(tk, owner)
         return parseFor(t, tk, owner);
     else if (t.iskeyword('throw'))
         return new ThrowStatement().parse(t, tk, owner);
+    else if (t.iskeyword('try'))
+        return new TryStatement().parse(t, tk, owner);
     else if (t.iskeyword('print')) {
         var c= new PrintStatement();
         tk.unget(t);
@@ -640,6 +642,9 @@ class ExprStatement : Statement
     {
         self.owner = owner;
         self.expr = parseExpr(tk, self);
+        var t = tk.get();
+        if (!t.isop(';'))
+            throw SyntaxError("Expected ';' after expression", t);
         return self;
     }
     function emit(e)
@@ -2258,6 +2263,65 @@ class ThrowStatement : Statement
         string reg = self.excep.emit_get(e);
         self.annotate(e);
         e.say('throw ', reg);
+    }
+}
+
+//*********************************************
+//            TryStatement
+//*********************************************
+
+class TryStatement : BlockStatement
+{
+    var stry;
+    var exname;
+    var scatch;
+
+    function parse(t, tk, owner)
+    {
+        self.start = t;
+        self.owner= owner;
+        self.stry = parseStatement(tk, self);
+        t = tk.get();
+        if (! t.iskeyword('catch'))
+            throw SyntaxError("Expected 'catch'", t);
+        t = tk.get();
+        if (! t.isop('('))
+            throw SyntaxError("Excpected '(' after 'catch'", t);
+        t = tk.get();
+        if (! t.isop(')')) {
+            string exname = t.getidentifier();
+            self.exname = t;
+            self.createvar(exname, 'P');
+            t = tk.get();
+            if (! t.isop(')'))
+                throw SyntaxError("Excpected ')' in 'catch'", t);
+        }
+        self.scatch = parseStatement(tk, self);
+        return self;
+    }
+    function emit(e)
+    {
+        string reghandler = self.tempreg('P');
+        string labelhandler = self.genlabel();
+        string labelpasthandler = self.genlabel();
+        var exname = self.getvar(self.exname);
+
+        self.annotate(e);
+
+        e.say('new ', reghandler, ", 'ExceptionHandler'");
+        e.say('set_addr ', reghandler, ', ', labelhandler);
+        e.say('push_eh ', reghandler);
+
+        self.stry.emit(e);
+        self.annotate(e);
+        e.say('goto ', labelpasthandler);
+
+        e.say(labelhandler, ':');
+        e.say('.get_results(', exname['reg'], ')');
+        e.say('pop_eh');
+        self.scatch.emit(e);
+
+        e.say(labelpasthandler, ':');
     }
 }
 
