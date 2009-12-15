@@ -471,6 +471,10 @@ function parseStatement(tk, owner)
         return new GotoStatement().parse(tk, owner);
     else if (t.iskeyword('if'))
         return new IfStatement().parse(tk, owner);
+    else if (t.iskeyword('break'))
+        return new BreakStatement().parse(t, tk, owner);
+    else if (t.iskeyword('switch'))
+        return new SwitchStatement().parse(t, tk, owner);
     else if (t.iskeyword('for'))
         return parseFor(t, tk, owner);
     else if (t.iskeyword('throw'))
@@ -543,6 +547,10 @@ class Statement : Item
     function getvar(name)
     {
         return self.owner.getvar(name);
+    }
+    function getbreaklabel(pos)
+    {
+        return self.owner.getbreaklabel(pos);
     }
 }
 
@@ -1453,7 +1461,7 @@ class IndexExpr : Expr
         self.left = subexp;
         self.args = new 'ResizablePMCArray';
         do {
-            var arg = parseExpr(tk, self);
+            var arg = parseExpr(tk, owner);
             self.args.push(arg);
         } while ( (t= tk.get()).isop(','));
         if (! t.isop(']'))
@@ -1488,6 +1496,7 @@ class ArrayExpr : Expr
     var start;
     var values;
 
+    function checkResult() { return 'P'; }
     function parse(tk, owner, t)
     {
         self.owner = owner;
@@ -1504,6 +1513,11 @@ class ArrayExpr : Expr
                 throw SyntaxError("Expected ']' or ','", t);
         }
         return self;
+    }
+    function emit(e, result)
+    {
+        string value = self.emit_get(e);
+        e.say('set ', result, ', ', value);
     }
     function emit_get(e)
     {
@@ -2159,6 +2173,146 @@ class IfStatement : Statement
             self.falsebranch.emit(e);
         }
         e.say(endlabel, ': # endif');
+    }
+}
+
+//*********************************************
+//            BreakStatement
+//*********************************************
+
+class BreakStatement : Statement
+{
+    function parse(t, tk, owner)
+    {
+        self.start = t;
+        self.owner = owner;
+        t = tk.get();
+        if (! t.isop(';'))
+            throw SyntaxError("Expected ';' after break");
+        return self;
+    }
+    function emit(e)
+    {
+        string label = self.getbreaklabel(self.start);
+        e.say('goto ', label, ' # break');
+    }
+}
+
+//*********************************************
+//            SwitchStatement
+//*********************************************
+
+class SwitchStatement : Statement
+{
+    var condition;
+    var breaklabel;
+    var case_value;
+    var case_st;
+    var default_st;
+
+    function parse(t, tk, owner)
+    {
+        self.start = t;
+        self.owner = owner;
+        t = tk.get();
+        if (! t.isop('('))
+            throw SyntaxError("Expected '(' in switch", t);
+        self.condition = parseExpr(tk, self);
+        t = tk.get();
+        if (! t.isop(')'))
+            throw SyntaxError("Expected ')' in switch", t);
+        t = tk.get();
+        if (! t.isop('{'))
+            throw SyntaxError("Expected '{' in switch", t);
+        self.case_value = [];
+        self.case_st = [];
+        self.default_st = [];
+        while ((t = tk.get()).iskeyword('case') || t.iskeyword('default')) {
+            if (t.iskeyword('case')) {
+                self.case_value.push(parseExpr(tk, self));
+                t = tk.get();
+                if (! t.isop(':'))
+                    throw SyntaxError("Expected ':' in case", t);
+                var st = [];
+                while (! ((t = tk.get()).isop('}') || t.iskeyword('case') || t.iskeyword('default'))) {
+                    tk.unget(t);
+                    st.push(parseStatement(tk, self));
+                }
+                self.case_st.push(st);
+                tk.unget(t);
+            }
+            else {
+                t = tk.get();
+                if (! t.isop(':'))
+                    throw SyntaxError("Expected ':' in default", t);
+                while (! ((t = tk.get()).isop('}') || t.iskeyword('case') || t.iskeyword('default'))) {
+                    tk.unget(t);
+                    self.default_st.push(parseStatement(tk, self));
+                }
+                tk.unget(t);
+            }
+        }
+        return self;
+    }
+    function emit(e)
+    {
+        // Get case common type
+        string type = '';
+        for (var value in self.case_value) {
+            string t = value.checkResult();
+            if (t == 'N')
+                throw SyntaxError("Invalid type in case", self.start);
+            if (type == '')
+                type = t;
+            else if (type != t)
+                type = 'P';
+        }
+        // Evaluate condition
+        string reg = self.tempreg(type);
+        if (self.condition.checkResult() == type)
+            self.condition.emit(e, reg);
+        else {
+            string regcond = self.condition.emit_get(e);
+            e.say('set ', reg, ', ', regcond);
+        }
+
+        // Prpeare labels and check values
+        self.breaklabel = self.genlabel();
+        string defaultlabel = self.genlabel();
+        string caselabel[];
+        string regval = self.tempreg(type);
+        for (var caseval in self.case_value) {
+            string label = self.genlabel();
+            caselabel.push(label);
+            caseval.emit(e, regval);
+            e.say('if ', reg, ' == ', regval, ' goto ', label);
+        }
+        e.say('goto ', defaultlabel);
+
+        // Emit cases
+        e.comment('switch');
+        self.annotate(e);
+        var case_st = self.case_st;
+        int n = case_st;
+        for (int i= 0; i < n; ++i) {
+            string l = caselabel[i];
+            e.say(l, ': # case');
+            var casest = case_st[i];
+            for (var st in casest)
+                st.emit(e);
+        }
+        // Emit default
+        e.say(defaultlabel, ': # default');
+        for (var dst in self.default_st)
+            dst.emit(e);
+
+        e.say(self.breaklabel, ':');
+        e.comment('switch end');
+    }
+    function getbreaklabel(pos)
+    {
+        string label = self.breaklabel;
+        return label;
     }
 }
 
@@ -2862,6 +3016,10 @@ class FunctionStatement : BlockStatement
 
         e.annotate(self.body.getend());
         e.say('.end # ', name);
+    }
+    function getbreaklabel(pos)
+    {
+        throw SyntaxError('break not allowed here', pos);
     }
 }
 
