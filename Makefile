@@ -97,6 +97,7 @@ TEST1 = \
 	t/intarray.t \
 	t/label.t \
 	t/not.t \
+	t/parent.t \
 	t/postincdec.t \
 	t/preincdec.t.winxed \
 	t/string.t \

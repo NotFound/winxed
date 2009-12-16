@@ -821,6 +821,8 @@ class IdentifierExpr : SimpleExpr
         var desc = self.owner.getvar(name);
         if (desc == null) {
             string sname = name;
+            if (sname == 'self')
+                return 'self';
             throw SyntaxError("Variable '" + sname + "' is not defined", name);
         }
         string s= desc['reg'];
@@ -1487,6 +1489,7 @@ class MemberExpr : Expr
     var left;
     var right;
 
+    function checkResult() { return 'P'; }
     function parse(tk, owner, t, subexp)
     {
         self.owner = owner;
@@ -1510,6 +1513,12 @@ class MemberExpr : Expr
         string result = self.owner.tempreg('P');
         e.say('getattribute ', result, ', ', obj, ", '", ident, "'");
         return result;
+    }
+    function emit(e, result)
+    {
+        string obj = self.left.emit_get(e);
+        string ident = self.right.getidentifier();
+        e.say('getattribute ', result, ', ', obj, ", '", ident, "'");
     }
 }
 
@@ -3124,14 +3133,21 @@ class ClassStatement : Item
     var name;
     var bases;
     var functions;
+    var members;
 
     function isClass() { return 1; }
     function init [vtable] ()
     {
         self.functions = [];
+        self.members = [];
         self.bases= [];
     }
 
+    function getvar(name)
+    {
+        // Nothing for a now.
+        return null;
+    }
     function parse(tk, parent)
     {
         self.parent= parent;
@@ -3150,13 +3166,20 @@ class ClassStatement : Item
         if (!t.isop('{'))
             throw Error("Expected '{'");
         t= tk.get();
-        while (!t.isop('}'))
-        {
-            if (t.iskeyword('function'))
-            {
+        while (!t.isop('}')) {
+            if (t.iskeyword('function')) {
                 var f= new FunctionStatement().parse(tk, self);
                 var functions= self.functions;
                 functions.push(f);
+            }
+            else if (t.iskeyword('var')) {
+                var name = tk.get();
+                if (! name.isidentifier())
+                    throw SyntaxError("Expected member identifier", name);
+                self.members.push(name);
+                t = tk.get();
+                if (! t.isop(';'))
+                    throw SyntaxError("Expected ';' in member declaration", t);
             }
             t= tk.get();
         }
@@ -3182,6 +3205,10 @@ class ClassStatement : Item
                 e.say("'", base, "'");
             e.comment(base);
             e.say('addparent $P0, ', reg);
+        }
+        for (var member in self.members) {
+            e.annotate(member);
+            e.say("addattribute $P0, '", member, "'");
         }
 
         e.say('.end');
