@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 27-nov-2009
+// Revision 16-dec-2009
 
 // Winxed compiler stage 0.
 
@@ -3320,10 +3320,14 @@ public:
     void emit(Emit &e, const std::string &result)
     {
         std::string reg = gentemp('P');
-        std::string r = result.empty() ? gentemp('P') : result;
+        std::string r = (result.empty() ||
+                (result[0] == '$' && result.substr(0, 2) != "$P") ) ?
+            gentemp('P') : result;
         left->emit(e, reg);
         e << "getattribute " << r << ", " << reg <<
             ", '" << right.identifier() << "'\n";
+        if (result != r)
+            e << op_set(result, r) << '\n';
     }
     std::string getmember() const { return right.identifier(); }
     void emitleft(Emit &e, const std::string &result)
