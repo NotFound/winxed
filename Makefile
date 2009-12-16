@@ -92,6 +92,7 @@ TEST1 = \
 	t/booland.t \
 	t/binand.t \
 	t/binor.t \
+	t/classtest.t \
 	t/instanceof.t \
 	t/intarray.t \
 	t/label.t \
