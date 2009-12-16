@@ -1306,12 +1306,33 @@ class OpAddExpr : Expr
     }
     function emit(e, result)
     {
+        string restype = self.checkResult();
+        string ltype = self.eleft.checkResult();
+        string rtype = self.eright.checkResult();
+
         string rleft = self.eleft.emit_get(e);
         string rright = self.eright.emit_get(e);
-        if (self.checkResult() == 'S')
+        if (restype == 'S')
             e.say('concat ', result, ', ', rleft, ', ', rright);
-        else
-            e.say('add ', result, ', ', rleft, ', ', rright);
+        else {
+            if (restype == 'I' && (ltype != 'I' || rtype != 'I')) {
+                string l;
+                if (ltype == 'I') l = rleft;
+                else {
+                    l = self.owner.tempreg('I');
+                    e.say('set ', l, ', ', rleft);
+                }
+                string r;
+                if (rtype == 'I') r = rright;
+                else {
+                    r = self.owner.tempreg('I');
+                    e.say('set ', r, ', ', rright);
+                }
+                e.say('add ', result, ', ', l, ', ', r);
+            }
+            else
+                e.say('add ', result, ', ', rleft, ', ', rright);
+        }
     }
 }
 
@@ -1424,9 +1445,16 @@ class CallExpr : Expr
     function emit(e, result)
     {
         var funref = self.funref;
-        if (! funref.isidentifier())
-            throw SyntaxError("Unsupported", self.start);
-        string name = funref.name; // Internals abuse, provisional
+        string call;
+        if (funref.isidentifier())
+            call = funref.name; // Internals abuse, provisional
+        else {
+            if (funref instanceof MemberExpr) {
+                call = funref.emit_left_get(e);
+            }
+            else
+                call = funref.emit_get(e);
+        }
         string argreg[];
         for (var arg in self.args) {
             string reg = arg.emit_get(e);
@@ -1435,13 +1463,53 @@ class CallExpr : Expr
         e.annotate(self.start);
         if (result != null)
             e.print(result, ' = ');
-        e.print(name, '(');
+
+        if (funref instanceof MemberExpr)
+            e.print(call, ".'", funref.get_member(), "'");
+        else
+            e.print(call);
+        e.print('(');
+
         string sep = '';
         for (string a in argreg) {
             e.print(sep, a);
             sep = ', ';
         }
         e.say(')');
+    }
+}
+
+//*********************************************
+
+class MemberExpr : Expr
+{
+    var start;
+    var left;
+    var right;
+
+    function parse(tk, owner, t, subexp)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.left = subexp;
+        self.right = tk.get();
+        return self;
+    }
+    function get_member()
+    {
+        return self.right;
+    }
+    function emit_left_get(e)
+    {
+        return self.left.emit_get(e);
+    }
+    function emit_get(e)
+    {
+        string obj = self.left.emit_get(e);
+        string ident = self.right.getidentifier();
+        string result = self.owner.tempreg('P');
+        e.say('getattribute ', result, ', ', obj, ", '", ident, "'");
+        return result;
     }
 }
 
@@ -1716,15 +1784,38 @@ function parseExpr_0(tk, owner)
     throw SyntaxError('Lots of things unsupported', t);
 }
 
+const int Code_none    = 0;
+const int Code_paren   = 1;
+const int Code_bracket = 2;
+const int Code_dot     = 3;
+
+function getOpCode_2(t)
+{
+    if (t.isop('(')) return Code_paren;
+    if (t.isop('[')) return Code_bracket;
+    if (t.isop('.')) return Code_dot;
+    return Code_none;
+}
+
 function parseExpr_2(tk, owner)
 {
     var subexp = parseExpr_0(tk, owner);
     var t;
-    while ((t = tk.get()).isop('(') || t.isop('[')) {
-        if (t.isop('('))
+    int code;
+    while ((code = getOpCode_2(t = tk.get())) != Code_none ) {
+        switch(code) {
+        case Code_paren:
             subexp = new CallExpr().parse(tk, owner, t, subexp);
-        else
+            break;
+        case Code_bracket:
             subexp = new IndexExpr().parse(tk, owner, t, subexp);
+            break;
+        case Code_dot:
+            subexp = new MemberExpr().parse(tk, owner, t, subexp);
+            break;
+        default:
+            InternalError('Unexpected code in parseExpr_2');
+        }
     }
     tk.unget(t);
     return subexp;
@@ -2990,7 +3081,7 @@ class FunctionStatement : BlockStatement
     function emit(var e)
     {
         string name = self.name;
-        e.print('.sub ', name);
+        e.print(".sub '", name, "'");
         if (self.owner.isClass())
             e.print(' :method');
         var modifiers= self.modifiers;
