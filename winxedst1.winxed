@@ -1263,6 +1263,40 @@ class OpBoolAndExpr : Expr
 
 //*********************************************
 
+class OpBoolOrExpr : Expr
+{
+    var start;
+    var eleft;
+    var eright;
+    function checkResult()
+    {
+        return 'I';
+    }
+    function set(owner, t, eleft, eright)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.eleft = eleft;
+        self.eright = eright;
+        return self;
+    }
+    function emit(e, result)
+    {
+        string res;
+        if (result != null)
+            res = result;
+        else
+            res = self.tempreg('I');
+        string op1 = self.tempreg('I');
+        string op2 = self.tempreg('I');
+        self.eleft.emit(e, op1);
+        self.eright.emit(e, op2);
+        e.say('or ', res, ', ', op1, ', ', op2);
+    }
+}
+
+//*********************************************
+
 class OpBinAndExpr : Expr
 {
     var start;
@@ -2022,9 +2056,21 @@ function parseExpr_13(tk, owner)
     return eleft;
 }
 
+function parseExpr_14(tk, owner)
+{
+    var eleft = parseExpr_13(tk, owner);
+    var t;
+    while ((t= tk.get()).isop('||')) {
+        var eright = parseExpr_12(tk, owner);
+        eleft = new OpBoolOrExpr().set(owner, t, eleft, eright);
+    }
+    tk.unget(t);
+    return eleft;
+}
+
 function parseExpr_16(tk, owner)
 {
-    var subexpr = parseExpr_13(tk, owner);
+    var subexpr = parseExpr_14(tk, owner);
     var t;
     while ((t = tk.get()).isop('=') || t.isop('=:')) {
         var subexpr2 = parseExpr_16(tk, owner);
