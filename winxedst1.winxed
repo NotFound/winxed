@@ -80,7 +80,7 @@ class Token
         if (self.type == TypeIdentifier)
             return self.str;
         else
-            throw SyntaxError('Identifier expected', self);
+            Expected('Identifier', self);
     }
     function iskeyword(string name)
     {
@@ -103,6 +103,28 @@ class Token
             break;
         }
         return str;
+    }
+
+    function show()
+    {
+        string str = self.str;
+        string r;
+        switch (self.type) {
+        case TypeEof:
+            r = '(End of file)'; break;
+        case TypeOp:
+        case TypeIdentifier:
+        case TypeInteger:
+        case TypeFloat:
+            r = str; break;
+        case TypeQuoted:
+            r = '"' + str + '"'; break;
+        case TypeSingleQuoted:
+            r = "'" + str + "'"; break;
+        default:
+            r = '(unknown)';
+        }
+        return r;
     }
 }
 
@@ -418,19 +440,41 @@ class Emit
 //       Auxiliary classes and functions
 //*********************************************
 
-function InternalError(string msg)
+function InternalError(string msg, var pos [optional], int has_pos [opt_flag])
 {
-   var ex= Error(msg, 2, 555);
-   throw ex;
+    if (has_pos) {
+        string desc = pos.show();
+        msg = msg + ' near ' + desc;
+    }
+    var ex= Error(msg, 2, 555);
+    throw ex;
 }
 
 function SyntaxError(string msg, var pos)
 {
-   string sline= pos.line;
-   string file= pos.file;
-   string m= msg + ' in '+ file + ' line ' + sline;
-   var ex= Error(m, 2, 555);
-   return ex;
+    string sline= pos.line;
+    string file= pos.file;
+    string desc = pos.show();
+    string m= msg + ' in '+ file + ' line ' + sline + ' near ' + desc;
+    var ex= Error(m, 2, 555);
+    throw ex;
+}
+
+function Expected(string msg, var t)
+{
+    SyntaxError("Expected '" + msg + "'", t);
+}
+
+function RequireOp(string name, var t)
+{
+    if (! t.isop(name))
+        Expected(name, t);
+}
+
+function ExpectOp(string name, var tk)
+{
+    var t = tk.get();
+    RequireOp(name, t);
 }
 
 class Item
@@ -578,8 +622,7 @@ class ExternStatement
             string s= t.getidentifier();
             path.push(s);
         } while ((t= tk.get()).isop('.'));
-        if (!t.isop(';'))
-            throw SyntaxError("Expected ';'", t);
+        RequireOp(';', t);
         self.path = path;
         return self;
     }
@@ -611,8 +654,7 @@ class UsingStatement
             string s= t.getidentifier();
             path.push(s);
         } while ((t= tk.get()).isop('.'));
-        if (!t.isop(';'))
-            throw SyntaxError("Expected ';'", t);
+        RequireOp(';', t);
         self.path = path;
         return self;
     }
@@ -650,9 +692,7 @@ class ExprStatement : Statement
     {
         self.owner = owner;
         self.expr = parseExpr(tk, self);
-        var t = tk.get();
-        if (!t.isop(';'))
-            throw SyntaxError("Expected ';' after expression", t);
+        ExpectOp(';', tk);
         return self;
     }
     function emit(e)
@@ -679,7 +719,7 @@ class VarContainer
         string sname= name;
         var exist= locals[sname];
         if (exist != null)
-            throw SyntaxError("Redeclared '" + sname + "'", name);
+            SyntaxError("Redeclared '" + sname + "'", name);
         string reg= self.createreg(type);
         var descriptor= new 'Hash';
         descriptor['type'] = type;
@@ -721,10 +761,14 @@ class Expr
     function isfloatliteral() { return 0; }
     function isstringliteral() { return 0; }
     function isidentifier() { return 0; }
+    function tempreg(type)
+    {
+        return self.owner.tempreg(type);
+    }
     function emit_get(e)
     {
         string type = self.checkResult();
-        string reg = self.owner.tempreg(type);
+        string reg = self.tempreg(type);
         self.emit(e, reg);
         return reg;
     }
@@ -823,7 +867,7 @@ class IdentifierExpr : SimpleExpr
             string sname = name;
             if (sname == 'self')
                 return 'self';
-            throw SyntaxError("Variable '" + sname + "' is not defined", name);
+            SyntaxError("Variable '" + sname + "' is not defined", name);
         }
         string s= desc['reg'];
         return s;
@@ -1109,12 +1153,12 @@ class ComparatorBaseExpr : Expr
         if (rl == 'N' || rr == 'N')
         {
             if (rl == 'I') {
-                aux = self.owner.tempreg('N');
+                aux = self.tempreg('N');
                 e.say('set ', aux, ', ', regl);
                 regl = aux;
             }
             if (rr == 'I') {
-                aux = self.owner.tempreg('N');
+                aux = self.tempreg('N');
                 e.say('set ', aux, ', ', regr);
                 regr = aux;
             }
@@ -1208,9 +1252,9 @@ class OpBoolAndExpr : Expr
         if (result != null)
             res = result;
         else
-            res = self.owner.tempreg('I');
-        string op1 = self.owner.tempreg('I');
-        string op2 = self.owner.tempreg('I');
+            res = self.tempreg('I');
+        string op1 = self.tempreg('I');
+        string op2 = self.tempreg('I');
         self.eleft.emit(e, op1);
         self.eright.emit(e, op2);
         e.say('and ', res, ', ', op1, ', ', op2);
@@ -1242,9 +1286,9 @@ class OpBinAndExpr : Expr
         if (result != null)
             res = result;
         else
-            res = self.owner.tempreg('I');
-        string op1 = self.owner.tempreg('I');
-        string op2 = self.owner.tempreg('I');
+            res = self.tempreg('I');
+        string op1 = self.tempreg('I');
+        string op2 = self.tempreg('I');
         self.eleft.emit(e, op1);
         self.eright.emit(e, op2);
         e.say('band ', res, ', ', op1, ', ', op2);
@@ -1276,9 +1320,9 @@ class OpBinOrExpr : Expr
         if (result != null)
             res = result;
         else
-            res = self.owner.tempreg('I');
-        string op1 = self.owner.tempreg('I');
-        string op2 = self.owner.tempreg('I');
+            res = self.tempreg('I');
+        string op1 = self.tempreg('I');
+        string op2 = self.tempreg('I');
         self.eleft.emit(e, op1);
         self.eright.emit(e, op2);
         e.say('bor ', res, ', ', op1, ', ', op2);
@@ -1321,13 +1365,13 @@ class OpAddExpr : Expr
                 string l;
                 if (ltype == 'I') l = rleft;
                 else {
-                    l = self.owner.tempreg('I');
+                    l = self.tempreg('I');
                     e.say('set ', l, ', ', rleft);
                 }
                 string r;
                 if (rtype == 'I') r = rright;
                 else {
-                    r = self.owner.tempreg('I');
+                    r = self.tempreg('I');
                     e.say('set ', r, ', ', rright);
                 }
                 e.say('add ', result, ', ', l, ', ', r);
@@ -1388,7 +1432,7 @@ class OpMulExpr : Expr
         int nleft;
         int nright;
         if ((!eleft.issimple()) || eleft.isidentifier()) {
-            string rleft= self.owner.tempreg(self.checkResult());
+            string rleft= self.tempreg(self.checkResult());
             eleft.emit(e, rleft);
         }
         else {
@@ -1396,14 +1440,14 @@ class OpMulExpr : Expr
             rleft= nleft;
         }
         if ((!eright.issimple()) || eright.isidentifier()) {
-            string rright= self.owner.tempreg(self.checkResult());
+            string rright= self.tempreg(self.checkResult());
             eright.emit(e, rright);
         }
         else {
             string type = eright.checkResult();
             switch(type) {
             case 'S':
-                string rright= self.owner.tempreg(self.checkResult());
+                string rright= self.tempreg(self.checkResult());
                 eright.emit(e, rright);
                 break;
             case 'I':
@@ -1439,7 +1483,7 @@ class CallExpr : Expr
                 self.args.push(expr);
             } while ((t = tk.get()).isop(','));
             if (! t.isop(')'))
-                throw SyntaxError("Expected ')' or ','", t);
+                SyntaxError("Expected ')' or ','", t);
         }
         return self;
     }
@@ -1510,7 +1554,7 @@ class MemberExpr : Expr
     {
         string obj = self.left.emit_get(e);
         string ident = self.right.getidentifier();
-        string result = self.owner.tempreg('P');
+        string result = self.tempreg('P');
         e.say('getattribute ', result, ', ', obj, ", '", ident, "'");
         return result;
     }
@@ -1542,13 +1586,13 @@ class IndexExpr : Expr
             self.args.push(arg);
         } while ( (t= tk.get()).isop(','));
         if (! t.isop(']'))
-            throw SyntaxError("Expected ']' or ',' in index expr", t);
+            SyntaxError("Expected ']' or ',' in index expr", t);
         return self;
     }
     function emit(e, result)
     {
         if (! self.left.isidentifier())
-            throw SyntaxError("Unimplemented", self.start);
+            SyntaxError("Unimplemented", self.start);
         //int n = self.args;
         var regleft = self.left.getIdentifier();
         string argregs[];
@@ -1587,7 +1631,7 @@ class ArrayExpr : Expr
                 self.values.push(item);
             } while ((t= tk.get()).isop(','));
             if (!t.isop(']'))
-                throw SyntaxError("Expected ']' or ','", t);
+                SyntaxError("Expected ']' or ','", t);
         }
         return self;
     }
@@ -1599,9 +1643,9 @@ class ArrayExpr : Expr
     function emit_get(e)
     {
         e.annotate(self.start);
-        string container = self.owner.tempreg('P');
+        string container = self.tempreg('P');
         e.say('root_new ', container, ", ['parrot';'ResizablePMCArray']");
-        string it_p = self.owner.tempreg('P');
+        string it_p = self.tempreg('P');
         string itemreg;
         for (var item in self.values) {
             string type = item.checkResult();
@@ -1640,16 +1684,14 @@ class HashExpr : Expr
             do {
                 t = tk.get();
                 if (!(t.isstring() || t.isidentifier()))
-                    throw SyntaxError("Expected key", t);
+                    SyntaxError("Expected key", t);
                 string key = t;
-                t = tk.get();
-                if (! t.isop(':'))
-                    throw SyntaxError("Expected ':'", t);
+                ExpectOp(':', tk);
                 var value = parseExpr(tk, self);
                 values[key] = value;
             } while ((t = tk.get()).isop(','));
             if (! t.isop('}'))
-                throw SyntaxError("Expeced ',' or '}'", t);
+                SyntaxError("Expected ',' or '}'", t);
             self.values = values;
         }
         return self;
@@ -1667,7 +1709,7 @@ class HashExpr : Expr
     }
     function emit_get(e)
     {
-        string container = self.owner.tempreg('P');
+        string container = self.tempreg('P');
         self.emit(e, container);
         return container;
     }
@@ -1688,16 +1730,14 @@ class NewExpr : Expr
         self.start = t;
         self.value = tk.get();
         if (! (self.value.isstring() || self.value.isidentifier()))
-            throw SyntaxError("Unimplemented", self.value);
+            SyntaxError("Unimplemented", self.value);
         t = tk.get();
         if (t.isop('(')) {
             t = tk.get();
             if (! t.isop(')')) {
                 tk.unget(t);
                 self.initializer = parseExpr(tk, owner);
-                t = tk.get();
-                if (!t.isop(')'))
-                    throw SyntaxError("Expected ')'", t);
+                ExpectOp(')', tk);
             }
         }
         else
@@ -1752,9 +1792,7 @@ function parseExpr_0(tk, owner)
     var expr;
     if (t.isop('(')) {
         expr = parseExpr(tk, owner);
-        t= tk.get();
-        if (!t.isop(')'))
-            throw SyntaxError("Expected ')'", t);
+        ExpectOp(')', tk);
         return expr;
     }
     if (t.isop('[')) {
@@ -1790,7 +1828,7 @@ function parseExpr_0(tk, owner)
         expr.name= t;
         return expr;
     }
-    throw SyntaxError('Lots of things unsupported', t);
+    SyntaxError('Lots of things unsupported', t);
 }
 
 const int Code_none    = 0;
@@ -2025,22 +2063,17 @@ class PrintStatement : Statement
         self.owner= owner;
         self.items= [];
         self.start= tk.get();
+        ExpectOp('(', tk);
         var t= tk.get();
-        if (! t.isop('('))
-            throw SyntaxError("Expected '('", t);
-        t= tk.get();
         if (! t.isop(')')) {
             tk.unget(t);
             do {
                 var exp= parseExpr(tk, self);
                 self.items.push(exp);
             } while ((t= tk.get()).isop(','));
-            if (! t.isop(')'))
-                throw SyntaxError("Expected ')'", t);
+            RequireOp(')', t);
         }
-        t= tk.get();
-        if (! t.isop(';'))
-            throw SyntaxError("Expected ';'", t);
+        ExpectOp(';', tk);
     }
     function emit_print(e)
     {
@@ -2086,8 +2119,7 @@ class ReturnStatement : Statement
                 values.push(expr);
             } while ((t = tk.get()).isop(','));
         }
-        if (! t.isop(';'))
-            throw SyntaxError("Expected ';'", t);
+        RequireOp(';', t);
         self.values = values;
         return self;
     }
@@ -2131,8 +2163,7 @@ class YieldStatement : Statement
                 values.push(expr);
             } while ((t = tk.get()).isop(','));
         }
-        if (! t.isop(';'))
-            throw SyntaxError("Expected ';'", t);
+        RequireOp(';', t);
         self.values = values;
         return self;
     }
@@ -2192,13 +2223,11 @@ class GotoStatement : Statement
         self.owner= owner;
         var t= tk.get();
         if (!t.isidentifier())
-            throw SyntaxError('Identifier expected', t);
+            SyntaxError('Identifier expected', t);
         self.start= t;
         string s= t;
         self.label= t;
-        t= tk.get();
-        if (!t.isop(';'))
-            throw SyntaxError("Expected ';'", t);
+        ExpectOp(';', tk);
         return self;
     }
     function emit(e)
@@ -2222,13 +2251,10 @@ class IfStatement : Statement
     {
         self.owner= owner;
         var t= tk.get();
-        if (!t.isop('('))
-            throw SyntaxError("Expected '('", t);
+        RequireOp('(', t);
         self.start = t;
         self.condition = parseExpr(tk, self);
-        t= tk.get();
-        if (! t.isop(')'))
-            throw SyntaxError("Expected ')'", t);
+        ExpectOp(')', tk);
         self.truebranch = parseStatement(tk, self);
         t = tk.get();
         if (t.iskeyword("else"))
@@ -2286,9 +2312,7 @@ class BreakStatement : Statement
     {
         self.start = t;
         self.owner = owner;
-        t = tk.get();
-        if (! t.isop(';'))
-            throw SyntaxError("Expected ';' after break");
+        ExpectOp(';', tk);
         return self;
     }
     function emit(e)
@@ -2316,14 +2340,14 @@ class SwitchStatement : Statement
         self.owner = owner;
         t = tk.get();
         if (! t.isop('('))
-            throw SyntaxError("Expected '(' in switch", t);
+            SyntaxError("Expected '(' in switch", t);
         self.condition = parseExpr(tk, self);
         t = tk.get();
         if (! t.isop(')'))
-            throw SyntaxError("Expected ')' in switch", t);
+            SyntaxError("Expected ')' in switch", t);
         t = tk.get();
         if (! t.isop('{'))
-            throw SyntaxError("Expected '{' in switch", t);
+            SyntaxError("Expected '{' in switch", t);
         self.case_value = [];
         self.case_st = [];
         self.default_st = [];
@@ -2332,7 +2356,7 @@ class SwitchStatement : Statement
                 self.case_value.push(parseExpr(tk, self));
                 t = tk.get();
                 if (! t.isop(':'))
-                    throw SyntaxError("Expected ':' in case", t);
+                    SyntaxError("Expected ':' in case", t);
                 var st = [];
                 while (! ((t = tk.get()).isop('}') || t.iskeyword('case') || t.iskeyword('default'))) {
                     tk.unget(t);
@@ -2344,7 +2368,7 @@ class SwitchStatement : Statement
             else {
                 t = tk.get();
                 if (! t.isop(':'))
-                    throw SyntaxError("Expected ':' in default", t);
+                    SyntaxError("Expected ':' in default", t);
                 while (! ((t = tk.get()).isop('}') || t.iskeyword('case') || t.iskeyword('default'))) {
                     tk.unget(t);
                     self.default_st.push(parseStatement(tk, self));
@@ -2361,7 +2385,7 @@ class SwitchStatement : Statement
         for (var value in self.case_value) {
             string t = value.checkResult();
             if (t == 'N')
-                throw SyntaxError("Invalid type in case", self.start);
+                SyntaxError("Invalid type in case", self.start);
             if (type == '')
                 type = t;
             else if (type != t)
@@ -2454,7 +2478,7 @@ class ForeachStatement : BlockStatement
         self.container = parseExpr(tk, self);
         var aux = tk.get();
         if (!aux.isop(')'))
-            throw SyntaxError("Expected ')'", aux);
+            SyntaxError("Expected ')'", aux);
         self.body = parseStatement(tk, self);
 
         return self;
@@ -2484,7 +2508,7 @@ function parseFor(t, tk, owner)
 {
     var paren = tk.get();
     if (!paren.isop('('))
-        throw SyntaxError("Expected '('", paren);
+        SyntaxError("Expected '('", paren);
     var aux = tk.get();
     var in1 = tk.get();
     var in2 = tk.get();
@@ -2494,7 +2518,7 @@ function parseFor(t, tk, owner)
         tk.unget(aux);
         return new ForeachStatement().parse(t, tk, owner);
     }
-    throw SyntaxError('Unimplemented', t);
+    SyntaxError('Unimplemented', t);
 }
 
 //*********************************************
@@ -2537,10 +2561,10 @@ class TryStatement : BlockStatement
         self.stry = parseStatement(tk, self);
         t = tk.get();
         if (! t.iskeyword('catch'))
-            throw SyntaxError("Expected 'catch'", t);
+            SyntaxError("Expected 'catch'", t);
         t = tk.get();
         if (! t.isop('('))
-            throw SyntaxError("Excpected '(' after 'catch'", t);
+            SyntaxError("Excpected '(' after 'catch'", t);
         t = tk.get();
         if (! t.isop(')')) {
             string exname = t.getidentifier();
@@ -2548,7 +2572,7 @@ class TryStatement : BlockStatement
             self.createvar(exname, 'P');
             t = tk.get();
             if (! t.isop(')'))
-                throw SyntaxError("Excpected ')' in 'catch'", t);
+                SyntaxError("Excpected ')' in 'catch'", t);
         }
         self.scatch = parseStatement(tk, self);
         return self;
@@ -2598,7 +2622,7 @@ class DeclareStatement : Statement
         self.owner= owner;
         var t= tk.get();
         if (!t.isidentifier())
-            throw SyntaxError('Identifier expected', t);
+            SyntaxError('Identifier expected', t);
         self.name= t;
         string reg;
 
@@ -2617,7 +2641,7 @@ class DeclareStatement : Statement
                 self.size = parseExpr(tk, self);
                 t= tk.get();
                 if (! t.isop(']'))
-                    throw SyntaxError("Expected ']'", t);
+                    SyntaxError("Expected ']'", t);
                 t= tk.get();
             }
         }
@@ -2637,7 +2661,7 @@ class DeclareStatement : Statement
             //say('Initializer');
             t = tk.get();
             if (! t.isop('['))
-                throw SyntaxError("Array initializer expected", t);
+                SyntaxError("Array initializer expected", t);
             self.init = new 'ResizablePMCArray';
             t = tk.get();
             if (! t.isop(']')) {
@@ -2647,12 +2671,12 @@ class DeclareStatement : Statement
                     self.init.push(item);
                 } while ((t = tk.get()).isop(','));
                 if (! t.isop(']'))
-                    throw SyntaxError("Expected ',' or ']'", t);
+                    SyntaxError("Expected ',' or ']'", t);
             }
             t = tk.get();
         }
         if (!t.isop(';'))
-            throw SyntaxError("Expected ';'", t);
+            SyntaxError("Expected ';'", t);
 
         return self;
     }
@@ -2732,7 +2756,7 @@ class VarStatement : Statement
         self.owner= owner;
         var t= tk.get();
         if (!t.isidentifier())
-            throw SyntaxError('Identifier expected', t);
+            SyntaxError('Identifier expected', t);
         self.name= t;
         string reg= self.createvar(t, 'P');
         self.reg= reg;
@@ -2742,7 +2766,7 @@ class VarStatement : Statement
             t= tk.get();
         }
         if (!t.isop(';'))
-            throw SyntaxError("Expected ';'", t);
+            SyntaxError("Expected ';'", t);
         return self;
     }
     function emit(var e)
@@ -2765,7 +2789,7 @@ class VarStatement : Statement
                 e.say('box ', reg, ', ', value);
                 break;
             default:
-                throw SyntaxError("Invalid var initializer", self.name);
+                SyntaxError("Invalid var initializer", self.name);
             }
         }
         else
@@ -2857,7 +2881,7 @@ class CompoundStatement : BlockStatement
         var labels= self.labels;
         string exist= labels[s];
         if (exist != null && exist != '')
-            throw SyntaxError('Label already defined', name);
+            SyntaxError('Label already defined', name);
         string value= self.genlabel();
         labels[s]= value;
         return value;
@@ -3078,7 +3102,7 @@ class FunctionStatement : BlockStatement
                 t= tk.get();
             } while (t.isop(','));
             if (!t.isop(')'))
-                throw SyntaxError("Expected ')'", t);
+                SyntaxError("Expected ')'", t);
         }
 
         t= tk.get();
@@ -3119,7 +3143,7 @@ class FunctionStatement : BlockStatement
     }
     function getbreaklabel(pos)
     {
-        throw SyntaxError('break not allowed here', pos);
+        SyntaxError('break not allowed here', pos);
     }
 }
 
@@ -3175,11 +3199,11 @@ class ClassStatement : Item
             else if (t.iskeyword('var')) {
                 var name = tk.get();
                 if (! name.isidentifier())
-                    throw SyntaxError("Expected member identifier", name);
+                    SyntaxError("Expected member identifier", name);
                 self.members.push(name);
                 t = tk.get();
                 if (! t.isop(';'))
-                    throw SyntaxError("Expected ';' in member declaration", t);
+                    SyntaxError("Expected ';' in member declaration", t);
             }
             t= tk.get();
         }
