@@ -1485,6 +1485,7 @@ class OpMulExpr : Expr
                 rval = self.tempreg('I');
                 e.say('set ', rval, ', ', rreg);
             }
+            e.annotate(self.start);
             e.say('repeat ', result, ', ', lreg, ', ', rval);
             return;
         }
@@ -1518,7 +1519,43 @@ class OpMulExpr : Expr
                 break;
             }
         }
+        e.annotate(self.start);
         e.say('mul ', result, ', ', rleft, ', ', rright);
+    }
+}
+
+//*********************************************
+
+class OpDivExpr : Expr
+{
+    var start;
+    var eleft;
+    var eright;
+
+    function checkResult()
+    {
+        return 'N';
+    }
+    function emit(e, result)
+    {
+        var eleft = self.eleft;
+        var lreg;
+        if (eleft.checkResult() == 'N')
+            lreg = eleft.emit_get(e);
+        else {
+            lreg = self.tempreg('N');
+            eleft.emit(e, lreg);
+        }
+        var eright = self.eright;
+        var rreg;
+        if (eright.checkResult() == 'N')
+            rreg = eright.emit_get(e);
+        else {
+            rreg = self.tempreg('N');
+            eright.emit(e, rreg);
+        }
+        e.annotate(self.start);
+        e.say('div ', result, ', ', lreg, ', ', rreg);
     }
 }
 
@@ -1986,9 +2023,12 @@ function parseExpr_5(tk, owner)
 {
     var eleft= parseExpr_4(tk, owner);
     var t;
-    while ((t= tk.get()).isop('*')) {
+    while ((t= tk.get()).isop('*') || t.isop('/')) {
         var eright= parseExpr_4(tk, owner);
-        var expr= new OpMulExpr();
+        if (t.isop('*'))
+            var expr= new OpMulExpr();
+        else
+            var expr= new OpDivExpr();
         expr.owner= owner;
         expr.start= t;
         expr.eleft= eleft;
