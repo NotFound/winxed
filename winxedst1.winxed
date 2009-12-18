@@ -2197,8 +2197,8 @@ class ReturnStatement : Statement
         self.owner= owner;
         var t = tk.get();
         self.start = t;
+        var values = [];
         if (! t.isop(';')) {
-            var values = [];
             tk.unget(t);
             do {
                 var expr = parseExpr(tk, self);
