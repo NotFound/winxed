@@ -1082,17 +1082,24 @@ class OpAssignExpr : Expr
     }
     function emit_get(e)
     {
-        e.annotate(self.start);
-        string typeleft = self.eleft.checkResult();
-        string typeright = self.eright.checkResult();
-        string reg = self.eleft.emit_get(e);
-        string reg2 = self.eright.emit_get(e);
-        e.annotate(self.start);
-        if (typeleft == 'P' && typeright != 'P')
-            e.say('box ', reg, ', ', reg2);
-        else
-            e.say('set ', reg, ', ', reg2);
-        return reg;
+        var eright = self.eright;
+        string typeright = eright.checkResult();
+        string rreg = eright.emit_get(e);
+        var eleft = self.eleft;
+        if (eleft instanceof MemberExpr) {
+            eleft.emit_assign(e, typeright, rreg);
+            return rreg;
+        }
+	else {
+            string typeleft = eleft.checkResult();
+            string lreg = eleft.emit_get(e);
+            e.annotate(self.start);
+            if (typeleft == 'P' && typeright != 'P')
+                e.say('box ', lreg, ', ', rreg);
+            else
+                e.say('set ', lreg, ', ', rreg);
+            return lreg;
+        }
     }
 }
 
@@ -1597,6 +1604,19 @@ class MemberExpr : Expr
         string obj = self.left.emit_get(e);
         string ident = self.right.getidentifier();
         e.say('getattribute ', result, ', ', obj, ", '", ident, "'");
+    }
+    function emit_assign(e, string typeright, string rreg)
+    {
+        string obj = self.left.emit_get(e);
+        string ident = self.right.getidentifier();
+        string value;
+        if (typeright == 'P')
+            value = rreg;
+        else {
+            value = self.tempreg('P');
+            e.say('box ', value, ', ', rreg);
+        }
+        e.say("setattribute ", obj, ", '", ident, "', ", value);
     }
 }
 

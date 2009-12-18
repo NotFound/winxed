@@ -100,6 +100,7 @@ TEST1 = \
 	t/parent.t \
 	t/postincdec.t \
 	t/preincdec.t.winxed \
+	t/self.t \
 	t/string.t \
 	t/stringarray.t \
 	t/sub.t \
