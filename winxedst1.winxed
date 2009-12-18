@@ -1090,7 +1090,7 @@ class OpAssignExpr : Expr
             eleft.emit_assign(e, typeright, rreg);
             return rreg;
         }
-	else {
+        else {
             string typeleft = eleft.checkResult();
             string lreg = eleft.emit_get(e);
             e.annotate(self.start);
@@ -1459,7 +1459,11 @@ class OpMulExpr : Expr
     var eright;
     function checkResult()
     {
-        if (self.eleft.checkResult() == 'I' && self.eright.checkResult() == 'I')
+        var eleft = self.eleft;
+        var ltype = eleft.checkResult();
+        if (ltype == 'S')
+            return 'S';
+        if (ltype == 'I' && self.eright.checkResult() == 'I')
             return 'I';
         else
             return 'N';
@@ -1468,6 +1472,22 @@ class OpMulExpr : Expr
     {
         var eleft = self.eleft;
         var eright = self.eright;
+        var ltype = eleft.checkResult();
+        if (ltype == 'S') {
+            string lreg = eleft.emit_get(e);
+            string rreg = eright.emit_get(e);
+            string rval;
+            switch (eright.checkResult()) {
+            case 'I':
+                rval = rreg;
+                break;
+            default:
+                rval = self.tempreg('I');
+                e.say('set ', rval, ', ', rreg);
+            }
+            e.say('repeat ', result, ', ', lreg, ', ', rval);
+            return;
+        }
         string rleft;
         string rright;
         int nleft;
