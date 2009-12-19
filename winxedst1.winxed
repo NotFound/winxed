@@ -2588,6 +2588,12 @@ class IfStatement : Statement
         }
         return self;
     }
+    function optimize()
+    {
+        self.condition = self.condition.optimize();
+        self.truebranch.optimize();
+        self.falsebranch.optimize();
+    }
     function emit(e)
     {
         string elselabel = '';
@@ -2646,6 +2652,11 @@ class WhileStatement : Statement
         ExpectOp(')', tk);
         self.body = parseStatement(tk, self);
         return self;
+    }
+    function optimize()
+    {
+        self.condition = self.condition.optimize();
+        self.body.optimize();
     }
     function emit(e)
     {
@@ -2712,6 +2723,11 @@ class DoStatement : Statement
         self.condition = parseExpr(tk, self);
         ExpectOp(')', tk);
         return self;
+    }
+    function optimize()
+    {
+        self.condition = self.condition.optimize();
+        self.body.optimize();
     }
     function emit(e)
     {
@@ -2851,6 +2867,20 @@ class SwitchStatement : Statement
         }
         return self;
     }
+    function optimize()
+    {
+        self.condition = self.condition.optimize();
+        var caseval = self.case_value;
+        int n = caseval;
+        int i;
+        for (i = 0; i < n; ++i)
+            caseval[i]= caseval[i].optimize();
+        for (var casest in self.case_st)
+            for (var st in casest)
+                st.optimize();
+        for (var dst in self.default_st)
+            dst.optimize();
+    }
     function emit(e)
     {
         // Get case common type
@@ -2955,6 +2985,10 @@ class ForeachStatement : BlockStatement
         self.body = parseStatement(tk, self);
 
         return self;
+    }
+    function optimize()
+    {
+        self.body.optimize();
     }
     function emit(e)
     {
