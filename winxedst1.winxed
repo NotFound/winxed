@@ -478,10 +478,22 @@ function RequireOp(string name, var t)
         Expected(name, t);
 }
 
+function RequireKeyword(string name, var t)
+{
+    if (! t.iskeyword(name))
+        Expected(name, t);
+}
+
 function ExpectOp(string name, var tk)
 {
     var t = tk.get();
     RequireOp(name, t);
+}
+
+function ExpectKeyword(string name, var tk)
+{
+    var t = tk.get();
+    RequireKeyword(name, t);
 }
 
 class Item
@@ -524,6 +536,8 @@ function parseStatement(tk, owner)
         return new IfStatement().parse(tk, owner);
     else if (t.iskeyword('while'))
         return new WhileStatement().parse(tk, owner);
+    else if (t.iskeyword('do'))
+        return new DoStatement().parse(tk, owner);
     else if (t.iskeyword('continue'))
         return new ContinueStatement().parse(t, tk, owner);
     else if (t.iskeyword('break'))
@@ -2661,6 +2675,73 @@ class WhileStatement : Statement
         self.body.emit(e);
         e.say('goto ', continuelabel);
         e.say(breaklabel, ': # endwhile');
+    }
+    function getbreaklabel(pos)
+    {
+        string label = self.breaklabel;
+        return label;
+    }
+    function getcontinuelabel(pos)
+    {
+        string label = self.continuelabel;
+        return label;
+    }
+}
+
+//*********************************************
+//            DoStatement
+//*********************************************
+
+class DoStatement : Statement
+{
+    var condition;
+    var body;
+    var continuelabel;
+    var breaklabel;
+
+    function parse(tk, owner)
+    {
+        self.owner= owner;
+        var t= tk.get();
+        self.start = t;
+        tk.unget(t);
+
+        self.body = parseStatement(tk, self);
+        ExpectKeyword('while', tk);
+        ExpectOp('(', tk);
+        self.condition = parseExpr(tk, self);
+        ExpectOp(')', tk);
+        return self;
+    }
+    function emit(e)
+    {
+        string looplabel = self.genlabel();
+        string breaklabel = self.genlabel();
+        self.breaklabel = breaklabel;
+        string continuelabel = self.genlabel();
+        self.continuelabel = continuelabel;
+
+        self.annotate(e);
+        e.say(looplabel, ': # do');
+
+        self.body.emit(e);
+
+        var condition = self.condition;
+        string type = condition.checkResult();
+        e.say(continuelabel, ': # do while condition');
+        string reg = condition.emit_get(e);
+        switch(type) {
+        case 'S':
+        case 'P':
+            e.say('unless_null ', reg, ', ', looplabel);
+        case 'I':
+        case 'N':
+            e.say('if ', reg, ' goto ', looplabel);
+            break;
+        default:
+            InternalError('Invalid if condition');
+        }
+        e.say(breaklabel, ': # enddo');
     }
     function getbreaklabel(pos)
     {
