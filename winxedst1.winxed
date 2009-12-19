@@ -135,6 +135,13 @@ function newToken(int type, string s, var file, int line)
     return t;
 }
 
+function newTokenFrom(int type, string s, var old)
+{
+    var t= new Token();
+    t.type= type; t.str= s; t.file= old.file; t.line= old.line;
+    return t;
+}
+
 //*********************************************
 //       Tokenizer auxiliar functions
 //*********************************************
@@ -825,7 +832,7 @@ class IntegerLiteral : SimpleExpr
     var numval;
     function isintegerliteral() { return 1; }
     function checkResult() { return 'I'; }
-    function set (owner, t, value [optional], int has_value [opt_flag])
+    function set(owner, t, value [optional], int has_value [opt_flag])
     {
         self.owner = owner;
         self.pos = t;
@@ -1524,7 +1531,7 @@ class OpAddExpr : OpBinaryExpr
                 newtype = TypeQuoted;
             string es = etok.str;
             string rs = rtok.str;
-            t = newToken(newtype, es + rs, etok.file, etok.line);
+            t = newTokenFrom(newtype, es + rs, etok);
             return new StringLiteral().set(self.owner, t);
         }
         return self;
