@@ -55,7 +55,7 @@ emit$(OBJEXT): emit.cpp emit.h token.h
 #    Compiler stage 1
 #-------------------------------
 
-stage1: winxedst1.pbc
+stage1: winxedst1$(EXEEXT)
 
 winxedst1.pbc: winxedst1.winxed winxed.pbc
 	parrot winxed.pbc --target=pbc winxedst1.winxed
