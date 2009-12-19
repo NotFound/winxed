@@ -1176,7 +1176,7 @@ class OpAssignExpr : Expr
         string typeright = eright.checkResult();
         string rreg = eright.emit_get(e);
         var eleft = self.eleft;
-        if (eleft instanceof MemberExpr) {
+        if (eleft instanceof MemberExpr || eleft instanceof IndexExpr) {
             eleft.emit_assign(e, typeright, rreg);
             return rreg;
         }
@@ -1884,6 +1884,23 @@ class IndexExpr : Expr
             sep = ', ';
         }
         e.say(']');
+    }
+    function emit_assign(e, string typeright, string rreg)
+    {
+        var regleft = self.left.emit_get(e);
+        string argregs[];
+        for (var arg in self.args) {
+            string argreg = arg.emit_get(e);
+            argregs.push(argreg);
+        }
+        e.annotate(self.start);
+        e.print(regleft, '[');
+        string sep = '';
+        for (string reg in argregs) {
+            e.print(sep, reg);
+            sep = ', ';
+        }
+        e.say('] = ', rreg);
     }
 }
 
