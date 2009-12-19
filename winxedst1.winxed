@@ -596,6 +596,10 @@ class Statement : Item
     {
         return self.owner.getbreaklabel(pos);
     }
+    function optimize()
+    {
+        // Nothing by default
+    }
 }
 
 class EmptyStatement : Statement
@@ -611,7 +615,7 @@ class EmptyStatement : Statement
 //            ExternStatement
 //*********************************************
 
-class ExternStatement
+class ExternStatement : Statement
 {
     var path;
     function parse(tk, owner)
@@ -643,7 +647,7 @@ class ExternStatement
 //            UsingStatement
 //*********************************************
 
-class UsingStatement
+class UsingStatement : Statement
 {
     var path;
     function parse(tk, owner)
@@ -694,6 +698,10 @@ class ExprStatement : Statement
         self.expr = parseExpr(tk, self);
         ExpectOp(';', tk);
         return self;
+    }
+    function optimize()
+    {
+        self.expr = self.expr.optimize();
     }
     function emit(e)
     {
@@ -766,6 +774,11 @@ class Expr
     {
         return self.owner.tempreg(type);
     }
+    function optimize()
+    {
+        // By default return same expression unchanged
+        return self;
+    }
     function emit_get(e)
     {
         string type = self.checkResult();
@@ -802,9 +815,24 @@ class StringLiteral : SimpleExpr
 
 class IntegerLiteral : SimpleExpr
 {
+    var pos;
     var numval;
     function isintegerliteral() { return 1; }
     function checkResult() { return 'I'; }
+    function set (owner, t, value [optional], int has_value [opt_flag])
+    {
+        self.owner = owner;
+        self.pos = t;
+        int n;
+        if (has_value)
+            n = value;
+        else {
+            string aux = t;
+            n = aux;
+        }
+        self.numval = n;
+        return self;
+    }
     function getIntegerValue()
     {
         string aux= self.numval;
@@ -1187,6 +1215,15 @@ class ComparatorBaseExpr : Expr
 
 class OpEqualExpr : ComparatorBaseExpr
 {
+    function optimize()
+    {
+        self.eleft = self.eleft.optimize();
+        self.eright = self.eright.optimize();
+        if (self.eleft.isnull() && self.eright.isnull())
+            return new IntegerLiteral().set(self.owner, self.start, 1);
+        else
+            return self;
+    }
     function emitop(e, string result, string regl, string regr)
     {
         e.say('iseq ', result, ', ', regl, ', ', regr);
@@ -1211,6 +1248,15 @@ class OpEqualExpr : ComparatorBaseExpr
 
 class OpNotEqualExpr : ComparatorBaseExpr
 {
+    function optimize()
+    {
+        self.eleft = self.eleft.optimize();
+        self.eright = self.eright.optimize();
+        if (self.eleft.isnull() && self.eright.isnull())
+            return new IntegerLiteral().set(self.owner, self.start, 0);
+        else
+            return self;
+    }
     function emitop(e, string result, string regl, string regr)
     {
         e.say('isne ', result, ', ', regl, ', ', regr);
@@ -1624,6 +1670,14 @@ class CallExpr : Expr
         return self;
     }
     function checkResult() { return 'P'; }
+    function optimize()
+    {
+        var args = self.args;
+        int n = args;
+        for (int i= 0; i < n; ++i)
+            args[i] = args[i].optimize();
+        return self;
+    }
     function emit(e, result)
     {
         var funref = self.funref;
@@ -1944,27 +1998,20 @@ function parseExpr_0(tk, owner)
         ExpectOp(')', tk);
         return expr;
     }
-    if (t.isop('[')) {
+    if (t.isop('['))
         return new ArrayExpr().parse(tk, owner, t);
-    }
-    if (t.isop('{')) {
+    if (t.isop('{'))
         return new HashExpr().parse(tk, owner, t);
-    }
-    if (t.iskeyword('new')) {
+    if (t.iskeyword('new'))
         return new NewExpr().parse(tk, owner, t);
-    }
     if (t.isstring()) {
         expr= new StringLiteral();
         expr.owner= owner;
         expr.strval= t;
         return expr;
     }
-    if (t.isint()) {
-        expr= new IntegerLiteral();
-        expr.owner= owner;
-        expr.numval= t;
-        return expr;
-    }
+    if (t.isint())
+        return new IntegerLiteral().set(owner, t);
     if (t.isfloat()) {
         expr= new FloatLiteral();
         expr.owner= owner;
@@ -2238,6 +2285,13 @@ class PrintStatement : Statement
             RequireOp(')', t);
         }
         ExpectOp(';', tk);
+    }
+    function optimize()
+    {
+        var items = self.items;
+        int n = items;
+        for (int i = 0; i < n; ++i)
+            items[i] = items[i].optimize();
     }
     function emit_print(e)
     {
@@ -3078,6 +3132,11 @@ class CompoundStatement : BlockStatement
         return self;
     }
     function getend() { return self.end; }
+    function optimize()
+    {
+        for (var st in self.statements)
+            st.optimize();
+    }
     function emit(var e)
     {
         e.comment('{');
@@ -3216,6 +3275,11 @@ class FunctionStatement : BlockStatement
         string s= '__label_' + n++;
         nlabel =: n;
         return s;
+    }
+
+    function optimize()
+    {
+        self.body.optimize();
     }
 
     function parse(tk, owner)
@@ -3372,6 +3436,11 @@ class ClassStatement : Item
             t= tk.get();
         }
     }
+    function optimize()
+    {
+        for (var f in self.functions)
+            f.optimize();
+    }
     function emit(var e)
     {
         var classns= self.parent.getpath();
@@ -3499,6 +3568,11 @@ class Namespace : Item
             }
         }
     }
+    function optimize()
+    {
+        for (var item in self.items)
+           item.optimize();
+    }
     function emit(var e)
     {
         var path= self.getpath();
@@ -3533,6 +3607,10 @@ class MiniWinxed
     {
         self.rootns.parse(tk);
     }
+    function optimize()
+    {
+        self.rootns.optimize();
+    }
     function emit(var e)
     {
         self.rootns.emit(e);
@@ -3543,6 +3621,9 @@ function miniwinxed_parser(tk, string outputfile)
 {
     var winxed= new MiniWinxed();
     winxed.parse(tk);
+
+    winxed.optimize();
+
     var handle;
     if (outputfile == '-')
         handle = getinterp().stdhandle(1);
