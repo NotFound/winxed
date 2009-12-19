@@ -522,6 +522,10 @@ function parseStatement(tk, owner)
         return new GotoStatement().parse(tk, owner);
     else if (t.iskeyword('if'))
         return new IfStatement().parse(tk, owner);
+    else if (t.iskeyword('while'))
+        return new WhileStatement().parse(tk, owner);
+    else if (t.iskeyword('continue'))
+        return new ContinueStatement().parse(t, tk, owner);
     else if (t.iskeyword('break'))
         return new BreakStatement().parse(t, tk, owner);
     else if (t.iskeyword('switch'))
@@ -598,6 +602,10 @@ class Statement : Item
     function getvar(name)
     {
         return self.owner.getvar(name);
+    }
+    function getcontinuelabel(pos)
+    {
+        return self.owner.getcontinuelabel(pos);
     }
     function getbreaklabel(pos)
     {
@@ -2604,6 +2612,89 @@ class IfStatement : Statement
 }
 
 //*********************************************
+//            WhileStatement
+//*********************************************
+
+class WhileStatement : Statement
+{
+    var condition;
+    var body;
+    var continuelabel;
+    var breaklabel;
+
+    function parse(tk, owner)
+    {
+        self.owner= owner;
+        var t= tk.get();
+        RequireOp('(', t);
+        self.start = t;
+        self.condition = parseExpr(tk, self);
+        ExpectOp(')', tk);
+        self.body = parseStatement(tk, self);
+        return self;
+    }
+    function emit(e)
+    {
+        string breaklabel = self.genlabel();
+        self.breaklabel = breaklabel;
+        string continuelabel = self.genlabel();
+        self.continuelabel = continuelabel;
+
+        self.annotate(e);
+        e.say(continuelabel, ': # while');
+
+        var condition = self.condition;
+        string type = condition.checkResult();
+        string reg = condition.emit_get(e);
+        switch(type) {
+        case 'S':
+        case 'P':
+            e.say('if_null ', reg, ', ', breaklabel);
+        case 'I':
+        case 'N':
+            e.say('unless ', reg, ' goto ', breaklabel);
+            break;
+        default:
+            InternalError('Invalid if condition');
+        }
+
+        self.body.emit(e);
+        e.say('goto ', continuelabel);
+        e.say(breaklabel, ': # endwhile');
+    }
+    function getbreaklabel(pos)
+    {
+        string label = self.breaklabel;
+        return label;
+    }
+    function getcontinuelabel(pos)
+    {
+        string label = self.continuelabel;
+        return label;
+    }
+}
+
+//*********************************************
+//            ContinueStatement
+//*********************************************
+
+class ContinueStatement : Statement
+{
+    function parse(t, tk, owner)
+    {
+        self.start = t;
+        self.owner = owner;
+        ExpectOp(';', tk);
+        return self;
+    }
+    function emit(e)
+    {
+        string label = self.getcontinuelabel(self.start);
+        e.say('goto ', label, ' # continue');
+    }
+}
+
+//*********************************************
 //            BreakStatement
 //*********************************************
 
@@ -3455,6 +3546,10 @@ class FunctionStatement : BlockStatement
     function getbreaklabel(pos)
     {
         SyntaxError('break not allowed here', pos);
+    }
+    function getcontinuelabel(pos)
+    {
+        SyntaxError('continue not allowed here', pos);
     }
 }
 
