@@ -924,20 +924,88 @@ class IdentifierExpr : SimpleExpr
 
 //*********************************************
 
-class OpUnaryMinusExpr : Expr
+class OpExpr : Expr
 {
     var start;
-    var subexpr;
+    function initop(owner, start)
+    {
+        self.owner = owner;
+        self.start = start;
+    }
+}
 
+//*********************************************
+
+class OpUnaryExpr : OpExpr
+{
+    var subexpr;
+    function initunary(owner, start, subexpr)
+    {
+        self.initop(owner, start);
+        self.subexpr = subexpr;
+    }
+    function optimizearg()
+    {
+        self.subexpr = self.subexpr.optimize();
+    }
+    function optimize()
+    {
+        self.optimizearg();
+        return self;
+    }
+}
+
+//*********************************************
+
+class OpBinaryExpr : OpExpr
+{
+    var lexpr;
+    var rexpr;
+    function initbinary(owner, start, lexpr, rexpr)
+    {
+        self.initop(owner, start);
+        self.lexpr = lexpr;
+        self.rexpr = rexpr;
+    }
+    function set(owner, t, eleft, eright)
+    {
+        self.initbinary(owner, t, eleft, eright);
+        return self;
+    }
+    function optimizearg()
+    {
+        self.lexpr = self.lexpr.optimize();
+        self.rexpr = self.rexpr.optimize();
+    }
+    function optimize()
+    {
+        self.optimizearg();
+        return self;
+    }
+}
+
+//*********************************************
+
+class OpUnaryMinusExpr : OpUnaryExpr
+{
     function checkResult()
     {
         return self.subexpr.checkResult();
     }
     function set(owner, t, subexpr)
     {
-        self.owner = owner;
-        self.start = t;
-        self.subexpr = subexpr;
+        self.initunary(owner, t, subexpr);
+        return self;
+    }
+    function optimize()
+    {
+        self.optimizearg();
+        if (self.subexpr.isintegerliteral()) {
+            var numval = self.subexpr.numval;
+            int n = numval;
+            n = - n;
+            return new IntegerLiteral().set(self.owner, numval, n);
+        }
         return self;
     }
     function emit(e, result)
@@ -950,20 +1018,15 @@ class OpUnaryMinusExpr : Expr
 
 //*********************************************
 
-class OpNotExpr : Expr
+class OpNotExpr : OpUnaryExpr
 {
-    var start;
-    var subexpr;
-
     function checkResult()
     {
         return self.subexpr.checkResult();
     }
     function set(owner, t, subexpr)
     {
-        self.owner = owner;
-        self.start = t;
-        self.subexpr = subexpr;
+        self.initunary(owner, t, subexpr);
         return self;
     }
     function emit(e, result)
@@ -979,19 +1042,15 @@ class OpNotExpr : Expr
 
 //*********************************************
 
-class OpPreIncExpr : Expr
+class OpPreIncExpr : OpUnaryExpr
 {
-    var start;
-    var subexpr;
-
     function checkResult()
     {
         return self.subexpr.checkResult();
     }
     function set(owner, t, subexpr)
     {
-        self.owner = owner;
-        self.start = t;
+        self.initunary(owner, t, subexpr);
         self.subexpr = subexpr;
         return self;
     }
@@ -1012,16 +1071,11 @@ class OpPreIncExpr : Expr
 
 //*********************************************
 
-class OpPostIncExpr : Expr
+class OpPostIncExpr : OpUnaryExpr
 {
-    var start;
-    var subexpr;
-
     function set(owner, t, subexpr)
     {
-        self.owner = owner;
-        self.start = t;
-        self.subexpr = subexpr;
+        self.initunary(owner, t, subexpr);
         return self;
     }
     function checkResult()
@@ -1040,20 +1094,15 @@ class OpPostIncExpr : Expr
 
 //*********************************************
 
-class OpPreDecExpr : Expr
+class OpPreDecExpr : OpUnaryExpr
 {
-    var start;
-    var subexpr;
-
     function checkResult()
     {
         return self.subexpr.checkResult();
     }
     function set(owner, t, subexpr)
     {
-        self.owner = owner;
-        self.start = t;
-        self.subexpr = subexpr;
+        self.initunary(owner, t, subexpr);
         return self;
     }
     function emit(e, result)
@@ -1073,16 +1122,11 @@ class OpPreDecExpr : Expr
 
 //*********************************************
 
-class OpPostDecExpr : Expr
+class OpPostDecExpr : OpUnaryExpr
 {
-    var start;
-    var subexpr;
-
     function set(owner, t, subexpr)
     {
-        self.owner = owner;
-        self.start = t;
-        self.subexpr = subexpr;
+        self.initunary(owner, t, subexpr);
         return self;
     }
     function checkResult()
@@ -1462,20 +1506,16 @@ class OpBinOrExpr : Expr
 
 //*********************************************
 
-class OpAddExpr : Expr
+class OpAddExpr : OpBinaryExpr
 {
-    var start;
-    var eleft;
-    var eright;
     function optimize()
     {
-        self.eleft = self.eleft.optimize();
-        self.eright = self.eright.optimize();
-        var eleft = self.eleft;
-        var eright = self.eright;
-        if (eleft.isstringliteral() && eright.isstringliteral()) {
-            var etok = eleft.strval;
-            var rtok = eright.strval;
+        self.optimizearg();
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        if (lexpr.isstringliteral() && rexpr.isstringliteral()) {
+            var etok = lexpr.strval;
+            var rtok = rexpr.strval;
             var t;
             int newtype;
             if (etok.type == TypeSingleQuoted && rtok.type == TypeSingleQuoted)
@@ -1491,8 +1531,8 @@ class OpAddExpr : Expr
     }
     function checkResult()
     {
-        string rl = self.eleft.checkResult();
-        string rr = self.eright.checkResult();
+        string rl = self.lexpr.checkResult();
+        string rr = self.rexpr.checkResult();
         if (rl == 'S' && rr == 'S')
             return 'S';
         if (rl == 'N' && rr == 'N')
@@ -1505,12 +1545,14 @@ class OpAddExpr : Expr
     }
     function emit(e, result)
     {
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
         string restype = self.checkResult();
-        string ltype = self.eleft.checkResult();
-        string rtype = self.eright.checkResult();
+        string ltype = lexpr.checkResult();
+        string rtype = rexpr.checkResult();
 
-        string rleft = self.eleft.emit_get(e);
-        string rright = self.eright.emit_get(e);
+        string rleft = lexpr.emit_get(e);
+        string rright = rexpr.emit_get(e);
         if (restype == 'S')
             e.say('concat ', result, ', ', rleft, ', ', rright);
         else {
@@ -1537,15 +1579,12 @@ class OpAddExpr : Expr
 
 //*********************************************
 
-class OpSubExpr : Expr
+class OpSubExpr : OpBinaryExpr
 {
-    var start;
-    var eleft;
-    var eright;
     function checkResult()
     {
-        string rl = self.eleft.checkResult();
-        string rr = self.eright.checkResult();
+        string rl = self.lexpr.checkResult();
+        string rr = self.rexpr.checkResult();
         if (rl == 'N' && rr == 'N')
             return 'N';
         if (rl == 'I' && rr == 'N')
@@ -1556,9 +1595,9 @@ class OpSubExpr : Expr
     }
     function emit(e, result)
     {
-        string rleft = self.eleft.emit_get(e);
-        string rright = self.eright.emit_get(e);
-        e.say('sub ', result, ', ', rleft, ', ', rright);
+        string lreg = self.lexpr.emit_get(e);
+        string rreg = self.rexpr.emit_get(e);
+        e.say('sub ', result, ', ', lreg, ', ', rreg);
     }
 }
 
@@ -2156,13 +2195,9 @@ function parseExpr_6(tk, owner)
         var eright= parseExpr_5(tk, owner);
         var expr;
         if (t.isop('+'))
-            expr= new OpAddExpr();
+            expr= new OpAddExpr().set(owner, t, eleft, eright);
         else
-            expr= new OpSubExpr();
-        expr.owner= owner;
-        expr.start= t;
-        expr.eleft= eleft;
-        expr.eright= eright;
+            expr= new OpSubExpr().set(owner, t, eleft, eright);
         eleft= expr;
     }
     tk.unget(t);
