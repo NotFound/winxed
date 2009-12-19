@@ -800,6 +800,12 @@ class StringLiteral : SimpleExpr
     var strval;
     function isstringliteral() { return 1; }
     function checkResult() { return 'S'; }
+    function set(owner, t)
+    {
+        self.owner = owner;
+        self.strval = t;
+        return self;
+    }
     function getPirString() { return self.strval; }
     function emit(e, result)
     {
@@ -1461,6 +1467,28 @@ class OpAddExpr : Expr
     var start;
     var eleft;
     var eright;
+    function optimize()
+    {
+        self.eleft = self.eleft.optimize();
+        self.eright = self.eright.optimize();
+        var eleft = self.eleft;
+        var eright = self.eright;
+        if (eleft.isstringliteral() && eright.isstringliteral()) {
+            var etok = eleft.strval;
+            var rtok = eright.strval;
+            var t;
+            int newtype;
+            if (etok.type == TypeSingleQuoted && rtok.type == TypeSingleQuoted)
+                newtype = TypeSingleQuoted;
+            else
+                newtype = TypeQuoted;
+            string es = etok.str;
+            string rs = rtok.str;
+            t = newToken(newtype, es + rs, etok.file, etok.line);
+            return new StringLiteral().set(self.owner, t);
+        }
+        return self;
+    }
     function checkResult()
     {
         string rl = self.eleft.checkResult();
@@ -2004,12 +2032,8 @@ function parseExpr_0(tk, owner)
         return new HashExpr().parse(tk, owner, t);
     if (t.iskeyword('new'))
         return new NewExpr().parse(tk, owner, t);
-    if (t.isstring()) {
-        expr= new StringLiteral();
-        expr.owner= owner;
-        expr.strval= t;
-        return expr;
-    }
+    if (t.isstring())
+        return new StringLiteral().set(owner, t);
     if (t.isint())
         return new IntegerLiteral().set(owner, t);
     if (t.isfloat()) {
