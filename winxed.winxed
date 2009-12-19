@@ -145,29 +145,28 @@ function main [main] (argv)
 
     // Call backend compiler
 
-    string cmd[]; // Command to execute
-
+    string winxedbin;
     switch (stage) {
     case 0:
-        // Simple heuristic: if the stage 0 compiler is in the current
-        // directory and has no extension, use it.
-        // If not, assume it's in the PATH or we are on Windows.
-        var check = null;
-        try  check = os.stat('winxedst0');
-        catch () { }
-        if (check != null)
-            cmd.push('./winxedst0');
-        else
-            cmd.push('winxedst0');
+        winxedbin = 'winxedst0';
         break;
     case 1:
-        cmd.push('parrot');
-        cmd.push('winxedst1.pbc');
+        winxedbin = 'winxedst1';
         break;
     default:
-        die('Invalid stage ');
+        die('Invalid stage');
     }
-
+    string cmd[]; // Command to execute
+    // Simple heuristic: if the compiler is in the current
+    // directory and has no extension, use it.
+    // If not, assume it's in the PATH or we are on Windows.
+    var check = null;
+    try  check = os.stat(winxedbin);
+    catch () { }
+    if (check != null)
+        cmd.push('./' + winxedbin);
+    else
+        cmd.push(winxedbin);
     cmd.push('-c');
     if (noan)
         cmd.push('--noan');;

@@ -13,7 +13,7 @@ EXEEXT =
 
 default: winxedst0
 
-all: winxed$(EXEEXT)
+all: winxed$(EXEEXT) winxedst1$(EXEEXT)
 
 pbc: winxed.pbc
 
@@ -59,6 +59,9 @@ stage1: winxedst1.pbc
 
 winxedst1.pbc: winxedst1.winxed winxed.pbc
 	parrot winxed.pbc --target=pbc winxedst1.winxed
+
+winxedst1$(EXEEXT): winxedst1.pbc
+	pbc_to_exe winxedst1.pbc
 
 #-------------------------------
 #      Driver
@@ -110,11 +113,12 @@ TEST1 = \
 	t/var.t \
 	t/vtable.t
 
-test1: winxed$(EXEEXT) winxedst1.pbc $(TEST1)
+test1: winxed$(EXEEXT) winxedst1$(EXEEXT) $(TEST1)
 	parrot winxed.pbc t/harness --stage=1 $(TEST1)
 
 clean:
 	rm -f winxedst0$(EXEEXT)
+	rm -f winxedst1$(EXEEXT)
 	rm -f winxedst1.pbc
 	rm -f winxed$(EXEEXT)
 	rm -f winxed.c
