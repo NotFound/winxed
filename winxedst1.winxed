@@ -3368,7 +3368,7 @@ class ForeachStatement : BlockStatement
         var aux= tk.get();
         self.varname = name;
         self.container = parseExpr(tk, self);
-        var aux = tk.get();
+        aux = tk.get();
         if (!aux.isop(')'))
             SyntaxError("Expected ')'", aux);
         self.body = parseStatement(tk, self);
@@ -4019,7 +4019,7 @@ class FunctionStatement : BlockStatement
         }
         if (! t.isop('('))
             throw Error("Expected '('");
-        self.args = new 'ResizableStringArray';
+        self.args = new 'ResizablePMCArray';
         t= tk.get();
         if (! t.isop(')')) {
             tk.unget(t);
@@ -4039,9 +4039,22 @@ class FunctionStatement : BlockStatement
                 else
                     type = 'P';
                 string s = t;
-                self.args.push(s);
+
+                var arg = { };
+                arg['name'] = s;
+
                 self.createvar(s, type);
                 t= tk.get();
+                if (t.isop('[')) {
+                    var modifiers = [];
+                    t= tk.get();
+                    string modifiername = t.getidentifier();
+                    modifiers.push(modifiername);
+                    ExpectOp(']', tk);
+                    t = tk.get();
+                    arg['modifiers'] = modifiers;
+                }
+                self.args.push(arg);
             } while (t.isop(','));
             if (!t.isop(')'))
                 SyntaxError("Expected ')'", t);
@@ -4069,10 +4082,13 @@ class FunctionStatement : BlockStatement
                 e.print(' :main');
         }
         e.say();
+        var args = self.args;
         var arg;
+        string argname;
         var a;
-        for (arg in self.args) {
-            a = self.getvar(arg);
+        for (arg in args) {
+            argname = arg['name'];
+            a = self.getvar(argname);
             string type = a['type'];
             string ptype = 'pmc';
             switch (type) {
@@ -4080,11 +4096,19 @@ class FunctionStatement : BlockStatement
             case 'N': ptype = 'num'; break;
             case 'S': ptype = 'string'; break;
             }
-            e.say('.param ', ptype, ' ', arg);
+            e.print('.param ', ptype, ' ', argname);
+            var modarg = arg['modifiers'];
+            if (modarg != null) {
+                for (var mod in modarg) {
+                    e.print(' :', mod);
+                }
+            }
+            e.say('');
         }
-        for (arg in self.args) {
-            a = self.getvar(arg);
-            e.say('set ', a['reg'], ', ', arg);
+        for (arg in args) {
+            argname = arg['name'];
+            a = self.getvar(argname);
+            e.say('set ', a['reg'], ', ', argname);
         }
         e.annotate(self.name);
         e.comment('Body');
