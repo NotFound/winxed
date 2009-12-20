@@ -90,32 +90,10 @@ testv: winxed.pbc
 	parrot winxed.pbc t/harness -rv t
 
 TEST1 = \
-	t/add.t \
-	t/assignto.t \
-	t/booland.t \
-	t/binand.t \
-	t/binor.t \
-	t/classtest.t \
-	t/div.t \
-	t/instanceof.t \
-	t/intarray.t \
-	t/label.t \
-	t/not.t \
-	t/parent.t \
-	t/postincdec.t \
-	t/preincdec.t.winxed \
-	t/self.t \
-	t/string.t \
-	t/stringarray.t \
-	t/sub.t \
-	t/switch.t \
-	t/test.t \
-	t/throw.t \
-	t/var.t \
-	t/vtable.t
+	t/preincdec.t.winxed
 
 test1: winxed$(EXEEXT) winxedst1$(EXEEXT) $(TEST1)
-	parrot winxed.pbc t/harness --stage=1 $(TEST1)
+	parrot winxed.pbc t/harness --stage=1 -r t $(TEST1)
 
 clean:
 	rm -f winxedst0$(EXEEXT)
