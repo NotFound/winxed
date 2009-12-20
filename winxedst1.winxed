@@ -927,6 +927,27 @@ class IdentifierExpr : SimpleExpr
         else
             return '';
     }
+    function getName()
+    {
+        string s = self.name;
+        return s;
+    }
+    function checkIdentifier()
+    {
+        var name = self.name;
+        var desc = self.owner.getvar(name);
+        string s;
+        if (desc == null) {
+            string sname = name;
+            if (sname == 'self')
+                s = 'self';
+            else
+                s = '';
+        }
+        else
+            s= desc['reg'];
+        return s;
+    }
     function getIdentifier()
     {
         var name = self.name;
@@ -1808,8 +1829,11 @@ class CallExpr : Expr
     {
         var funref = self.funref;
         string call;
-        if (funref.isidentifier())
-            call = funref.name; // Internals abuse, provisional
+        if (funref.isidentifier()) {
+            call = funref.checkIdentifier();
+            if (call == '')
+                call = funref.getName();
+        }
         else {
             if (funref instanceof MemberExpr) {
                 call = funref.emit_left_get(e);
