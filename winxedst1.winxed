@@ -627,7 +627,8 @@ class Statement : Item
     }
     function optimize()
     {
-        // Nothing by default
+        // Return unchanged by default
+        return self;
     }
 }
 
@@ -731,6 +732,7 @@ class ExprStatement : Statement
     function optimize()
     {
         self.expr = self.expr.optimize();
+        return self;
     }
     function emit(e)
     {
@@ -1819,6 +1821,7 @@ class CallExpr : Expr
     function checkResult() { return 'P'; }
     function optimize()
     {
+        self.funref = self.funref.optimize();
         var args = self.args;
         int n = args;
         for (int i= 0; i < n; ++i)
@@ -2472,6 +2475,7 @@ class PrintStatement : Statement
         int n = items;
         for (int i = 0; i < n; ++i)
             items[i] = items[i].optimize();
+        return self;
     }
     function emit_print(e)
     {
@@ -2666,8 +2670,9 @@ class IfStatement : Statement
     function optimize()
     {
         self.condition = self.condition.optimize();
-        self.truebranch.optimize();
-        self.falsebranch.optimize();
+        self.truebranch = self.truebranch.optimize();
+        self.falsebranch = self.falsebranch.optimize();
+        return self;
     }
     function emit(e)
     {
@@ -2731,7 +2736,8 @@ class WhileStatement : Statement
     function optimize()
     {
         self.condition = self.condition.optimize();
-        self.body.optimize();
+        self.body = self.body.optimize();
+        return self;
     }
     function emit(e)
     {
@@ -2802,7 +2808,8 @@ class DoStatement : Statement
     function optimize()
     {
         self.condition = self.condition.optimize();
-        self.body.optimize();
+        self.body = self.body.optimize();
+        return self;
     }
     function emit(e)
     {
@@ -2949,12 +2956,17 @@ class SwitchStatement : Statement
         int n = caseval;
         int i;
         for (i = 0; i < n; ++i)
-            caseval[i]= caseval[i].optimize();
-        for (var casest in self.case_st)
-            for (var st in casest)
-                st.optimize();
-        for (var dst in self.default_st)
-            dst.optimize();
+            caseval[i] = caseval[i].optimize();
+        for (var casest in self.case_st) {
+            n = casest;
+            for (i = 0; i < n; ++i)
+                casest[i] = casest[i].optimize();
+        }
+        var defaultst = self.default_st;
+        n = defaultst;
+        for (i = 0; i < n; ++i)
+            defaultst[i] = defaultst[i].optimize();
+        return self;
     }
     function emit(e)
     {
@@ -3138,7 +3150,8 @@ class ForeachStatement : BlockStatement
     }
     function optimize()
     {
-        self.body.optimize();
+        self.body = self.body.optimize();
+        return self;
     }
     function emit(e)
     {
@@ -3583,8 +3596,11 @@ class CompoundStatement : BlockStatement
     function getend() { return self.end; }
     function optimize()
     {
-        for (var st in self.statements)
-            st.optimize();
+        var st = self.statements;
+        int n = st;
+        for (int i = 0; i < n; ++i)
+            st[i] = st[i].optimize();
+        return self;
     }
     function emit(var e)
     {
@@ -3728,7 +3744,8 @@ class FunctionStatement : BlockStatement
 
     function optimize()
     {
-        self.body.optimize();
+        self.body = self.body.optimize();
+        return self;
     }
 
     function parse(tk, owner)
@@ -3891,8 +3908,11 @@ class ClassStatement : Item
     }
     function optimize()
     {
-        for (var f in self.functions)
-            f.optimize();
+        var f = self.functions;
+        int n = f;
+        for (int i = 0; i < n; ++i)
+            f[i] = f[i].optimize();
+        return self;
     }
     function emit(var e)
     {
@@ -4023,8 +4043,11 @@ class Namespace : Item
     }
     function optimize()
     {
-        for (var item in self.items)
-           item.optimize();
+        var items = self.items;
+        int n = items;
+        for (int i = 0; i < n; ++i)
+           items[i] = items[i].optimize();
+        return self;
     }
     function emit(var e)
     {
@@ -4062,7 +4085,7 @@ class MiniWinxed
     }
     function optimize()
     {
-        self.rootns.optimize();
+        self.rootns = self.rootns.optimize();
     }
     function emit(var e)
     {
