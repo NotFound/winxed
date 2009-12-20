@@ -79,7 +79,7 @@ function xlibtest [main] ()
                     window.DrawLine(oldx, oldy, x, y);
                     oldx= x; oldy= y;
                     line.push(oldx);
-                     line.push(oldy);
+                    line.push(oldy);
                 }
             }
             break;
@@ -92,21 +92,18 @@ function xlibtest [main] ()
                 {
                     int px= l[0];
                     int py= l[1];
-                    int i= 2;
-                    while (i < n)
+                    for (int i= 2; i < n; i+= 2)
                     {
                         int nx=l[i];
-                        ++i;
-                        int ny=l[i];
+                        int ny=l[i + 1];
                         window.DrawLine(px, py, nx, ny);
                         px= nx; py= ny;
-                        ++i;
                     }
                 }
                 else
                     window.DrawPoint(l[0], l[1]);
             }
-        break;
+            break;
         case 33: // ClientMessage
             looping= 0;
             break;
@@ -114,7 +111,8 @@ function xlibtest [main] ()
             switch (event.keycode())
             {
             case Escape:
-                looping= 0; break;
+                looping= 0;
+                break;
             case BackSpace:
                 if (listline) {
                     line= listline.pop();
@@ -127,7 +125,8 @@ function xlibtest [main] ()
                     listline.push(line);
                 }
                 window.ClearArea(0, 0, 0, 0, 1);
-                say('Hi'); break;
+                say('Hi');
+                break;
             case Delete:
                 listline= new 'ResizablePMCArray';
                 window.ClearArea(0, 0, 0, 0, 1);
