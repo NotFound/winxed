@@ -1008,7 +1008,30 @@ class StringLiteral : SimpleExpr
         self.strval = t;
         return self;
     }
-    function getPirString() { return self.strval; }
+    function getPirString()
+    {
+        var strtok = self.strval;
+        string str = strtok;
+        var s = str;
+        for (int code in s) {
+            if (code > 127) {
+                if (strtok.type == TypeSingleQuoted) {
+                    string straux = strtok.str;
+                    str = '"';
+                    var saux = straux;
+                    for (string c in saux) {
+                        if (c == '\')
+                            c = '\\';
+                        str += c;
+                    }
+                    str += '"';
+                }
+                str = 'utf8:unicode:' + str;
+                break;
+            }
+        }
+        return str;
+    }
     function emit(e, result)
     {
         e.say('set ', result, ', ', self.getPirString());
