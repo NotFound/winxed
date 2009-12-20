@@ -345,6 +345,189 @@ class Tokenizer
 }
 
 //*********************************************
+//         Predefined functions
+//*********************************************
+
+class PredefFunction
+{
+    var name;
+    var body;
+    var typeresult;
+    var type0;
+    var type1;
+    var type2;
+    var nargs;
+
+    function name()
+    {
+        string name = self.name;
+        return name;
+    }
+    function result()
+    {
+        return self.typeresult;
+    }
+    function args() { return self.nargs; }
+    function argtype(int i)
+    {
+        string type;
+        switch(i) {
+        case 0: type = self.type0; break;
+        case 1: type = self.type1; break;
+        case 2: type = self.type2; break;
+        default:
+            InternalError('Invalid predef arg');
+        }
+        return type;
+    }
+    function set(string name, body,
+        string typeresult,
+        string type0,
+        string type1[optional],
+        string type2[optional])
+    {
+        self.name = name;
+        self.body = body;
+        self.typeresult = typeresult;
+        self.type0 = type0;
+        int n;
+        if (type0 == '*')
+            n = -1;
+        else {
+            int n = 1;
+            if (type1 != null) {
+                self.type1 = type1;
+                ++n;
+            }
+            if (type2 != null) {
+                self.type2 = type2;
+                ++n;
+            }
+        }
+        self.nargs = n;
+        return self;
+    }
+    function expand(e, start, string result, args)
+    {
+        if (self.body instanceof 'String') {
+            string body = self.body;
+            int pos;
+            while ((pos = indexof(body, '{res}')) != -1)
+                body = substr(body, 0, pos) + result + substr(body, pos + 5);
+            int n = args;
+            for (int i = 0; i < n; ++i) {
+                string argmark = '{arg' + i + '}';
+                string arg = args[i];
+                while ((pos = indexof(body, argmark)) != -1)
+                    body = substr(body, 0, pos) + arg + substr(body, pos + 6);
+            }
+            e.annotate(start);
+            e.say(body);
+        }
+        else {
+            var fun = self.body;
+            fun(e, start, result, args);
+        }
+    }
+}
+
+class Predef_say
+{
+    function invoke [vtable](e, start, result, args)
+    {
+        e.annotate(start);
+        int n = args;
+        if (args > 0) {
+            for (int i = 0; i < n - 1; ++i)
+                e.say('print ', args[i]);
+            e.say('say ', args[n - 1]);
+        }
+        else
+            e.say(" say ''");
+    }
+}
+
+class Predef_print
+{
+    function invoke [vtable](e, start, result, args)
+    {
+        e.annotate(start);
+        int n = args;
+        for (int i = 0; i < n; ++i)
+            e.say('print ', args[i]);
+    }
+}
+
+function getpredefs()
+{
+    var predef_say = new Predef_say();
+    var predef_print = new Predef_print();
+    var predefs = [
+        new PredefFunction().set('length',
+            'length {res}, {arg0}',
+            'I', 'S'
+        ),
+        new PredefFunction().set('substr',
+            'substr {res}, {arg0}, {arg1}',
+            'S', 'S', 'I'
+        ),
+        new PredefFunction().set('substr',
+            'substr {res}, {arg0}, {arg1}, {arg2}',
+            'S', 'S', 'I', 'I'
+        ),
+        new PredefFunction().set('indexof',
+            'index {res}, {arg0}, {arg1}',
+            'I', 'S', 'S'
+        ),
+        new PredefFunction().set('join',
+            'join {res}, {arg0}, {arg1}',
+            'S', 'S', 'P'
+        ),
+        new PredefFunction().set('split',
+            'split {res}, {arg0}, {arg1}',
+            'P', 'S', 'S'
+        ),
+        new PredefFunction().set('chomp',
+            "load_bytecode 'String/Utils.pbc'\n.local pmc util_chomp\nutil_chomp = get_root_global ['parrot';'String';'Utils'], 'chomp'\n{res} = util_chomp({arg0})",
+            'S', 'S'
+        ),
+        new PredefFunction().set('chomp',
+            "load_bytecode 'String/Utils.pbc'\n.local pmc util_chomp\nutil_chomp = get_root_global ['parrot';'String';'Utils'], 'chomp'\n{res} = util_chomp({arg0}, {arg1})",
+            'S', 'S', 'S'
+        ),
+        new PredefFunction().set('clone',
+            'clone {res}, {arg0}',
+            'P', 'P'
+        ),
+        new PredefFunction().set('print',
+            predef_print,
+            'P', '*'
+        ),
+        new PredefFunction().set('say',
+            predef_say,
+            'P', '*'
+        )
+    ];
+    for (;;)
+        yield predefs;
+}
+
+function findpredef(string name, int nargs)
+{
+    //say(name, '(', nargs, ')');
+
+    var predefs = getpredefs();
+    int n = predefs;
+    for (int i = 0; i < n; ++i) {
+        var p = predefs[i];
+        int pargs = p.nargs;
+        if (p.name == name && (pargs == -1 || pargs == nargs))
+            return p;
+    }
+    return null;
+}
+
+//*********************************************
 //            Miniwinxed
 //*********************************************
 
@@ -550,18 +733,6 @@ function parseStatement(tk, owner)
         return new ThrowStatement().parse(t, tk, owner);
     else if (t.iskeyword('try'))
         return new TryStatement().parse(t, tk, owner);
-    else if (t.iskeyword('print')) {
-        var c= new PrintStatement();
-        tk.unget(t);
-        c.parse(tk, owner);
-        return c;
-    }
-    else if (t.iskeyword('say')) {
-        var c= new SayStatement();
-        tk.unget(t);
-        c.parse(tk, owner);
-        return c;
-    }
     else if (t.isidentifier()) {
         var t2= tk.get();
         if (t2.isop(':'))
@@ -1209,6 +1380,12 @@ class OpAssignExpr : Expr
         else
             InternalError('Unimplemented');
     }
+    function optimize()
+    {
+        self.eleft = self.eleft.optimize();
+        self.eright = self.eright.optimize();
+        return self;
+    }
     function emit(e, result)
     {
         string reg = self.emit_get(e);
@@ -1794,6 +1971,55 @@ class OpDivExpr : Expr
 
 //*********************************************
 
+class CallPredefExpr : Expr
+{
+    var start;
+    var predef;
+    var args;
+
+    function checkResult()
+    {
+        return self.predef.result();
+    }
+    function emit(e, result)
+    {
+        var predef = self.predef;
+        var args = self.args;
+        string argreg[];
+        var arg;
+        int np = predef.args();
+        if (np == -1) {
+            for (arg in args) {
+                string reg = arg.emit_get(e);
+                argreg.push(reg);
+            }
+        }
+        else {
+            int n = self.args;
+            for (int i = 0; i < n; ++i) {
+                arg = args[i];
+                string type = predef.argtype(i);
+                string argr = self.tempreg(type);
+                if (type == 'P') {
+                    string rtype = arg.checkResult();
+                    string nreg;
+                    switch (rtype) {
+                    case 'I': nreg = 'Integer'; break;
+                    case 'N': nreg = 'Float'; break;
+                    case 'S': nreg = 'String'; break;
+                    }
+                    e.say('new ', argr, ", '", nreg , "'");
+                }
+                arg.emit(e, argr);
+                argreg.push(argr);
+            }
+        }
+        self.predef.expand(e, self.start, result, argreg);
+    }
+}
+
+//*********************************************
+
 class CallExpr : Expr
 {
     var start;
@@ -1826,6 +2052,23 @@ class CallExpr : Expr
         int n = args;
         for (int i= 0; i < n; ++i)
             args[i] = args[i].optimize();
+
+        // Check for predefined functions
+        var funref = self.funref;
+        if (funref.isidentifier()) {
+            string call = funref.getName();
+            var predef = findpredef(call, n);
+            if (predef != null) {
+                var newexpr = new CallPredefExpr();
+                newexpr.owner = self.owner;
+                newexpr.start = self.start;
+                newexpr.predef = predef;
+                newexpr.args = self.args;
+                return newexpr;
+                say("PREDEF!!!");
+            }
+        }
+
         return self;
     }
     function emit(e, result)
@@ -2440,65 +2683,6 @@ function parseExpr_16(tk, owner)
 function parseExpr(tk, owner)
 {
     return parseExpr_16(tk, owner);
-}
-
-//*********************************************
-//            PrintStatement
-//*********************************************
-
-// This is a temporal way to be enable generation
-// of some working and viewable code.
-
-class PrintStatement : Statement
-{
-    var items;
-    function parse(tk, owner)
-    {
-        self.owner= owner;
-        self.items= [];
-        self.start= tk.get();
-        ExpectOp('(', tk);
-        var t= tk.get();
-        if (! t.isop(')')) {
-            tk.unget(t);
-            do {
-                var exp= parseExpr(tk, self);
-                self.items.push(exp);
-            } while ((t= tk.get()).isop(','));
-            RequireOp(')', t);
-        }
-        ExpectOp(';', tk);
-    }
-    function optimize()
-    {
-        var items = self.items;
-        int n = items;
-        for (int i = 0; i < n; ++i)
-            items[i] = items[i].optimize();
-        return self;
-    }
-    function emit_print(e)
-    {
-        for (var item in self.items) {
-            var expr= item;
-            string result = expr.emit_get(e);
-            self.annotate(e);
-            e.say("print ", result);
-        }
-    }
-    function emit(e)
-    {
-        self.emit_print(e);
-    }
-}
-
-class SayStatement : PrintStatement
-{
-    function emit(e)
-    {
-        self.emit_print(e);
-        e.say('print "\n"');
-    }
 }
 
 //*********************************************
@@ -3360,12 +3544,27 @@ class DeclareStatement : Statement
 
         return self;
     }
+    function optimize()
+    {
+        var init = self.init;
+        if (init != null) {
+            if (self.typearray == 0)
+                self.init = init.optimize();
+            else {
+                int n = init;
+                for (int i = 0; i < n; ++i)
+                    init[i] = init[i].optimize();
+            }
+        }
+        return self;
+    }
     function emit(var e)
     {
         e.annotate(self.name);
         string tname = self.t_name;
         string name = self.name;
         string reg = self.reg;
+        string t_reg = self.t_reg;
         e.comment(tname + ' ' + name + ': ' + reg);
 
         if (self.typearray == 0) {
@@ -3374,7 +3573,7 @@ class DeclareStatement : Statement
             else {
                 e.comment('init');
                 string itype = self.init.checkResult();
-                if (itype == self.t_reg) {
+                if (itype == t_reg) {
                     e.comment('init same type');
                     self.init.emit(e, reg);
                 }
@@ -3399,7 +3598,7 @@ class DeclareStatement : Statement
                 e.say('root_new ', self.reg, ", ['parrot'; 'Resizable", self.t_array, "Array']");
             }
             if (self.init != null) {
-                string reg = self.tempreg(self.t_reg);
+                string reg = self.tempreg(t_reg);
                 int n = self.init;
                 if (size == null) {
                     if (n > 0) {
