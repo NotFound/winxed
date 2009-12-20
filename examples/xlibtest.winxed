@@ -93,7 +93,7 @@ function xlibtest [main] ()
                     int px= l[0];
                     int py= l[1];
                     int i= 2;
-                    while (i < l)
+                    while (i < n)
                     {
                         int nx=l[i];
                         ++i;
