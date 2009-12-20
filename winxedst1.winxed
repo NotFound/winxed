@@ -1477,26 +1477,15 @@ class OpAddToExpr : Expr
 
 //*********************************************
 
-class ComparatorBaseExpr : Expr
+class ComparatorBaseExpr : OpBinaryExpr
 {
-    var start;
-    var eleft;
-    var eright;
-    function set(owner, t, eleft, eright)
-    {
-        self.owner = owner;
-        self.start = t;
-        self.eleft = eleft;
-        self.eright = eright;
-        return self;
-    }
     function checkResult() { return 'I'; }
     function emit_comparator(e, result)
     {
-        string rl = self.eleft.checkResult();
-        string rr = self.eright.checkResult();
-        string regl = self.eleft.emit_get(e);
-        string regr = self.eright.emit_get(e);
+        string rl = self.lexpr.checkResult();
+        string rr = self.rexpr.checkResult();
+        string regl = self.lexpr.emit_get(e);
+        string regr = self.rexpr.emit_get(e);
         e.annotate(self.start);
         string aux;
         if (rl == 'N' || rr == 'N')
@@ -1512,6 +1501,16 @@ class ComparatorBaseExpr : Expr
                 regr = aux;
             }
         }
+        else if (rr == 'I' && rl == 'P') {
+            aux = self.tempreg('I');
+            e.say('set ', aux, ', ', regl);
+            regl = aux;
+        }
+        else if (rr == 'P' && rl == 'I') {
+            aux = self.tempreg('I');
+            e.say('set ', aux, ', ', regr);
+            regr = aux;
+        }
         self.emitop(e, result, regl, regr);
     }
     function emit(e, result)
@@ -1522,14 +1521,60 @@ class ComparatorBaseExpr : Expr
 
 //*********************************************
 
+// Null checkers, created during optimize of Equal and NotEqual
+// to simplify his emit functions.
+
+class NullCheckerExpr : Expr
+{
+    var start;
+    var expr;
+
+    function checkResult() { return 'I'; }
+    function set(base, expr)
+    {
+        self.owner = base.owner;
+        self.start = base.start;
+        self.expr = expr;
+        return self;
+    }
+}
+
+class OpIsNullExpr : NullCheckerExpr
+{
+    function emit(e, result)
+    {
+        string reg = self.expr.emit_get(e);
+        e.annotate(self.start);
+        e.say('isnull ', result, ', ', reg);
+    }
+}
+
+class OpNotNullExpr : NullCheckerExpr
+{
+    function emit(e, result)
+    {
+        string reg = self.expr.emit_get(e);
+        e.annotate(self.start);
+        e.say('isnull ', result, ', ', reg);
+        e.say('not ', result);
+    }
+}
+
+//*********************************************
+
 class OpEqualExpr : ComparatorBaseExpr
 {
     function optimize()
     {
-        self.eleft = self.eleft.optimize();
-        self.eright = self.eright.optimize();
-        if (self.eleft.isnull() && self.eright.isnull())
+        self.optimizearg();
+        int lnull = self.lexpr.isnull();
+        int rnull = self.rexpr.isnull();
+        if (lnull && rnull)
             return new IntegerLiteral().set(self.owner, self.start, 1);
+        else if (lnull)
+            return new OpIsNullExpr().set(self, self.rexpr);
+        else if (rnull)
+            return new OpIsNullExpr().set(self, self.lexpr);
         else
             return self;
     }
@@ -1539,17 +1584,7 @@ class OpEqualExpr : ComparatorBaseExpr
     }
     function emit(e, result)
     {
-        if (self.eleft.isnull() || self.eright.isnull()) {
-            string reg;
-            if (self.eleft.isnull())
-                reg = self.eright.emit_get(e);
-            else
-                reg = self.eleft.emit_get(e);
-            e.annotate(self.start);
-            e.say('isnull ', result, ', ', reg);
-        }
-        else
-            self.emit_comparator(e, result);
+        self.emit_comparator(e, result);
     }
 }
 
@@ -1559,10 +1594,15 @@ class OpNotEqualExpr : ComparatorBaseExpr
 {
     function optimize()
     {
-        self.eleft = self.eleft.optimize();
-        self.eright = self.eright.optimize();
-        if (self.eleft.isnull() && self.eright.isnull())
+        self.optimizearg();
+        int lnull = self.lexpr.isnull();
+        int rnull = self.rexpr.isnull();
+        if (lnull && rnull)
             return new IntegerLiteral().set(self.owner, self.start, 0);
+        else if (lnull)
+            return new OpNotNullExpr().set(self, self.rexpr);
+        else if (rnull)
+            return new OpNotNullExpr().set(self, self.lexpr);
         else
             return self;
     }
@@ -1572,18 +1612,7 @@ class OpNotEqualExpr : ComparatorBaseExpr
     }
     function emit(e, result)
     {
-        if (self.eleft.isnull() || self.eright.isnull()) {
-            string reg;
-            if (self.eleft.isnull())
-                reg = self.eright.emit_get(e);
-            else
-                reg = self.eleft.emit_get(e);
-            e.annotate(self.start);
-            e.say('isnull ', result, ', ', reg);
-            e.say('not ', result);
-        }
-        else
-            self.emit_comparator(e, result);
+        self.emit_comparator(e, result);
     }
 }
 
@@ -2860,8 +2889,11 @@ class IfStatement : Statement
         self.annotate(e);
         var condition = self.condition;
         string type = condition.checkResult();
-        string reg = self.tempreg(type);
-        condition.emit(e, reg);
+
+        //string reg = self.tempreg(type);
+        //condition.emit(e, reg);
+        string reg = condition.emit_get(e);
+
         switch(type) {
         case 'S':
         case 'P':
@@ -4015,10 +4047,20 @@ class FunctionStatement : BlockStatement
         }
         e.say();
         var arg;
-        for (arg in self.args)
-            e.say('.param pmc ', arg);
+        var a;
         for (arg in self.args) {
-            var a = self.getvar(arg);
+            a = self.getvar(arg);
+            string type = a['type'];
+            string ptype = 'pmc';
+            switch (type) {
+            case 'I': ptype = 'int'; break;
+            case 'N': ptype = 'num'; break;
+            case 'S': ptype = 'string'; break;
+            }
+            e.say('.param ', ptype, ' ', arg);
+        }
+        for (arg in self.args) {
+            a = self.getvar(arg);
             e.say('set ', a['reg'], ', ', arg);
         }
         e.annotate(self.name);
