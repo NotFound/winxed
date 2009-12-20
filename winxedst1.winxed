@@ -1247,6 +1247,36 @@ class OpAssignToExpr : Expr
 
 //*********************************************
 
+class OpAddToExpr : Expr
+{
+    var start;
+    var eleft;
+    var eright;
+    function checkResult()
+    {
+        if (self.eleft.isidentifier())
+            return self.eleft.checkResult();
+        else
+            InternalError('Unimplemented');
+    }
+    function emit(e, result)
+    {
+        string reg = self.emit_get(e);
+        e.annotate(self.start);
+        e.say('add ', result, ', ', reg);
+    }
+    function emit_get(e)
+    {
+        e.annotate(self.start);
+        string reg = self.eleft.emit_get(e);
+        string reg2 = self.eright.emit_get(e);
+        e.say('add ', reg, ', ', reg2);
+        return reg;
+    }
+}
+
+//*********************************************
+
 class ComparatorBaseExpr : Expr
 {
     var start;
@@ -2136,16 +2166,27 @@ function parseExpr_0(tk, owner)
     SyntaxError('Lots of things unsupported', t);
 }
 
-const int Code_none    = 0;
-const int Code_paren   = 1;
-const int Code_bracket = 2;
-const int Code_dot     = 3;
+const int Code_none      = 0;
+const int Code_paren     = 1;
+const int Code_bracket   = 2;
+const int Code_dot       = 3;
+const int Code_assign    = 4;
+const int Code_assign_to = 5;
+const int Code_add_to    = 6;
 
 function getOpCode_2(t)
 {
     if (t.isop('(')) return Code_paren;
     if (t.isop('[')) return Code_bracket;
     if (t.isop('.')) return Code_dot;
+    return Code_none;
+}
+
+function getOpCode_16(t)
+{
+    if (t.isop('=')) return Code_assign;
+    if (t.isop('=:')) return Code_assign_to;
+    if (t.isop('+=')) return Code_add_to;
     return Code_none;
 }
 
@@ -2342,13 +2383,23 @@ function parseExpr_16(tk, owner)
 {
     var subexpr = parseExpr_14(tk, owner);
     var t;
-    while ((t = tk.get()).isop('=') || t.isop('=:')) {
+    int code;
+    while ((code = getOpCode_16(t = tk.get())) != Code_none ) {
         var subexpr2 = parseExpr_16(tk, owner);
         var expr;
-        if (t.isop('='))
+        switch (code) {
+        case Code_assign:
             expr = new OpAssignExpr();
-        else
+            break;
+        case Code_assign_to:
             expr = new OpAssignToExpr();
+            break;
+        case Code_add_to:
+            expr = new OpAddToExpr();
+            break;
+        default:
+            InternalError('Unexpected code in parseExpr_16', t);
+        }
         expr.owner= owner;
         expr.start= t;
         expr.eleft= subexpr;
