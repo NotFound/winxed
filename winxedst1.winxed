@@ -1862,32 +1862,29 @@ class OpSubExpr : OpBinaryExpr
 
 //*********************************************
 
-class OpMulExpr : Expr
+class OpMulExpr : OpBinaryExpr
 {
-    var start;
-    var eleft;
-    var eright;
     function checkResult()
     {
-        var eleft = self.eleft;
-        var ltype = eleft.checkResult();
+        var lexpr = self.lexpr;
+        var ltype = lexpr.checkResult();
         if (ltype == 'S')
             return 'S';
-        if (ltype == 'I' && self.eright.checkResult() == 'I')
+        if (ltype == 'I' && self.rexpr.checkResult() == 'I')
             return 'I';
         else
             return 'N';
     }
     function emit(e, result)
     {
-        var eleft = self.eleft;
-        var eright = self.eright;
-        var ltype = eleft.checkResult();
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        var ltype = lexpr.checkResult();
         if (ltype == 'S') {
-            string lreg = eleft.emit_get(e);
-            string rreg = eright.emit_get(e);
+            string lreg = lexpr.emit_get(e);
+            string rreg = rexpr.emit_get(e);
             string rval;
-            switch (eright.checkResult()) {
+            switch (rexpr.checkResult()) {
             case 'I':
                 rval = rreg;
                 break;
@@ -1903,28 +1900,28 @@ class OpMulExpr : Expr
         string rright;
         int nleft;
         int nright;
-        if ((!eleft.issimple()) || eleft.isidentifier()) {
+        if ((!lexpr.issimple()) || lexpr.isidentifier()) {
             string rleft= self.tempreg(self.checkResult());
-            eleft.emit(e, rleft);
+            lexpr.emit(e, rleft);
         }
         else {
-            nleft= eleft.getIntegerValue();
+            nleft= lexpr.getIntegerValue();
             rleft= nleft;
         }
-        if ((!eright.issimple()) || eright.isidentifier()) {
+        if ((!rexpr.issimple()) || rexpr.isidentifier()) {
             string rright= self.tempreg(self.checkResult());
-            eright.emit(e, rright);
+            rexpr.emit(e, rright);
         }
         else {
-            string type = eright.checkResult();
+            string type = rexpr.checkResult();
             switch(type) {
             case 'S':
                 string rright= self.tempreg(self.checkResult());
-                eright.emit(e, rright);
+                rexpr.emit(e, rright);
                 break;
             case 'I':
             default:
-                nright= eright.getIntegerValue();
+                nright= rexpr.getIntegerValue();
                 rright= nright;
                 break;
             }
@@ -1936,33 +1933,29 @@ class OpMulExpr : Expr
 
 //*********************************************
 
-class OpDivExpr : Expr
+class OpDivExpr : OpBinaryExpr
 {
-    var start;
-    var eleft;
-    var eright;
-
     function checkResult()
     {
         return 'N';
     }
     function emit(e, result)
     {
-        var eleft = self.eleft;
+        var lexpr = self.lexpr;
         var lreg;
-        if (eleft.checkResult() == 'N')
-            lreg = eleft.emit_get(e);
+        if (lexpr.checkResult() == 'N')
+            lreg = lexpr.emit_get(e);
         else {
             lreg = self.tempreg('N');
-            eleft.emit(e, lreg);
+            lexpr.emit(e, lreg);
         }
-        var eright = self.eright;
+        var rexpr = self.rexpr;
         var rreg;
-        if (eright.checkResult() == 'N')
-            rreg = eright.emit_get(e);
+        if (rexpr.checkResult() == 'N')
+            rreg = rexpr.emit_get(e);
         else {
             rreg = self.tempreg('N');
-            eright.emit(e, rreg);
+            rexpr.emit(e, rreg);
         }
         e.annotate(self.start);
         e.say('div ', result, ', ', lreg, ', ', rreg);
@@ -2531,14 +2524,9 @@ function parseExpr_5(tk, owner)
     while ((t= tk.get()).isop('*') || t.isop('/')) {
         var eright= parseExpr_4(tk, owner);
         if (t.isop('*'))
-            var expr= new OpMulExpr();
+            eleft = new OpMulExpr().set(owner, t, eleft, eright);
         else
-            var expr= new OpDivExpr();
-        expr.owner= owner;
-        expr.start= t;
-        expr.eleft= eleft;
-        expr.eright= eright;
-        eleft= expr;
+            eleft = new OpDivExpr().set(owner, t, eleft, eright);
     }
     tk.unget(t);
     return eleft;
@@ -3646,6 +3634,12 @@ class VarStatement : Statement
         }
         if (!t.isop(';'))
             SyntaxError("Expected ';'", t);
+        return self;
+    }
+    function optimize()
+    {
+        if (self.init != null)
+            self.init = self.init.optimize();
         return self;
     }
     function emit(var e)
