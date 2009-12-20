@@ -2944,6 +2944,79 @@ class SwitchStatement : Statement
 }
 
 //*********************************************
+//            ForStatement
+//*********************************************
+
+class ForStatement : BlockStatement
+{
+    var initializer;
+    var condition;
+    var iteration;
+    var body;
+    var breaklabel;
+    var continuelabel;
+
+    function parse(t, tk, owner)
+    {
+        self.start = t;
+        self.owner = owner;
+        t = tk.get();
+        if (! t.isop(';')) {
+            tk.unget(t);
+            self.initializer = parseStatement(tk, self);
+        }
+        t = tk.get();
+        if (! t.isop(';')) {
+            tk.unget(t);
+            self.condition = parseExpr(tk, self);
+            ExpectOp(';', tk);
+        }
+        t = tk.get();
+        if (! t.isop(')')) {
+            tk.unget(t);
+            self.iteration = parseExpr(tk, self);
+            ExpectOp(')', tk);
+        }
+        self.body = parseStatement(tk, self);
+        return self;
+    }
+    function emit(e)
+    {
+        e.comment('for loop');
+        string continuelabel = self.genlabel();
+        self.continuelabel = continuelabel;
+        string breaklabel = self.genlabel();
+        self.breaklabel = breaklabel;
+        string condlabel = self.genlabel();
+        if (self.initializer != null)
+            self.initializer.emit(e);
+        e.say('goto ', condlabel);
+
+        e.say(continuelabel, ': # for iteration');
+        string unused = self.iteration.emit_get(e);
+
+        e.say(condlabel, ': # for condition');
+        string regcond = self.condition.emit_get(e);
+        e.say('unless ', regcond, ' goto ', breaklabel, ' # for end');
+
+        self.body.emit(e);
+        e.say('goto ', continuelabel, ' # for iteration');
+
+        e.say(breaklabel, ': # for end');
+    }
+    function getbreaklabel(pos)
+    {
+        string label = self.breaklabel;
+        return label;
+    }
+    function getcontinuelabel(pos)
+    {
+        string label = self.continuelabel;
+        return label;
+    }
+}
+
+//*********************************************
 //            ForeachStatement
 //*********************************************
 
@@ -2952,6 +3025,8 @@ class ForeachStatement : BlockStatement
     var varname;
     var container;
     var body;
+    var breaklabel;
+    var continuelabel;
 
     function parse(t, tk, owner)
     {
@@ -2997,7 +3072,9 @@ class ForeachStatement : BlockStatement
         var itvar = self.getvar(self.varname);
         string iterator = self.createreg('P');
         string continuelabel = self.genlabel();
+        self.continuelabel = continuelabel;
         string breaklabel = self.genlabel();
+        self.breaklabel = breaklabel;
         e.say('iter ', iterator, ', ', regcont);
         e.say('set ', iterator, ', 0');
         e.say(continuelabel, ': # for iteration');
@@ -3007,25 +3084,33 @@ class ForeachStatement : BlockStatement
         e.say('goto ', continuelabel);
         e.say(breaklabel, ': # endfor');
     }
+    function getbreaklabel(pos)
+    {
+        string label = self.breaklabel;
+        return label;
+    }
+    function getcontinuelabel(pos)
+    {
+        string label = self.continuelabel;
+        return label;
+    }
 }
 
 //*********************************************
 
 function parseFor(t, tk, owner)
 {
-    var paren = tk.get();
-    if (!paren.isop('('))
-        SyntaxError("Expected '('", paren);
+    ExpectOp('(', tk);
     var aux = tk.get();
     var in1 = tk.get();
     var in2 = tk.get();
-    if (in1.iskeyword('in') || in2.iskeyword('in')) {
-        tk.unget(in2);
-        tk.unget(in1);
-        tk.unget(aux);
+    tk.unget(in2);
+    tk.unget(in1);
+    tk.unget(aux);
+    if (in1.iskeyword('in') || in2.iskeyword('in'))
         return new ForeachStatement().parse(t, tk, owner);
-    }
-    SyntaxError('Unimplemented', t);
+    else
+        return new ForStatement().parse(t, tk, owner);
 }
 
 //*********************************************
