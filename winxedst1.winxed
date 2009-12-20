@@ -528,36 +528,6 @@ function findpredef(string name, int nargs)
 }
 
 //*********************************************
-//            Miniwinxed
-//*********************************************
-
-function getkey(var path)
-{
-    string s = "[ ";
-    string sep= " '";
-    for (string n in path) {
-        s+= sep;
-        sep=" ; '";
-        s+= n + "'";
-    }
-    s+= " ]";
-    return s;
-}
-
-function namespacekey(var path)
-{
-    string s = '.namespace [';
-    string sep= " '";
-    for (string n in path) {
-        s+= sep;
-        sep=" ; '";
-        s+= n + "'";
-    }
-    s+= " ]";
-    return s;
-}
-
-//*********************************************
 //            Emit
 //*********************************************
 
@@ -575,6 +545,10 @@ class Emit
         self.line= 0;
         self.pendingf= 0;
         self.pendingl= 0;
+    }
+    function close()
+    {
+        self.handle = null;
     }
     function updateannot()
     {
@@ -627,8 +601,70 @@ class Emit
 }
 
 //*********************************************
+//            Modifiers
+//*********************************************
+
+class Modifier
+{
+    var name;
+
+    function getname() { return self.name; }
+    function set(string name)
+    {
+        self.name = name;
+        return self;
+    }
+}
+
+class ModifierList
+{
+    var list;
+
+    function parse(tk)
+    {
+        var t;
+        self.list = [];
+        do {
+            t = tk.get();
+            string name = t.getidentifier();
+            t = tk.get();
+            self.list.push(new Modifier().set(name));
+        } while (t.isop(','));
+
+        return self;
+    }
+    function getlist() { return self.list; }
+}
+
+//*********************************************
 //       Auxiliary classes and functions
 //*********************************************
+
+function getkey(var path)
+{
+    string s = "[ ";
+    string sep= " '";
+    for (string n in path) {
+        s+= sep;
+        sep=" ; '";
+        s+= n + "'";
+    }
+    s+= " ]";
+    return s;
+}
+
+function namespacekey(var path)
+{
+    string s = '.namespace [';
+    string sep= " '";
+    for (string n in path) {
+        s+= sep;
+        sep=" ; '";
+        s+= n + "'";
+    }
+    s+= " ]";
+    return s;
+}
 
 function InternalError(string msg, var pos [optional], int has_pos [opt_flag])
 {
@@ -4004,18 +4040,9 @@ class FunctionStatement : BlockStatement
         t= tk.get();
         if (t.isop('['))
         {
-            var modifiers= [];
-            t= tk.get();
-            modifiers.push(t);
-            for (t= tk.get(); t.isop(','); )
-            {
-                t= tk.get();
-                modifiers.push(t);
-            }
-            if (!t.isop(']'))
-                throw Error("Expected ',' or ']'");
-            t= tk.get();
+            var modifiers = new ModifierList().parse(tk);
             self.modifiers= modifiers;
+            t= tk.get();
         }
         if (! t.isop('('))
             throw Error("Expected '('");
@@ -4046,13 +4073,9 @@ class FunctionStatement : BlockStatement
                 self.createvar(s, type);
                 t= tk.get();
                 if (t.isop('[')) {
-                    var modifiers = [];
-                    t= tk.get();
-                    string modifiername = t.getidentifier();
-                    modifiers.push(modifiername);
-                    ExpectOp(']', tk);
-                    t = tk.get();
+                    var modifiers = new ModifierList().parse(tk);
                     arg['modifiers'] = modifiers;
+                    t = tk.get();
                 }
                 self.args.push(arg);
             } while (t.isop(','));
@@ -4073,9 +4096,10 @@ class FunctionStatement : BlockStatement
         if (self.owner.isClass())
             e.print(' :method');
         var modifiers= self.modifiers;
-        if (modifiers) {
-            for (var m in modifiers)
-                e.print(' :', m);
+        if (modifiers != null) {
+            var mlist = modifiers.getlist();
+            for (var m in mlist)
+                e.print(' :', m.getname());
         }
         else {
             if (name == 'main')
@@ -4099,8 +4123,9 @@ class FunctionStatement : BlockStatement
             e.print('.param ', ptype, ' ', argname);
             var modarg = arg['modifiers'];
             if (modarg != null) {
-                for (var mod in modarg) {
-                    e.print(' :', mod);
+                var modarglist = modarg.getlist();
+                for (var mod in modarglist) {
+                    e.print(' :', mod.getname());
                 }
             }
             e.say('');
@@ -4390,6 +4415,8 @@ function miniwinxed_parser(tk, string outputfile)
     var emit= new Emit();
     emit.initialize(handle);
     winxed.emit(emit);
+    emit.close();
+    handle.close();
 }
 
 //*********************************************
