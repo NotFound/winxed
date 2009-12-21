@@ -1270,8 +1270,10 @@ class IdentifierExpr : SimpleExpr
     function getIdentifier()
     {
         var value = self.checkIdentifier();
-        if (value == '')
-            SyntaxError("Variable '" + self.name + "' is not defined", self.sname);
+        if (value == '') {
+            string name = self.name;
+            SyntaxError("Variable '" + name + "' is not defined", self.name);
+        }
         return value;
     }
     function optimize()
@@ -2489,7 +2491,7 @@ class HashExpr : Expr
                     SyntaxError("Expected key", t);
                 string key = t;
                 ExpectOp(':', tk);
-                var value = parseExpr(tk, self);
+                var value = parseExpr(tk, owner);
                 values[key] = value;
             } while ((t = tk.get()).isop(','));
             if (! t.isop('}'))
