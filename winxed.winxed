@@ -54,7 +54,7 @@ function main [main] (argv)
     ];
 
     using extern Getopt.Obj;
-    var getopts = new 'Getopt::Obj';
+    var getopts = new Getopt.Obj();
     getopts.notOptStop(1);
     for (var o in options)
         getopts.push_string(o[0]);
