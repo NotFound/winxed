@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 16-dec-2009
+// Revision 22-dec-2009
 
 // Winxed compiler stage 0.
 
@@ -1361,6 +1361,7 @@ private:
     BaseStatement *optimize();
     void emit (Emit &e);
 
+    Token start;
     std::string continuelabel;
     std::string breaklabel;
     std::string varname;
@@ -3390,19 +3391,21 @@ class FunctionCallExpr : public BaseExpr
 {
 public:
     FunctionCallExpr(BlockBase &block,
-        Tokenizer &tk, BaseExpr *function);
+        Tokenizer &tk, const Token & st, BaseExpr *function);
     BaseExpr *optimize();
     bool isinteger() const;
     bool isstring() const;
 private:
+    const Token start;
     void emit(Emit &e, const std::string &result);
     BaseExpr *called;
     std::vector <BaseExpr *> args;
 };
 
 FunctionCallExpr::FunctionCallExpr(BlockBase &block,
-        Tokenizer &tk, BaseExpr *function) :
+        Tokenizer &tk, const Token & st, BaseExpr *function) :
     BaseExpr(block),
+    start(st),
     called(function)
 {
     //std::cerr << "FunctionCallExpr::FunctionCallExpr\n";
@@ -3564,6 +3567,7 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
         std::string name= called->getidentifier();
         std::string quote(islocal(name) ? "" : "'");
         name = quote + name + quote;
+        e.annotate(start);
         if (!result.empty() )
             e << result << " = ";
         e << name << '(';
@@ -3575,11 +3579,13 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
         {
             std::string mefun= gentemp('P');
             me->emitleft(e, mefun);
+            e.annotate(start);
             e << reg << " = " << mefun << ".'" << me->getmember() << "'(";
         }
         else
         {
             called->emit(e, reg);
+            e.annotate(start);
             e << reg << '(';
         }
     }
@@ -3939,7 +3945,7 @@ BaseExpr *parseExpr_2(BlockBase &block, Tokenizer &tk)
             subexpr= new MemberExpr(block, tk, t, subexpr);
         else
         {
-            subexpr = new FunctionCallExpr(block, tk, subexpr);
+            subexpr = new FunctionCallExpr(block, tk, t, subexpr);
         }
     }
     tk.unget(t);
@@ -4211,7 +4217,8 @@ void ExprStatement::emit (Emit &e)
 ValueStatement::ValueStatement(Block & block, const Token &st) :
     SubStatement (block),
     vtype(ValueSimple),
-    esize(0)
+    esize(0),
+    start(st)
 {
 }
 
@@ -4271,6 +4278,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
     switch (vtype)
     {
     case ValueSimple:
+        e.annotate(start);
         e << ".local " << (type == 'I' ? "int" : "string") <<
             ' ' << name << '\n';
         if (value.size() == 1)
@@ -4618,6 +4626,7 @@ ForeachStatement::ForeachStatement(Block &block, Tokenizer &tk) :
     vartype = nativetype(t);
     if (vartype != '\0')
         t= tk.get();
+    start = t;
     varname= t.identifier();
     if (vartype != '\0')
         genlocal(varname, vartype);
@@ -4656,11 +4665,13 @@ void ForeachStatement::emit(Emit &e)
     {
         std::string value= gentemp('S');
         container->emit(e, value);
+        e.annotate(start);
         e << op_box(container_, value) << '\n';
     }
     else
         container->emit(e, container_);
 
+    e.annotate(start);
     if (vartype != '\0')
         e << ".local " << nameoftype(vartype) << ' ' << varname << '\n';
     const std::string iter= "iter_" + varname;
