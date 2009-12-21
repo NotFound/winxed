@@ -463,6 +463,22 @@ function getpredefs()
     var predef_say = new Predef_say();
     var predef_print = new Predef_print();
     var predefs = [
+        new PredefFunction().set('die',
+            'die {arg0}',
+            'P', 'S'
+        ),
+        new PredefFunction().set('Error',
+            "root_new {res}, ['parrot';'Exception']\n{res}['message'] = {arg0}\n",
+            'P', 'S'
+        ),
+        new PredefFunction().set('Error',
+            "root_new {res}, ['parrot';'Exception']\n{res}['message'] = {arg0}\n{res}['severity'] = {arg1}\n",
+            'P', 'S', 'I'
+        ),
+        new PredefFunction().set('Error',
+            "root_new {res}, ['parrot';'Exception']\n{res}['message'] = {arg0}\n{res}['severity'] = {arg1}\n{res}['type'] = {arg2}\n",
+            'P', 'S', 'I', 'I'
+        ),
         new PredefFunction().set('length',
             'length {res}, {arg0}',
             'I', 'S'
@@ -498,6 +514,14 @@ function getpredefs()
         new PredefFunction().set('clone',
             'clone {res}, {arg0}',
             'P', 'P'
+        ),
+        new PredefFunction().set('loadlib',
+            'loadlib {res}, {arg0}',
+            'P', 'S'
+        ),
+        new PredefFunction().set('dlfunc',
+            'dlfunc {res}, {arg0}, {arg1}, {arg2}',
+            'P', 'P', 'S', 'S'
         ),
         new PredefFunction().set('print',
             predef_print,
@@ -1208,8 +1232,15 @@ class IdentifierExpr : SimpleExpr
         var desc = self.owner.getvar(self.name);
         if (desc != null)
             return desc['type'];
-        else
-            return '';
+        else {
+            switch (self.name) {
+            case 'self':
+            case 'null':
+                return 'P';
+            default:
+                return '';
+            }
+        }
     }
     function getName()
     {
@@ -1364,7 +1395,7 @@ class OpNotExpr : OpUnaryExpr
 {
     function checkResult()
     {
-        return self.subexpr.checkResult();
+        return 'I';
     }
     function set(owner, t, subexpr)
     {
@@ -1375,10 +1406,19 @@ class OpNotExpr : OpUnaryExpr
     {
         string reg = self.subexpr.emit_get(e);
         e.annotate(self.start);
-        if (self.checkResult() == 'I')
+        string type = self.subexpr.checkResult();
+        switch (type) {
+        case 'I':
             e.say('not ', result, ', ', reg);
-        else
+            break;
+        case 'P':
+            string aux = self.tempreg('I');
+            e.say('set ', aux, ', ', reg);
+            e.say('not ', result, ', ', aux);
+            break;
+        default:
             e.say('isfalse ', result, ', ', reg);
+        }
     }
 }
 
@@ -1777,11 +1817,8 @@ class OpGreaterEqualExpr : ComparatorBaseExpr
 
 //*********************************************
 
-class OpBoolAndExpr : Expr
+class OpBoolAndExpr : OpBinaryExpr
 {
-    var start;
-    var eleft;
-    var eright;
     function checkResult()
     {
         return 'I';
@@ -1790,8 +1827,8 @@ class OpBoolAndExpr : Expr
     {
         self.owner = owner;
         self.start = t;
-        self.eleft = eleft;
-        self.eright = eright;
+        self.lexpr = eleft;
+        self.rexpr = eright;
         return self;
     }
     function emit(e, result)
@@ -1803,19 +1840,16 @@ class OpBoolAndExpr : Expr
             res = self.tempreg('I');
         string op1 = self.tempreg('I');
         string op2 = self.tempreg('I');
-        self.eleft.emit(e, op1);
-        self.eright.emit(e, op2);
+        self.lexpr.emit(e, op1);
+        self.rexpr.emit(e, op2);
         e.say('and ', res, ', ', op1, ', ', op2);
     }
 }
 
 //*********************************************
 
-class OpBoolOrExpr : Expr
+class OpBoolOrExpr : OpBinaryExpr
 {
-    var start;
-    var eleft;
-    var eright;
     function checkResult()
     {
         return 'I';
@@ -1824,8 +1858,8 @@ class OpBoolOrExpr : Expr
     {
         self.owner = owner;
         self.start = t;
-        self.eleft = eleft;
-        self.eright = eright;
+        self.lexpr = eleft;
+        self.rexpr = eright;
         return self;
     }
     function emit(e, result)
@@ -1837,19 +1871,16 @@ class OpBoolOrExpr : Expr
             res = self.tempreg('I');
         string op1 = self.tempreg('I');
         string op2 = self.tempreg('I');
-        self.eleft.emit(e, op1);
-        self.eright.emit(e, op2);
+        self.lexpr.emit(e, op1);
+        self.rexpr.emit(e, op2);
         e.say('or ', res, ', ', op1, ', ', op2);
     }
 }
 
 //*********************************************
 
-class OpBinAndExpr : Expr
+class OpBinAndExpr : OpBinaryExpr
 {
-    var start;
-    var eleft;
-    var eright;
     function checkResult()
     {
         return 'I';
@@ -1858,8 +1889,8 @@ class OpBinAndExpr : Expr
     {
         self.owner = owner;
         self.start = t;
-        self.eleft = eleft;
-        self.eright = eright;
+        self.lexpr = eleft;
+        self.rexpr = eright;
         return self;
     }
     function emit(e, result)
@@ -1871,19 +1902,16 @@ class OpBinAndExpr : Expr
             res = self.tempreg('I');
         string op1 = self.tempreg('I');
         string op2 = self.tempreg('I');
-        self.eleft.emit(e, op1);
-        self.eright.emit(e, op2);
+        self.lexpr.emit(e, op1);
+        self.rexpr.emit(e, op2);
         e.say('band ', res, ', ', op1, ', ', op2);
     }
 }
 
 //*********************************************
 
-class OpBinOrExpr : Expr
+class OpBinOrExpr : OpBinaryExpr
 {
-    var start;
-    var eleft;
-    var eright;
     function checkResult()
     {
         return 'I';
@@ -1892,8 +1920,8 @@ class OpBinOrExpr : Expr
     {
         self.owner = owner;
         self.start = t;
-        self.eleft = eleft;
-        self.eright = eright;
+        self.lexpr = eleft;
+        self.rexpr = eright;
         return self;
     }
     function emit(e, result)
@@ -1905,8 +1933,8 @@ class OpBinOrExpr : Expr
             res = self.tempreg('I');
         string op1 = self.tempreg('I');
         string op2 = self.tempreg('I');
-        self.eleft.emit(e, op1);
-        self.eright.emit(e, op2);
+        self.lexpr.emit(e, op1);
+        self.rexpr.emit(e, op2);
         e.say('bor ', res, ', ', op1, ', ', op2);
     }
 }
@@ -2307,8 +2335,14 @@ class MemberExpr : Expr
         string obj = self.left.emit_get(e);
         string ident = self.right.getidentifier();
         string value;
-        if (typeright == 'P')
+        if (typeright == 'P') {
+            // Special case temporarily
+            if (rreg == 'null') {
+                rreg = self.tempreg('P');
+                e.say('null ', rreg);
+            }
             value = rreg;
+        }
         else {
             value = self.tempreg('P');
             e.say('box ', value, ', ', rreg);
@@ -3431,6 +3465,17 @@ class ForStatement : BlockStatement
         self.body = parseStatement(tk, self);
         return self;
     }
+    function optimize()
+    {
+        if (self.initializer != null)
+            self.initializer = self.initializer.optimize();
+        if (self.condition != null)
+            self.condition = self.condition.optimize();
+        if (self.iteration != null)
+            self.iteration = self.iteration.optimize();
+        self.body = self.body.optimize();
+        return self;
+    }
     function emit(e)
     {
         e.comment('for loop');
@@ -3581,6 +3626,11 @@ class ThrowStatement : Statement
         self.start = t;
         self.owner= owner;
         self.excep = parseExpr(tk, self);
+        return self;
+    }
+    function optimize()
+    {
+        self.excep = self.excep.optimize();
         return self;
     }
     function emit(e)
