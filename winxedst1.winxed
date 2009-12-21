@@ -765,6 +765,8 @@ function parseStatement(tk, owner)
             return new UsingStatement().parse(tk, owner);
         }
     }
+    else if (t.iskeyword('const'))
+        return new ConstStatement().parse(t, tk, owner);
     else if (t.iskeyword('var'))
         return new VarStatement().parse(tk, owner);
     else if (t.iskeyword('string'))
@@ -843,6 +845,10 @@ class Statement : Item
     function createlabel(name)
     {
         return self.owner.createlabel(name);
+    }
+    function createconst(name, string type, value)
+    {
+        return self.owner.createconst(name, type, value);
     }
     function createvar(name, string type)
     {
@@ -1002,12 +1008,26 @@ class VarContainer
         locals[sname]= descriptor;
         return reg;
     }
+    function createconst(var name, string type, value)
+    {
+        var locals= self.locals;
+        string sname= name;
+        var exist= locals[sname];
+        if (exist != null)
+            SyntaxError("Redeclared '" + sname + "'", name);
+        var descriptor= new 'Hash';
+        descriptor['type'] = type;
+        descriptor['value'] = value;
+        descriptor['reg'] = '**WRONG**';
+        descriptor['const']= 1;
+        locals[sname]= descriptor;
+    }
     function getvar(var name)
     {
         var locals= self.locals;
         string sname= name;
         var exist= locals[sname];
-        if (exist == null)
+        if (exist == null && self.owner != null)
             exist = self.owner.getvar(name);
         return exist;
     }
@@ -1031,6 +1051,7 @@ class Expr
 {
     var owner;
     function issimple() { return 0; }
+    function isliteral() { return 0; }
     function isintegerliteral() { return 0; }
     function isfloatliteral() { return 0; }
     function isstringliteral() { return 0; }
@@ -1064,6 +1085,7 @@ class SimpleExpr : Expr
 class StringLiteral : SimpleExpr
 {
     var strval;
+    function isliteral() { return 1; }
     function isstringliteral() { return 1; }
     function checkResult() { return 'S'; }
     function set(owner, t)
@@ -1112,6 +1134,7 @@ class IntegerLiteral : SimpleExpr
 {
     var pos;
     var numval;
+    function isliteral() { return 1; }
     function isintegerliteral() { return 1; }
     function checkResult() { return 'I'; }
     function set(owner, t, value [optional], int has_value [opt_flag])
@@ -1149,6 +1172,7 @@ class IntegerLiteral : SimpleExpr
 class FloatLiteral : SimpleExpr
 {
     var numval;
+    function isliteral() { return 1; }
     function isfloatliteral() { return 1; }
     function checkResult() { return 'N'; }
     function getFloatValue()
@@ -1199,10 +1223,14 @@ class IdentifierExpr : SimpleExpr
         string s;
         if (desc == null) {
             string sname = name;
-            if (sname == 'self')
-                s = 'self';
-            else
+            switch (sname) {
+            case 'self':
+                s = 'self'; break;
+            case 'null':
+                s = 'null'; break;
+            default:
                 s = '';
+            }
         }
         else
             s= desc['reg'];
@@ -1210,16 +1238,20 @@ class IdentifierExpr : SimpleExpr
     }
     function getIdentifier()
     {
+        var value = self.checkIdentifier();
+        if (value == '')
+            SyntaxError("Variable '" + self.name + "' is not defined", self.sname);
+        return value;
+    }
+    function optimize()
+    {
         var name = self.name;
         var desc = self.owner.getvar(name);
-        if (desc == null) {
-            string sname = name;
-            if (sname == 'self')
-                return 'self';
-            SyntaxError("Variable '" + sname + "' is not defined", name);
+        if (desc != null) {
+            if (desc['const'])
+                return desc['value'];
         }
-        string s= desc['reg'];
-        return s;
+        return self;
     }
     function emit(e, result)
     {
@@ -1888,19 +1920,30 @@ class OpAddExpr : OpBinaryExpr
         self.optimizearg();
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
-        if (lexpr.isstringliteral() && rexpr.isstringliteral()) {
-            var etok = lexpr.strval;
-            var rtok = rexpr.strval;
-            var t;
-            int newtype;
-            if (etok.type == TypeSingleQuoted && rtok.type == TypeSingleQuoted)
-                newtype = TypeSingleQuoted;
-            else
-                newtype = TypeQuoted;
-            string es = etok.str;
-            string rs = rtok.str;
-            t = newTokenFrom(newtype, es + rs, etok);
-            return new StringLiteral().set(self.owner, t);
+        if (lexpr.isliteral() && rexpr.isliteral()) {
+            string ltype = lexpr.checkResult();
+            string rtype = rexpr.checkResult();
+            if (ltype == 'S' && rtype == 'S') {
+                var etok = lexpr.strval;
+                var rtok = rexpr.strval;
+                var t;
+                int newtype;
+                if (etok.type == TypeSingleQuoted && rtok.type == TypeSingleQuoted)
+                    newtype = TypeSingleQuoted;
+                else
+                    newtype = TypeQuoted;
+                string es = etok.str;
+                string rs = rtok.str;
+                t = newTokenFrom(newtype, es + rs, etok);
+                return new StringLiteral().set(self.owner, t);
+            }
+            if (ltype == 'I' && rtype == 'I') {
+                var lval = lexpr.numval;
+                int ln = lval;
+                var rval = rexpr.numval;
+                int rn = rval;
+                return new IntegerLiteral().set(self.owner, lval, ln + rn);
+            }
         }
         return self;
     }
@@ -3401,11 +3444,14 @@ class ForStatement : BlockStatement
         e.say('goto ', condlabel);
 
         e.say(continuelabel, ': # for iteration');
-        string unused = self.iteration.emit_get(e);
+        if (self.iteration != null)
+            string unused = self.iteration.emit_get(e);
 
         e.say(condlabel, ': # for condition');
-        string regcond = self.condition.emit_get(e);
-        e.say('unless ', regcond, ' goto ', breaklabel, ' # for end');
+        if (self.condition != null) {
+            string regcond = self.condition.emit_get(e);
+            e.say('unless ', regcond, ' goto ', breaklabel, ' # for end');
+        }
 
         self.body.emit(e);
         e.say('goto ', continuelabel, ' # for iteration');
@@ -3778,6 +3824,65 @@ class DeclareStatement : Statement
     function defaultinit(var e)
     {
         InternalError('DeclareStatement.defaultinit must be overriden');
+    }
+}
+
+//*********************************************
+//            ConstStatement
+//*********************************************
+
+class ConstStatement : Statement
+{
+    var start;
+    var type;
+    var name;
+    var value;
+
+    function parse(t, tk, owner)
+    {
+        self.owner= owner;
+        self.start = t;
+        t = tk.get();
+        self.type = t;
+        t = tk.get();
+        self.name = t;
+        ExpectOp('=', tk);
+        self.value = parseExpr(tk, owner);
+        ExpectOp(';', tk);
+        return self;
+    }
+    function optimize()
+    {
+        self.value = self.value.optimize();
+        var value = self.value;
+        if (value.issimple()) {
+            string typename = self.type;
+            string type;
+            switch (typename)
+            {
+            case 'int':
+                type = 'I';
+                break;
+            case 'float':
+                type = 'N';
+                break;
+            case 'string':
+                type = 'S';
+                break;
+            default:
+                SyntaxError('Invalid type for const', self.start);
+            }
+            self.createconst(self.name, type, value);
+            return self;
+        }
+        SyntaxError('Value for const is not compile time evaluable',
+            self.start);
+    }
+    function emit(e)
+    {
+        // Put a hint in the generated code
+        string name = self.name;
+        e.comment('Constant ' + name + ' evaluted at compile time');
     }
 }
 
@@ -4256,7 +4361,7 @@ class ClassStatement : Item
     function getvar(name)
     {
         // Nothing for a now.
-        return null;
+        return self.parent.getvar(name);
     }
     function parse(tk, parent)
     {
@@ -4337,9 +4442,10 @@ class ClassStatement : Item
 //            Namespace
 //*********************************************
 
-class Namespace : Item
+class Namespace : Item, VarContainer
 {
     var parent;
+    var owner;
     var name;
     var namespaces;
     var classes;
@@ -4357,6 +4463,7 @@ class Namespace : Item
     function init_child(parent, string name)
     {
         self.parent= parent;
+        self.owner = parent;
         self.name= name;
     }
     function getpath()
@@ -4371,11 +4478,6 @@ class Namespace : Item
             string path[];
             return path;
         }
-    }
-    function getvar(name)
-    {
-        // Nothing for a now.
-        return null;
     }
     function parse(tk)
     {
@@ -4399,6 +4501,10 @@ class Namespace : Item
                 self.namespaces.push(child);
                 self.items.push(child);
                 child.parse(tk);
+            }
+            else if (t.iskeyword('const')) {
+                var cst = new ConstStatement().parse(t, tk, self);
+                self.items.push(cst);
             }
             else if (t.iskeyword('function'))
             {
@@ -4427,6 +4533,8 @@ class Namespace : Item
                 }
                 namespace.pop();
             }
+            else
+                SyntaxError("Unexpected token", t);
         }
     }
     function optimize()
