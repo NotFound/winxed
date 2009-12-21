@@ -2453,10 +2453,29 @@ class NewExpr : Expr
     {
         self.owner = owner;
         self.start = t;
-        self.value = tk.get();
-        if (! (self.value.isstring() || self.value.isidentifier()))
-            SyntaxError("Unimplemented", self.value);
+
+        var value = tk.get();
+        if (! (value.isstring() || value.isidentifier()))
+            SyntaxError("Unimplemented", value);
         t = tk.get();
+        if (value.isidentifier() ) {
+            if (t.isop('.')) {
+                string values [];
+                values.push(value);
+                do {
+                    value = tk.get();
+                    if (! value.isidentifier() )
+                        Expected('identifier', value);
+                    values.push(value);
+                } while ((t= tk.get()).isop('.'));
+                self.value = values;
+            }
+            else
+                self.value = value;
+        }
+        else
+            self.value = value;
+
         if (t.isop('(')) {
             t = tk.get();
             if (! t.isop(')')) {
@@ -2477,10 +2496,21 @@ class NewExpr : Expr
             reginit = self.initializer.emit_get(e);
             reginit = ', ' + reginit;
         }
-        if (self.value.isstring())
+        if (self.value instanceof 'ResizableStringArray') {
+            e.print('new ', result, ", [");
+            string sep = '';
+            for (string value in self.value) {
+                e.print(sep, "'", value, "'");
+                sep = ';';
+            }
+            e.say("]", reginit);
+        }
+        else if (self.value.isstring())
             e.say('root_new ', result, ", ['parrot'; ", self.value, " ]", reginit);
-        else
+        else if (self.value.isidentifier())
             e.say('new ', result, ", ['", self.value, "']", reginit);
+        else
+            InternalError('Unexpected type in new');
     }
 }
 
