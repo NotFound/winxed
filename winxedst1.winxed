@@ -607,12 +607,24 @@ class Emit
 class Modifier
 {
     var name;
+    var args;
 
     function getname() { return self.name; }
-    function set(string name)
+    function set(string name, var args)
     {
         self.name = name;
+        if (args != null)
+            self.args = args;
         return self;
+    }
+    function optimize()
+    {
+        var args = self.args;
+        if (args != null) {
+            int n = args;
+            for (int i= 0; i < n; ++i)
+                args[i] = args[i].optimize();
+        }
     }
 }
 
@@ -620,7 +632,7 @@ class ModifierList
 {
     var list;
 
-    function parse(tk)
+    function parse(tk, owner)
     {
         var t;
         self.list = [];
@@ -628,10 +640,26 @@ class ModifierList
             t = tk.get();
             string name = t.getidentifier();
             t = tk.get();
-            self.list.push(new Modifier().set(name));
+            var args;
+            if (t.isop('(')) {
+                args = [];
+                do {
+                    var value = parseExpr(tk, owner);
+                    args.push(value);
+                } while ((t= tk.get()).isop(','));
+                RequireOp(')', t);
+                t= tk.get();
+            }
+            self.list.push(new Modifier().set(name, args));
         } while (t.isop(','));
+        RequireOp(']', t);
 
         return self;
+    }
+    function optimize()
+    {
+        for (var arg in self.list)
+            arg.optimize();
     }
     function getlist() { return self.list; }
 }
@@ -3494,6 +3522,7 @@ class ThrowStatement : Statement
 class TryStatement : BlockStatement
 {
     var stry;
+    var modifiers;
     var exname;
     var scatch;
 
@@ -3501,6 +3530,14 @@ class TryStatement : BlockStatement
     {
         self.start = t;
         self.owner= owner;
+
+        t = tk.get();
+        if (t.isop('[')) {
+            self.modifiers = new ModifierList().parse(tk, self);
+        }
+        else
+            tk.unget(t);
+
         self.stry = parseStatement(tk, self);
         t = tk.get();
         if (! t.iskeyword('catch'))
@@ -3520,12 +3557,26 @@ class TryStatement : BlockStatement
         self.scatch = parseStatement(tk, self);
         return self;
     }
+    function optimize()
+    {
+        if (self.modifiers != null)
+            self.modifiers.optimize();
+        self.stry = self.stry.optimize();
+        self.scatch = self.scatch.optimize();
+        return self;
+    }
     function emit(e)
     {
         string reghandler = self.tempreg('P');
         string labelhandler = self.genlabel();
         string labelpasthandler = self.genlabel();
-        var exname = self.getvar(self.exname);
+        string exreg;
+        if (self.exname != null) {
+            var exname = self.getvar(self.exname);
+            exreg = exname['reg'];
+        }
+        else
+            exreg = self.tempreg('P');
 
         self.annotate(e);
 
@@ -3538,7 +3589,7 @@ class TryStatement : BlockStatement
         e.say('goto ', labelpasthandler);
 
         e.say(labelhandler, ':');
-        e.say('.get_results(', exname['reg'], ')');
+        e.say('.get_results(', exreg, ')');
         e.say('pop_eh');
         self.scatch.emit(e);
 
@@ -4040,7 +4091,7 @@ class FunctionStatement : BlockStatement
         t= tk.get();
         if (t.isop('['))
         {
-            var modifiers = new ModifierList().parse(tk);
+            var modifiers = new ModifierList().parse(tk, self);
             self.modifiers= modifiers;
             t= tk.get();
         }
@@ -4073,7 +4124,7 @@ class FunctionStatement : BlockStatement
                 self.createvar(s, type);
                 t= tk.get();
                 if (t.isop('[')) {
-                    var modifiers = new ModifierList().parse(tk);
+                    var modifiers = new ModifierList().parse(tk, self);
                     arg['modifiers'] = modifiers;
                     t = tk.get();
                 }

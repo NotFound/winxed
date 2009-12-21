@@ -18,7 +18,7 @@ function aux()
 
 function main()
 {
-	try
+	try [min_severity(0),max_severity(10)]
 	{
 		aux();
 	}
