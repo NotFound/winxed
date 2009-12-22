@@ -57,11 +57,29 @@ emit$(OBJEXT): emit.cpp emit.h token.h
 
 stage1: winxedst1$(EXEEXT)
 
-winxedst1.pbc: winxedst1.winxed winxed.pbc
-	parrot winxed.pbc --target=pbc winxedst1.winxed
-
 winxedst1$(EXEEXT): winxedst1.pbc
 	pbc_to_exe winxedst1.pbc
+
+winxedst1.pbc: winxedst1.pir winxed.pbc
+	parrot -o winxedst1.pbc winxedst1.pir
+
+winxedst1.pir: winxed$(EXEEXT) winxedst1.winxed
+	winxed --stage=0 -c -o winxedst1.pir winxedst1.winxed
+
+#-------------------------------
+#    Compiler stage 2 (testing)
+#-------------------------------
+
+stage2: winxedst2$(EXEEXT)
+
+winxedst2$(EXEEXT): winxedst2.pbc
+	pbc_to_exe winxedst2.pbc
+
+winxedst2.pbc: winxedst2.pir
+	parrot -o winxedst2.pbc winxedst2.pir
+
+winxedst2.pir: winxedst1$(EXEEXT) winxed$(EXEEXT) winxedst1.winxed
+	winxed --stage=1 -c -o winxedst2.pir winxedst1.winxed
 
 #-------------------------------
 #      Driver
