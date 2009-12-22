@@ -2326,6 +2326,11 @@ class MemberExpr : Expr
         self.right = tk.get();
         return self;
     }
+    function optimize()
+    {
+        self.left = self.left.optimize();
+        return self;
+    }
     function get_member()
     {
         return self.right;
