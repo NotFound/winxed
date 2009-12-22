@@ -2628,9 +2628,17 @@ class OpInstanceOfExpr : Expr
     }
     function emit(e, result)
     {
+        var checked = self.checked;
+        string checkedval;
+        if (checked.isidentifier()) {
+           checkedval = checked.getidentifier();
+           checkedval = "'" + checkedval + "'";
+        }
+        else
+            checkedval = checked;
         string r = self.eleft.emit_get(e);
         e.annotate(self.start);
-        e.say('isa ', result, ', ', r, ', ', self.checked);
+        e.say('isa ', result, ', ', r, ', ', checkedval);
     }
 }
 
