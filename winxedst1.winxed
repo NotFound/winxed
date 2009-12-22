@@ -4345,6 +4345,7 @@ class FunctionStatement : BlockStatement
     function emit(var e)
     {
         string name = self.name;
+        e.say();
         e.print(".sub '", name, "'");
         if (self.owner.isClass())
             e.print(' :method');
@@ -4388,12 +4389,13 @@ class FunctionStatement : BlockStatement
             a = self.getvar(argname);
             e.say('set ', a['reg'], ', ', argname);
         }
+        e.say();
         e.annotate(self.name);
         e.comment('Body');
         self.body.emit(e);
 
         e.annotate(self.body.getend());
-        e.say('.end # ', name);
+        e.say("\n.end # ", name, "\n");
     }
     function getbreaklabel(pos)
     {
