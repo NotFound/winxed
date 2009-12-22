@@ -382,26 +382,28 @@ class PredefFunction
     }
     function set(string name, body,
         string typeresult,
-        string type0,
+        string type0[optional],
         string type1[optional],
         string type2[optional])
     {
         self.name = name;
         self.body = body;
         self.typeresult = typeresult;
-        self.type0 = type0;
-        int n;
-        if (type0 == '*')
-            n = -1;
-        else {
-            int n = 1;
-            if (type1 != null) {
-                self.type1 = type1;
-                ++n;
-            }
-            if (type2 != null) {
-                self.type2 = type2;
-                ++n;
+        int n = 0;
+        if (type0 != null) {
+            self.type0 = type0;
+            if (type0 == '*')
+                n = -1;
+            else {
+                n = 1;
+                if (type1 != null) {
+                    self.type1 = type1;
+                    ++n;
+                }
+                if (type2 != null) {
+                    self.type2 = type2;
+                    ++n;
+                }
             }
         }
         self.nargs = n;
@@ -510,6 +512,10 @@ function getpredefs()
         new PredefFunction().set('chomp',
             "load_bytecode 'String/Utils.pbc'\n.local pmc util_chomp\nutil_chomp = get_root_global ['parrot';'String';'Utils'], 'chomp'\n{res} = util_chomp({arg0}, {arg1})",
             'S', 'S', 'S'
+        ),
+        new PredefFunction().set('getinterp',
+            'getinterp {res}',
+            'P'
         ),
         new PredefFunction().set('clone',
             'clone {res}, {arg0}',
