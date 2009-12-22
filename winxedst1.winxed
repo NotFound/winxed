@@ -2503,8 +2503,8 @@ class HashExpr : Expr
         self.owner = owner;
         self.start = t;
         t = tk.get();
+        var values = new 'Hash';
         if (!t.isop('}')) {
-            var values = new 'Hash';
             tk.unget(t);
             do {
                 t = tk.get();
@@ -2517,8 +2517,8 @@ class HashExpr : Expr
             } while ((t = tk.get()).isop(','));
             if (! t.isop('}'))
                 SyntaxError("Expected ',' or '}'", t);
-            self.values = values;
         }
+        self.values = values;
         return self;
     }
     function emit(e, result)
@@ -2528,7 +2528,20 @@ class HashExpr : Expr
         var values = self.values;
         for (string item in values) {
             var value = values[item];
-            string itemreg = value.emit_get(e);
+            string itemreg;
+            if (value.isidentifier()) {
+                if (value.checkIdentifier() != '')
+                    itemreg = value.emit_get(e);
+                else {
+                    string id = value.getName();
+                    itemreg = self.tempreg('P');
+                    e.say('get_hll_global ', itemreg, ", '", id, "'");
+                }
+            }
+            else
+                itemreg = value.emit_get(e);
+            if (result == itemreg)
+                InternalError('Failure in temp register allocation');
             e.say(result, '[', item, '] = ', itemreg);
         }
     }
