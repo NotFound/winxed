@@ -3819,18 +3819,24 @@ class DeclareStatement : Statement
                     self.init.emit(e, reg);
                 }
                 else {
-                    e.comment('init other type: ' + itype);
-                    string ireg = self.tempreg(itype);
-                    self.init.emit(e, ireg);
-                    if (t_reg == 'S' && itype == 'P') {
-                        string auxlabel = self.genlabel();
-                        e.say('null ', reg);
-                        e.say('if_null ', ireg, ', ', auxlabel);
-                        e.say('set ', reg, ', ', ireg);
-                        e.say(auxlabel, ':');
+                    if (self.init instanceof IndexExpr) {
+                        // Use the declared type for the indexing
+                        self.init.emit(e, reg);
                     }
-                    else
-                        e.say('set ', reg, ', ', ireg);
+                    else {
+                        e.comment('init other type: ' + itype);
+                        string ireg = self.tempreg(itype);
+                        self.init.emit(e, ireg);
+                        if (t_reg == 'S' && itype == 'P') {
+                            string auxlabel = self.genlabel();
+                            e.say('null ', reg);
+                            e.say('if_null ', ireg, ', ', auxlabel);
+                            e.say('set ', reg, ', ', ireg);
+                            e.say(auxlabel, ':');
+                        }
+                        else
+                            e.say('set ', reg, ', ', ireg);
+                    }
                 }
             }
         }
