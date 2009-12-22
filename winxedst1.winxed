@@ -800,9 +800,9 @@ function parseStatement(tk, owner)
     else if (t.iskeyword('float'))
         return new FloatStatement().parse(tk, owner);
     else if (t.iskeyword('return'))
-        return new ReturnStatement().parse(tk, owner);
+        return new ReturnStatement().parse(t, tk, owner);
     else if (t.iskeyword('yield'))
-        return new YieldStatement().parse(tk, owner);
+        return new YieldStatement().parse(t, tk, owner);
     else if (t.iskeyword('goto'))
         return new GotoStatement().parse(tk, owner);
     else if (t.iskeyword('if'))
@@ -2908,9 +2908,10 @@ class ReturnYieldStatement : Statement
 {
     var values;
 
-    function parse(tk, owner)
+    function parse(st, tk, owner)
     {
         self.owner= owner;
+        self.start = st;
         var t = tk.get();
         self.start = t;
         var values = [];
