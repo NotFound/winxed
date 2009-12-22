@@ -64,7 +64,7 @@ winxedst1.pbc: winxedst1.pir winxed.pbc
 	parrot -o winxedst1.pbc winxedst1.pir
 
 winxedst1.pir: winxed$(EXEEXT) winxedst1.winxed
-	winxed --stage=0 -c -o winxedst1.pir winxedst1.winxed
+	./winxed --stage=0 -c -o winxedst1.pir winxedst1.winxed
 
 #-------------------------------
 #    Compiler stage 2 (testing)
