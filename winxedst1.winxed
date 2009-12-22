@@ -1621,15 +1621,19 @@ class OpAddToExpr : Expr
     function emit(e, result)
     {
         string reg = self.emit_get(e);
-        e.annotate(self.start);
-        e.say('add ', result, ', ', reg);
+	if (result != '')
+            e.say('set ', result, ', ', reg);
     }
     function emit_get(e)
     {
-        e.annotate(self.start);
+        string type = self.eleft.checkResult();
         string reg = self.eleft.emit_get(e);
         string reg2 = self.eright.emit_get(e);
-        e.say('add ', reg, ', ', reg2);
+        e.annotate(self.start);
+        if (type == 'S')
+            e.say('concat ', reg, ', ', reg2);
+        else
+            e.say('add ', reg, ', ', reg2);
         return reg;
     }
 }
