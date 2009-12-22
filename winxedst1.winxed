@@ -2898,12 +2898,16 @@ function parseExpr(tk, owner)
 }
 
 //*********************************************
-//            ReturnStatement
+//            ReturnYieldStatement
 //*********************************************
 
-class ReturnStatement : Statement
+// Return and Yield statements and a base class
+// that does almost all.
+
+class ReturnYieldStatement : Statement
 {
     var values;
+
     function parse(tk, owner)
     {
         self.owner= owner;
@@ -2921,48 +2925,12 @@ class ReturnStatement : Statement
         self.values = values;
         return self;
     }
-    function emit(e)
+    function optimize()
     {
-        var args = [];
         var values = self.values;
         int n = values;
-        for (int i= 0; i < n; ++i) {
-            string reg = values[i].emit_get(e);
-            args.push(reg);
-        }
-        self.annotate(e);
-        e.print('.return(');
-        string sep = '';
-        for (string arg in args) {
-            e.print(sep, arg);
-            sep= ', ';
-        }
-        e.say(')');
-    }
-}
-
-//*********************************************
-//            YieldStatement
-//*********************************************
-
-class YieldStatement : Statement
-{
-    var values;
-    function parse(tk, owner)
-    {
-        self.owner= owner;
-        var t = tk.get();
-        self.start = t;
-        if (! t.isop(';')) {
-            var values = [];
-            tk.unget(t);
-            do {
-                var expr = parseExpr(tk, self);
-                values.push(expr);
-            } while ((t = tk.get()).isop(','));
-        }
-        RequireOp(';', t);
-        self.values = values;
+        for (int i= 0; i < n; ++i)
+            values[i] = values[i].optimize();
         return self;
     }
     function emit(e)
@@ -2975,13 +2943,29 @@ class YieldStatement : Statement
             args.push(reg);
         }
         self.annotate(e);
-        e.print('.yield(');
+        self.emitret(e);
         string sep = '';
         for (string arg in args) {
             e.print(sep, arg);
             sep= ', ';
         }
         e.say(')');
+    }
+}
+
+class ReturnStatement : ReturnYieldStatement
+{
+    function emitret(e)
+    {
+        e.print('.return(');
+    }
+}
+
+class YieldStatement : ReturnYieldStatement
+{
+    function emitret(e)
+    {
+        e.print('.yield(');
     }
 }
 
