@@ -4741,8 +4741,9 @@ function main(argv)
         int i= 1;
         for (var t in bt) {
             var sub= t['sub'];
+            string subname;
             if (sub != null) {
-                string subname= sub;
+                subname= sub;
                 string ns= sub.get_namespace();
                 if (ns != '' && ns != 'parrot') subname= ns + '.' + subname;
             }
