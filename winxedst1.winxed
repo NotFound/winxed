@@ -1676,6 +1676,17 @@ class ComparatorBaseExpr : OpBinaryExpr
             e.say('set ', aux, ', ', regr);
             regr = aux;
         }
+        else if (rr == 'S' && rl == 'P') {
+            aux = self.tempreg('P');
+            e.say('box ', aux, ', ', regr);
+            regr = aux;
+        }
+        else if (rr == 'P' && rl == 'S') {
+            aux = self.tempreg('P');
+            e.say('box ', aux, ', ', regl);
+            regl = aux;
+        }
+ 
         self.emitop(e, result, regl, regr);
     }
     function emit(e, result)
