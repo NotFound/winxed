@@ -1414,9 +1414,7 @@ class OpNotExpr : OpUnaryExpr
             e.say('not ', result, ', ', reg);
             break;
         case 'P':
-            string aux = self.tempreg('I');
-            e.say('set ', aux, ', ', reg);
-            e.say('not ', result, ', ', aux);
+            e.say('isfalse ', result, ', ', reg);
             break;
         default:
             e.say('isfalse ', result, ', ', reg);
@@ -2184,13 +2182,14 @@ class CallPredefExpr : Expr
                 string argr = self.tempreg(type);
                 if (type == 'P') {
                     string rtype = arg.checkResult();
-                    string nreg;
+                    string nreg = '';
                     switch (rtype) {
                     case 'I': nreg = 'Integer'; break;
                     case 'N': nreg = 'Float'; break;
                     case 'S': nreg = 'String'; break;
                     }
-                    e.say('new ', argr, ", '", nreg , "'");
+                    if (nreg != '')
+                        e.say('new ', argr, ", '", nreg , "'");
                 }
                 arg.emit(e, argr);
                 argreg.push(argr);
@@ -3839,7 +3838,15 @@ class DeclareStatement : Statement
                     e.comment('init other type: ' + itype);
                     string ireg = self.tempreg(itype);
                     self.init.emit(e, ireg);
-                    e.say('set ', reg, ', ', ireg);
+                    if (t_reg == 'S' && itype == 'P') {
+                        string auxlabel = self.genlabel();
+                        e.say('null ', reg);
+                        e.say('if_null ', ireg, ', ', auxlabel);
+                        e.say('set ', reg, ', ', ireg);
+                        e.say(auxlabel, ':');
+                    }
+                    else
+                        e.say('set ', reg, ', ', ireg);
                 }
             }
         }
