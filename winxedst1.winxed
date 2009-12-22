@@ -916,8 +916,9 @@ class ExternStatement : Statement
     function parse(tk, owner)
     {
         string path[];
+        var t;
         do {
-            var t= tk.get();
+            t= tk.get();
             string s= t.getidentifier();
             path.push(s);
         } while ((t= tk.get()).isop('.'));
@@ -948,8 +949,9 @@ class UsingStatement : Statement
     function parse(tk, owner)
     {
         string path[];
+        var t;
         do {
-            var t= tk.get();
+            t= tk.get();
             string s= t.getidentifier();
             path.push(s);
         } while ((t= tk.get()).isop('.'));
@@ -1621,7 +1623,7 @@ class OpAddToExpr : Expr
     function emit(e, result)
     {
         string reg = self.emit_get(e);
-	if (result != '')
+        if (result != '')
             e.say('set ', result, ', ', reg);
     }
     function emit_get(e)
