@@ -2989,7 +2989,14 @@ class ReturnYieldStatement : Statement
         var values = self.values;
         int n = values;
         for (int i= 0; i < n; ++i) {
-            string reg = values[i].emit_get(e);
+            var value = values[i];
+	    string reg;
+	    if (value.isnull()) {
+	        reg = self.tempreg('P');
+		e.say('null ', reg);
+	    }
+	    else
+                reg = value.emit_get(e);
             args.push(reg);
         }
         self.annotate(e);
@@ -4231,6 +4238,7 @@ class RegisterStore
     {
         for (string s in self.tempreg)
             self.freereg.unshift(s);
+        self.tempreg= new 'ResizableStringArray';
     }
 }
 
