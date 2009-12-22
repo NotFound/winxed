@@ -102,7 +102,7 @@ winxed.pir: winxed.winxed winxedst0$(EXEEXT)
 
 
 test: winxed.pbc
-	parrot winxed.pbc t/harness -r t
+	parrot winxed.pbc t/harness -r t/basic t/*.t
 
 testv: winxed.pbc
 	parrot winxed.pbc t/harness -rv t
@@ -111,7 +111,7 @@ TEST1 = \
 	t/preincdec.t.winxed
 
 test1: winxed$(EXEEXT) winxedst1$(EXEEXT) $(TEST1)
-	parrot winxed.pbc t/harness --stage=1 -r t $(TEST1)
+	parrot winxed.pbc t/harness --stage=1 -r t/basic t/*.t $(TEST1)
 
 clean:
 	rm -f winxedst0$(EXEEXT)
