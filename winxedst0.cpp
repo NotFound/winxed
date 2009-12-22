@@ -5391,6 +5391,7 @@ void Function::emitparams (Emit &e)
             e << " :opt_flag";
         e << '\n';
     }
+    e << '\n';
 }
 
 void Function::emitbody (Emit &e)
@@ -5416,7 +5417,7 @@ void Function::emit (Emit &e)
     emitparams(e);
     emitbody(e);
 
-    e << ".end\n\n";
+    e << "\n.end # " << getname() << "\n\n";
 
     //std::cerr << "Temporary used: " <<  tempsused() << '\n';
 }
@@ -5553,7 +5554,7 @@ public:
         emitparams(e);
         emitbody(e);
 
-        e << ".end\n\n";
+        e << "\n.end # " << getname() << "\n\n";
     }
 private:
     const Class &myclass;
