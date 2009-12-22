@@ -153,8 +153,11 @@ function main [main] (argv)
     case 1:
         winxedbin = 'winxedst1';
         break;
+    case 2:
+        winxedbin = 'winxedst2';
+        break;
     default:
-        die('Invalid stage ' + stage + '. Must be 1 or 2.');
+        die('Invalid stage ' + stage + '. Must be 0, 1 or 2 (2 is for testing development only).');
     }
     string cmd[]; // Command to execute
     // Simple heuristic: if the compiler is in the current
