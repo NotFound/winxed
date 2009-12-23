@@ -2004,6 +2004,10 @@ class OpAddExpr : OpBinaryExpr
         string rr = self.rexpr.checkResult();
         if (rl == 'S' && rr == 'S')
             return 'S';
+        if (rl == 'I' && rr == 'S')
+            return 'S';
+        if (rl == 'S' && rr == 'I')
+            return 'S';
         if (rl == 'N' && rr == 'N')
             return 'N';
         if (rl == 'I' && rr == 'N')
@@ -2022,8 +2026,20 @@ class OpAddExpr : OpBinaryExpr
 
         string rleft = lexpr.emit_get(e);
         string rright = rexpr.emit_get(e);
-        if (restype == 'S')
+        if (restype == 'S') {
+            if (ltype != 'S' || rtype != 'S') {
+                string aux = self.tempreg('S');
+                if (ltype != 'S') {
+                    e.say(aux, ' = ', rleft);
+                    rleft = aux;
+                }
+                else {
+                    e.say(aux, ' = ', rright);
+                    rright = aux;
+                }
+            }
             e.say('concat ', result, ', ', rleft, ', ', rright);
+        }
         else {
             if (restype == 'I' && (ltype != 'I' || rtype != 'I')) {
                 string l;
