@@ -4374,12 +4374,11 @@ class FunctionStatement : BlockStatement
                     t= tk.get();
                 else
                     type = 'P';
-                string s = t;
+                self.createvar(t, type);
 
+                string varname = t;
                 var arg = { };
-                arg['name'] = s;
-
-                self.createvar(s, type);
+                arg['name'] = varname;
                 t= tk.get();
                 if (t.isop('[')) {
                     var modifiers = new ModifierList().parse(tk, self);
