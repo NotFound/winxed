@@ -2465,10 +2465,10 @@ class ArrayExpr : Expr
     var values;
 
     function checkResult() { return 'P'; }
-    function parse(tk, owner, t)
+    function parse(tk, owner, start)
     {
         self.owner = owner;
-        self.start = t;
+        self.start = start;
         self.values = [];
         var t = tk.get();
         if (! t.isop(']')) {
