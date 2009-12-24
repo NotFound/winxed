@@ -2127,7 +2127,7 @@ class OpMulExpr : OpBinaryExpr
         int nleft;
         int nright;
         if ((!lexpr.issimple()) || lexpr.isidentifier()) {
-            string rleft= self.tempreg(self.checkResult());
+            rleft= self.tempreg(self.checkResult());
             lexpr.emit(e, rleft);
         }
         else {
@@ -2135,14 +2135,14 @@ class OpMulExpr : OpBinaryExpr
             rleft= nleft;
         }
         if ((!rexpr.issimple()) || rexpr.isidentifier()) {
-            string rright= self.tempreg(self.checkResult());
+            rright= self.tempreg(self.checkResult());
             rexpr.emit(e, rright);
         }
         else {
             string type = rexpr.checkResult();
             switch(type) {
             case 'S':
-                string rright= self.tempreg(self.checkResult());
+                rright= self.tempreg(self.checkResult());
                 rexpr.emit(e, rright);
                 break;
             case 'I':
