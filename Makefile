@@ -113,6 +113,9 @@ TEST1 = \
 test1: winxed$(EXEEXT) winxedst1$(EXEEXT) $(TEST1)
 	parrot winxed.pbc t/harness --stage=1 -r t/basic t/*.t $(TEST1)
 
+test2: winxed$(EXEEXT) winxedst2$(EXEEXT) $(TEST1)
+	parrot winxed.pbc t/harness --stage=2 -r t/basic t/*.t $(TEST1)
+
 clean:
 	rm -f winxedst0$(EXEEXT)
 	rm -f winxedst1$(EXEEXT)
