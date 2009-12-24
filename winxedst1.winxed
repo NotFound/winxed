@@ -1535,23 +1535,39 @@ class OpPostDecExpr : OpUnaryExpr
 
 //*********************************************
 
-class OpAssignExpr : Expr
+class OpBaseAssignExpr : Expr
 {
     var start;
     var eleft;
     var eright;
+    function set(owner, t, lexpr, rexpr)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.eleft = lexpr;
+        self.eright = rexpr;
+        return self;
+    }
+    function optimize_base()
+    {
+        self.eleft = self.eleft.optimize();
+        self.eright = self.eright.optimize();
+        return self;
+    }
+    function optimize()
+    {
+        return self.optimize_base();
+    }
+}
+
+class OpAssignExpr : OpBaseAssignExpr
+{
     function checkResult()
     {
         if (self.eleft.isidentifier())
             return self.eleft.checkResult();
         else
             InternalError('Unimplemented');
-    }
-    function optimize()
-    {
-        self.eleft = self.eleft.optimize();
-        self.eright = self.eright.optimize();
-        return self;
     }
     function emit(e, result)
     {
@@ -1584,11 +1600,8 @@ class OpAssignExpr : Expr
 
 //*********************************************
 
-class OpAssignToExpr : Expr
+class OpAssignToExpr : OpBaseAssignExpr
 {
-    var start;
-    var eleft;
-    var eright;
     function checkResult()
     {
         if (self.eleft.isidentifier())
@@ -1614,11 +1627,8 @@ class OpAssignToExpr : Expr
 
 //*********************************************
 
-class OpAddToExpr : Expr
+class OpAddToExpr : OpBaseAssignExpr
 {
-    var start;
-    var eleft;
-    var eright;
     function checkResult()
     {
         if (self.eleft.isidentifier())
@@ -2683,6 +2693,61 @@ class OpInstanceOfExpr : Expr
 }
 
 //*********************************************
+//           Expressions parser
+//*********************************************
+
+const int Code_none          =  0;
+const int Code_paren         =  1;
+const int Code_bracket       =  2;
+const int Code_dot           =  3;
+const int Code_assign        =  4;
+const int Code_assign_to     =  5;
+const int Code_add_to        =  6;
+const int Code_add           =  7;
+const int Code_minus         =  8;
+const int Code_inc           =  9;
+const int Code_dec           = 10;
+const int Code_not           = 11;
+const int Code_equal         = 12;
+const int Code_not_equal     = 13;
+const int Code_less          = 14;
+const int Code_less_equal    = 15;
+const int Code_greater       = 16;
+const int Code_greater_equal = 17;
+
+function getOpCode_2(t)
+{
+    if (t.isop('(')) return Code_paren;
+    if (t.isop('[')) return Code_bracket;
+    if (t.isop('.')) return Code_dot;
+    return Code_none;
+}
+
+function getOpCode_16(t)
+{
+    if (t.isop('='))  return Code_assign;
+    if (t.isop('=:')) return Code_assign_to;
+    if (t.isop('+=')) return Code_add_to;
+    return Code_none;
+}
+
+function getOpCode_4(t)
+{
+    if (t.isop('-'))  return Code_minus;
+    if (t.isop('!'))  return Code_not;
+    if (t.isop('++')) return Code_inc;
+    if (t.isop('--')) return Code_dec;
+    return Code_none;
+}
+
+function getOpCode_9(t)
+{
+    if (t.isop('<'))  return Code_less;
+    if (t.isop('>'))  return Code_greater;
+    if (t.isop('<=')) return Code_less_equal;
+    if (t.isop('>=')) return Code_greater_equal;
+    return Code_none;
+}
 
 function parseExpr_0(tk, owner)
 {
@@ -2716,30 +2781,6 @@ function parseExpr_0(tk, owner)
         return expr;
     }
     SyntaxError('Lots of things unsupported', t);
-}
-
-const int Code_none      = 0;
-const int Code_paren     = 1;
-const int Code_bracket   = 2;
-const int Code_dot       = 3;
-const int Code_assign    = 4;
-const int Code_assign_to = 5;
-const int Code_add_to    = 6;
-
-function getOpCode_2(t)
-{
-    if (t.isop('(')) return Code_paren;
-    if (t.isop('[')) return Code_bracket;
-    if (t.isop('.')) return Code_dot;
-    return Code_none;
-}
-
-function getOpCode_16(t)
-{
-    if (t.isop('=')) return Code_assign;
-    if (t.isop('=:')) return Code_assign_to;
-    if (t.isop('+=')) return Code_add_to;
-    return Code_none;
 }
 
 function parseExpr_2(tk, owner)
@@ -2784,26 +2825,34 @@ function parseExpr_3(tk, owner)
 function parseExpr_4(tk, owner)
 {
     var t = tk.get();
-    if (t.isop('-')) {
-        var subexpr = parseExpr_4(tk, owner);
-        return new OpUnaryMinusExpr().set(owner, t, subexpr);
-    }
-    else if (t.isop('!')) {
-        var subexpr = parseExpr_4(tk, owner);
-        return new OpNotExpr().set(owner, t, subexpr);
-    }
-    else if (t.isop('++')) {
-        var subexpr = parseExpr_4(tk, owner);
-        return new OpPreIncExpr().set(owner, t, subexpr);
-    }
-    else if (t.isop('--')) {
-        var subexpr = parseExpr_4(tk, owner);
-        return new OpPreDecExpr().set(owner, t, subexpr);
+    int code = getOpCode_4(t);
+    var subexpr;
+    if  (code != Code_none) {
+        subexpr = parseExpr_4(tk, owner);
+        var oper;
+        switch (code) {
+        case Code_minus:
+            oper = new OpUnaryMinusExpr();
+            break;
+        case Code_not:
+            oper = new OpNotExpr();
+            break;
+        case Code_inc:
+            oper = new OpPreIncExpr();
+            break;
+        case Code_dec:
+            oper = new OpPreDecExpr();
+            break;
+        default:
+            InternalError('Invalid code in parseExpr_4', t);
+        }
+        subexpr = oper.set(owner, t, subexpr);
     }
     else {
         tk.unget(t);
-        return parseExpr_3(tk, owner);
+        subexpr =  parseExpr_3(tk, owner);
     }
+    return subexpr;
 }
 
 function parseExpr_5(tk, owner)
@@ -2863,16 +2912,25 @@ function parseExpr_9(tk, owner)
 {
     var eleft = parseExpr_8(tk, owner);
     var t;
-    while ((t= tk.get()).isop('<') || t.isop('>') || t.isop('<=') || t.isop('>=')) {
+    int code;
+    while ((code = getOpCode_9(t= tk.get())) != Code_none) {
         var eright = parseExpr_8(tk, owner);
-        if (t.isop('<'))
+        switch (code) {
+        case Code_less:
             eleft = new OpLessExpr().set(owner, t, eleft, eright);
-        else if (t.isop('>'))
+            break;
+        case Code_greater:
             eleft = new OpGreaterExpr().set(owner, t, eleft, eright);
-        else if (t.isop('<='))
+            break;
+        case Code_less_equal:
             eleft = new OpLessEqualExpr().set(owner, t, eleft, eright);
-        else
+            break;
+        case Code_greater_equal:
             eleft = new OpGreaterEqualExpr().set(owner, t, eleft, eright);
+            break;
+        default:
+            InternalError('Invalid code in parseExpr_9', t);
+        }
     }
     tk.unget(t);
     return eleft;
@@ -2928,11 +2986,11 @@ function parseExpr_14(tk, owner)
 
 function parseExpr_16(tk, owner)
 {
-    var subexpr = parseExpr_14(tk, owner);
+    var eleft = parseExpr_14(tk, owner);
     var t;
     int code;
     while ((code = getOpCode_16(t = tk.get())) != Code_none ) {
-        var subexpr2 = parseExpr_16(tk, owner);
+        var eright = parseExpr_16(tk, owner);
         var expr;
         switch (code) {
         case Code_assign:
@@ -2947,14 +3005,11 @@ function parseExpr_16(tk, owner)
         default:
             InternalError('Unexpected code in parseExpr_16', t);
         }
-        expr.owner= owner;
-        expr.start= t;
-        expr.eleft= subexpr;
-        expr.eright= subexpr2;
-        subexpr = expr;
+        expr.set(owner, t, eleft, eright);
+        eleft = expr;
     }
     tk.unget(t);
-    return subexpr;
+    return eleft;
 }
 
 function parseExpr(tk, owner)
