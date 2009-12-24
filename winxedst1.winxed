@@ -3287,7 +3287,7 @@ class DoStatement : Statement
         switch(type) {
         case 'S':
         case 'P':
-            e.say('unless_null ', reg, ', ', looplabel);
+            e.say('if_null ', reg, ', ', breaklabel);
         case 'I':
         case 'N':
             e.say('if ', reg, ' goto ', looplabel);
