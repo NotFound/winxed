@@ -106,6 +106,7 @@ function run_test_list(var args, int verbose, int stage)
 
 function add_file(var result, string path)
 {
+    // Add a file to result list only if it has a .t extension.
     if (length(path) > 2)
         if (substr(path, -2) == '.t')
             result.push(path);
@@ -113,7 +114,14 @@ function add_file(var result, string path)
 
 function build_from_dir(var result, string path, int recursive)
 {
+    // Read the directory and store the directories and the
+    // test files it contains.
+    var filepaths = [];
+    var dirpaths = [];
     var os = new 'OS';
+    int l = length(path);
+    if (substr(path, l - 1, 1) == '/')
+        path = substr(path, 0, l - 1);
     var dir = os.readdir(path);
     for (string dirent in dir)
         if ((dirent != '.') && (dirent != '..')) {
@@ -124,10 +132,20 @@ function build_from_dir(var result, string path, int recursive)
             int mode = st[2];
             int isdir = (mode & 16384) != 0;
             if (isdir)
-                build_from_dir(result, newpath, recursive);
+                dirpaths.push(newpath);
             else
-                add_file(result, newpath);
+                filepaths.push(newpath);
         }
+
+    // First sort the directories and add to result
+    dirpaths.sort();
+    for (string dirpath in dirpaths)
+        build_from_dir(result, dirpath, recursive);
+
+    // Then sort the files and add to result
+    filepaths.sort();
+    for (string filepath in filepaths)
+        add_file(result, filepath);
 }
 
 function build_file_list(var result, var args, int recursive)
