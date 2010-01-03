@@ -79,6 +79,12 @@ function main [main] (argv)
     int stage = 0; // Default: stage 0
     if (opt_stage != null)
         stage = opt_stage;
+    else {
+        var env = new 'Env';
+        string envstage = env['WINXED_STAGE'];
+        if (envstage != '')
+            stage = envstage;
+    }
 
     string obj = '';
     if (opt_o != null)
