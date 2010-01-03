@@ -35,6 +35,72 @@ function isident(string c)
 
 
 //*********************************************
+//        Error handling exceptions
+//*********************************************
+
+const int ERRORinternal  = 555;
+const int ERRORtokenizer = 556;
+const int ERRORparser    = 557;
+
+function InternalError(string msg, var pos [optional], int has_pos [opt_flag])
+{
+    if (has_pos) {
+        string desc = pos.show();
+        msg = msg + ' near ' + desc;
+    }
+    var ex= Error(msg, 2, ERRORinternal);
+    throw ex;
+}
+
+function TokenError(string msg, tk, int line)
+{
+   string sline= line;
+   string file= tk.filename;
+   string m= msg + ' in '+ file + ' line ' + sline;
+   var ex= Error(m, 2, ERRORtokenizer);
+   throw ex;
+}
+
+function SyntaxError(string msg, var pos)
+{
+    string sline= pos.line;
+    string file= pos.file;
+    string desc = pos.show();
+    string m= msg + ' in '+ file + ' line ' + sline + ' near ' + desc;
+    var ex= Error(m, 2, ERRORparser);
+    throw ex;
+}
+
+function Expected(string msg, var t)
+{
+    SyntaxError("Expected '" + msg + "'", t);
+}
+
+function RequireOp(string name, var t)
+{
+    if (! t.isop(name))
+        Expected(name, t);
+}
+
+function RequireKeyword(string name, var t)
+{
+    if (! t.iskeyword(name))
+        Expected(name, t);
+}
+
+function ExpectOp(string name, var tk)
+{
+    var t = tk.get();
+    RequireOp(name, t);
+}
+
+function ExpectKeyword(string name, var tk)
+{
+    var t = tk.get();
+    RequireKeyword(name, t);
+}
+
+//*********************************************
 //                Token
 //*********************************************
 
@@ -46,15 +112,6 @@ const int TypeSingleQuoted = 3;
 const int TypeIdentifier   = 4;
 const int TypeInteger      = 5;
 const int TypeFloat        = 6;
-
-function TokenError(string msg, tk, int line)
-{
-   string sline= line;
-   string file= tk.filename;
-   string m= msg + ' in '+ file + ' line ' + sline;
-   var ex= Error(m, 2, 555);
-   return ex;
-}
 
 class Token
 {
@@ -128,7 +185,7 @@ class Token
     }
 }
 
-function newToken(int type, string s, var file, int line)
+function newToken(int type, string s, string file, int line)
 {
     var t= new Token();
     t.type= type; t.str= s; t.file= file; t.line= line;
@@ -152,7 +209,7 @@ function getquoted(tk, string start, int line)
     string c= tk.getchar();
     while (c != '"') {
         if (c == '' || c == "\n")
-            throw TokenError('Unterminated string', tk, line);
+            TokenError('Unterminated string', tk, line);
         s+= c;
         c= tk.getchar();
     }
@@ -165,7 +222,7 @@ function getsinglequoted(tk, string start, int line)
     string c= tk.getchar();
     while (c != "'") {
         if (c == '' || c == "\n")
-            throw TokenError('Unterminated string', tk, line);
+            TokenError('Unterminated string', tk, line);
         s+= c;
         c= tk.getchar();
     }
@@ -225,10 +282,10 @@ next:
     while (c != '' && c != '*')
     { s+= c; c= tk.getchar(); }
     if (c == '')
-        throw Error("Unclosed comment");
+        TokenError("Unclosed comment", tk, line);
     c= tk.getchar();
     if (c == '')
-        throw Error("Unclosed comment");
+        TokenError("Unclosed comment", tk, line);
     if (c != '/')
     { s+= '*' + c; goto next; }
     s+= '*/';
@@ -342,6 +399,79 @@ class Tokenizer
         return t;
     }
     function unget(t) { self.stacked.push(t); }
+}
+
+//*********************************************
+//            Emit
+//*********************************************
+
+class Emit
+{
+    var handle;
+    var file;
+    var line;
+    var pendingf;
+    var pendingl;
+    function initialize(var handle)
+    {
+        self.handle= handle;
+        self.file= '';
+        self.line= 0;
+        self.pendingf= 0;
+        self.pendingl= 0;
+    }
+    function close()
+    {
+        self.handle = null;
+    }
+    function updateannot()
+    {
+        if (self.pendingf) {
+            self.handle.print(".annotate 'file', '");
+            self.handle.print(self.file);
+            self.handle.print("'");
+            self.handle.print("\n");
+            self.pendingf= 0;
+        }
+        if (self.pendingl) {
+            self.handle.print(".annotate 'line', ");
+            self.handle.print(self.line);
+            self.handle.print("\n");
+            self.pendingl= 0;
+        }
+    }
+    function vprint(var args)
+    {
+        for (var s in args)
+            self.handle.print(s);
+    }
+    function print(var args [slurpy])
+    {
+        self.updateannot();
+        self.vprint(args);
+    }
+    function say(var args [slurpy])
+    {
+        self.updateannot();
+        self.vprint(args);
+        self.handle.print("\n");
+    }
+    function annotate(var t)
+    {
+        if (self.file != t.file) {
+            self.file= t.file;
+            self.pendingf= 1;
+            self.line= 0;
+        }
+        if (self.line != t.line) {
+            self.line= t.line;
+            self.pendingl= 1;
+        }
+    }
+    function comment(string s)
+    {
+        self.handle.print('# ' + s + "\n");
+    }
 }
 
 //*********************************************
@@ -562,79 +692,6 @@ function findpredef(string name, int nargs)
 }
 
 //*********************************************
-//            Emit
-//*********************************************
-
-class Emit
-{
-    var handle;
-    var file;
-    var line;
-    var pendingf;
-    var pendingl;
-    function initialize(var handle)
-    {
-        self.handle= handle;
-        self.file= '';
-        self.line= 0;
-        self.pendingf= 0;
-        self.pendingl= 0;
-    }
-    function close()
-    {
-        self.handle = null;
-    }
-    function updateannot()
-    {
-        if (self.pendingf) {
-            self.handle.print(".annotate 'file', '");
-            self.handle.print(self.file);
-            self.handle.print("'");
-            self.handle.print("\n");
-            self.pendingf= 0;
-        }
-        if (self.pendingl) {
-            self.handle.print(".annotate 'line', ");
-            self.handle.print(self.line);
-            self.handle.print("\n");
-            self.pendingl= 0;
-        }
-    }
-    function vprint(var args)
-    {
-        for (var s in args)
-            self.handle.print(s);
-    }
-    function print(var args [slurpy])
-    {
-        self.updateannot();
-        self.vprint(args);
-    }
-    function say(var args [slurpy])
-    {
-        self.updateannot();
-        self.vprint(args);
-        self.handle.print("\n");
-    }
-    function annotate(var t)
-    {
-        if (self.file != t.file) {
-            self.file= t.file;
-            self.pendingf= 1;
-            self.line= 0;
-        }
-        if (self.line != t.line) {
-            self.line= t.line;
-            self.pendingl= 1;
-        }
-    }
-    function comment(string s)
-    {
-        self.handle.print('# ' + s + "\n");
-    }
-}
-
-//*********************************************
 //            Modifiers
 //*********************************************
 
@@ -644,6 +701,20 @@ class Modifier
     var args;
 
     function getname() { return self.name; }
+    function numargs()
+    {
+        int nargs = self.args;
+        return nargs;
+    }
+    function getarg(int argnum)
+    {
+        var args = self.args;
+        int n = args;
+        if (argnum < n)
+            return args[argnum];
+        else
+            InternalError('Wrong modifier arg number');
+    }
     function set(string name, var args)
     {
         self.name = name;
@@ -726,55 +797,6 @@ function namespacekey(var path)
     }
     s+= " ]";
     return s;
-}
-
-function InternalError(string msg, var pos [optional], int has_pos [opt_flag])
-{
-    if (has_pos) {
-        string desc = pos.show();
-        msg = msg + ' near ' + desc;
-    }
-    var ex= Error(msg, 2, 555);
-    throw ex;
-}
-
-function SyntaxError(string msg, var pos)
-{
-    string sline= pos.line;
-    string file= pos.file;
-    string desc = pos.show();
-    string m= msg + ' in '+ file + ' line ' + sline + ' near ' + desc;
-    var ex= Error(m, 2, 555);
-    throw ex;
-}
-
-function Expected(string msg, var t)
-{
-    SyntaxError("Expected '" + msg + "'", t);
-}
-
-function RequireOp(string name, var t)
-{
-    if (! t.isop(name))
-        Expected(name, t);
-}
-
-function RequireKeyword(string name, var t)
-{
-    if (! t.iskeyword(name))
-        Expected(name, t);
-}
-
-function ExpectOp(string name, var tk)
-{
-    var t = tk.get();
-    RequireOp(name, t);
-}
-
-function ExpectKeyword(string name, var tk)
-{
-    var t = tk.get();
-    RequireKeyword(name, t);
 }
 
 class Item
@@ -909,7 +931,7 @@ class Statement : Item
 
 class EmptyStatement : Statement
 {
-    function isempty() { return 0; }
+    function isempty() { return 1; }
     function emit(e)
     {
         // Do nothing
@@ -1093,6 +1115,7 @@ class Expr
     function isstringliteral() { return 0; }
     function isidentifier() { return 0; }
     function isnull() { return 0; }
+    function hascompilevalue() { return 0; }
     function tempreg(type)
     {
         return self.owner.tempreg(type);
@@ -1582,14 +1605,18 @@ class OpAssignExpr : OpBaseAssignExpr
     function emit_get(e)
     {
         var eright = self.eright;
-        string typeright = eright.checkResult();
-        string rreg = eright.emit_get(e);
+        //string typeright = eright.checkResult();
+        //string rreg = eright.emit_get(e);
         var eleft = self.eleft;
         if (eleft instanceof MemberExpr || eleft instanceof IndexExpr) {
-            eleft.emit_assign(e, typeright, rreg);
+            string rreg = eleft.emit_assign_get(e, eright);
             return rreg;
         }
         else {
+
+        string typeright = eright.checkResult();
+        string rreg = eright.emit_get(e);
+
             string typeleft = eleft.checkResult();
             string lreg = eleft.emit_get(e);
             e.annotate(self.start);
@@ -2323,7 +2350,13 @@ class CallExpr : Expr
         }
         string argreg[];
         for (var arg in self.args) {
-            string reg = arg.emit_get(e);
+            string reg;
+            if (arg.isnull()) {
+                reg = self.tempreg('P');
+                e.say('null ', reg);
+            }
+            else
+                reg = arg.emit_get(e);
             argreg.push(reg);
         }
         e.annotate(self.start);
@@ -2408,6 +2441,23 @@ class MemberExpr : Expr
         }
         e.say("setattribute ", obj, ", '", ident, "', ", value);
     }
+    function emit_assign_get(e, expr)
+    {
+        string obj = self.left.emit_get(e);
+        string ident = self.right.getidentifier();
+        string value = self.tempreg('P');
+        if (expr.isnull())
+            e.say('null ', value);
+        else {
+            string rreg = expr.emit_get(e);
+            if (expr.checkResult() != 'P')
+                e.say('box ', value, ', ', rreg);
+            else
+                value = rreg;
+        }
+        e.say("setattribute ", obj, ", '", ident, "', ", value);
+        return value;
+    }
 }
 
 //*********************************************
@@ -2435,10 +2485,11 @@ class IndexExpr : Expr
     }
     function emit(e, result)
     {
-        if (! self.left.isidentifier())
-            SyntaxError("Unimplemented", self.start);
-        //int n = self.args;
-        var regleft = self.left.getIdentifier();
+        var regleft;
+        if (self.left.isidentifier())
+            regleft = self.left.getIdentifier();
+        else
+            regleft = self.left.emit_get(e);
         string argregs[];
         for (var arg in self.args) {
             string argreg = arg.emit_get(e);
@@ -2468,6 +2519,31 @@ class IndexExpr : Expr
             sep = ', ';
         }
         e.say('] = ', rreg);
+    }
+    function emit_assign_get(e, expr)
+    {
+        var regleft = self.left.emit_get(e);
+        string argregs[];
+        for (var arg in self.args) {
+            string argreg = arg.emit_get(e);
+            argregs.push(argreg);
+        }
+        string rreg;
+        if (expr.isnull()) {
+            rreg = self.tempreg('P');
+            e.say('null ', rreg);
+        }
+        else
+            rreg = expr.emit_get(e);
+        e.annotate(self.start);
+        e.print(regleft, '[');
+        string sep = '';
+        for (string reg in argregs) {
+            e.print(sep, reg);
+            sep = ', ';
+        }
+        e.say('] = ', rreg);
+        return rreg;
     }
 }
 
@@ -3188,8 +3264,12 @@ class IfStatement : Statement
     }
     function emit(e)
     {
+        var truebranch = self.truebranch;
+        var falsebranch = self.falsebranch;
+        int t_empty = truebranch.isempty();
+        int f_empty = falsebranch.isempty();
         string elselabel = '';
-        if (! self.falsebranch.isempty())
+        if (! f_empty)
             elselabel = self.genlabel();
         string endlabel = self.genlabel();
         string cond_false;
@@ -3216,11 +3296,13 @@ class IfStatement : Statement
         default:
             InternalError('Invalid if condition');
         }
-        self.truebranch.emit(e);
-        if (! self.falsebranch.isempty()) {
+
+        truebranch.emit(e);
+
+        if (! f_empty) {
             e.say('goto ', endlabel);
-            e.say(elselabel, ': #else');
-            self.falsebranch.emit(e);
+            e.say(elselabel, ': # else');
+            falsebranch.emit(e);
         }
         e.say(endlabel, ': # endif');
     }
@@ -3825,6 +3907,41 @@ class TryStatement : BlockStatement
 
         e.say('new ', reghandler, ", 'ExceptionHandler'");
         e.say('set_addr ', reghandler, ', ', labelhandler);
+
+        if (self.modifiers != null) {
+            var modiflist = self.modifiers.getlist();
+            for (var modif in modiflist) {
+                string modifname = modif.getname();
+                int nargs = modif.numargs();
+                switch (modifname) {
+                case 'min_severity':
+                case 'max_severity':
+                    if (nargs != 1)
+                        SyntaxError('Wrong modifier args', self.start);
+                    var arg = modif.getarg(0);
+                    string argreg = arg.emit_get(e);
+                    e.say(reghandler, ".'", modifname, "'(", argreg, ")");
+                    break;
+                case 'handle_types':
+                    string argregs [];
+                    for (int i= 0; i < nargs; ++i) {
+                        var arg = modif.getarg(0);
+                        argregs.push(arg.emit_get(e));
+                    }
+                    e.print(reghandler, ".'", modifname, "'(");
+                    string sep = '';
+                    for (string argreg in argregs) {
+                        e.print(sep, argreg);
+                        sep = ', ';
+                    }
+                    e.say(")");
+                    break;
+                default:
+                    SyntaxError('Unexpected modifier in try', self.start);
+                }
+            }
+        }
+
         e.say('push_eh ', reghandler);
 
         self.stry.emit(e);
@@ -4413,7 +4530,7 @@ class FunctionStatement : BlockStatement
             t= tk.get();
         }
         if (! t.isop('('))
-            throw Error("Expected '('");
+            Expected('(', t);
         self.args = new 'ResizablePMCArray';
         t= tk.get();
         if (! t.isop(')')) {
@@ -4452,7 +4569,7 @@ class FunctionStatement : BlockStatement
 
         t= tk.get();
         if (!t.isop('{'))
-            throw Error("Expected '{'");
+            Expected('{', t);
         self.body= new CompoundStatement().parse(tk, self);
         return self;
     }
@@ -4562,7 +4679,7 @@ class ClassStatement : Item
             }
         }
         if (!t.isop('{'))
-            throw Error("Expected '{'");
+            Expected('{', t);
         t= tk.get();
         while (!t.isop('}')) {
             if (t.iskeyword('function')) {
@@ -4678,7 +4795,7 @@ class Namespace : Item, VarContainer
                 namespace.push(name);
                 t= tk.get();
                 if (!t.isop('{'))
-                    throw Error("Expected '{'");
+                    Expected('{', t);
                 var child= new Namespace();
                 child.init_child(self, name);
                 self.namespaces.push(child);
@@ -4712,7 +4829,7 @@ class Namespace : Item, VarContainer
                 {
                     if (self.parent != null) return;
                     string line= t.line;
-                    throw Error('Unclosed namespace in ' + line);
+                    SyntaxError('Unclosed namespace', t);
                 }
                 namespace.pop();
             }
@@ -4847,7 +4964,12 @@ function stage1(argv)
 
 function main(argv)
 {
-    try [handle_types(555)]
+    try
+            [
+                min_severity(2),
+                max_severity(2),
+                handle_types(ERRORinternal, ERRORtokenizer, ERRORparser)
+            ]
         stage1(argv);
     catch (e)
     {
