@@ -4820,7 +4820,7 @@ function stage1(argv)
         if (argc == 0)
             throw Error('No file');
 
-        string filename= argv[0];
+        filename= argv[0];
         file = new 'FileHandle';
         file.open(filename); // Must throw on error
     }
