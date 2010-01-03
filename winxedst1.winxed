@@ -497,6 +497,10 @@ function getpredefs()
             'index {res}, {arg0}, {arg1}',
             'I', 'S', 'S'
         ),
+        new PredefFunction().set('indexof',
+            'index {res}, {arg0}, {arg1}, {arg2}',
+            'I', 'S', 'S', 'I'
+        ),
         new PredefFunction().set('join',
             'join {res}, {arg0}, {arg1}',
             'S', 'S', 'P'
