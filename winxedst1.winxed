@@ -1108,6 +1108,8 @@ class BlockStatement : VarContainer, Statement
 class Expr
 {
     var owner;
+    var start;
+
     function issimple() { return 0; }
     function isliteral() { return 0; }
     function isintegerliteral() { return 0; }
@@ -1137,6 +1139,10 @@ class Expr
 class SimpleExpr : Expr
 {
     function issimple() { return 1; }
+    function emit_assign_get(e, expr)
+    {
+        SyntaxError('Not a left-side expression', self.start);
+    }
 }
 
 //*********************************************
@@ -1150,6 +1156,7 @@ class StringLiteral : SimpleExpr
     function set(owner, t)
     {
         self.owner = owner;
+        self.start = t;
         self.strval = t;
         return self;
     }
@@ -1199,6 +1206,7 @@ class IntegerLiteral : SimpleExpr
     function set(owner, t, value [optional], int has_value [opt_flag])
     {
         self.owner = owner;
+        self.start = t;
         self.pos = t;
         int n;
         if (has_value)
@@ -1234,6 +1242,13 @@ class FloatLiteral : SimpleExpr
     function isliteral() { return 1; }
     function isfloatliteral() { return 1; }
     function checkResult() { return 'N'; }
+    function set(owner, t)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.numval = t;
+        return self;
+    }
     function getFloatValue()
     {
         string aux= self.numval;
@@ -1258,6 +1273,13 @@ class IdentifierExpr : SimpleExpr
 {
     var name;
     function isidentifier() { return 1; }
+    function set(owner, t)
+    {
+        self.owner = owner;
+        self.start = t;
+        self.name = t;
+        return self;
+    }
     function isnull()
     {
         return self.name.iskeyword('null');
@@ -1329,6 +1351,19 @@ class IdentifierExpr : SimpleExpr
     function emit_get(e)
     {
         return self.getIdentifier();
+    }
+    function emit_assign_get(e, expr)
+    {
+        string typeright = expr.checkResult();
+        string rreg = expr.emit_get(e);
+        string typeleft = self.checkResult();
+        string lreg = self.emit_get(e);
+        e.annotate(self.start);
+        if (typeleft == 'P' && typeright != 'P')
+            e.say('box ', lreg, ', ', rreg);
+        else
+            e.say('set ', lreg, ', ', rreg);
+        return lreg;
     }
 }
 
@@ -1604,28 +1639,8 @@ class OpAssignExpr : OpBaseAssignExpr
     }
     function emit_get(e)
     {
-        var eright = self.eright;
-        //string typeright = eright.checkResult();
-        //string rreg = eright.emit_get(e);
         var eleft = self.eleft;
-        if (eleft instanceof MemberExpr || eleft instanceof IndexExpr) {
-            string rreg = eleft.emit_assign_get(e, eright);
-            return rreg;
-        }
-        else {
-
-        string typeright = eright.checkResult();
-        string rreg = eright.emit_get(e);
-
-            string typeleft = eleft.checkResult();
-            string lreg = eleft.emit_get(e);
-            e.annotate(self.start);
-            if (typeleft == 'P' && typeright != 'P')
-                e.say('box ', lreg, ', ', rreg);
-            else
-                e.say('set ', lreg, ', ', rreg);
-            return lreg;
-        }
+        return eleft.emit_assign_get(e, self.eright);
     }
 }
 
@@ -2953,18 +2968,10 @@ function parseExpr_0(tk, owner)
         return new StringLiteral().set(owner, t);
     if (t.isint())
         return new IntegerLiteral().set(owner, t);
-    if (t.isfloat()) {
-        expr= new FloatLiteral();
-        expr.owner= owner;
-        expr.numval= t;
-        return expr;
-    }
-    if (t.isidentifier()) {
-        expr= new IdentifierExpr();
-        expr.owner= owner;
-        expr.name= t;
-        return expr;
-    }
+    if (t.isfloat())
+        return new FloatLiteral().set(owner, t);
+    if (t.isidentifier())
+        return new IdentifierExpr().set(owner, t);
     SyntaxError('Lots of things unsupported', t);
 }
 
