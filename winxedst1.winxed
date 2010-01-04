@@ -1132,6 +1132,11 @@ class Expr
     function isidentifier() { return 0; }
     function isnull() { return 0; }
     function hascompilevalue() { return 0; }
+    function initexpr(owner, start)
+    {
+        self.owner = owner;
+        self.start = start;
+    }
     function tempreg(type)
     {
         return self.owner.tempreg(type);
@@ -1169,8 +1174,7 @@ class StringLiteral : SimpleExpr
     function checkResult() { return 'S'; }
     function set(owner, t)
     {
-        self.owner = owner;
-        self.start = t;
+        self.initexpr(owner, t);
         self.strval = t;
         return self;
     }
@@ -1219,8 +1223,7 @@ class IntegerLiteral : SimpleExpr
     function checkResult() { return 'I'; }
     function set(owner, t, value [optional], int has_value [opt_flag])
     {
-        self.owner = owner;
-        self.start = t;
+        self.initexpr(owner, t);
         self.pos = t;
         int n;
         if (has_value)
@@ -1258,8 +1261,7 @@ class FloatLiteral : SimpleExpr
     function checkResult() { return 'N'; }
     function set(owner, t)
     {
-        self.owner = owner;
-        self.start = t;
+        self.initexpr(owner, t);
         self.numval = t;
         return self;
     }
@@ -1289,8 +1291,7 @@ class IdentifierExpr : SimpleExpr
     function isidentifier() { return 1; }
     function set(owner, t)
     {
-        self.owner = owner;
-        self.start = t;
+        self.initexpr(owner, t);
         self.name = t;
         return self;
     }
@@ -1385,11 +1386,9 @@ class IdentifierExpr : SimpleExpr
 
 class OpExpr : Expr
 {
-    var start;
     function initop(owner, start)
     {
-        self.owner = owner;
-        self.start = start;
+        self.initexpr(owner, start);
     }
 }
 
@@ -1613,13 +1612,11 @@ class OpPostDecExpr : OpUnaryExpr
 
 class OpBaseAssignExpr : Expr
 {
-    var start;
     var eleft;
     var eright;
-    function set(owner, t, lexpr, rexpr)
+    function set(owner, start, lexpr, rexpr)
     {
-        self.owner = owner;
-        self.start = t;
+        self.initexpr(owner, start);
         self.eleft = lexpr;
         self.eright = rexpr;
         return self;
@@ -1806,14 +1803,12 @@ class ComparatorBaseExpr : OpBinaryExpr
 
 class NullCheckerExpr : Expr
 {
-    var start;
     var expr;
 
     function checkResult() { return 'I'; }
     function set(base, expr)
     {
-        self.owner = base.owner;
-        self.start = base.start;
+        self.initexpr(base.owner, base.start);
         self.expr = expr;
         return self;
     }
@@ -2352,10 +2347,16 @@ class OpCModExpr : OpBinaryExpr
 
 class CallPredefExpr : Expr
 {
-    var start;
     var predef;
     var args;
 
+    function init(owner, start, predef, args)
+    {
+        self.initexpr(owner, start);
+        self.predef = predef;
+        self.args = args;
+        return self;
+    }
     function checkResult()
     {
         return self.predef.result();
@@ -2402,14 +2403,12 @@ class CallPredefExpr : Expr
 
 class CallExpr : Expr
 {
-    var start;
     var funref;
     var args;
 
     function parse(tk, owner, start, subexp)
     {
-        self.owner = owner;
-        self.start = start;
+        self.initexpr(owner, start);
         self.funref = subexp;
         self.args = [];
         var t = tk.get();
@@ -2438,15 +2437,8 @@ class CallExpr : Expr
         if (funref.isidentifier()) {
             string call = funref.getName();
             var predef = findpredef(call, n);
-            if (predef != null) {
-                var newexpr = new CallPredefExpr();
-                newexpr.owner = self.owner;
-                newexpr.start = self.start;
-                newexpr.predef = predef;
-                newexpr.args = self.args;
-                return newexpr;
-                say("PREDEF!!!");
-            }
+            if (predef != null)
+                return new CallPredefExpr().init(self.owner, self.start, predef, self.args);
         }
 
         return self;
@@ -2501,15 +2493,13 @@ class CallExpr : Expr
 
 class MemberExpr : Expr
 {
-    var start;
     var left;
     var right;
 
     function checkResult() { return 'P'; }
-    function parse(tk, owner, t, subexp)
+    function parse(tk, owner, start, subexp)
     {
-        self.owner = owner;
-        self.start = t;
+        self.initexpr(owner, start);
         self.left = subexp;
         self.right = tk.get();
         return self;
@@ -2583,17 +2573,16 @@ class MemberExpr : Expr
 
 class IndexExpr : Expr
 {
-    var start;
     var left;
     var args;
 
     function checkResult() { return 'P'; }
-    function parse(tk, owner, t, subexp)
+    function parse(tk, owner, start, subexp)
     {
-        self.owner = owner;
-        self.start = t;
+        self.initexpr(owner, start);
         self.left = subexp;
         self.args = new 'ResizablePMCArray';
+        var t;
         do {
             var arg = parseExpr(tk, owner);
             self.args.push(arg);
@@ -2670,14 +2659,12 @@ class IndexExpr : Expr
 
 class ArrayExpr : Expr
 {
-    var start;
     var values;
 
     function checkResult() { return 'P'; }
     function parse(tk, owner, start)
     {
-        self.owner = owner;
-        self.start = start;
+        self.initexpr(owner, start);
         self.values = [];
         var t = tk.get();
         if (! t.isop(']')) {
@@ -2725,15 +2712,13 @@ class ArrayExpr : Expr
 
 class HashExpr : Expr
 {
-    var start;
     var values;
 
     function checkResult() { return 'P'; }
-    function parse(tk, owner, t)
+    function parse(tk, owner, start)
     {
-        self.owner = owner;
-        self.start = t;
-        t = tk.get();
+        self.initexpr(owner, start);
+        var t = tk.get();
         var values = new 'Hash';
         if (!t.isop('}')) {
             tk.unget(t);
@@ -2788,20 +2773,19 @@ class HashExpr : Expr
 
 class NewExpr : Expr
 {
-    var start;
     var value;
     var initializer;
 
     function checkResult() { return 'P'; }
-    function parse(tk, owner, t)
+    function parse(tk, owner, start)
     {
+        self.initexpr(owner, start);
         self.owner = owner;
-        self.start = t;
 
         var value = tk.get();
         if (! (value.isstring() || value.isidentifier()))
             SyntaxError("Unimplemented", value);
-        t = tk.get();
+        var t = tk.get();
         if (value.isidentifier() ) {
             if (t.isop('.')) {
                 string values [];
@@ -2862,15 +2846,13 @@ class NewExpr : Expr
 
 class OpInstanceOfExpr : Expr
 {
-    var start;
     var eleft;
     var checked;
 
     function checkResult() { return 'I'; }
-    function parse(owner, t, eleft, tk)
+    function parse(owner, start, eleft, tk)
     {
-        self.owner = owner;
-        self.start = t;
+        self.initexpr(owner, start);
         self.eleft = eleft;
         self.checked= tk.get();
         return self;
