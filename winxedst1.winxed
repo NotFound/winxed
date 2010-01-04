@@ -615,6 +615,20 @@ function getpredefs()
             'length {res}, {arg0}',
             'I', 'S'
         ),
+        new PredefFunction().set('chr',
+            "chr {res}, {arg0}\n" +
+            "find_encoding $I0, 'utf8'\n" +
+            "trans_encoding {res}, $I0",
+            'S', 'I'
+        ),
+        new PredefFunction().set('ord',
+            'ord {res}, {arg0}',
+            'I', 'S'
+        ),
+        new PredefFunction().set('ord',
+            'ord {res}, {arg0}, {arg1}',
+            'I', 'S', 'I'
+        ),
         new PredefFunction().set('substr',
             'substr {res}, {arg0}, {arg1}',
             'S', 'S', 'I'
@@ -4524,7 +4538,8 @@ class RegisterStore
     var freereg;
     function init [vtable]()
     {
-        self.nreg = 0;
+        // Registers number 0 are reserved for temporary usage in predefs.
+        self.nreg = 1;
         self.tempreg= new 'ResizableStringArray';
         self.freereg= new 'ResizableStringArray';
     }
