@@ -1172,6 +1172,7 @@ class StringLiteral : SimpleExpr
     function isliteral() { return 1; }
     function isstringliteral() { return 1; }
     function checkResult() { return 'S'; }
+    function hascompilevalue() { return 1; }
     function set(owner, t)
     {
         self.initexpr(owner, t);
@@ -1221,6 +1222,7 @@ class IntegerLiteral : SimpleExpr
     function isliteral() { return 1; }
     function isintegerliteral() { return 1; }
     function checkResult() { return 'I'; }
+    function hascompilevalue() { return 1; }
     function set(owner, t, value [optional], int has_value [opt_flag])
     {
         self.initexpr(owner, t);
@@ -1259,6 +1261,7 @@ class FloatLiteral : SimpleExpr
     function isliteral() { return 1; }
     function isfloatliteral() { return 1; }
     function checkResult() { return 'N'; }
+    function hascompilevalue() { return 1; }
     function set(owner, t)
     {
         self.initexpr(owner, t);
@@ -4280,28 +4283,26 @@ class ConstStatement : Statement
     {
         self.value = self.value.optimize();
         var value = self.value;
-        if (value.issimple()) {
-            string typename = self.type;
-            string type;
-            switch (typename)
-            {
-            case 'int':
-                type = 'I';
-                break;
-            case 'float':
-                type = 'N';
-                break;
-            case 'string':
-                type = 'S';
-                break;
-            default:
-                SyntaxError('Invalid type for const', self.start);
-            }
-            self.createconst(self.name, type, value);
-            return self;
+	if (! value.hascompilevalue()) {
+            SyntaxError('Value for const is not evaluable at compile time',
+                self.start);
         }
-        SyntaxError('Value for const is not compile time evaluable',
-            self.start);
+        string type;
+        switch (self.type) {
+        case 'int':
+            type = 'I';
+            break;
+        case 'float':
+            type = 'N';
+            break;
+        case 'string':
+            type = 'S';
+            break;
+        default:
+            SyntaxError('Invalid type for const', self.start);
+        }
+        self.createconst(self.name, type, value);
+        return self;
     }
     function emit(e)
     {
