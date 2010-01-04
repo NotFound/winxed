@@ -600,15 +600,21 @@ function getpredefs()
             'P', 'S'
         ),
         new PredefFunction().set('Error',
-            "root_new {res}, ['parrot';'Exception']\n{res}['message'] = {arg0}\n",
+            "root_new {res}, ['parrot';'Exception']\n" +
+            "{res}['message'] = {arg0}",
             'P', 'S'
         ),
         new PredefFunction().set('Error',
-            "root_new {res}, ['parrot';'Exception']\n{res}['message'] = {arg0}\n{res}['severity'] = {arg1}\n",
+            "root_new {res}, ['parrot';'Exception']\n" + 
+            "{res}['message'] = {arg0}\n" +
+            "{res}['severity'] = {arg1}",
             'P', 'S', 'I'
         ),
         new PredefFunction().set('Error',
-            "root_new {res}, ['parrot';'Exception']\n{res}['message'] = {arg0}\n{res}['severity'] = {arg1}\n{res}['type'] = {arg2}\n",
+            "root_new {res}, ['parrot';'Exception']\n" +
+            "{res}['message'] = {arg0}\n" +
+            "{res}['severity'] = {arg1}\n" +
+            "{res}['type'] = {arg2}",
             'P', 'S', 'I', 'I'
         ),
         new PredefFunction().set('length',
@@ -654,11 +660,17 @@ function getpredefs()
             'P', 'S', 'S'
         ),
         new PredefFunction().set('chomp',
-            "load_bytecode 'String/Utils.pbc'\n.local pmc util_chomp\nutil_chomp = get_root_global ['parrot';'String';'Utils'], 'chomp'\n{res} = util_chomp({arg0})",
+            "load_bytecode 'String/Utils.pbc'\n" +
+            ".local pmc util_chomp\n" + 
+            "util_chomp = get_root_global ['parrot';'String';'Utils'], 'chomp\n" +
+            "{res} = util_chomp({arg0})",
             'S', 'S'
         ),
         new PredefFunction().set('chomp',
-            "load_bytecode 'String/Utils.pbc'\n.local pmc util_chomp\nutil_chomp = get_root_global ['parrot';'String';'Utils'], 'chomp'\n{res} = util_chomp({arg0}, {arg1})",
+            "load_bytecode 'String/Utils.pbc'\n" +
+            ".local pmc util_chomp\n" +
+            "util_chomp = get_root_global ['parrot';'String';'Utils'], 'chomp'\n" +
+            "{res} = util_chomp({arg0}, {arg1})",
             'S', 'S', 'S'
         ),
         new PredefFunction().set('getinterp',
@@ -4283,7 +4295,7 @@ class ConstStatement : Statement
     {
         self.value = self.value.optimize();
         var value = self.value;
-	if (! value.hascompilevalue()) {
+        if (! value.hascompilevalue()) {
             SyntaxError('Value for const is not evaluable at compile time',
                 self.start);
         }
