@@ -1,0 +1,18 @@
+#! winxed
+# Basic tests for chr and ord
+
+function main()
+{
+	using extern Test.More;
+	using Test.More.plan;
+	using Test.More.is;
+	plan (3);
+
+	int a = 65;
+
+	is (chr(a), "A");
+	is (chr(65), "A");
+
+	is (ord("A"), 65);
+
+}

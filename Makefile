@@ -79,7 +79,7 @@ winxedst2.pbc: winxedst2.pir
 	parrot -o winxedst2.pbc winxedst2.pir
 
 winxedst2.pir: winxedst1$(EXEEXT) winxed$(EXEEXT) winxedst1.winxed
-	winxed --stage=1 -c -o winxedst2.pir winxedst1.winxed
+	./winxed --stage=1 -c -o winxedst2.pir winxedst1.winxed
 
 #-------------------------------
 #      Driver
@@ -108,7 +108,7 @@ testv: winxed.pbc
 	parrot winxed.pbc t/harness -rv t
 
 TEST1 = \
-	t/preincdec.t.winxed
+	t/preincdec.t.winxed  t/ordchr.t.winxed
 
 test1: winxed$(EXEEXT) winxedst1$(EXEEXT) $(TEST1)
 	parrot winxed.pbc t/harness --stage=1 -r t/basic t/*.t $(TEST1)
