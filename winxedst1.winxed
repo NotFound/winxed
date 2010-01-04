@@ -1689,6 +1689,34 @@ class OpAddToExpr : OpBaseAssignExpr
 
 //*********************************************
 
+class OpSubToExpr : OpBaseAssignExpr
+{
+    function checkResult()
+    {
+        if (self.eleft.isidentifier())
+            return self.eleft.checkResult();
+        else
+            InternalError('Unimplemented');
+    }
+    function emit(e, result)
+    {
+        string reg = self.emit_get(e);
+        if (result != '')
+            e.say('set ', result, ', ', reg);
+    }
+    function emit_get(e)
+    {
+        string type = self.eleft.checkResult();
+        string reg = self.eleft.emit_get(e);
+        string reg2 = self.eright.emit_get(e);
+        e.annotate(self.start);
+        e.say('sub ', reg, ', ', reg2);
+        return reg;
+    }
+}
+
+//*********************************************
+
 class ComparatorBaseExpr : OpBinaryExpr
 {
     function checkResult() { return 'I'; }
@@ -2782,7 +2810,7 @@ const int Code_bracket       =  2;
 const int Code_dot           =  3;
 const int Code_assign        =  4;
 const int Code_assign_to     =  5;
-const int Code_add_to        =  6;
+const int Code_add_assign    =  6;
 const int Code_add           =  7;
 const int Code_minus         =  8;
 const int Code_inc           =  9;
@@ -2794,6 +2822,7 @@ const int Code_less          = 14;
 const int Code_less_equal    = 15;
 const int Code_greater       = 16;
 const int Code_greater_equal = 17;
+const int Code_sub_assign    = 18;
 
 function getOpCode_2(t)
 {
@@ -2807,7 +2836,8 @@ function getOpCode_16(t)
 {
     if (t.isop('='))  return Code_assign;
     if (t.isop('=:')) return Code_assign_to;
-    if (t.isop('+=')) return Code_add_to;
+    if (t.isop('+=')) return Code_add_assign;
+    if (t.isop('-=')) return Code_sub_assign;
     return Code_none;
 }
 
@@ -3079,8 +3109,11 @@ function parseExpr_16(tk, owner)
         case Code_assign_to:
             expr = new OpAssignToExpr();
             break;
-        case Code_add_to:
+        case Code_add_assign:
             expr = new OpAddToExpr();
+            break;
+        case Code_sub_assign:
+            expr = new OpSubToExpr();
             break;
         default:
             InternalError('Unexpected code in parseExpr_16', t);
