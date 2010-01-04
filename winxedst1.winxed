@@ -4052,7 +4052,7 @@ class TryStatement : BlockStatement
                 case 'handle_types':
                     string argregs [];
                     for (int i= 0; i < nargs; ++i) {
-                        var arg = modif.getarg(0);
+                        var arg = modif.getarg(i);
                         argregs.push(arg.emit_get(e));
                     }
                     e.print(reghandler, ".'", modifname, "'(");
