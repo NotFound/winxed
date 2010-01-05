@@ -687,6 +687,38 @@ function getpredefs()
             "{res} = util_chomp({arg0}, {arg1})",
             'S', 'S', 'S'
         ),
+        new PredefFunction().set('sqrt',
+            'sqrt {res}, {arg0}',
+            'N', 'N'
+        ),
+        new PredefFunction().set('pow',
+            'pow {res}, {arg0}, {arg1}',
+            'N', 'N', 'N'
+        ),
+        new PredefFunction().set('sin',
+            'sin {res}, {arg0}',
+            'N', 'N'
+        ),
+        new PredefFunction().set('cos',
+            'cos {res}, {arg0}',
+            'N', 'N'
+        ),
+        new PredefFunction().set('tan',
+            'tan {res}, {arg0}',
+            'N', 'N'
+        ),
+        new PredefFunction().set('asin',
+            'asin {res}, {arg0}',
+            'N', 'N'
+        ),
+        new PredefFunction().set('acos',
+            'acos {res}, {arg0}',
+            'N', 'N'
+        ),
+        new PredefFunction().set('atan',
+            'atan {res}, {arg0}',
+            'N', 'N'
+        ),
         new PredefFunction().set('getinterp',
             'getinterp {res}',
             'P'
