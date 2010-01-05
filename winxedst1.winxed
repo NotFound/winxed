@@ -676,7 +676,7 @@ function getpredefs()
         new PredefFunction().set('chomp',
             "load_bytecode 'String/Utils.pbc'\n" +
             ".local pmc util_chomp\n" + 
-            "util_chomp = get_root_global ['parrot';'String';'Utils'], 'chomp\n" +
+            "util_chomp = get_root_global ['parrot';'String';'Utils'], 'chomp'\n" +
             "{res} = util_chomp({arg0})",
             'S', 'S'
         ),
