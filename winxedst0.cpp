@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 22-dec-2009
+// Revision 5-jan-2010
 
 // Winxed compiler stage 0.
 
@@ -5064,6 +5064,8 @@ BaseStatement *SwitchStatement::optimize()
         for (size_t j= 0; j < cst.size(); ++j)
             optimize_branch(cst[j]);
     }
+    for (size_t j= 0; j < defaultst.size(); ++j)
+        optimize_branch(defaultst[j]);
     return this;
 }
 
