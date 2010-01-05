@@ -11,20 +11,25 @@ EXEEXT =
 
 #-----------------------------------------------------------------------
 
-default: winxedst0
+default: stage0 driver
 
-all: winxed$(EXEEXT) winxedst1$(EXEEXT)
+all: stage2 driver
 
 pbc: winxed.pbc
 
 help:
 	@echo "Targets:"
-	@echo "  default - Build the stage 0 compiler"
-	@echo "  stage1  - Build the stage 1 compiler"
-	@echo "  all     - Build the compiler driver - native executable"
+	@echo "  default - Build the stage 0 and the driver"
+	@echo "  stage0  - Build the stage 0 compiler"
+	@echo "  stage1  - Build the driver and the stage 1 compiler"
+	@echo "  stage2  - Build the driver and the stage 2 compiler"
+	@echo "  all     - Build all"
+	@echo "  driver  - Build the compiler driver - native executable"
 	@echo "  pbc     - Build the compiler driver - parrot binary"
-	@echo "  test    - Run the test suite"
-	@echo "  test1   - Run part of the test suite with the stage 1 compiler"
+	@echo "  test    - Run the stage 0 tests"
+	@echo "  testv   - Run the stage 0 tests with -v option"
+	@echo "  test1   - Run the stage 1 tests"
+	@echo "  test2   - Run the stage 2 tests"
 	@echo "  help    - This message"
 
 #-----------------------------------------------------------------------
@@ -32,6 +37,8 @@ help:
 #-------------------------------
 #    Compiler stage 0 
 #-------------------------------
+
+stage0: winxedst0$(EXEEXT)
 
 winxedst0$(EXEEXT): winxedst0$(OBJEXT) token$(OBJEXT) errors$(OBJEXT) predef$(OBJEXT) emit$(OBJEXT)
 	$(CXX) -o winxedst0 winxedst0$(OBJEXT) token$(OBJEXT) errors$(OBJEXT) predef$(OBJEXT) emit$(OBJEXT)
@@ -60,14 +67,14 @@ stage1: winxedst1$(EXEEXT)
 winxedst1$(EXEEXT): winxedst1.pbc
 	pbc_to_exe winxedst1.pbc
 
-winxedst1.pbc: winxedst1.pir winxed.pbc
+winxedst1.pbc: winxedst1.pir
 	parrot -o winxedst1.pbc winxedst1.pir
 
 winxedst1.pir: winxed$(EXEEXT) winxedst1.winxed
 	./winxed --stage=0 -c -o winxedst1.pir winxedst1.winxed
 
 #-------------------------------
-#    Compiler stage 2 (testing)
+#    Compiler stage 2
 #-------------------------------
 
 stage2: winxedst2$(EXEEXT)
@@ -78,12 +85,14 @@ winxedst2$(EXEEXT): winxedst2.pbc
 winxedst2.pbc: winxedst2.pir
 	parrot -o winxedst2.pbc winxedst2.pir
 
-winxedst2.pir: winxedst1$(EXEEXT) winxed$(EXEEXT) winxedst1.winxed
+winxedst2.pir: winxedst1$(EXEEXT) winxedst1.winxed
 	./winxed --stage=1 -c -o winxedst2.pir winxedst1.winxed
 
 #-------------------------------
 #      Driver
 #-------------------------------
+
+driver: winxed$(EXEEXT)
 
 winxed$(EXEEXT): winxed.pbc
 	pbc_to_exe winxed.pbc
@@ -105,7 +114,7 @@ test: winxed.pbc
 	parrot winxed.pbc t/harness -r t/basic t/*.t
 
 testv: winxed.pbc
-	parrot winxed.pbc t/harness -rv t
+	parrot winxed.pbc t/harness -rv t/basic t/*.t
 
 TEST1 = \
 	t/preincdec.t.winxed  t/ordchr.t.winxed
@@ -117,9 +126,13 @@ test2: winxed$(EXEEXT) winxedst2$(EXEEXT) $(TEST1)
 	parrot winxed.pbc t/harness --stage=2 -r t/basic t/*.t $(TEST1)
 
 clean:
-	rm -f winxedst0$(EXEEXT)
+	rm -f winxedst2$(EXEEXT)
 	rm -f winxedst1$(EXEEXT)
+	rm -f winxedst0$(EXEEXT)
+	rm -f winxedst2.pbc
 	rm -f winxedst1.pbc
+	rm -f winxedst2.pir
+	rm -f winxedst1.pir
 	rm -f winxed$(EXEEXT)
 	rm -f winxed.c
 	rm -f winxed.pbc
