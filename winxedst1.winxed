@@ -416,6 +416,26 @@ class Tokenizer
 }
 
 //*********************************************
+//          PIR generation values
+//*********************************************
+
+const string REGint =    'I';
+const string REGfloat =  'N';
+const string REGstring = 'S';
+const string REGvar =    'P';
+
+function typetoregcheck(string type)
+{
+    switch (type) {
+    case 'int':    return REGint;
+    case 'float':  return REGfloat;
+    case 'string': return REGstring;
+    case 'var':    return REGvar;
+    default:       return '';
+    }
+}
+
+//*********************************************
 //            Emit
 //*********************************************
 
@@ -611,137 +631,137 @@ function getpredefs()
     var predefs = [
         new PredefFunction().set('die',
             'die {arg0}',
-            'P', 'S'
+            REGvar, REGstring
         ),
         new PredefFunction().set('Error',
             "root_new {res}, ['parrot';'Exception']\n" +
             "{res}['message'] = {arg0}",
-            'P', 'S'
+            REGvar, REGstring
         ),
         new PredefFunction().set('Error',
             "root_new {res}, ['parrot';'Exception']\n" + 
             "{res}['message'] = {arg0}\n" +
             "{res}['severity'] = {arg1}",
-            'P', 'S', 'I'
+            REGvar, REGstring, REGint
         ),
         new PredefFunction().set('Error',
             "root_new {res}, ['parrot';'Exception']\n" +
             "{res}['message'] = {arg0}\n" +
             "{res}['severity'] = {arg1}\n" +
             "{res}['type'] = {arg2}",
-            'P', 'S', 'I', 'I'
+            REGvar, REGstring, REGint, REGint
         ),
         new PredefFunction().set('length',
             'length {res}, {arg0}',
-            'I', 'S'
+            REGint, REGstring
         ),
         new PredefFunction().set('chr',
             "chr {res}, {arg0}\n" +
             "find_encoding $I0, 'utf8'\n" +
             "trans_encoding {res}, $I0",
-            'S', 'I'
+            REGstring, REGint
         ),
         new PredefFunction().set('ord',
             'ord {res}, {arg0}',
-            'I', 'S'
+            REGint, REGstring
         ),
         new PredefFunction().set('ord',
             'ord {res}, {arg0}, {arg1}',
-            'I', 'S', 'I'
+            REGint, REGstring, REGint
         ),
         new PredefFunction().set('substr',
             'substr {res}, {arg0}, {arg1}',
-            'S', 'S', 'I'
+            REGstring, REGstring, REGint
         ),
         new PredefFunction().set('substr',
             'substr {res}, {arg0}, {arg1}, {arg2}',
-            'S', 'S', 'I', 'I'
+            REGstring, REGstring, REGint, REGint
         ),
         new PredefFunction().set('indexof',
             'index {res}, {arg0}, {arg1}',
-            'I', 'S', 'S'
+            REGint, REGstring, REGstring
         ),
         new PredefFunction().set('indexof',
             'index {res}, {arg0}, {arg1}, {arg2}',
-            'I', 'S', 'S', 'I'
+            REGint, REGstring, REGstring, REGint
         ),
         new PredefFunction().set('join',
             'join {res}, {arg0}, {arg1}',
-            'S', 'S', 'P'
+            REGstring, REGstring, REGvar
         ),
         new PredefFunction().set('split',
             'split {res}, {arg0}, {arg1}',
-            'P', 'S', 'S'
+            REGvar, REGstring, REGstring
         ),
         new PredefFunction().set('chomp',
             "load_bytecode 'String/Utils.pbc'\n" +
             ".local pmc util_chomp\n" + 
             "util_chomp = get_root_global ['parrot';'String';'Utils'], 'chomp'\n" +
             "{res} = util_chomp({arg0})",
-            'S', 'S'
+            REGstring, REGstring
         ),
         new PredefFunction().set('chomp',
             "load_bytecode 'String/Utils.pbc'\n" +
             ".local pmc util_chomp\n" +
             "util_chomp = get_root_global ['parrot';'String';'Utils'], 'chomp'\n" +
             "{res} = util_chomp({arg0}, {arg1})",
-            'S', 'S', 'S'
+            REGstring, REGstring, REGstring
         ),
         new PredefFunction().set('sqrt',
             'sqrt {res}, {arg0}',
-            'N', 'N'
+            REGfloat, REGfloat
         ),
         new PredefFunction().set('pow',
             'pow {res}, {arg0}, {arg1}',
-            'N', 'N', 'N'
+            REGfloat, REGfloat, REGfloat
         ),
         new PredefFunction().set('sin',
             'sin {res}, {arg0}',
-            'N', 'N'
+            REGfloat, REGfloat
         ),
         new PredefFunction().set('cos',
             'cos {res}, {arg0}',
-            'N', 'N'
+            REGfloat, REGfloat
         ),
         new PredefFunction().set('tan',
             'tan {res}, {arg0}',
-            'N', 'N'
+            REGfloat, REGfloat
         ),
         new PredefFunction().set('asin',
             'asin {res}, {arg0}',
-            'N', 'N'
+            REGfloat, REGfloat
         ),
         new PredefFunction().set('acos',
             'acos {res}, {arg0}',
-            'N', 'N'
+            REGfloat, REGfloat
         ),
         new PredefFunction().set('atan',
             'atan {res}, {arg0}',
-            'N', 'N'
+            REGfloat, REGfloat
         ),
         new PredefFunction().set('getinterp',
             'getinterp {res}',
-            'P'
+            REGvar
         ),
         new PredefFunction().set('clone',
             'clone {res}, {arg0}',
-            'P', 'P'
+            REGvar, REGvar
         ),
         new PredefFunction().set('loadlib',
             'loadlib {res}, {arg0}',
-            'P', 'S'
+            REGvar, REGstring
         ),
         new PredefFunction().set('dlfunc',
             'dlfunc {res}, {arg0}, {arg1}, {arg2}',
-            'P', 'P', 'S', 'S'
+            REGvar, REGvar, REGstring, REGstring
         ),
         new PredefFunction().set('print',
             predef_print,
-            'P', '*'
+            REGvar, '*'
         ),
         new PredefFunction().set('say',
             predef_say,
-            'P', '*'
+            REGvar, '*'
         )
     ];
     for (;;)
@@ -1272,7 +1292,7 @@ class StringLiteral : SimpleExpr
     var strval;
     function isliteral() { return 1; }
     function isstringliteral() { return 1; }
-    function checkResult() { return 'S'; }
+    function checkResult() { return REGstring; }
     function hascompilevalue() { return 1; }
     function set(owner, t)
     {
@@ -1322,7 +1342,7 @@ class IntegerLiteral : SimpleExpr
     var numval;
     function isliteral() { return 1; }
     function isintegerliteral() { return 1; }
-    function checkResult() { return 'I'; }
+    function checkResult() { return REGint; }
     function hascompilevalue() { return 1; }
     function set(owner, t, value [optional], int has_value [opt_flag])
     {
@@ -1361,7 +1381,7 @@ class FloatLiteral : SimpleExpr
     var numval;
     function isliteral() { return 1; }
     function isfloatliteral() { return 1; }
-    function checkResult() { return 'N'; }
+    function checkResult() { return REGfloat; }
     function hascompilevalue() { return 1; }
     function set(owner, t)
     {
@@ -1412,7 +1432,7 @@ class IdentifierExpr : SimpleExpr
             switch (self.name) {
             case 'self':
             case 'null':
-                return 'P';
+                return REGvar;
             default:
                 return '';
             }
@@ -1478,7 +1498,7 @@ class IdentifierExpr : SimpleExpr
         string typeleft = self.checkResult();
         string lreg = self.emit_get(e);
         e.annotate(self.start);
-        if (typeleft == 'P' && typeright != 'P')
+        if (typeleft == REGvar && typeright != REGvar)
             e.say('box ', lreg, ', ', rreg);
         else
             e.say('set ', lreg, ', ', rreg);
@@ -1584,7 +1604,7 @@ class OpNotExpr : OpUnaryExpr
 {
     function checkResult()
     {
-        return 'I';
+        return REGint;
     }
     function set(owner, t, subexpr)
     {
@@ -1597,10 +1617,10 @@ class OpNotExpr : OpUnaryExpr
         e.annotate(self.start);
         string type = self.subexpr.checkResult();
         switch (type) {
-        case 'I':
+        case REGint:
             e.say('not ', result, ', ', reg);
             break;
-        case 'P':
+        case REGvar:
             e.say('isfalse ', result, ', ', reg);
             break;
         default:
@@ -1810,7 +1830,7 @@ class OpAddToExpr : OpBaseAssignExpr
         string reg = self.eleft.emit_get(e);
         string reg2 = self.eright.emit_get(e);
         e.annotate(self.start);
-        if (type == 'S')
+        if (type == REGstring)
             e.say('concat ', reg, ', ', reg2);
         else
             e.say('add ', reg, ', ', reg2);
@@ -1850,7 +1870,7 @@ class OpSubToExpr : OpBaseAssignExpr
 
 class ComparatorBaseExpr : OpBinaryExpr
 {
-    function checkResult() { return 'I'; }
+    function checkResult() { return REGint; }
     function emit_comparator(e, result)
     {
         string rl = self.lexpr.checkResult();
@@ -1859,36 +1879,36 @@ class ComparatorBaseExpr : OpBinaryExpr
         string regr = self.rexpr.emit_get(e);
         e.annotate(self.start);
         string aux;
-        if (rl == 'N' || rr == 'N')
+        if (rl == REGfloat || rr == REGfloat)
         {
-            if (rl == 'I') {
-                aux = self.tempreg('N');
+            if (rl == REGint) {
+                aux = self.tempreg(REGfloat);
                 e.say('set ', aux, ', ', regl);
                 regl = aux;
             }
-            if (rr == 'I') {
-                aux = self.tempreg('N');
+            if (rr == REGint) {
+                aux = self.tempreg(REGfloat);
                 e.say('set ', aux, ', ', regr);
                 regr = aux;
             }
         }
-        else if (rr == 'I' && rl == 'P') {
-            aux = self.tempreg('I');
+        else if (rr == REGint && rl == REGvar) {
+            aux = self.tempreg(REGint);
             e.say('set ', aux, ', ', regl);
             regl = aux;
         }
-        else if (rr == 'P' && rl == 'I') {
-            aux = self.tempreg('I');
+        else if (rr == REGvar && rl == REGint) {
+            aux = self.tempreg(REGint);
             e.say('set ', aux, ', ', regr);
             regr = aux;
         }
-        else if (rr == 'S' && rl == 'P') {
-            aux = self.tempreg('P');
+        else if (rr == REGstring && rl == REGvar) {
+            aux = self.tempreg(REGvar);
             e.say('box ', aux, ', ', regr);
             regr = aux;
         }
-        else if (rr == 'P' && rl == 'S') {
-            aux = self.tempreg('P');
+        else if (rr == REGvar && rl == REGstring) {
+            aux = self.tempreg(REGvar);
             e.say('box ', aux, ', ', regl);
             regl = aux;
         }
@@ -1910,7 +1930,7 @@ class NullCheckerExpr : Expr
 {
     var expr;
 
-    function checkResult() { return 'I'; }
+    function checkResult() { return REGint; }
     function set(base, expr)
     {
         self.initexpr(base.owner, base.start);
@@ -2042,7 +2062,7 @@ class OpBoolAndExpr : OpBinaryExpr
 {
     function checkResult()
     {
-        return 'I';
+        return REGint;
     }
     function set(owner, t, eleft, eright)
     {
@@ -2058,9 +2078,9 @@ class OpBoolAndExpr : OpBinaryExpr
         if (result != null)
             res = result;
         else
-            res = self.tempreg('I');
-        string op1 = self.tempreg('I');
-        string op2 = self.tempreg('I');
+            res = self.tempreg(REGint);
+        string op1 = self.tempreg(REGint);
+        string op2 = self.tempreg(REGint);
         self.lexpr.emit(e, op1);
         self.rexpr.emit(e, op2);
         e.say('and ', res, ', ', op1, ', ', op2);
@@ -2073,7 +2093,7 @@ class OpBoolOrExpr : OpBinaryExpr
 {
     function checkResult()
     {
-        return 'I';
+        return REGint;
     }
     function set(owner, t, eleft, eright)
     {
@@ -2089,9 +2109,9 @@ class OpBoolOrExpr : OpBinaryExpr
         if (result != null)
             res = result;
         else
-            res = self.tempreg('I');
-        string op1 = self.tempreg('I');
-        string op2 = self.tempreg('I');
+            res = self.tempreg(REGint);
+        string op1 = self.tempreg(REGint);
+        string op2 = self.tempreg(REGint);
         self.lexpr.emit(e, op1);
         self.rexpr.emit(e, op2);
         e.say('or ', res, ', ', op1, ', ', op2);
@@ -2104,7 +2124,7 @@ class OpBinAndExpr : OpBinaryExpr
 {
     function checkResult()
     {
-        return 'I';
+        return REGint;
     }
     function set(owner, t, eleft, eright)
     {
@@ -2120,9 +2140,9 @@ class OpBinAndExpr : OpBinaryExpr
         if (result != null)
             res = result;
         else
-            res = self.tempreg('I');
-        string op1 = self.tempreg('I');
-        string op2 = self.tempreg('I');
+            res = self.tempreg(REGint);
+        string op1 = self.tempreg(REGint);
+        string op2 = self.tempreg(REGint);
         self.lexpr.emit(e, op1);
         self.rexpr.emit(e, op2);
         e.say('band ', res, ', ', op1, ', ', op2);
@@ -2135,7 +2155,7 @@ class OpBinOrExpr : OpBinaryExpr
 {
     function checkResult()
     {
-        return 'I';
+        return REGint;
     }
     function set(owner, t, eleft, eright)
     {
@@ -2151,9 +2171,9 @@ class OpBinOrExpr : OpBinaryExpr
         if (result != null)
             res = result;
         else
-            res = self.tempreg('I');
-        string op1 = self.tempreg('I');
-        string op2 = self.tempreg('I');
+            res = self.tempreg(REGint);
+        string op1 = self.tempreg(REGint);
+        string op2 = self.tempreg(REGint);
         self.lexpr.emit(e, op1);
         self.rexpr.emit(e, op2);
         e.say('bor ', res, ', ', op1, ', ', op2);
@@ -2172,7 +2192,7 @@ class OpAddExpr : OpBinaryExpr
         if (lexpr.isliteral() && rexpr.isliteral()) {
             string ltype = lexpr.checkResult();
             string rtype = rexpr.checkResult();
-            if (ltype == 'S' && rtype == 'S') {
+            if (ltype == REGstring && rtype == REGstring) {
                 var etok = lexpr.strval;
                 var rtok = rexpr.strval;
                 var t;
@@ -2186,7 +2206,7 @@ class OpAddExpr : OpBinaryExpr
                 t = newTokenFrom(newtype, es + rs, etok);
                 return new StringLiteral().set(self.owner, t);
             }
-            if (ltype == 'I' && rtype == 'I') {
+            if (ltype == REGint && rtype == REGint) {
                 var lval = lexpr.numval;
                 int ln = lval;
                 var rval = rexpr.numval;
@@ -2200,19 +2220,19 @@ class OpAddExpr : OpBinaryExpr
     {
         string rl = self.lexpr.checkResult();
         string rr = self.rexpr.checkResult();
-        if (rl == 'S' && rr == 'S')
-            return 'S';
-        if (rl == 'I' && rr == 'S')
-            return 'S';
-        if (rl == 'S' && rr == 'I')
-            return 'S';
-        if (rl == 'N' && rr == 'N')
-            return 'N';
-        if (rl == 'I' && rr == 'N')
-            return 'N';
-        if (rl == 'N' && rr == 'I')
-            return 'N';
-        return 'I';
+        if (rl == REGstring && rr == REGstring)
+            return REGstring;
+        if (rl == REGint && rr == REGstring)
+            return REGstring;
+        if (rl == REGstring && rr == REGint)
+            return REGstring;
+        if (rl == REGfloat && rr == REGfloat)
+            return REGfloat;
+        if (rl == REGint && rr == REGfloat)
+            return REGfloat;
+        if (rl == REGfloat && rr == REGint)
+            return REGfloat;
+        return REGint;
     }
     function emit(e, result)
     {
@@ -2224,10 +2244,10 @@ class OpAddExpr : OpBinaryExpr
 
         string rleft = lexpr.emit_get(e);
         string rright = rexpr.emit_get(e);
-        if (restype == 'S') {
-            if (ltype != 'S' || rtype != 'S') {
-                string aux = self.tempreg('S');
-                if (ltype != 'S') {
+        if (restype == REGstring) {
+            if (ltype != REGstring || rtype != REGstring) {
+                string aux = self.tempreg(REGstring);
+                if (ltype != REGstring) {
                     e.say(aux, ' = ', rleft);
                     rleft = aux;
                 }
@@ -2239,17 +2259,17 @@ class OpAddExpr : OpBinaryExpr
             e.say('concat ', result, ', ', rleft, ', ', rright);
         }
         else {
-            if (restype == 'I' && (ltype != 'I' || rtype != 'I')) {
+            if (restype == REGint && (ltype != REGint || rtype != REGint)) {
                 string l;
-                if (ltype == 'I') l = rleft;
+                if (ltype == REGint) l = rleft;
                 else {
-                    l = self.tempreg('I');
+                    l = self.tempreg(REGint);
                     e.say('set ', l, ', ', rleft);
                 }
                 string r;
-                if (rtype == 'I') r = rright;
+                if (rtype == REGint) r = rright;
                 else {
-                    r = self.tempreg('I');
+                    r = self.tempreg(REGint);
                     e.say('set ', r, ', ', rright);
                 }
                 e.say('add ', result, ', ', l, ', ', r);
@@ -2268,13 +2288,13 @@ class OpSubExpr : OpBinaryExpr
     {
         string rl = self.lexpr.checkResult();
         string rr = self.rexpr.checkResult();
-        if (rl == 'N' && rr == 'N')
-            return 'N';
-        if (rl == 'I' && rr == 'N')
-            return 'N';
-        if (rl == 'N' && rr == 'I')
-            return 'N';
-        return 'I';
+        if (rl == REGfloat && rr == REGfloat)
+            return REGfloat;
+        if (rl == REGint && rr == REGfloat)
+            return REGfloat;
+        if (rl == REGfloat && rr == REGint)
+            return REGfloat;
+        return REGint;
     }
     function emit(e, result)
     {
@@ -2292,28 +2312,28 @@ class OpMulExpr : OpBinaryExpr
     {
         var lexpr = self.lexpr;
         var ltype = lexpr.checkResult();
-        if (ltype == 'S')
-            return 'S';
-        if (ltype == 'I' && self.rexpr.checkResult() == 'I')
-            return 'I';
+        if (ltype == REGstring)
+            return REGstring;
+        if (ltype == REGint && self.rexpr.checkResult() == REGint)
+            return REGint;
         else
-            return 'N';
+            return REGfloat;
     }
     function emit(e, result)
     {
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
         var ltype = lexpr.checkResult();
-        if (ltype == 'S') {
+        if (ltype == REGstring) {
             string lreg = lexpr.emit_get(e);
             string rreg = rexpr.emit_get(e);
             string rval;
             switch (rexpr.checkResult()) {
-            case 'I':
+            case REGint:
                 rval = rreg;
                 break;
             default:
-                rval = self.tempreg('I');
+                rval = self.tempreg(REGint);
                 e.say('set ', rval, ', ', rreg);
             }
             e.annotate(self.start);
@@ -2339,11 +2359,11 @@ class OpMulExpr : OpBinaryExpr
         else {
             string type = rexpr.checkResult();
             switch(type) {
-            case 'S':
+            case REGstring:
                 rright= self.tempreg(self.checkResult());
                 rexpr.emit(e, rright);
                 break;
-            case 'I':
+            case REGint:
             default:
                 nright= rexpr.getIntegerValue();
                 rright= nright;
@@ -2361,24 +2381,24 @@ class OpDivExpr : OpBinaryExpr
 {
     function checkResult()
     {
-        return 'N';
+        return REGfloat;
     }
     function emit(e, result)
     {
         var lexpr = self.lexpr;
         var lreg;
-        if (lexpr.checkResult() == 'N')
+        if (lexpr.checkResult() == REGfloat)
             lreg = lexpr.emit_get(e);
         else {
-            lreg = self.tempreg('N');
+            lreg = self.tempreg(REGfloat);
             lexpr.emit(e, lreg);
         }
         var rexpr = self.rexpr;
         var rreg;
-        if (rexpr.checkResult() == 'N')
+        if (rexpr.checkResult() == REGfloat)
             rreg = rexpr.emit_get(e);
         else {
-            rreg = self.tempreg('N');
+            rreg = self.tempreg(REGfloat);
             rexpr.emit(e, rreg);
         }
         e.annotate(self.start);
@@ -2392,24 +2412,24 @@ class OpModExpr : OpBinaryExpr
 {
     function checkResult()
     {
-        return 'I';
+        return REGint;
     }
     function emit(e, result)
     {
         var lexpr = self.lexpr;
         var lreg;
-        if (lexpr.checkResult() == 'I')
+        if (lexpr.checkResult() == REGint)
             lreg = lexpr.emit_get(e);
         else {
-            lreg = self.tempreg('I');
+            lreg = self.tempreg(REGint);
             lexpr.emit(e, lreg);
         }
         var rexpr = self.rexpr;
         var rreg;
-        if (rexpr.checkResult() == 'I')
+        if (rexpr.checkResult() == REGint)
             rreg = rexpr.emit_get(e);
         else {
-            rreg = self.tempreg('I');
+            rreg = self.tempreg(REGint);
             rexpr.emit(e, rreg);
         }
         e.annotate(self.start);
@@ -2423,24 +2443,24 @@ class OpCModExpr : OpBinaryExpr
 {
     function checkResult()
     {
-        return 'I';
+        return REGint;
     }
     function emit(e, result)
     {
         var lexpr = self.lexpr;
         var lreg;
-        if (lexpr.checkResult() == 'I')
+        if (lexpr.checkResult() == REGint)
             lreg = lexpr.emit_get(e);
         else {
-            lreg = self.tempreg('I');
+            lreg = self.tempreg(REGint);
             lexpr.emit(e, lreg);
         }
         var rexpr = self.rexpr;
         var rreg;
-        if (rexpr.checkResult() == 'I')
+        if (rexpr.checkResult() == REGint)
             rreg = rexpr.emit_get(e);
         else {
-            rreg = self.tempreg('I');
+            rreg = self.tempreg(REGint);
             rexpr.emit(e, rreg);
         }
         e.annotate(self.start);
@@ -2485,13 +2505,13 @@ class CallPredefExpr : Expr
                 arg = args[i];
                 string type = predef.argtype(i);
                 string argr = self.tempreg(type);
-                if (type == 'P') {
+                if (type == REGvar) {
                     string rtype = arg.checkResult();
                     string nreg = '';
                     switch (rtype) {
-                    case 'I': nreg = 'Integer'; break;
-                    case 'N': nreg = 'Float'; break;
-                    case 'S': nreg = 'String'; break;
+                    case REGint: nreg = 'Integer'; break;
+                    case REGfloat: nreg = 'Float'; break;
+                    case REGstring: nreg = 'String'; break;
                     }
                     if (nreg != '')
                         e.say('new ', argr, ", '", nreg , "'");
@@ -2528,7 +2548,7 @@ class CallExpr : Expr
         }
         return self;
     }
-    function checkResult() { return 'P'; }
+    function checkResult() { return REGvar; }
     function optimize()
     {
         self.funref = self.funref.optimize();
@@ -2568,7 +2588,7 @@ class CallExpr : Expr
         for (var arg in self.args) {
             string reg;
             if (arg.isnull()) {
-                reg = self.tempreg('P');
+                reg = self.tempreg(REGvar);
                 e.say('null ', reg);
             }
             else
@@ -2601,7 +2621,7 @@ class MemberExpr : Expr
     var left;
     var right;
 
-    function checkResult() { return 'P'; }
+    function checkResult() { return REGvar; }
     function parse(tk, owner, start, subexp)
     {
         self.initexpr(owner, start);
@@ -2626,7 +2646,7 @@ class MemberExpr : Expr
     {
         string obj = self.left.emit_get(e);
         string ident = self.right.getidentifier();
-        string result = self.tempreg('P');
+        string result = self.tempreg(REGvar);
         e.say('getattribute ', result, ', ', obj, ", '", ident, "'");
         return result;
     }
@@ -2641,16 +2661,16 @@ class MemberExpr : Expr
         string obj = self.left.emit_get(e);
         string ident = self.right.getidentifier();
         string value;
-        if (typeright == 'P') {
+        if (typeright == REGvar) {
             // Special case temporarily
             if (rreg == 'null') {
-                rreg = self.tempreg('P');
+                rreg = self.tempreg(REGvar);
                 e.say('null ', rreg);
             }
             value = rreg;
         }
         else {
-            value = self.tempreg('P');
+            value = self.tempreg(REGvar);
             e.say('box ', value, ', ', rreg);
         }
         e.say("setattribute ", obj, ", '", ident, "', ", value);
@@ -2659,12 +2679,12 @@ class MemberExpr : Expr
     {
         string obj = self.left.emit_get(e);
         string ident = self.right.getidentifier();
-        string value = self.tempreg('P');
+        string value = self.tempreg(REGvar);
         if (expr.isnull())
             e.say('null ', value);
         else {
             string rreg = expr.emit_get(e);
-            if (expr.checkResult() != 'P')
+            if (expr.checkResult() != REGvar)
                 e.say('box ', value, ', ', rreg);
             else
                 value = rreg;
@@ -2681,7 +2701,7 @@ class IndexExpr : Expr
     var left;
     var args;
 
-    function checkResult() { return 'P'; }
+    function checkResult() { return REGvar; }
     function parse(tk, owner, start, subexp)
     {
         self.initexpr(owner, start);
@@ -2743,7 +2763,7 @@ class IndexExpr : Expr
         }
         string rreg;
         if (expr.isnull()) {
-            rreg = self.tempreg('P');
+            rreg = self.tempreg(REGvar);
             e.say('null ', rreg);
         }
         else
@@ -2766,7 +2786,7 @@ class ArrayExpr : Expr
 {
     var values;
 
-    function checkResult() { return 'P'; }
+    function checkResult() { return REGvar; }
     function parse(tk, owner, start)
     {
         self.initexpr(owner, start);
@@ -2783,6 +2803,14 @@ class ArrayExpr : Expr
         }
         return self;
     }
+    function optimize()
+    {
+        var values = self.values;
+        int n = values;
+        for (int i = 0; i < n; ++i)
+            values[i] = values[i].optimize();
+        return self;
+    }
     function emit(e, result)
     {
         string value = self.emit_get(e);
@@ -2791,14 +2819,14 @@ class ArrayExpr : Expr
     function emit_get(e)
     {
         e.annotate(self.start);
-        string container = self.tempreg('P');
+        string container = self.tempreg(REGvar);
         e.say('root_new ', container, ", ['parrot';'ResizablePMCArray']");
-        string it_p = self.tempreg('P');
+        string it_p = self.tempreg(REGvar);
         string itemreg;
         for (var item in self.values) {
             string type = item.checkResult();
             switch (type) {
-            case 'I': case 'N': case 'S':
+            case REGint: case REGfloat: case REGstring:
                 string aux = item.emit_get(e);
                 e.say('box ', it_p, ', ', aux);
                 itemreg = it_p;
@@ -2819,7 +2847,7 @@ class HashExpr : Expr
 {
     var values;
 
-    function checkResult() { return 'P'; }
+    function checkResult() { return REGvar; }
     function parse(tk, owner, start)
     {
         self.initexpr(owner, start);
@@ -2855,7 +2883,7 @@ class HashExpr : Expr
                     itemreg = value.emit_get(e);
                 else {
                     string id = value.getName();
-                    itemreg = self.tempreg('P');
+                    itemreg = self.tempreg(REGvar);
                     e.say('get_hll_global ', itemreg, ", '", id, "'");
                 }
             }
@@ -2868,7 +2896,7 @@ class HashExpr : Expr
     }
     function emit_get(e)
     {
-        string container = self.tempreg('P');
+        string container = self.tempreg(REGvar);
         self.emit(e, container);
         return container;
     }
@@ -2881,7 +2909,7 @@ class NewExpr : Expr
     var value;
     var initializer;
 
-    function checkResult() { return 'P'; }
+    function checkResult() { return REGvar; }
     function parse(tk, owner, start)
     {
         self.initexpr(owner, start);
@@ -2954,7 +2982,7 @@ class OpInstanceOfExpr : Expr
     var eleft;
     var checked;
 
-    function checkResult() { return 'I'; }
+    function checkResult() { return REGint; }
     function parse(owner, start, eleft, tk)
     {
         self.initexpr(owner, start);
@@ -3432,7 +3460,7 @@ class ReturnYieldStatement : Statement
             var value = values[i];
             string reg;
             if (value.isnull()) {
-                reg = self.tempreg('P');
+                reg = self.tempreg(REGvar);
                 e.say('null ', reg);
             }
             else
@@ -3572,11 +3600,11 @@ class IfStatement : Statement
         string reg = condition.emit_get(e);
 
         switch(type) {
-        case 'S':
-        case 'P':
+        case REGstring:
+        case REGvar:
             e.say('if_null ', reg, ', ', cond_false);
-        case 'I':
-        case 'N':
+        case REGint:
+        case REGfloat:
             e.say('unless ', reg, ' goto ', cond_false);
             break;
         default:
@@ -3632,11 +3660,11 @@ class WhileStatement : Continuable, Statement
         string type = condition.checkResult();
         string reg = condition.emit_get(e);
         switch(type) {
-        case 'S':
-        case 'P':
+        case REGstring:
+        case REGvar:
             e.say('if_null ', reg, ', ', breaklabel);
-        case 'I':
-        case 'N':
+        case REGint:
+        case REGfloat:
             e.say('unless ', reg, ' goto ', breaklabel);
             break;
         default:
@@ -3693,11 +3721,11 @@ class DoStatement : Continuable, Statement
         e.say(continuelabel, ': # do while condition');
         string reg = condition.emit_get(e);
         switch(type) {
-        case 'S':
-        case 'P':
+        case REGstring:
+        case REGvar:
             e.say('if_null ', reg, ', ', breaklabel);
-        case 'I':
-        case 'N':
+        case REGint:
+        case REGfloat:
             e.say('if ', reg, ' goto ', looplabel);
             break;
         default:
@@ -3824,12 +3852,12 @@ class SwitchStatement : Breakable, Statement
         string type = '';
         for (var value in self.case_value) {
             string t = value.checkResult();
-            if (t == 'N')
+            if (t == REGfloat)
                 SyntaxError("Invalid type in case", self.start);
             if (type == '')
                 type = t;
             else if (type != t)
-                type = 'P';
+                type = REGvar;
         }
         // Evaluate condition
         string reg = self.tempreg(type);
@@ -3962,18 +3990,7 @@ class ForeachStatement : Continuable, BlockStatement
         self.initstatement(start, owner);
         var name = tk.get();
         string sname = name;
-        string type = '';
-        switch (sname)
-        {
-        case 'int':
-            type = 'I'; break;
-        case 'float':
-            type = 'N'; break;
-        case 'string':
-            type = 'S'; break;
-        case 'var':
-            type = 'P'; break;
-        }
+        string type = typetoregcheck(sname);
         if (type != '') {
             name = tk.get();
             sname = name;
@@ -3999,7 +4016,7 @@ class ForeachStatement : Continuable, BlockStatement
         self.annotate(e);
         string regcont = self.container.emit_get(e);
         var itvar = self.getvar(self.varname);
-        string iterator = self.createreg('P');
+        string iterator = self.createreg(REGvar);
         string continuelabel = self.gencontinuelabel();
         string breaklabel = self.genbreaklabel();
         e.say('iter ', iterator, ', ', regcont);
@@ -4089,7 +4106,7 @@ class TryStatement : BlockStatement
         if (! t.isop(')')) {
             string exname = t.getidentifier();
             self.exname = t;
-            self.createvar(exname, 'P');
+            self.createvar(exname, REGvar);
             t = tk.get();
             if (! t.isop(')'))
                 SyntaxError("Excpected ')' in 'catch'", t);
@@ -4107,7 +4124,7 @@ class TryStatement : BlockStatement
     }
     function emit(e)
     {
-        string reghandler = self.tempreg('P');
+        string reghandler = self.tempreg(REGvar);
         string labelhandler = self.genlabel();
         string labelpasthandler = self.genlabel();
         string exreg;
@@ -4116,7 +4133,7 @@ class TryStatement : BlockStatement
             exreg = exname['reg'];
         }
         else
-            exreg = self.tempreg('P');
+            exreg = self.tempreg(REGvar);
 
         self.annotate(e);
 
@@ -4199,7 +4216,7 @@ class DeclareStatement : Statement
         if (t.isop('[')) {
             // Array
             self.typearray = 1;
-            reg= self.createvar(self.name, 'P');
+            reg= self.createvar(self.name, REGvar);
             t= tk.get();
             if (t.isop(']')) {
                 // Variable length
@@ -4291,7 +4308,7 @@ class DeclareStatement : Statement
                         e.comment('init other type: ' + itype);
                         string ireg = self.tempreg(itype);
                         self.init.emit(e, ireg);
-                        if (t_reg == 'S' && itype == 'P') {
+                        if (t_reg == REGstring && itype == REGvar) {
                             string auxlabel = self.genlabel();
                             e.say('null ', reg);
                             e.say('if_null ', ireg, ', ', auxlabel);
@@ -4374,13 +4391,13 @@ class ConstStatement : Statement
         string type;
         switch (self.type) {
         case 'int':
-            type = 'I';
+            type = REGint;
             break;
         case 'float':
-            type = 'N';
+            type = REGfloat;
             break;
         case 'string':
-            type = 'S';
+            type = REGstring;
             break;
         default:
             SyntaxError('Invalid type for const', self.start);
@@ -4412,7 +4429,7 @@ class VarStatement : Statement
         if (!t.isidentifier())
             SyntaxError('Identifier expected', t);
         self.name= t;
-        string reg= self.createvar(t, 'P');
+        string reg= self.createvar(t, REGvar);
         self.reg= reg;
         t= tk.get();
         if (t.isop('=')) {
@@ -4438,12 +4455,12 @@ class VarStatement : Statement
         if (self.init != null) {
             string type = self.init.checkResult();
             switch (type) {
-            case 'P':
+            case REGvar:
                 self.init.emit(e, reg);
                 break;
-            case 'S':
-            case 'I':
-            case 'N':
+            case REGstring:
+            case REGint:
+            case REGfloat:
                 string value = self.tempreg(type);
                 self.init.emit(e, value);
                 e.say('box ', reg, ', ', value);
@@ -4465,7 +4482,7 @@ class StringStatement : DeclareStatement
 {
     function init [vtable] ()
     {
-        self.t_reg = 'S';
+        self.t_reg = REGstring;
         self.t_name = 'string';
         self.t_array = 'String';
     }
@@ -4483,7 +4500,7 @@ class IntStatement : DeclareStatement
 {
     function init [vtable] ()
     {
-        self.t_reg = 'I';
+        self.t_reg = REGint;
         self.t_name = 'int';
         self.t_array = 'Integer';
     }
@@ -4501,7 +4518,7 @@ class FloatStatement : DeclareStatement
 {
     function init [vtable] ()
     {
-        self.t_reg = 'N';
+        self.t_reg = REGfloat;
         self.t_name = 'float';
         self.t_array = 'Number';
     }
@@ -4653,10 +4670,10 @@ class FunctionStatement : BlockStatement
 
     function init [vtable]()
     {
-        self.regstI = new RegisterStore().settype('I');
-        self.regstN = new RegisterStore().settype('N');
-        self.regstS = new RegisterStore().settype('S');
-        self.regstP = new RegisterStore().settype('P');
+        self.regstI = new RegisterStore().settype(REGint);
+        self.regstN = new RegisterStore().settype(REGfloat);
+        self.regstS = new RegisterStore().settype(REGstring);
+        self.regstP = new RegisterStore().settype(REGvar);
         self.nlabel= 0;
     }
     function ismethod() { return 0; }
@@ -4664,13 +4681,13 @@ class FunctionStatement : BlockStatement
     {
         var store;
         switch(type) {
-        case 'I':
+        case REGint:
             store = self.regstI; break;
-        case 'N':
+        case REGfloat:
             store = self.regstN; break;
-        case 'S':
+        case REGstring:
             store = self.regstS; break;
-        case 'P':
+        case REGvar:
             store = self.regstP; break;
         default:
             InternalError('Invalid type in createreg');
@@ -4682,13 +4699,13 @@ class FunctionStatement : BlockStatement
     {
         var store;
         switch(type) {
-        case 'I':
+        case REGint:
             store = self.regstI; break;
-        case 'N':
+        case REGfloat:
             store = self.regstN; break;
-        case 'S':
+        case REGstring:
             store = self.regstS; break;
-        case 'P':
+        case REGvar:
             store = self.regstP; break;
         default:
             InternalError("Invalid type in tempreg");
@@ -4735,19 +4752,11 @@ class FunctionStatement : BlockStatement
             tk.unget(t);
             do {
                 t= tk.get();
-                string type = '';
-                if (t.iskeyword('int'))
-                    type = 'I';
-                else if (t.iskeyword('float'))
-                    type = 'F';
-                else if (t.iskeyword('string'))
-                    type = 'S';
-                else if (t.iskeyword('var'))
-                    type = 'P';
+                string type = typetoregcheck(t.checkkeyword());
                 if (type != '')
                     t= tk.get();
                 else
-                    type = 'P';
+                    type = REGvar;
                 self.createvar(t, type);
 
                 string varname = t;
@@ -4799,9 +4808,9 @@ class FunctionStatement : BlockStatement
             string type = a['type'];
             string ptype = 'pmc';
             switch (type) {
-            case 'I': ptype = 'int'; break;
-            case 'N': ptype = 'num'; break;
-            case 'S': ptype = 'string'; break;
+            case REGint: ptype = 'int'; break;
+            case REGfloat: ptype = 'num'; break;
+            case REGstring: ptype = 'string'; break;
             }
             e.print('.param ', ptype, ' ', argname);
             var modarg = arg['modifiers'];
