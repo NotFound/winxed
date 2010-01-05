@@ -143,9 +143,23 @@ class Token
     {
         return self.type == TypeIdentifier && self.str == name;
     }
+    function checkkeyword()
+    {
+        string name = '';
+        if (self.type == TypeIdentifier)
+            name = self.str;
+        return name;
+    }
     function isop(string name)
     {
         return self.type == TypeOp && self.str == name;
+    }
+    function checkop()
+    {
+        string name = '';
+        if (self.type == TypeOp)
+            name = self.str;
+        return name;
     }
 
     function get_string[vtable]()
@@ -831,64 +845,93 @@ class Item
     function isClass() { return 0; }
 }
 
+function parseUsing(t, tk, owner)
+{
+    var taux = tk.get();
+    if (taux.iskeyword('extern'))
+        return new ExternStatement().parse(t, tk, owner);
+    else {
+        tk.unget(taux);
+        return new UsingStatement().parse(t, tk, owner);
+    }
+}
+
 function parseStatement(tk, owner)
 {
     var t= tk.get();
     if (t.isop(';'))
         return new EmptyStatement();
     if (t.isop('{'))
-        return new CompoundStatement().parse(tk, owner);
-    if (t.iskeyword('using')) {
-        var taux = tk.get();
-        if (taux.iskeyword('extern'))
-            return new ExternStatement().parse(tk, owner);
-        else {
-            tk.unget(taux);
-            return new UsingStatement().parse(tk, owner);
-        }
-    }
-    else if (t.iskeyword('const'))
-        return new ConstStatement().parse(t, tk, owner);
-    else if (t.iskeyword('var'))
-        return new VarStatement().parse(tk, owner);
-    else if (t.iskeyword('string'))
-        return new StringStatement().parse(tk, owner);
-    else if (t.iskeyword('int'))
-        return new IntStatement().parse(tk, owner);
-    else if (t.iskeyword('float'))
-        return new FloatStatement().parse(tk, owner);
-    else if (t.iskeyword('return'))
-        return new ReturnStatement().parse(t, tk, owner);
-    else if (t.iskeyword('yield'))
-        return new YieldStatement().parse(t, tk, owner);
-    else if (t.iskeyword('goto'))
-        return new GotoStatement().parse(tk, owner);
-    else if (t.iskeyword('if'))
-        return new IfStatement().parse(tk, owner);
-    else if (t.iskeyword('while'))
-        return new WhileStatement().parse(tk, owner);
-    else if (t.iskeyword('do'))
-        return new DoStatement().parse(tk, owner);
-    else if (t.iskeyword('continue'))
-        return new ContinueStatement().parse(t, tk, owner);
-    else if (t.iskeyword('break'))
-        return new BreakStatement().parse(t, tk, owner);
-    else if (t.iskeyword('switch'))
-        return new SwitchStatement().parse(t, tk, owner);
-    else if (t.iskeyword('for'))
+        return new CompoundStatement().parse(t, tk, owner);
+    string key = t.checkkeyword();
+    var st;
+    switch (key) {
+    case 'using':
+        return parseUsing(t, tk, owner);
+    case 'const':
+        st = new ConstStatement();
+        break;
+    case 'var':
+        st = new VarStatement();
+        break;
+    case 'string':
+        st = new StringStatement();
+        break;
+    case 'int':
+        st = new IntStatement();
+        break;
+    case 'float':
+        st = new FloatStatement();
+        break;
+    case 'return':
+        st = new ReturnStatement();
+        break;
+    case 'yield':
+        st = new YieldStatement();
+        break;
+    case 'goto':
+        st = new GotoStatement();
+        break;
+    case 'if':
+        st = new IfStatement();
+        break;
+    case 'while':
+        st = new WhileStatement();
+        break;
+    case 'do':
+        st = new DoStatement();
+        break;
+    case 'continue':
+        st = new ContinueStatement();
+        break;
+    case 'break':
+        st = new BreakStatement();
+        break;
+    case 'switch':
+        st = new SwitchStatement();
+        break;
+    case 'for':
         return parseFor(t, tk, owner);
-    else if (t.iskeyword('throw'))
-        return new ThrowStatement().parse(t, tk, owner);
-    else if (t.iskeyword('try'))
-        return new TryStatement().parse(t, tk, owner);
-    else if (t.isidentifier()) {
-        var t2= tk.get();
-        if (t2.isop(':'))
-            return new LabelStatement().set(owner, t);
-        tk.unget(t2);
+    case 'throw':
+        st = new ThrowStatement();
+        break;
+    case 'try':
+        st = new TryStatement();
+        break;
+    default:
+        if (t.isidentifier()) {
+            var t2= tk.get();
+            if (t2.isop(':'))
+                return new LabelStatement().set(t, owner);
+            tk.unget(t2);
+        }
+        tk.unget(t);
+        st = new ExprStatement();
     }
-    tk.unget(t);
-    return new ExprStatement().parse(tk, owner);
+    if (st == null)
+        InternalError('parseStatement failure');
+    st = st.parse(t, tk, owner);
+    return st;
 }
 
 //*********************************************
@@ -899,6 +942,12 @@ class Statement : Item
 {
     var start;
     var owner;
+
+    function initstatement(start, owner)
+    {
+        self.start = start;
+        self.owner = owner;
+    }
     function isempty() { return 0; }
     function annotate(e)
     {
@@ -958,6 +1007,10 @@ class Statement : Item
 class EmptyStatement : Statement
 {
     function isempty() { return 1; }
+    function annotate(e)
+    {
+        InternalError('Attempt to annotate empty statement');
+    }
     function emit(e)
     {
         // Do nothing
@@ -971,8 +1024,9 @@ class EmptyStatement : Statement
 class ExternStatement : Statement
 {
     var path;
-    function parse(tk, owner)
+    function parse(start, tk, owner)
     {
+        self.initstatement(start, owner);
         string path[];
         var t;
         do {
@@ -993,6 +1047,7 @@ class ExternStatement : Statement
             file += p;
             sep = '/';
         }
+        self.annotate(e);
         e.say("load_bytecode '", file, ".pbc'");
     }
 }
@@ -1004,8 +1059,9 @@ class ExternStatement : Statement
 class UsingStatement : Statement
 {
     var path;
-    function parse(tk, owner)
+    function parse(start, tk, owner)
     {
+        self.initstatement(start, owner);
         string path[];
         var t;
         do {
@@ -1021,6 +1077,7 @@ class UsingStatement : Statement
     {
         var path = self.path;
         string name = path.pop();
+        self.annotate(e);
         e.say('.local pmc ', name);
         e.print('get_hll_global ', name, ', ');
         int n = path;
@@ -1047,9 +1104,9 @@ class UsingStatement : Statement
 class ExprStatement : Statement
 {
     var expr;
-    function parse(tk, owner)
+    function parse(start, tk, owner)
     {
-        self.owner = owner;
+        self.initstatement(start, owner);
         self.expr = parseExpr(tk, self);
         ExpectOp(';', tk);
         return self;
@@ -1165,15 +1222,15 @@ class Expr
         self.emit(e, reg);
         return reg;
     }
+    function emit_assign_get(e, expr)
+    {
+        SyntaxError('Not a left-side expression', self.start);
+    }
 }
 
 class SimpleExpr : Expr
 {
     function issimple() { return 1; }
-    function emit_assign_get(e, expr)
-    {
-        SyntaxError('Not a left-side expression', self.start);
-    }
 }
 
 //*********************************************
@@ -1477,7 +1534,7 @@ class OpUnaryMinusExpr : OpUnaryExpr
             var numval = self.subexpr.numval;
             int n = numval;
             n = - n;
-            return new IntegerLiteral().set(self.owner, numval, n);
+            return new IntegerLiteral().set(self.owner, self.subexpr.start, n);
         }
         return self;
     }
@@ -1661,7 +1718,8 @@ class OpAssignExpr : OpBaseAssignExpr
     {
         string reg = self.emit_get(e);
         e.annotate(self.start);
-        e.say('set ', result, ', ', reg);
+        if (result != '')
+            e.say('set ', result, ', ', reg);
     }
     function emit_get(e)
     {
@@ -2101,7 +2159,7 @@ class OpAddExpr : OpBinaryExpr
                 int ln = lval;
                 var rval = rexpr.numval;
                 int rn = rval;
-                return new IntegerLiteral().set(self.owner, lval, ln + rn);
+                return new IntegerLiteral().set(self.owner, self.start, ln + rn);
             }
         }
         return self;
@@ -2918,46 +2976,56 @@ const int Code_cmod          = 22;
 
 function getOpCode_2(t)
 {
-    if (t.isop('(')) return Code_paren;
-    if (t.isop('[')) return Code_bracket;
-    if (t.isop('.')) return Code_dot;
-    return Code_none;
+    switch (t.checkop()) {
+    case '(': return Code_paren;
+    case '[': return Code_bracket;
+    case '.': return Code_dot;
+    default:  return Code_none;
+    }
 }
 
 function getOpCode_4(t)
 {
-    if (t.isop('-'))  return Code_minus;
-    if (t.isop('!'))  return Code_not;
-    if (t.isop('++')) return Code_inc;
-    if (t.isop('--')) return Code_dec;
-    return Code_none;
+    switch (t.checkop()) {
+    case '-':  return Code_minus;
+    case '!':  return Code_not;
+    case '++': return Code_inc;
+    case '--': return Code_dec;
+    default:   return Code_none;
+    }
 }
 
 function getOpCode_5(t)
 {
-    if (t.isop('*'))  return Code_mul;
-    if (t.isop('/'))  return Code_div;
-    if (t.isop('%'))  return Code_mod;
-    if (t.isop('%%')) return Code_cmod;
-    return Code_none;
+    switch (t.checkop()) {
+    case '*':  return Code_mul;
+    case '/':  return Code_div;
+    case '%':  return Code_mod;
+    case '%%': return Code_cmod;
+    default:   return Code_none;
+    }
 }
 
 function getOpCode_9(t)
 {
-    if (t.isop('<'))  return Code_less;
-    if (t.isop('>'))  return Code_greater;
-    if (t.isop('<=')) return Code_less_equal;
-    if (t.isop('>=')) return Code_greater_equal;
-    return Code_none;
+    switch (t.checkop()) {
+    case '<':  return Code_less;
+    case '>':  return Code_greater;
+    case '<=': return Code_less_equal;
+    case '>=': return Code_greater_equal;
+    default:   return Code_none;
+    }
 }
 
 function getOpCode_16(t)
 {
-    if (t.isop('='))  return Code_assign;
-    if (t.isop('=:')) return Code_assign_to;
-    if (t.isop('+=')) return Code_add_assign;
-    if (t.isop('-=')) return Code_sub_assign;
-    return Code_none;
+    switch (t.checkop()) {
+    case '=':  return Code_assign;
+    case '=:': return Code_assign_to;
+    case '+=': return Code_add_assign;
+    case '-=': return Code_sub_assign;
+    default:   return Code_none;
+    }
 }
 
 function parseExpr_0(tk, owner)
@@ -3240,6 +3308,55 @@ function parseExpr(tk, owner)
 }
 
 //*********************************************
+//         Breakable and Continuable
+//*********************************************
+
+// Abstract base class for statments that can contain break
+// and continue statments. Continuable is always breakable.
+
+class Breakable
+{
+    var brlabel;
+
+    function genbreaklabel()
+    {
+        if (self.brlabel != null)
+            InternalError('attempt to generate break label twice');
+        string label = self.genlabel();
+        self.brlabel = label;
+        return label;
+    }
+    function getbreaklabel(pos)
+    {
+        var label = self.brlabel;
+        if (label == null)
+            InternalError('attempt to get break label before creating it');
+        return label;
+    }
+}
+
+class Continuable : Breakable
+{
+    var cntlabel;
+
+    function gencontinuelabel()
+    {
+        if (self.cntlabel != null)
+            InternalError('attempt to generate continue label twice');
+        string label = self.genlabel();
+        self.cntlabel = label;
+        return label;
+    }
+    function getcontinuelabel(pos)
+    {
+        var label = self.cntlabel;
+        if (label == null)
+            InternalError('attempt to get continue label before creating it');
+        return label;
+    }
+}
+
+//*********************************************
 //            ReturnYieldStatement
 //*********************************************
 
@@ -3250,12 +3367,10 @@ class ReturnYieldStatement : Statement
 {
     var values;
 
-    function parse(st, tk, owner)
+    function parse(start, tk, owner)
     {
-        self.owner= owner;
-        self.start = st;
+        self.initstatement(start, owner);
         var t = tk.get();
-        self.start = t;
         var values = [];
         if (! t.isop(';')) {
             tk.unget(t);
@@ -3327,10 +3442,9 @@ class LabelStatement : Statement
 {
     var name;
     var value;
-    function set(owner, n)
+    function set(n, owner)
     {
-        self.owner= owner;
-        self.start= n;
+        self.initstatement(n, owner);
         self.name= n;
         string value= self.owner.createlabel(n);
         self.value= value;
@@ -3350,13 +3464,12 @@ class LabelStatement : Statement
 class GotoStatement : Statement
 {
     var label;
-    function parse(tk, owner)
+    function parse(start, tk, owner)
     {
-        self.owner= owner;
+        self.initstatement(start, owner);
         var t= tk.get();
         if (!t.isidentifier())
             SyntaxError('Identifier expected', t);
-        self.start= t;
         string s= t;
         self.label= t;
         ExpectOp(';', tk);
@@ -3379,12 +3492,11 @@ class IfStatement : Statement
     var condition;
     var truebranch;
     var falsebranch;
-    function parse(tk, owner)
+    function parse(start, tk, owner)
     {
-        self.owner= owner;
+        self.initstatement(start, owner);
         var t= tk.get();
         RequireOp('(', t);
-        self.start = t;
         self.condition = parseExpr(tk, self);
         ExpectOp(')', tk);
         self.truebranch = parseStatement(tk, self);
@@ -3454,16 +3566,14 @@ class IfStatement : Statement
 //            WhileStatement
 //*********************************************
 
-class WhileStatement : Statement
+class WhileStatement : Continuable, Statement
 {
     var condition;
     var body;
-    var continuelabel;
-    var breaklabel;
 
-    function parse(tk, owner)
+    function parse(start, tk, owner)
     {
-        self.owner= owner;
+        self.initstatement(start, owner);
         var t= tk.get();
         RequireOp('(', t);
         self.start = t;
@@ -3480,10 +3590,8 @@ class WhileStatement : Statement
     }
     function emit(e)
     {
-        string breaklabel = self.genlabel();
-        self.breaklabel = breaklabel;
-        string continuelabel = self.genlabel();
-        self.continuelabel = continuelabel;
+        string breaklabel = self.genbreaklabel();
+        string continuelabel = self.gencontinuelabel();
 
         self.annotate(e);
         e.say(continuelabel, ': # while');
@@ -3507,34 +3615,21 @@ class WhileStatement : Statement
         e.say('goto ', continuelabel);
         e.say(breaklabel, ': # endwhile');
     }
-    function getbreaklabel(pos)
-    {
-        string label = self.breaklabel;
-        return label;
-    }
-    function getcontinuelabel(pos)
-    {
-        string label = self.continuelabel;
-        return label;
-    }
 }
 
 //*********************************************
 //            DoStatement
 //*********************************************
 
-class DoStatement : Statement
+class DoStatement : Continuable, Statement
 {
     var condition;
     var body;
-    var continuelabel;
-    var breaklabel;
 
-    function parse(tk, owner)
+    function parse(start, tk, owner)
     {
-        self.owner= owner;
+        self.initstatement(start, owner);
         var t= tk.get();
-        self.start = t;
         tk.unget(t);
 
         self.body = parseStatement(tk, self);
@@ -3553,10 +3648,8 @@ class DoStatement : Statement
     function emit(e)
     {
         string looplabel = self.genlabel();
-        string breaklabel = self.genlabel();
-        self.breaklabel = breaklabel;
-        string continuelabel = self.genlabel();
-        self.continuelabel = continuelabel;
+        string breaklabel = self.genbreaklabel();
+        string continuelabel = self.gencontinuelabel();
 
         self.annotate(e);
         e.say(looplabel, ': # do');
@@ -3580,16 +3673,6 @@ class DoStatement : Statement
         }
         e.say(breaklabel, ': # enddo');
     }
-    function getbreaklabel(pos)
-    {
-        string label = self.breaklabel;
-        return label;
-    }
-    function getcontinuelabel(pos)
-    {
-        string label = self.continuelabel;
-        return label;
-    }
 }
 
 //*********************************************
@@ -3598,10 +3681,9 @@ class DoStatement : Statement
 
 class ContinueStatement : Statement
 {
-    function parse(t, tk, owner)
+    function parse(start, tk, owner)
     {
-        self.start = t;
-        self.owner = owner;
+        self.initstatement(start, owner);
         ExpectOp(';', tk);
         return self;
     }
@@ -3618,10 +3700,9 @@ class ContinueStatement : Statement
 
 class BreakStatement : Statement
 {
-    function parse(t, tk, owner)
+    function parse(start, tk, owner)
     {
-        self.start = t;
-        self.owner = owner;
+        self.initstatement(start, owner);
         ExpectOp(';', tk);
         return self;
     }
@@ -3636,19 +3717,17 @@ class BreakStatement : Statement
 //            SwitchStatement
 //*********************************************
 
-class SwitchStatement : Statement
+class SwitchStatement : Breakable, Statement
 {
     var condition;
-    var breaklabel;
     var case_value;
     var case_st;
     var default_st;
 
-    function parse(t, tk, owner)
+    function parse(start, tk, owner)
     {
-        self.start = t;
-        self.owner = owner;
-        t = tk.get();
+        self.initstatement(start, owner);
+        var t = tk.get();
         if (! t.isop('('))
             SyntaxError("Expected '(' in switch", t);
         self.condition = parseExpr(tk, self);
@@ -3730,7 +3809,7 @@ class SwitchStatement : Statement
         }
 
         // Prpeare labels and check values
-        self.breaklabel = self.genlabel();
+        self.genbreaklabel();
         string defaultlabel = self.genlabel();
         string caselabel[];
         string regval = self.tempreg(type);
@@ -3759,13 +3838,8 @@ class SwitchStatement : Statement
         for (var dst in self.default_st)
             dst.emit(e);
 
-        e.say(self.breaklabel, ':');
+        e.say(self.getbreaklabel(self.start), ':');
         e.comment('switch end');
-    }
-    function getbreaklabel(pos)
-    {
-        string label = self.breaklabel;
-        return label;
     }
 }
 
@@ -3773,20 +3847,17 @@ class SwitchStatement : Statement
 //            ForStatement
 //*********************************************
 
-class ForStatement : BlockStatement
+class ForStatement : Continuable, BlockStatement
 {
     var initializer;
     var condition;
     var iteration;
     var body;
-    var breaklabel;
-    var continuelabel;
 
-    function parse(t, tk, owner)
+    function parse(start, tk, owner)
     {
-        self.start = t;
-        self.owner = owner;
-        t = tk.get();
+        self.initstatement(start, owner);
+        var t = tk.get();
         if (! t.isop(';')) {
             tk.unget(t);
             self.initializer = parseStatement(tk, self);
@@ -3820,10 +3891,8 @@ class ForStatement : BlockStatement
     function emit(e)
     {
         e.comment('for loop');
-        string continuelabel = self.genlabel();
-        self.continuelabel = continuelabel;
-        string breaklabel = self.genlabel();
-        self.breaklabel = breaklabel;
+        string continuelabel = self.gencontinuelabel();
+        string breaklabel = self.genbreaklabel();
         string condlabel = self.genlabel();
         if (self.initializer != null)
             self.initializer.emit(e);
@@ -3844,34 +3913,21 @@ class ForStatement : BlockStatement
 
         e.say(breaklabel, ': # for end');
     }
-    function getbreaklabel(pos)
-    {
-        string label = self.breaklabel;
-        return label;
-    }
-    function getcontinuelabel(pos)
-    {
-        string label = self.continuelabel;
-        return label;
-    }
 }
 
 //*********************************************
 //            ForeachStatement
 //*********************************************
 
-class ForeachStatement : BlockStatement
+class ForeachStatement : Continuable, BlockStatement
 {
     var varname;
     var container;
     var body;
-    var breaklabel;
-    var continuelabel;
 
-    function parse(t, tk, owner)
+    function parse(start, tk, owner)
     {
-        self.start = t;
-        self.owner = owner;
+        self.initstatement(start, owner);
         var name = tk.get();
         string sname = name;
         string type = '';
@@ -3912,10 +3968,8 @@ class ForeachStatement : BlockStatement
         string regcont = self.container.emit_get(e);
         var itvar = self.getvar(self.varname);
         string iterator = self.createreg('P');
-        string continuelabel = self.genlabel();
-        self.continuelabel = continuelabel;
-        string breaklabel = self.genlabel();
-        self.breaklabel = breaklabel;
+        string continuelabel = self.gencontinuelabel();
+        string breaklabel = self.genbreaklabel();
         e.say('iter ', iterator, ', ', regcont);
         e.say('set ', iterator, ', 0');
         e.say(continuelabel, ': # for iteration');
@@ -3924,16 +3978,6 @@ class ForeachStatement : BlockStatement
         self.body.emit(e);
         e.say('goto ', continuelabel);
         e.say(breaklabel, ': # endfor');
-    }
-    function getbreaklabel(pos)
-    {
-        string label = self.breaklabel;
-        return label;
-    }
-    function getcontinuelabel(pos)
-    {
-        string label = self.continuelabel;
-        return label;
     }
 }
 
@@ -3962,10 +4006,9 @@ class ThrowStatement : Statement
 {
     var excep;
 
-    function parse(t, tk, owner)
+    function parse(start, tk, owner)
     {
-        self.start = t;
-        self.owner= owner;
+        self.initstatement(start, owner);
         self.excep = parseExpr(tk, self);
         return self;
     }
@@ -3993,12 +4036,10 @@ class TryStatement : BlockStatement
     var exname;
     var scatch;
 
-    function parse(t, tk, owner)
+    function parse(start, tk, owner)
     {
-        self.start = t;
-        self.owner= owner;
-
-        t = tk.get();
+        self.initstatement(start, owner);
+        var t = tk.get();
         if (t.isop('[')) {
             self.modifiers = new ModifierList().parse(tk, self);
         }
@@ -4113,9 +4154,9 @@ class DeclareStatement : Statement
     var typearray;
     var size;
     var init;
-    function parse(tk, owner)
+    function parse(start, tk, owner)
     {
-        self.owner= owner;
+        self.initstatement(start, owner);
         var t= tk.get();
         if (!t.isidentifier())
             SyntaxError('Identifier expected', t);
@@ -4192,7 +4233,7 @@ class DeclareStatement : Statement
     }
     function emit(var e)
     {
-        e.annotate(self.name);
+        self.annotate(e);
         string tname = self.t_name;
         string name = self.name;
         string reg = self.reg;
@@ -4278,11 +4319,10 @@ class ConstStatement : Statement
     var name;
     var value;
 
-    function parse(t, tk, owner)
+    function parse(start, tk, owner)
     {
-        self.owner= owner;
-        self.start = t;
-        t = tk.get();
+        self.initstatement(start, owner);
+        var t = tk.get();
         self.type = t;
         t = tk.get();
         self.name = t;
@@ -4333,9 +4373,9 @@ class VarStatement : Statement
     var name;
     var reg;
     var init;
-    function parse(tk, owner)
+    function parse(start, tk, owner)
     {
-        self.owner= owner;
+        self.initstatement(start, owner);
         var t= tk.get();
         if (!t.isidentifier())
             SyntaxError('Identifier expected', t);
@@ -4359,7 +4399,7 @@ class VarStatement : Statement
     }
     function emit(var e)
     {
-        e.annotate(self.name);
+        self.annotate(e);
         string name=  self.name;
         string reg = self.reg;
         e.comment('var ' + name + ': ' + reg);
@@ -4474,30 +4514,18 @@ class CompoundStatement : BlockStatement
         labels[s]= value;
         return value;
     }
-    function parse(tk, owner)
+    function parse(start, tk, owner)
     {
-        //say('<<{');
-        self.owner= owner;
+        self.initstatement(start, owner);
         self.statements= [];
         var t;
         while (! (t= tk.get()).isop('}')) {
             tk.unget(t);
-            //say (t.line);
             var c = parseStatement(tk, self);
-            if (c == null) {
-                while (! ( (t = tk.get()).isop(';') || t.isop('}') ) ) {
-                    //say('-- ', t);
-                    if (t.isop('{')) {
-                        var c= new CompoundStatement();
-                        c.parse(tk, self);
-                    }
-                }
-                if (t.isop('}')) break;
-            }
-            else
-                self.statements.push(c);
+            if (c == null)
+                throw InternalError('Unexpected null statement');
+            self.statements.push(c);
         }
-        //say('}', t.line);
         self.end= t;
         return self;
     }
@@ -4581,7 +4609,6 @@ class RegisterStore
 
 class FunctionStatement : BlockStatement
 {
-    var owner;
     var name;
     var modifiers;
     var args;
@@ -4600,11 +4627,11 @@ class FunctionStatement : BlockStatement
         self.regstP = new RegisterStore().settype('P');
         self.nlabel= 0;
     }
+    function ismethod() { return 0; }
     function createreg(string type)
     {
         var store;
-        switch(type)
-        {
+        switch(type) {
         case 'I':
             store = self.regstI; break;
         case 'N':
@@ -4622,8 +4649,7 @@ class FunctionStatement : BlockStatement
     function tempreg(string type)
     {
         var store;
-        switch(type)
-        {
+        switch(type) {
         case 'I':
             store = self.regstI; break;
         case 'N':
@@ -4658,14 +4684,13 @@ class FunctionStatement : BlockStatement
         return self;
     }
 
-    function parse(tk, owner)
+    function parse(start, tk, owner)
     {
-        self.owner= owner;
+        self.initstatement(start, owner);
         var t= tk.get();
         self.name= t;
         t= tk.get();
-        if (t.isop('['))
-        {
+        if (t.isop('[')) {
             var modifiers = new ModifierList().parse(tk, self);
             self.modifiers= modifiers;
             t= tk.get();
@@ -4711,7 +4736,7 @@ class FunctionStatement : BlockStatement
         t= tk.get();
         if (!t.isop('{'))
             Expected('{', t);
-        self.body= new CompoundStatement().parse(tk, self);
+        self.body= new CompoundStatement().parse(t, tk, self);
         return self;
     }
     function emit(var e)
@@ -4719,7 +4744,7 @@ class FunctionStatement : BlockStatement
         string name = self.name;
         e.say();
         e.print(".sub '", name, "'");
-        if (self.owner.isClass())
+        if (self.ismethod())
             e.print(' :method');
         var modifiers= self.modifiers;
         if (modifiers != null) {
@@ -4750,9 +4775,8 @@ class FunctionStatement : BlockStatement
             var modarg = arg['modifiers'];
             if (modarg != null) {
                 var modarglist = modarg.getlist();
-                for (var mod in modarglist) {
+                for (var mod in modarglist)
                     e.print(' :', mod.getname());
-                }
             }
             e.say('');
         }
@@ -4777,6 +4801,15 @@ class FunctionStatement : BlockStatement
     {
         SyntaxError('continue not allowed here', pos);
     }
+}
+
+//*********************************************
+//            MethodStatement
+//*********************************************
+
+class MethodStatement : FunctionStatement
+{
+    function ismethod() { return 1; }
 }
 
 //*********************************************
@@ -4824,7 +4857,7 @@ class ClassStatement : Item
         t= tk.get();
         while (!t.isop('}')) {
             if (t.iskeyword('function')) {
-                var f= new FunctionStatement().parse(tk, self);
+                var f= new MethodStatement().parse(t, tk, self);
                 var functions= self.functions;
                 functions.push(f);
             }
@@ -4949,8 +4982,7 @@ class Namespace : Item, VarContainer
             }
             else if (t.iskeyword('function'))
             {
-                var f= new FunctionStatement();
-                f.parse(tk, self);
+                var f= new FunctionStatement().parse(t, tk, self);
                 var functions= self.functions;
                 functions.push(f);
                 self.items.push(f);
