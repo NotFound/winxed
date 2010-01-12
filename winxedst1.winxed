@@ -195,6 +195,10 @@ class Token
         default:
             r = '(unknown)';
         }
+	r += ' at ';
+	r += self.file;
+	r += ' line ';
+	r += self.line;
         return r;
     }
 }
@@ -435,6 +439,17 @@ function typetoregcheck(string type)
     }
 }
 
+function typetopirname(string regtype)
+{
+    switch(regtype) {
+    case REGint:    return 'int';
+    case REGfloat:  return 'num';
+    case REGstring: return 'string';
+    case REGvar:    return 'pmc';
+    default:        InternalError('Invalid reg type');
+    }
+}
+
 //*********************************************
 //            Emit
 //*********************************************
@@ -446,6 +461,8 @@ class Emit
     var line;
     var pendingf;
     var pendingl;
+    var predefs_used;
+
     function initialize(var handle)
     {
         self.handle= handle;
@@ -453,6 +470,18 @@ class Emit
         self.line= 0;
         self.pendingf= 0;
         self.pendingl= 0;
+        self.predefs_used = {};
+    }
+    function use_predef(string name)
+    {
+        var predefs_used = self.predefs_used;
+        predefs_used[name] = 1;
+    }
+    function predef_is_used(string name)
+    {
+        var predefs_used = self.predefs_used;
+        if (predefs_used[name] == null) return 0;
+        return 1;
     }
     function close()
     {
@@ -505,6 +534,28 @@ class Emit
     function comment(string s)
     {
         self.handle.print('# ' + s + "\n");
+    }
+    function emitlabel(string label, string comment [optional])
+    {
+        var handle = self.handle;
+        handle.print(label);
+        handle.print(':');
+        if (comment != null) {
+            handle.print(' # ');
+            handle.print(comment);
+        }
+        handle.print("\n");
+    }
+    function emitgoto(string label, string comment [optional])
+    {
+        var handle = self.handle;
+        handle.print('goto ');
+        handle.print(label);
+        if (comment != null) {
+            handle.print(' # ');
+            handle.print(comment);
+        }
+        handle.print("\n");
     }
 }
 
@@ -575,6 +626,7 @@ class PredefFunction
     }
     function expand(e, start, string result, args)
     {
+        e.use_predef(self.name);
         if (self.body instanceof 'String') {
             string body = self.body;
             int pos;
@@ -632,6 +684,14 @@ function getpredefs()
         new PredefFunction().set('die',
             'die {arg0}',
             REGvar, REGstring
+        ),
+        new PredefFunction().set('exit',
+            'exit {arg0}',
+            REGvar, REGint
+        ),
+        new PredefFunction().set('spawnw',
+            'spawnw {res}, {arg0}',
+            REGint, REGvar
         ),
         new PredefFunction().set('Error',
             "root_new {res}, ['parrot';'Exception']\n" +
@@ -694,17 +754,13 @@ function getpredefs()
             REGvar, REGstring, REGstring
         ),
         new PredefFunction().set('chomp',
-            "load_bytecode 'String/Utils.pbc'\n" +
-            ".local pmc util_chomp\n" + 
-            "util_chomp = get_root_global ['parrot';'String';'Utils'], 'chomp'\n" +
-            "{res} = util_chomp({arg0})",
+            "$P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'\n" +
+            "{res} = $P0({arg0})",
             REGstring, REGstring
         ),
         new PredefFunction().set('chomp',
-            "load_bytecode 'String/Utils.pbc'\n" +
-            ".local pmc util_chomp\n" +
-            "util_chomp = get_root_global ['parrot';'String';'Utils'], 'chomp'\n" +
-            "{res} = util_chomp({arg0}, {arg1})",
+            "$P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'\n" +
+            "{res} = $P0({arg0}, {arg1})",
             REGstring, REGstring, REGstring
         ),
         new PredefFunction().set('sqrt',
@@ -714,6 +770,14 @@ function getpredefs()
         new PredefFunction().set('pow',
             'pow {res}, {arg0}, {arg1}',
             REGfloat, REGfloat, REGfloat
+        ),
+        new PredefFunction().set('exp',
+            'exp {res}, {arg0}',
+            REGfloat, REGfloat
+        ),
+        new PredefFunction().set('ln',
+            'ln {res}, {arg0}',
+            REGfloat, REGfloat
         ),
         new PredefFunction().set('sin',
             'sin {res}, {arg0}',
@@ -742,6 +806,18 @@ function getpredefs()
         new PredefFunction().set('getinterp',
             'getinterp {res}',
             REGvar
+        ),
+        new PredefFunction().set('getattribute',
+            'getattribute {res}, {arg0}, {arg1}',
+            REGvar, REGvar, REGstring
+        ),
+        new PredefFunction().set('find_method',
+            'find_method {res}, {arg0}, {arg1}',
+            REGvar, REGvar, REGstring
+        ),
+        new PredefFunction().set('callmethodwithargs',
+            '{res} = {arg0}.{arg1}({arg2} :flat)',
+            REGvar, REGvar, REGvar, REGvar
         ),
         new PredefFunction().set('clone',
             'clone {res}, {arg0}',
@@ -781,6 +857,26 @@ function findpredef(string name, int nargs)
             return p;
     }
     return null;
+}
+
+//*********************************************
+//               CommonBase
+//*********************************************
+
+class CommonBase
+{
+    var start;
+    var owner;
+
+    function initbase(start, owner)
+    {
+        self.start = start;
+        self.owner = owner;
+    }
+    function annotate(e)
+    {
+        e.annotate(self.start);
+    }
 }
 
 //*********************************************
@@ -924,7 +1020,8 @@ function parseStatement(tk, owner)
         st = new ConstStatement();
         break;
     case 'var':
-        st = new VarStatement();
+        //st = new VarStatement();
+        return parseVar(t, tk, owner);
         break;
     case 'string':
         st = new StringStatement();
@@ -990,21 +1087,13 @@ function parseStatement(tk, owner)
 //            Statement
 //*********************************************
 
-class Statement : Item
+class Statement : Item, CommonBase
 {
-    var start;
-    var owner;
-
     function initstatement(start, owner)
     {
-        self.start = start;
-        self.owner = owner;
+        self.initbase(start, owner);
     }
     function isempty() { return 0; }
-    function annotate(e)
-    {
-        e.annotate(self.start);
-    }
     function createreg(string type)
     {
         return self.owner.createreg(type);
@@ -1051,6 +1140,7 @@ class Statement : Item
     }
     function optimize()
     {
+        InternalError('**checking**', self.start);
         // Return unchanged by default
         return self;
     }
@@ -1063,6 +1153,7 @@ class EmptyStatement : Statement
     {
         InternalError('Attempt to annotate empty statement');
     }
+    function optimize() { return self; }
     function emit(e)
     {
         // Do nothing
@@ -1090,6 +1181,7 @@ class ExternStatement : Statement
         self.path = path;
         return self;
     }
+    function optimize() { return self; }
     function emit(e)
     {
         string file;
@@ -1125,13 +1217,16 @@ class UsingStatement : Statement
         self.path = path;
         return self;
     }
+    function optimize() { return self; }
     function emit(e)
     {
         var path = self.path;
         string name = path.pop();
         self.annotate(e);
-        e.say('.local pmc ', name);
-        e.print('get_hll_global ', name, ', ');
+ 
+        string reg = self.createvar(name, REGvar);
+        e.print('get_hll_global ', reg, ', ');
+
         int n = path;
         switch (n) {
         case 0:
@@ -1240,11 +1335,8 @@ class BlockStatement : VarContainer, Statement
 //            Expr
 //*********************************************
 
-class Expr
+class Expr : CommonBase
 {
-    var owner;
-    var start;
-
     function issimple() { return 0; }
     function isliteral() { return 0; }
     function isintegerliteral() { return 0; }
@@ -1255,8 +1347,7 @@ class Expr
     function hascompilevalue() { return 0; }
     function initexpr(owner, start)
     {
-        self.owner = owner;
-        self.start = start;
+        self.initbase(start, owner);
     }
     function tempreg(type)
     {
@@ -1484,7 +1575,7 @@ class IdentifierExpr : SimpleExpr
     }
     function emit(e, result)
     {
-        e.annotate(self.name);
+        self.annotate(e);
         e.say('set ', result, ', ', self.getIdentifier());
     }
     function emit_get(e)
@@ -1493,15 +1584,28 @@ class IdentifierExpr : SimpleExpr
     }
     function emit_assign_get(e, expr)
     {
-        string typeright = expr.checkResult();
-        string rreg = expr.emit_get(e);
         string typeleft = self.checkResult();
         string lreg = self.emit_get(e);
-        e.annotate(self.start);
-        if (typeleft == REGvar && typeright != REGvar)
-            e.say('box ', lreg, ', ', rreg);
-        else
-            e.say('set ', lreg, ', ', rreg);
+        if (expr.isnull()) {
+            switch(typeleft) {
+            case REGstring:
+            case REGvar:
+                self.annotate(e);
+                e.say('null ', lreg);
+                break;
+            default:
+                SyntaxError("Can't assign null to that type", self.start);
+            }
+        }
+        else {
+            string typeright = expr.checkResult();
+            string rreg = expr.emit_get(e);
+            self.annotate(e);
+            if (typeleft == REGvar && typeright != REGvar)
+                e.say('box ', lreg, ', ', rreg);
+            else
+                e.say('set ', lreg, ', ', rreg);
+        }
         return lreg;
     }
 }
@@ -1593,7 +1697,7 @@ class OpUnaryMinusExpr : OpUnaryExpr
     function emit(e, result)
     {
         string reg = self.subexpr.emit_get(e);
-        e.annotate(self.start);
+        self.annotate(e);
         e.say('neg ', result, ', ', reg);
     }
 }
@@ -1614,7 +1718,7 @@ class OpNotExpr : OpUnaryExpr
     function emit(e, result)
     {
         string reg = self.subexpr.emit_get(e);
-        e.annotate(self.start);
+        self.annotate(e);
         string type = self.subexpr.checkResult();
         switch (type) {
         case REGint:
@@ -1652,7 +1756,7 @@ class OpPreIncExpr : OpUnaryExpr
     function emit_get(e)
     {
         string reg = self.subexpr.emit_get(e);
-        e.annotate(self.start);
+        self.annotate(e);
         e.say('inc ', reg);
         return reg;
     }
@@ -1674,7 +1778,7 @@ class OpPostIncExpr : OpUnaryExpr
     function emit(e, result)
     {
         string reg = self.subexpr.emit_get(e);
-        e.annotate(self.start);
+        self.annotate(e);
         e.say('set ', result, ', ', reg);
         e.say('inc ', reg);
         return reg;
@@ -1703,7 +1807,7 @@ class OpPreDecExpr : OpUnaryExpr
     function emit_get(e)
     {
         string reg = self.subexpr.emit_get(e);
-        e.annotate(self.start);
+        self.annotate(e);
         e.say('dec ', reg);
         return reg;
     }
@@ -1725,7 +1829,7 @@ class OpPostDecExpr : OpUnaryExpr
     function emit(e, result)
     {
         string reg = self.subexpr.emit_get(e);
-        e.annotate(self.start);
+        self.annotate(e);
         e.say('set ', result, ', ', reg);
         e.say('dec ', reg);
         return reg;
@@ -1769,7 +1873,7 @@ class OpAssignExpr : OpBaseAssignExpr
     function emit(e, result)
     {
         string reg = self.emit_get(e);
-        e.annotate(self.start);
+        self.annotate(e);
         if (result != '')
             e.say('set ', result, ', ', reg);
     }
@@ -1794,12 +1898,12 @@ class OpAssignToExpr : OpBaseAssignExpr
     function emit(e, result)
     {
         string reg = self.emit_get(e);
-        e.annotate(self.start);
+        self.annotate(e);
         e.say('assign ', result, ', ', reg);
     }
     function emit_get(e)
     {
-        e.annotate(self.start);
+        self.annotate(e);
         string reg = self.eleft.emit_get(e);
         string reg2 = self.eright.emit_get(e);
         e.say('assign ', reg, ', ', reg2);
@@ -1826,12 +1930,19 @@ class OpAddToExpr : OpBaseAssignExpr
     }
     function emit_get(e)
     {
-        string type = self.eleft.checkResult();
+        string ltype = self.eleft.checkResult();
+        string rtype = self.eright.checkResult();
         string reg = self.eleft.emit_get(e);
         string reg2 = self.eright.emit_get(e);
-        e.annotate(self.start);
-        if (type == REGstring)
+        self.annotate(e);
+        if (ltype == REGstring) {
+	    if (rtype != REGstring) {
+                string aux = self.tempreg(REGstring);
+		e.say(aux, ' = ', reg2);
+		reg2 = aux;
+	    }
             e.say('concat ', reg, ', ', reg2);
+        }
         else
             e.say('add ', reg, ', ', reg2);
         return reg;
@@ -1860,7 +1971,7 @@ class OpSubToExpr : OpBaseAssignExpr
         string type = self.eleft.checkResult();
         string reg = self.eleft.emit_get(e);
         string reg2 = self.eright.emit_get(e);
-        e.annotate(self.start);
+        self.annotate(e);
         e.say('sub ', reg, ', ', reg2);
         return reg;
     }
@@ -1877,7 +1988,7 @@ class ComparatorBaseExpr : OpBinaryExpr
         string rr = self.rexpr.checkResult();
         string regl = self.lexpr.emit_get(e);
         string regr = self.rexpr.emit_get(e);
-        e.annotate(self.start);
+        self.annotate(e);
         string aux;
         if (rl == REGfloat || rr == REGfloat)
         {
@@ -1944,7 +2055,7 @@ class OpIsNullExpr : NullCheckerExpr
     function emit(e, result)
     {
         string reg = self.expr.emit_get(e);
-        e.annotate(self.start);
+        self.annotate(e);
         e.say('isnull ', result, ', ', reg);
     }
 }
@@ -1954,7 +2065,7 @@ class OpNotNullExpr : NullCheckerExpr
     function emit(e, result)
     {
         string reg = self.expr.emit_get(e);
-        e.annotate(self.start);
+        self.annotate(e);
         e.say('isnull ', result, ', ', reg);
         e.say('not ', result);
     }
@@ -2336,7 +2447,7 @@ class OpMulExpr : OpBinaryExpr
                 rval = self.tempreg(REGint);
                 e.say('set ', rval, ', ', rreg);
             }
-            e.annotate(self.start);
+            self.annotate(e);
             e.say('repeat ', result, ', ', lreg, ', ', rval);
             return;
         }
@@ -2370,7 +2481,7 @@ class OpMulExpr : OpBinaryExpr
                 break;
             }
         }
-        e.annotate(self.start);
+        self.annotate(e);
         e.say('mul ', result, ', ', rleft, ', ', rright);
     }
 }
@@ -2401,7 +2512,7 @@ class OpDivExpr : OpBinaryExpr
             rreg = self.tempreg(REGfloat);
             rexpr.emit(e, rreg);
         }
-        e.annotate(self.start);
+        self.annotate(e);
         e.say('div ', result, ', ', lreg, ', ', rreg);
     }
 }
@@ -2432,7 +2543,7 @@ class OpModExpr : OpBinaryExpr
             rreg = self.tempreg(REGint);
             rexpr.emit(e, rreg);
         }
-        e.annotate(self.start);
+        self.annotate(e);
         e.say('mod ', result, ', ', lreg, ', ', rreg);
     }
 }
@@ -2463,7 +2574,7 @@ class OpCModExpr : OpBinaryExpr
             rreg = self.tempreg(REGint);
             rexpr.emit(e, rreg);
         }
-        e.annotate(self.start);
+        self.annotate(e);
         e.say('cmod ', result, ', ', lreg, ', ', rreg);
     }
 }
@@ -2574,8 +2685,10 @@ class CallExpr : Expr
         string call;
         if (funref.isidentifier()) {
             call = funref.checkIdentifier();
-            if (call == '')
-                call = funref.getName();
+            if (call == '') {
+                string aux = funref.getName();
+                call = "'" + aux + "'";
+            }
         }
         else {
             if (funref instanceof MemberExpr) {
@@ -2595,7 +2708,7 @@ class CallExpr : Expr
                 reg = arg.emit_get(e);
             argreg.push(reg);
         }
-        e.annotate(self.start);
+        self.annotate(e);
         if (result != null)
             e.print(result, ' = ');
 
@@ -2706,7 +2819,7 @@ class IndexExpr : Expr
     {
         self.initexpr(owner, start);
         self.left = subexp;
-        self.args = new 'ResizablePMCArray';
+        self.args = [];
         var t;
         do {
             var arg = parseExpr(tk, owner);
@@ -2714,6 +2827,15 @@ class IndexExpr : Expr
         } while ( (t= tk.get()).isop(','));
         if (! t.isop(']'))
             SyntaxError("Expected ']' or ',' in index expr", t);
+        return self;
+    }
+    function optimize()
+    {
+        self.left = self.left.optimize();
+        var args = self.args;
+        int n = args;
+        for (int i = 0; i < n; ++i)
+            args[i] = args[i].optimize();
         return self;
     }
     function emit(e, result)
@@ -2744,7 +2866,7 @@ class IndexExpr : Expr
             string argreg = arg.emit_get(e);
             argregs.push(argreg);
         }
-        e.annotate(self.start);
+        self.annotate(e);
         e.print(regleft, '[');
         string sep = '';
         for (string reg in argregs) {
@@ -2768,7 +2890,7 @@ class IndexExpr : Expr
         }
         else
             rreg = expr.emit_get(e);
-        e.annotate(self.start);
+        self.annotate(e);
         e.print(regleft, '[');
         string sep = '';
         for (string reg in argregs) {
@@ -2818,7 +2940,7 @@ class ArrayExpr : Expr
     }
     function emit_get(e)
     {
-        e.annotate(self.start);
+        self.annotate(e);
         string container = self.tempreg(REGvar);
         e.say('root_new ', container, ", ['parrot';'ResizablePMCArray']");
         string it_p = self.tempreg(REGvar);
@@ -2834,7 +2956,7 @@ class ArrayExpr : Expr
             default:
                 itemreg = item.emit_get(e);
             }
-            e.annotate(self.start);
+            self.annotate(e);
             e.say(container, ".'push'(", itemreg, ")");
         }
         return container;
@@ -2845,6 +2967,7 @@ class ArrayExpr : Expr
 
 class HashExpr : Expr
 {
+    var keys;
     var values;
 
     function checkResult() { return REGvar; }
@@ -2852,29 +2975,74 @@ class HashExpr : Expr
     {
         self.initexpr(owner, start);
         var t = tk.get();
-        var values = new 'Hash';
+        var keys = [];
+        var values = [];
         if (!t.isop('}')) {
             tk.unget(t);
             do {
+/*
                 t = tk.get();
                 if (!(t.isstring() || t.isidentifier()))
                     SyntaxError("Expected key", t);
                 string key = t;
+                values[key] = value;
+*/
+                var key = parseExpr(tk, owner);
                 ExpectOp(':', tk);
                 var value = parseExpr(tk, owner);
-                values[key] = value;
+                keys.push(key);
+                values.push(value);
+
             } while ((t = tk.get()).isop(','));
             if (! t.isop('}'))
                 SyntaxError("Expected ',' or '}'", t);
         }
+        self.keys = keys;
         self.values = values;
+        return self;
+    }
+    function optimize()
+    {
+        var keys = self.keys;
+        int n = keys;
+        for (int i = 0; i < n; ++i)
+            keys[i] = keys[i].optimize();
+        var values = self.values;
+        n = values;
+        for (int i = 0; i < n; ++i)
+            values[i] = values[i].optimize();
         return self;
     }
     function emit(e, result)
     {
-        e.annotate(self.start);
+        self.annotate(e);
         e.say('root_new ', result, ", ['parrot';'Hash']");
+        var keys = self.keys;
         var values = self.values;
+        int n = keys;
+        for (int i = 0; i < n; ++i) {
+            var key = keys[i];
+            string item;
+            if (key.isidentifier()) {
+                    string id = key.getName();
+                    item = self.tempreg(REGvar);
+                    e.say('get_hll_global ', item, ", '", id, "'");
+            }
+            else
+                item = key.emit_get(e);
+
+            var value = values[i];
+            string itemreg;
+            if (value.isidentifier()) {
+                    string id = value.getName();
+                    itemreg = self.tempreg(REGvar);
+                    e.say('get_hll_global ', itemreg, ", '", id, "'");
+            }
+            else
+                itemreg = value.emit_get(e);
+            e.say(result, '[', item, '] = ', itemreg);
+        }
+/*
         for (string item in values) {
             var value = values[item];
             string itemreg;
@@ -2893,6 +3061,7 @@ class HashExpr : Expr
                 InternalError('Failure in temp register allocation');
             e.say(result, '[', item, '] = ', itemreg);
         }
+*/
     }
     function emit_get(e)
     {
@@ -2951,7 +3120,7 @@ class NewExpr : Expr
     }
     function emit(e, result)
     {
-        e.annotate(self.start);
+        self.annotate(e);
         string reginit = '';
         if (self.initializer != null) {
             reginit = self.initializer.emit_get(e);
@@ -2968,8 +3137,13 @@ class NewExpr : Expr
         }
         else if (self.value.isstring())
             e.say('root_new ', result, ", ['parrot'; ", self.value, " ]", reginit);
-        else if (self.value.isidentifier())
-            e.say('new ', result, ", ['", self.value, "']", reginit);
+        else if (self.value.isidentifier()) {
+            var id = self.owner.getvar(self.value);
+            if (id == null)
+                e.say('new ', result, ", ['", self.value, "']", reginit);
+            else
+                e.say('new ', result, ", ", id['reg'], "", reginit);
+        }
         else
             InternalError('Unexpected type in new');
     }
@@ -3001,7 +3175,7 @@ class OpInstanceOfExpr : Expr
         else
             checkedval = checked;
         string r = self.eleft.emit_get(e);
-        e.annotate(self.start);
+        self.annotate(e);
         e.say('isa ', result, ', ', r, ', ', checkedval);
     }
 }
@@ -3510,10 +3684,13 @@ class LabelStatement : Statement
         self.value= value;
         return self;
     }
+    function optimize() { return self; }
     function emit(e)
     {
         self.annotate(e);
-        e.say(self.value, ': # label ', self.name);
+        string name = self.name;
+        string comment = 'label ' + name;
+        e.emitlabel(self.value, comment);
     }
 }
 
@@ -3535,11 +3712,47 @@ class GotoStatement : Statement
         ExpectOp(';', tk);
         return self;
     }
+    function optimize() { return self; }
     function emit(e)
     {
         self.annotate(e);
-        string value= self.getlabel(self.label);
-        e.say('goto ', value, ' # goto ', self.label);
+        string label = self.label;
+        string value= self.getlabel(label);
+        e.emitgoto(value, 'goto ' + label);
+    }
+}
+
+//*********************************************
+//          ConditionalStatement
+//*********************************************
+
+const int CONDisruntime = 0;
+const int CONDistrue = 1;
+const int CONDisfalse = 2;
+
+class ConditionalStatement : Statement
+{
+    var condition;
+    function parsecondition(tk)
+    {
+        ExpectOp('(', tk);
+        self.condition = parseExpr(tk, self);
+        ExpectOp(')', tk);
+    }
+    function typeofvalue()
+    {
+        var condition = self.condition;
+        if (condition.isliteral()) {
+            switch(condition.checkResult()) {
+            case REGint:
+                int n = condition.getIntegerValue();
+                if (n == 0)
+                    return CONDisfalse;
+                else
+                    return CONDistrue;
+            }
+        }
+        return CONDisruntime;
     }
 }
 
@@ -3547,20 +3760,16 @@ class GotoStatement : Statement
 //            IfStatement
 //*********************************************
 
-class IfStatement : Statement
+class IfStatement : ConditionalStatement
 {
-    var condition;
     var truebranch;
     var falsebranch;
     function parse(start, tk, owner)
     {
         self.initstatement(start, owner);
-        var t= tk.get();
-        RequireOp('(', t);
-        self.condition = parseExpr(tk, self);
-        ExpectOp(')', tk);
+        self.parsecondition(tk);
         self.truebranch = parseStatement(tk, self);
-        t = tk.get();
+        var t = tk.get();
         if (t.iskeyword("else"))
             self.falsebranch = parseStatement(tk, self);
         else {
@@ -3572,8 +3781,15 @@ class IfStatement : Statement
     function optimize()
     {
         self.condition = self.condition.optimize();
+        int checkvalue = self.typeofvalue();
         self.truebranch = self.truebranch.optimize();
         self.falsebranch = self.falsebranch.optimize();
+        switch (checkvalue) {
+        case CONDistrue:
+            return self.truebranch;
+        case CONDisfalse:
+            return self.falsebranch;
+        }
         return self;
     }
     function emit(e)
@@ -3614,11 +3830,11 @@ class IfStatement : Statement
         truebranch.emit(e);
 
         if (! f_empty) {
-            e.say('goto ', endlabel);
-            e.say(elselabel, ': # else');
+            e.emitgoto(endlabel);
+            e.emitlabel(elselabel, 'else');
             falsebranch.emit(e);
         }
-        e.say(endlabel, ': # endif');
+        e.emitlabel(endlabel, 'endif');
     }
 }
 
@@ -3626,19 +3842,14 @@ class IfStatement : Statement
 //            WhileStatement
 //*********************************************
 
-class WhileStatement : Continuable, Statement
+class WhileStatement : Continuable, ConditionalStatement
 {
-    var condition;
     var body;
 
     function parse(start, tk, owner)
     {
         self.initstatement(start, owner);
-        var t= tk.get();
-        RequireOp('(', t);
-        self.start = t;
-        self.condition = parseExpr(tk, self);
-        ExpectOp(')', tk);
+        self.parsecondition(tk);
         self.body = parseStatement(tk, self);
         return self;
     }
@@ -3654,7 +3865,7 @@ class WhileStatement : Continuable, Statement
         string continuelabel = self.gencontinuelabel();
 
         self.annotate(e);
-        e.say(continuelabel, ': # while');
+        e.emitlabel(continuelabel, 'while');
 
         var condition = self.condition;
         string type = condition.checkResult();
@@ -3673,7 +3884,7 @@ class WhileStatement : Continuable, Statement
 
         self.body.emit(e);
         e.say('goto ', continuelabel);
-        e.say(breaklabel, ': # endwhile');
+        e.emitlabel(breaklabel, 'endwhile');
     }
 }
 
@@ -3681,22 +3892,16 @@ class WhileStatement : Continuable, Statement
 //            DoStatement
 //*********************************************
 
-class DoStatement : Continuable, Statement
+class DoStatement : Continuable, ConditionalStatement
 {
-    var condition;
     var body;
 
     function parse(start, tk, owner)
     {
         self.initstatement(start, owner);
-        var t= tk.get();
-        tk.unget(t);
-
         self.body = parseStatement(tk, self);
         ExpectKeyword('while', tk);
-        ExpectOp('(', tk);
-        self.condition = parseExpr(tk, self);
-        ExpectOp(')', tk);
+        self.parsecondition(tk);
         return self;
     }
     function optimize()
@@ -3712,13 +3917,13 @@ class DoStatement : Continuable, Statement
         string continuelabel = self.gencontinuelabel();
 
         self.annotate(e);
-        e.say(looplabel, ': # do');
+        e.emitlabel(looplabel, 'do');
 
         self.body.emit(e);
 
         var condition = self.condition;
         string type = condition.checkResult();
-        e.say(continuelabel, ': # do while condition');
+        e.emitlabel(continuelabel, 'do while condition');
         string reg = condition.emit_get(e);
         switch(type) {
         case REGstring:
@@ -3731,7 +3936,7 @@ class DoStatement : Continuable, Statement
         default:
             InternalError('Invalid if condition');
         }
-        e.say(breaklabel, ': # enddo');
+        e.emitlabel(breaklabel, 'enddo');
     }
 }
 
@@ -3749,8 +3954,9 @@ class ContinueStatement : Statement
     }
     function emit(e)
     {
+        self.annotate(e);
         string label = self.getcontinuelabel(self.start);
-        e.say('goto ', label, ' # continue');
+        e.emitgoto(label, 'continue');
     }
 }
 
@@ -3766,10 +3972,12 @@ class BreakStatement : Statement
         ExpectOp(';', tk);
         return self;
     }
+    function optimize() { return self; }
     function emit(e)
     {
+        self.annotate(e);
         string label = self.getbreaklabel(self.start);
-        e.say('goto ', label, ' # break');
+        e.emitgoto(label, 'break');
     }
 }
 
@@ -3879,7 +4087,7 @@ class SwitchStatement : Breakable, Statement
             caseval.emit(e, regval);
             e.say('if ', reg, ' == ', regval, ' goto ', label);
         }
-        e.say('goto ', defaultlabel);
+        e.emitgoto(defaultlabel);
 
         // Emit cases
         e.comment('switch');
@@ -3888,18 +4096,17 @@ class SwitchStatement : Breakable, Statement
         int n = case_st;
         for (int i= 0; i < n; ++i) {
             string l = caselabel[i];
-            e.say(l, ': # case');
+            e.emitlabel(l, 'case');
             var casest = case_st[i];
             for (var st in casest)
                 st.emit(e);
         }
         // Emit default
-        e.say(defaultlabel, ': # default');
+        e.emitlabel(defaultlabel, 'default');
         for (var dst in self.default_st)
             dst.emit(e);
 
-        e.say(self.getbreaklabel(self.start), ':');
-        e.comment('switch end');
+        e.emitlabel(self.getbreaklabel(self.start), 'switch end');
     }
 }
 
@@ -3956,22 +4163,22 @@ class ForStatement : Continuable, BlockStatement
         string condlabel = self.genlabel();
         if (self.initializer != null)
             self.initializer.emit(e);
-        e.say('goto ', condlabel);
+        e.emitgoto(condlabel);
 
-        e.say(continuelabel, ': # for iteration');
+        e.emitlabel(continuelabel, 'for iteration');
         if (self.iteration != null)
             string unused = self.iteration.emit_get(e);
 
-        e.say(condlabel, ': # for condition');
+        e.emitlabel(condlabel, 'for condition');
         if (self.condition != null) {
             string regcond = self.condition.emit_get(e);
             e.say('unless ', regcond, ' goto ', breaklabel, ' # for end');
         }
 
         self.body.emit(e);
-        e.say('goto ', continuelabel, ' # for iteration');
+        e.emitgoto(continuelabel, 'for iteration');
 
-        e.say(breaklabel, ': # for end');
+        e.emitlabel(breaklabel, 'for end');
     }
 }
 
@@ -4021,12 +4228,12 @@ class ForeachStatement : Continuable, BlockStatement
         string breaklabel = self.genbreaklabel();
         e.say('iter ', iterator, ', ', regcont);
         e.say('set ', iterator, ', 0');
-        e.say(continuelabel, ': # for iteration');
+        e.emitlabel(continuelabel, 'for iteration');
         e.say('unless ', iterator, " goto ", breaklabel);
         e.say('shift ', itvar['reg'], ', ', iterator);
         self.body.emit(e);
-        e.say('goto ', continuelabel);
-        e.say(breaklabel, ': # endfor');
+        e.emitgoto(continuelabel);
+        e.emitlabel(breaklabel, 'endfor');
     }
 }
 
@@ -4136,6 +4343,7 @@ class TryStatement : BlockStatement
             exreg = self.tempreg(REGvar);
 
         self.annotate(e);
+        e.comment('try: create handler');
 
         e.say('new ', reghandler, ", 'ExceptionHandler'");
         e.say('set_addr ', reghandler, ', ', labelhandler);
@@ -4175,17 +4383,38 @@ class TryStatement : BlockStatement
         }
 
         e.say('push_eh ', reghandler);
-
+        e.comment('try: begin');
         self.stry.emit(e);
-        self.annotate(e);
-        e.say('goto ', labelpasthandler);
+        e.comment('try: end');
 
-        e.say(labelhandler, ':');
+        self.annotate(e);
+        e.emitgoto(labelpasthandler);
+
+        e.comment('catch');
+        e.emitlabel(labelhandler);
         e.say('.get_results(', exreg, ')');
         e.say('pop_eh');
         self.scatch.emit(e);
 
-        e.say(labelpasthandler, ':');
+        e.comment('catch end');
+        e.emitlabel(labelpasthandler);
+    }
+}
+
+//*********************************************
+//            VarBaseStatement
+//*********************************************
+
+class VarBaseStatement : Statement
+{
+    var name;
+    var reg;
+    function initvarbase(start, owner, name)
+    {
+        self.initstatement(start, owner);
+        self.name = name;
+        string reg= self.createvar(name, REGvar);
+        self.reg= reg;
     }
 }
 
@@ -4248,7 +4477,7 @@ class DeclareStatement : Statement
             t = tk.get();
             if (! t.isop('['))
                 SyntaxError("Array initializer expected", t);
-            self.init = new 'ResizablePMCArray';
+            self.init = [];
             t = tk.get();
             if (! t.isop(']')) {
                 tk.unget(t);
@@ -4313,7 +4542,7 @@ class DeclareStatement : Statement
                             e.say('null ', reg);
                             e.say('if_null ', ireg, ', ', auxlabel);
                             e.say('set ', reg, ', ', ireg);
-                            e.say(auxlabel, ':');
+                            e.emitlabel(auxlabel);
                         }
                         else
                             e.say('set ', reg, ', ', ireg);
@@ -4363,7 +4592,6 @@ class DeclareStatement : Statement
 
 class ConstStatement : Statement
 {
-    var start;
     var type;
     var name;
     var value;
@@ -4417,21 +4645,13 @@ class ConstStatement : Statement
 //            VarStatement
 //*********************************************
 
-class VarStatement : Statement
+class VarStatement : VarBaseStatement
 {
-    var name;
-    var reg;
     var init;
-    function parse(start, tk, owner)
+    function parse(start, tk, owner, name)
     {
-        self.initstatement(start, owner);
+        self.initvarbase(start, owner, name);
         var t= tk.get();
-        if (!t.isidentifier())
-            SyntaxError('Identifier expected', t);
-        self.name= t;
-        string reg= self.createvar(t, REGvar);
-        self.reg= reg;
-        t= tk.get();
         if (t.isop('=')) {
             self.init = parseExpr(tk, self);
             t= tk.get();
@@ -4451,18 +4671,22 @@ class VarStatement : Statement
         self.annotate(e);
         string name=  self.name;
         string reg = self.reg;
+        var init = self.init;
         e.comment('var ' + name + ': ' + reg);
-        if (self.init != null) {
-            string type = self.init.checkResult();
+        if (init != null)
+            if (init.isnull())
+                init = null;
+        if (init != null) {
+            string type = init.checkResult();
             switch (type) {
             case REGvar:
-                self.init.emit(e, reg);
+                init.emit(e, reg);
                 break;
             case REGstring:
             case REGint:
             case REGfloat:
                 string value = self.tempreg(type);
-                self.init.emit(e, value);
+                init.emit(e, value);
                 e.say('box ', reg, ', ', value);
                 break;
             default:
@@ -4471,6 +4695,80 @@ class VarStatement : Statement
         }
         else
             e.say('null ', reg);
+    }
+}
+
+class ResizableVarStatement : VarBaseStatement
+{
+    function parse(start, tk, owner, name)
+    {
+        self.initvarbase(start, owner, name);
+        var t = tk.get();
+        if (!t.isop(';'))
+            SyntaxError("Expected ';'", t);
+        return self;
+    }
+    function emit(var e)
+    {
+        self.annotate(e);
+        string name=  self.name;
+        string reg = self.reg;
+        e.comment('var ' + name + '[] : ' + reg);
+        e.say('new ', reg, ", 'ResizablePMCArray'");
+    }
+}
+
+class FixedVarStatement : VarBaseStatement
+{
+    var exprsize;
+
+    function parse(start, tk, owner, name)
+    {
+        self.initvarbase(start, owner, name);
+        self.exprsize = parseExpr(tk, self);
+        var t = tk.get();
+        if (!t.isop(']'))
+            SyntaxError("Expected ']'", t);
+        t = tk.get();
+        if (!t.isop(';'))
+            SyntaxError("Expected ';'", t);
+        return self;
+    }
+    function optimize()
+    {
+        self.exprsize = self.exprsize.optimize();
+        return self;
+    }
+    function emit(var e)
+    {
+        string regsize = self.exprsize.emit_get(e);
+        self.annotate(e);
+        string name=  self.name;
+        string reg = self.reg;
+        e.comment('var ' + name + '[] : ' + reg);
+        e.say('new ', reg, ", 'FixedPMCArray'");
+        e.say('assign ', reg, ', ', regsize);
+    }
+}
+
+function parseVar(start, tk, owner)
+{
+    var name = tk.get();
+    if (!name.isidentifier())
+        SyntaxError('Identifier expected', name);
+    var t = tk.get();
+    if (t.isop('[')) {
+        t = tk.get();
+        if (t.isop(']'))
+            return new ResizableVarStatement().parse(start, tk, owner, name); 
+        else {
+            tk.unget(t);
+            return new FixedVarStatement().parse(start, tk, owner, name); 
+        }
+    }
+    else {
+        tk.unget(t);
+        return new VarStatement().parse(start, tk, owner, name);
     }
 }
 
@@ -4612,8 +4910,10 @@ class RegisterStore
     {
         // Registers number 0 are reserved for temporary usage in predefs.
         self.nreg = 1;
-        self.tempreg= new 'ResizableStringArray';
-        self.freereg= new 'ResizableStringArray';
+        string tempreg[];
+        string freereg[];
+        self.tempreg= tempreg;
+        self.freereg= freereg;
     }
     function settype(string type)
     {
@@ -4648,7 +4948,8 @@ class RegisterStore
     {
         for (string s in self.tempreg)
             self.freereg.unshift(s);
-        self.tempreg= new 'ResizableStringArray';
+        string tempreg[];
+        self.tempreg= tempreg;
     }
 }
 
@@ -4746,7 +5047,7 @@ class FunctionStatement : BlockStatement
         }
         if (! t.isop('('))
             Expected('(', t);
-        self.args = new 'ResizablePMCArray';
+        self.args = [];
         t= tk.get();
         if (! t.isop(')')) {
             tk.unget(t);
@@ -4805,13 +5106,7 @@ class FunctionStatement : BlockStatement
         for (arg in args) {
             argname = arg['name'];
             a = self.getvar(argname);
-            string type = a['type'];
-            string ptype = 'pmc';
-            switch (type) {
-            case REGint: ptype = 'int'; break;
-            case REGfloat: ptype = 'num'; break;
-            case REGstring: ptype = 'string'; break;
-            }
+            string ptype = typetopirname(a['type']);
             e.print('.param ', ptype, ' ', argname);
             var modarg = arg['modifiers'];
             if (modarg != null) {
@@ -5099,7 +5394,20 @@ class MiniWinxed
     }
     function emit(var e)
     {
+        e.comment('Begin generated code');
+        e.say('');
+
         self.rootns.emit(e);
+
+        if (e.predef_is_used('chomp')) {
+            e.say(
+".sub 'initialize' :load :init :anon\n" +
+"  load_bytecode 'String/Utils.pbc'\n" +
+".end\n"
+            );
+        }
+
+        e.comment('End generated code');
     }
 }
 
