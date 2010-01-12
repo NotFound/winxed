@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 5-jan-2010
+// Revision 11-jan-2010
 
 // Winxed compiler stage 0.
 
@@ -1286,16 +1286,62 @@ private:
 
 //**********************************************************************
 
-class SwitchStatement : public BlockStatement
+class BreakableStatement : public BlockStatement
+{
+protected:
+    BreakableStatement(Block &block) :
+        BlockStatement(block)
+    { }
+    std::string getbreaklabel() const
+    {
+        if (breaklabel.empty())
+            InternalError("attempt to use break label before creating");
+        return breaklabel;
+    }
+    std::string genbreaklabel()
+    {
+        if (! breaklabel.empty())
+            InternalError("attempt to create break label twice");
+        breaklabel = genlabel();
+        return breaklabel;
+    }
+private:
+    std::string breaklabel;
+};
+
+class ContinuableStatement : public BreakableStatement
+{
+protected:
+    ContinuableStatement(Block &block) :
+        BreakableStatement(block)
+    { }
+    std::string getcontinuelabel() const
+    {
+        if (continuelabel.empty())
+            InternalError("attempt to use continue label before creating");
+        return continuelabel;
+    }
+    std::string gencontinuelabel()
+    {
+        if (! continuelabel.empty())
+            InternalError("attempt to create continue label twice");
+        continuelabel = genlabel();
+        return continuelabel;
+    }
+private:
+    std::string continuelabel;
+};
+
+//**********************************************************************
+
+class SwitchStatement : public BreakableStatement
 {
 public:
     SwitchStatement(Block &block, Tokenizer &tk);
 private:
     BaseStatement *optimize();
-    std::string getbreaklabel() const;
     void emit (Emit &e);
     BaseExpr *condition;
-    std::string breaklabel;
     std::vector<BaseExpr *> casevalue;
     std::vector<std::vector<BaseStatement *> > casest;
     std::vector<BaseStatement *> defaultst;
@@ -1317,53 +1363,41 @@ private:
 
 //**********************************************************************
 
-class WhileStatement : public BlockStatement
+class WhileStatement : public ContinuableStatement
 {
 public:
     WhileStatement(Block &block, Tokenizer &tk);
 private:
     BaseStatement *optimize();
-    std::string getbreaklabel() const;
-    std::string getcontinuelabel() const;
     void emit (Emit &e);
     Condition *condition;
     BaseStatement *st;
-    std::string labelcontinue;
-    std::string labelend;
 };
 
 //**********************************************************************
 
-class DoStatement : public BlockStatement
+class DoStatement : public ContinuableStatement
 {
 public:
     DoStatement(Block &block, Tokenizer &tk);
 private:
     BaseStatement *optimize();
-    std::string getbreaklabel() const;
-    std::string getcontinuelabel() const;
     void emit (Emit &e);
     Condition *condition;
     BaseStatement *st;
-    std::string labelcontinue;
-    std::string labelend;
 };
 
 //**********************************************************************
 
-class ForeachStatement : public BlockStatement
+class ForeachStatement : public ContinuableStatement
 {
 public:
     ForeachStatement(Block &block, Tokenizer &tk);
 private:
-    std::string getbreaklabel() const;
-    std::string getcontinuelabel() const;
     BaseStatement *optimize();
     void emit (Emit &e);
 
     Token start;
-    std::string continuelabel;
-    std::string breaklabel;
     std::string varname;
     char vartype;
     BaseExpr * container;
@@ -1372,18 +1406,14 @@ private:
 
 //**********************************************************************
 
-class ForStatement : public BlockStatement
+class ForStatement : public ContinuableStatement
 {
 public:
     ForStatement(Block &block, Tokenizer &tk);
 private:
-    std::string getbreaklabel() const;
-    std::string getcontinuelabel() const;
     BaseStatement *optimize();
     void emit (Emit &e);
 
-    std::string continuelabel;
-    std::string breaklabel;
     BaseStatement * initializer;
     BaseExpr * condition;
     BaseExpr * iteration;
@@ -1424,7 +1454,7 @@ private:
 class Function : protected FunctionModifiers, public FunctionBlock
 {
 public:
-    Function(Tokenizer &tk,
+    Function(Tokenizer &tk, const Token &st,
         Block &parent,
         const NamespaceKey & ns_a, const std::string &funcname);
     std::string getname() const { return name; }
@@ -1437,8 +1467,8 @@ public:
     virtual void emitbody (Emit &e);
     virtual ~Function() {}
 private:
+    const Token start;
     const NamespaceKey ns;
-    Token start;
     const std::string name;
     std::vector <std::string> params;
     class ParamInfo
@@ -4618,7 +4648,7 @@ void CompoundStatement::emit (Emit &e)
 //**********************************************************************
 
 ForeachStatement::ForeachStatement(Block &block, Tokenizer &tk) :
-    BlockStatement (block),
+    ContinuableStatement (block),
     vartype('\0'),
     container(0)
 {
@@ -4645,21 +4675,11 @@ BaseStatement *ForeachStatement::optimize()
     return this;
 }
 
-std::string ForeachStatement::getbreaklabel() const
-{
-    return breaklabel;
-}
-
-std::string ForeachStatement::getcontinuelabel() const
-{
-    return continuelabel;
-}
-
 void ForeachStatement::emit(Emit &e)
 {
     std::string label= genlabel();
-    continuelabel = label + "_FOR";
-    breaklabel= label + "_END";
+    std::string continuelabel = gencontinuelabel();
+    std::string breaklabel= genbreaklabel();
     std::string container_ = genlocalregister('P');
     if (container-> isstring() )
     {
@@ -4679,20 +4699,20 @@ void ForeachStatement::emit(Emit &e)
     e << ".local pmc " << iter << "\n" <<
         iter << " = iter " << container_ << "\n" <<
         iter << " = .ITERATE_FROM_START\n" <<
-        continuelabel << ":\n" <<
+        continuelabel << ": # FOR IN\n" <<
         "unless " << iter << " goto " << breaklabel<< "\n"
         "shift " << varname << ", " << iter << '\n'
         ;
     st->emit(e);
     e << "goto " << continuelabel << '\n' <<
-        breaklabel << ":\n";
+        breaklabel << ": # FOR IN END\n";
     freelocalregister(container_);
 }
 
 //**********************************************************************
 
 ForStatement::ForStatement(Block &block, Tokenizer &tk) :
-    BlockStatement (block),
+    ContinuableStatement (block),
     initializer(0),
     condition(0),
     iteration(0),
@@ -4730,25 +4750,15 @@ BaseStatement *ForStatement::optimize()
     return this;
 }
 
-std::string ForStatement::getbreaklabel() const
-{
-    return breaklabel;
-}
-
-std::string ForStatement::getcontinuelabel() const
-{
-    return continuelabel;
-}
-
 void ForStatement::emit(Emit &e)
 {
     e.comment("for loop");
 
-    continuelabel= genlabel();
+    std::string continuelabel= gencontinuelabel();
     std::string l_condition= (initializer && iteration) ?
         genlabel() :
         std::string();
-    breaklabel = genlabel();
+    std::string breaklabel = genbreaklabel();
     if (initializer)
     {
         initializer->emit(e);
@@ -5002,7 +5012,7 @@ std::string Condition::emit(Emit &e)
 //**********************************************************************
 
 SwitchStatement::SwitchStatement(Block &block, Tokenizer &tk) :
-    BlockStatement (block),
+    BreakableStatement (block),
     condition(0)
 {
     ExpectOp ('(', tk);
@@ -5069,11 +5079,6 @@ BaseStatement *SwitchStatement::optimize()
     return this;
 }
 
-std::string SwitchStatement::getbreaklabel() const
-{
-    return breaklabel;
-}
-
 void SwitchStatement::emit(Emit &e)
 {
     e.comment("switch");
@@ -5104,7 +5109,7 @@ void SwitchStatement::emit(Emit &e)
     }
 
     std::string defaultlabel= genlabel();
-    breaklabel= genlabel();
+    std::string breaklabel= genbreaklabel();
     std::vector<std::string> caselabel;
     for (size_t i= 0; i < casest.size(); ++i)
     {
@@ -5196,7 +5201,7 @@ void IfStatement::emit(Emit &e)
 //**********************************************************************
 
 WhileStatement::WhileStatement(Block &block, Tokenizer &tk) :
-    BlockStatement (block),
+    ContinuableStatement (block),
     st(new EmptyStatement())
 {
     condition = new Condition(*this, tk);
@@ -5218,26 +5223,14 @@ BaseStatement *WhileStatement::optimize()
     }
 }
 
-std::string WhileStatement::getbreaklabel() const
-{
-    return labelend;
-}
-
-std::string WhileStatement::getcontinuelabel() const
-{
-    return labelcontinue;
-}
-
 void WhileStatement::emit(Emit &e)
 {
-    std::string label= genlabel();
-    labelcontinue= label + "_WHILE";
-    labelend= label + "_ENDWHILE";
+    std::string labelcontinue= gencontinuelabel();
+    std::string labelend = genbreaklabel();
     bool forever= condition->getvalue() == Condition::CVtrue;
-    e << labelcontinue << ":\n";
+    e << labelcontinue << ": # WHILE\n";
     std::string reg;
-    if (! forever)
-    {
+    if (! forever) {
         reg= condition->emit(e);
         e << '\n';
     }
@@ -5251,14 +5244,14 @@ void WhileStatement::emit(Emit &e)
             e << "unless " << reg << " goto " << labelend << '\n';
         st->emit(e);
         e << "goto " << labelcontinue << '\n' <<
-            labelend << ":\n";
+            labelend << ": # END WHILE\n";
     }
 }
 
 //**********************************************************************
 
 DoStatement::DoStatement(Block &block, Tokenizer &tk) :
-    BlockStatement (block),
+    ContinuableStatement (block),
     st(new EmptyStatement())
 {
     st= parseStatement(*this, tk);
@@ -5275,29 +5268,19 @@ BaseStatement *DoStatement::optimize()
     return this;
 }
 
-std::string DoStatement::getbreaklabel() const
-{
-    return labelend;
-}
-
-std::string DoStatement::getcontinuelabel() const
-{
-    return labelcontinue;
-}
-
 void DoStatement::emit(Emit &e)
 {
-    std::string label= genlabel();
-    std::string labelstart= label + "_DO";
-    labelcontinue= label + "_DO_continue";
-    labelend= label + "_ENDDO";
+    std::string labelstart= genlabel();
+    std::string labelcontinue= gencontinuelabel();
+    std::string labelend= genbreaklabel();
     bool forever= condition->getvalue() == Condition::CVtrue;
     bool oneshot = condition->getvalue() == Condition::CVfalse;
-    e << labelstart << ":\n";
+
+    e << labelstart << ": # DO\n";
 
     if (!st->isempty())
         st->emit(e);
-    e << labelcontinue << ":\n";
+    e << labelcontinue << ": # DO CONTINUE\n";
     if (! forever)
     {
         if (!oneshot) {
@@ -5308,21 +5291,21 @@ void DoStatement::emit(Emit &e)
     }
     else
         e << "goto " << labelstart << '\n';
-    e << labelend << ":\n";
+    e << labelend << ": # END DO\n";
 }
 
 //**********************************************************************
 
-Function::Function(Tokenizer &tk,
+Function::Function(Tokenizer &tk, const Token &st,
         Block &parent,
         const NamespaceKey & ns_a, const std::string &funcname) :
     FunctionModifiers(parent, tk, ns_a),
     FunctionBlock(parent),
+    start(st),
     ns(ns_a), name(funcname)
 {
     Token t= tk.get();
     RequireOp('(', t);
-    start= t;
     t= tk.get ();
 
     if (!t.isop(')'))
@@ -5531,12 +5514,12 @@ private:
 class Method : public Function
 {
 public:
-    Method(Tokenizer &tk,
+    Method(Tokenizer &tk, const Token &st,
             Block &parent,
             const NamespaceKey & ns_a,
             Class &cl,
             const std::string &name) :
-        Function(tk, parent, ns_a, name),
+        Function(tk, st, parent, ns_a, name),
         myclass(cl)
     {
         genlocal("self", 'P');
@@ -5591,7 +5574,7 @@ Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
             Token name= tk.get();
             if (! name.isidentifier() )
                 throw Expected("method name", name);
-            Function *f = new Method (tk, *this, ns, *this, name.identifier());
+            Function *f = new Method (tk, t, *this, ns, *this, name.identifier());
             functions.push_back(f);
         }
         else if (t.iskeyword("var"))
@@ -5717,7 +5700,7 @@ void Winxed::parse (Tokenizer &tk)
             Token fname = tk.get();
             if (! fname.isidentifier() )
                 throw Expected("funcion name", fname);
-            Function *f = new Function (tk, *cur_nsblock, cur_namespace, fname.identifier());
+            Function *f = new Function (tk, t, *cur_nsblock, cur_namespace, fname.identifier());
             functions.push_back(f);
         }
         else if (t.isop('}'))
