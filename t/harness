@@ -16,8 +16,7 @@ function run_test(string filename, int stage)
     string s= 'parrot winxed.pbc --stage=' + strstage + ' ' + filename;
     debugmsg(s);
 
-    fh= new 'FileHandle';
-    fh.open(s, 'rp');
+    fh= open(s, 'rp');
     string test_output= fh.readall();
     fh.close();
     var output= split("\n", test_output);

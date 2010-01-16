@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 11-jan-2010
+// Revision 16-jan-2010
 
 // Winxed compiler stage 0.
 
@@ -26,13 +26,20 @@
 
 //**********************************************************************
 
+// Register types
+const char REGint    = 'I';
+const char REGstring = 'S';
+const char REGvar    = 'P';
+// Pseudotypes for predefined functions
+const char REGany    = '?';
+
 static const char * nameoftype(char ctype)
 {
     switch (ctype)
     {
-    case 'I': return "int";
-    case 'S': return "string";
-    case 'P': return "pmc";
+    case REGint:    return "int";
+    case REGstring: return "string";
+    case REGvar:    return "pmc";
     default:
         throw CompileError("Invalid type");
     }
@@ -40,9 +47,9 @@ static const char * nameoftype(char ctype)
 
 char nativetype(const Token &name)
 {
-    if (name.iskeyword("int")) return 'I';
-    else if (name.iskeyword("string")) return 'S';
-    else if (name.iskeyword("var")) return 'P';
+    if (name.iskeyword("int")) return REGint;
+    else if (name.iskeyword("string")) return REGstring;
+    else if (name.iskeyword("var")) return REGvar;
     else return '\0';
 }
 
@@ -239,81 +246,98 @@ private:
 };
 
 const PredefFunction PredefFunction::predefs[]= {
+    PredefFunction("int",
+        "{res} = {arg0}",
+        REGint, REGany),
+    PredefFunction("string",
+        "{res} = {arg0}",
+        REGstring, REGany),
     PredefFunction("die",
         "die {arg0}",
-        '\0', 'S'),
+        '\0', REGstring),
     PredefFunction("exit",
         "exit {arg0}",
-        '\0', 'I'),
+        '\0', REGint),
     PredefFunction("spawnw",
         "spawnw {res}, {arg0}",
-        'I', 'P'),
+        REGint, REGvar),
+    PredefFunction("open",
+        "root_new {res}, ['parrot';'FileHandle']\n"
+        "{res}.'open'({arg0})",
+        REGvar, REGstring),
+    PredefFunction("open",
+        "root_new {res}, ['parrot';'FileHandle']\n"
+        "{res}.'open'({arg0},{arg1})",
+        REGvar, REGstring, REGstring),
     PredefFunction("Error",
         "root_new {res}, ['parrot';'Exception']\n"
         "{res}['message'] = {arg0}\n"
-        , 'P', 'S'),
+        , REGvar, REGstring),
     PredefFunction("Error",
         "root_new {res}, ['parrot';'Exception']\n"
         "{res}['message'] = {arg0}\n"
         "{res}['severity'] = {arg1}\n"
-        , 'P', 'S', 'I'),
+        , REGvar, REGstring, REGint),
     PredefFunction("Error",
         "root_new {res}, ['parrot';'Exception']\n"
         "{res}['message'] = {arg0}\n"
         "{res}['severity'] = {arg1}\n"
         "{res}['type'] = {arg2}\n"
-        , 'P', 'S', 'I', 'I'),
+        , REGvar, REGstring, REGint, REGint),
     PredefFunction("length",
         "length {res}, {arg0}",
-        'I', 'S'),
+        REGint, REGstring),
     PredefFunction("substr",
         "substr {res}, {arg0}, {arg1}",
-        'S', 'S', 'I'),
+        REGstring, REGstring, REGint),
     PredefFunction("substr",
         "substr {res}, {arg0}, {arg1}, {arg2}",
-        'S', 'S', 'I', 'I'),
+        REGstring, REGstring, REGint, REGint),
     PredefFunction("indexof",
         "index {res}, {arg0}, {arg1}",
-        'I', 'S', 'S'),
+        REGint, REGstring, REGstring),
     PredefFunction("join",
         "join {res}, {arg0}, {arg1}",
-        'S', 'S', 'P'),
+        REGstring, REGstring, REGvar),
     PredefFunction("split",
         "split {res}, {arg0}, {arg1}",
-        'P', 'S', 'S'),
+        REGvar, REGstring, REGstring),
 
     // This is quick helper for Resizable...Array usage
     // while a better way is implemeneted.
     PredefFunction("__push_int",
         "push {arg0}, {arg1}",
-        '\0', 'P', 'I'),
+        '\0', REGvar, REGint),
     PredefFunction("__push_string",
         "push {arg0}, {arg1}",
-        '\0', 'P', 'S'),
+        '\0', REGvar, REGstring),
 
     PredefFunction("getinterp",
         "getinterp {res}",
-        'P'),
+        REGvar),
+    PredefFunction("get_class",
+        "get_class {res}, {arg0}",
+        REGvar, REGstring),
     PredefFunction("clone",
         "clone {res}, {arg0}",
-        'P', 'P'),
+        REGvar, REGvar),
     PredefFunction("compreg",
         "compreg {res}, {arg0}",
-        'P', 'S'),
+        REGvar, REGstring),
     PredefFunction("load_language",
         "load_language {arg0}\n"
         "compreg {res}, {arg0}",
-        'P', 'S'),
+        REGvar, REGstring),
     PredefFunction("load_language",
         "load_language {arg0}\n"
         "compreg {res}, {arg1}",
-        'P', 'S', 'S'),
+        REGvar, REGstring, REGstring),
     PredefFunction("loadlib",
         "loadlib {res}, {arg0}",
-        'P', 'S'),
+        REGvar, REGstring),
     PredefFunction("dlfunc",
         "dlfunc {res}, {arg0}, {arg1}, {arg2}",
-        'P', 'P', 'S', 'S')
+        REGvar, REGvar, REGstring, REGstring)
 };
 
 const size_t PredefFunction::numpredefs =
@@ -362,16 +386,21 @@ public:
     {
         switch(t)
         {
-        case 'I':
+        case REGint:
             if (!v.isinteger())
                 throw SyntaxError("Invalid const int value", v);
             break;
-        case 'S':
+        case REGstring:
             if (!v.isliteralstring())
                 throw SyntaxError("Invalid const string value", v);
             break;
+        case 'n':
+            // Special case
+            if (!v.isidentifier())
+                throw SyntaxError("Invalid const string value", v);
+            break;
         default:
-            InternalError("Invalid const type");
+            throw InternalError("Invalid const type");
         }
     }
     char type() const { return t; }
@@ -765,7 +794,7 @@ private:
 
 std::string FunctionBlock::genlocalregister(char type)
 {
-    if (type != 'I' && type != 'S' && type != 'P')
+    if (type != REGint && type != REGstring && type != REGvar)
         throw InternalError("invalid register type");
     std::ostringstream l;
     l << '$' << type << ++nreg;
@@ -779,9 +808,9 @@ void FunctionBlock::freelocalregister(const std::string &reg)
         throw InternalError("invalid free register");
     switch(reg.at(1))
     {
-    case 'I': freetempi.push_back(reg); break;
-    case 'S': freetemps.push_back(reg); break;
-    case 'P':  freetempp.push_back(reg); break;
+    case REGint:    freetempi.push_back(reg); break;
+    case REGstring: freetemps.push_back(reg); break;
+    case REGvar:    freetempp.push_back(reg); break;
     default: throw InternalError("invalid free register");
     }
 }
@@ -798,8 +827,8 @@ std::string FunctionBlock::genregister(char type)
 
 std::string FunctionBlock::gentemp(char type)
 {
-    std::vector<std::string> &usefree= type == 'I' ? freetempi :
-        type == 'S' ? freetemps : freetempp;
+    std::vector<std::string> &usefree= type == REGint ? freetempi :
+        type == REGstring ? freetemps : freetempp;
     std::string temp;
     if (usefree.size() > 0)
     {
@@ -811,9 +840,9 @@ std::string FunctionBlock::gentemp(char type)
         temp= genlocalregister(type);
         switch(type)
         {
-        case 'I': tempi.push_back(temp); break;
-        case 'S': temps.push_back(temp); break;
-        default:  tempp.push_back(temp); break;
+        case REGint:    tempi.push_back(temp); break;
+        case REGstring: temps.push_back(temp); break;
+        default:        tempp.push_back(temp); break;
         }
     }
     return temp;
@@ -973,9 +1002,9 @@ public:
     virtual bool isstring() const { return false; }
     char checkresult() const
     {
-        if (isinteger() ) return 'I';
-        else if (isstring() ) return 'S';
-        else return 'P';
+        if (isinteger() ) return REGint;
+        else if (isstring() ) return REGstring;
+        else return REGvar;
     }
     void optimize_branch(BaseExpr *&branch)
     { branch= branch->optimize(); }
@@ -1295,13 +1324,13 @@ protected:
     std::string getbreaklabel() const
     {
         if (breaklabel.empty())
-            InternalError("attempt to use break label before creating");
+            throw InternalError("attempt to use break label before creating");
         return breaklabel;
     }
     std::string genbreaklabel()
     {
         if (! breaklabel.empty())
-            InternalError("attempt to create break label twice");
+            throw InternalError("attempt to create break label twice");
         breaklabel = genlabel();
         return breaklabel;
     }
@@ -1318,13 +1347,13 @@ protected:
     std::string getcontinuelabel() const
     {
         if (continuelabel.empty())
-            InternalError("attempt to use continue label before creating");
+            throw InternalError("attempt to use continue label before creating");
         return continuelabel;
     }
     std::string gencontinuelabel()
     {
         if (! continuelabel.empty())
-            InternalError("attempt to create continue label twice");
+            throw InternalError("attempt to create continue label twice");
         continuelabel = genlabel();
         return continuelabel;
     }
@@ -1558,11 +1587,11 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
 
     switch(nativetype(t))
     {
-    case 'I':
+    case REGint:
         return new IntStatement(block, t, tk);
-    case 'S':
+    case REGstring:
         return new StringStatement(block, t, tk);
-    case 'P':
+    case REGvar:
         return new VarStatement(block, t, tk);
     default: /* Not a declaration */ ;
     }
@@ -1685,7 +1714,7 @@ void ArgumentList::prepare(Emit &e)
         {
             if (args[i]->isnull())
             {
-                std::string reg= gentemp('P');
+                std::string reg= gentemp(REGvar);
                 e << op_null(reg) << '\n';
                 argregs.push_back(reg);
             }
@@ -1808,27 +1837,29 @@ private:
         return t.identifier();
     }
     bool isinteger() const
-        { return checklocal(t.str()) == 'I'; }
+    {
+        return checklocal(t.str()) == REGint;
+    }
     int getintegervalue () const
     {
-        if (checkconstant(t.identifier()) == 'I')
+        if (checkconstant(t.identifier()) == REGint)
         {
             ConstantValue cv= getconstant(t.identifier());
-            if (cv.type () == 'I')
+            if (cv.type () == REGint)
                 return cv.value().getinteger();
         }
         throw SyntaxError("Not an integer value", t);
     }
     bool isstring() const
     {
-        return checklocal(t.str()) == 'S';
+        return checklocal(t.str()) == REGstring;
     }
     std::string getstringvalue() const
     {
-        if (checkconstant(t.identifier()) == 'S')
+        if (checkconstant(t.identifier()) == REGstring)
         {
             ConstantValue cv= getconstant(t.identifier());
-            if (cv.type () == 'S')
+            if (cv.type () == REGstring)
                 return cv.value().str();
         }
         throw SyntaxError("Not a string value", t);
@@ -1843,12 +1874,12 @@ BaseExpr *IdentifierExpr::optimize()
     char type= checkconstant(t.identifier());
     switch (type)
     {
-    case 'I':
+    case REGint:
         {
         Token value = getconstant(t.identifier()).value();
         return new IntegerExpr(*this, t, value.getinteger());
         }
-    case 'S':
+    case REGstring:
         {
         Token value = getconstant(t.identifier()).value();
         return new StringExpr(*this, value);
@@ -1926,9 +1957,9 @@ private:
     }
     void emit(Emit &e, const std::string &result)
     {
-        std::string arg= gentemp('I');
+        std::string arg= gentemp(REGint);
         expr->emit(e, arg);
-        std::string r= result.empty() ? gentemp('I') : result;
+        std::string r= result.empty() ? gentemp(REGint) : result;
         annotate(e);
         e << r << " = neg " << arg;
         if (! result.empty() )
@@ -1961,10 +1992,10 @@ private:
     }
     void emit(Emit &e, const std::string &result)
     {
-        std::string arg= gentemp(expr->isinteger() ? 'I' : 'P');
+        std::string arg= gentemp(expr->isinteger() ? REGint : REGvar);
         expr->emit(e, arg);
         std::string r= result.empty() ?
-            gentemp('I') :
+            gentemp(REGint) :
             result;
         annotate(e);
         if (expr->isinteger())
@@ -2049,7 +2080,7 @@ private:
     void emit(Emit &e, const std::string &result)
     {
         std::string var= getvar();
-        std::string reg= gentemp('I');
+        std::string reg= gentemp(REGint);
         annotate(e);
         e << reg << " = " << var << "\n"
             "inc " << var << '\n';
@@ -2071,7 +2102,7 @@ private:
     void emit(Emit &e, const std::string &result)
     {
         std::string var= getvar();
-        std::string reg= gentemp('I');
+        std::string reg= gentemp(REGint);
         annotate(e);
         e << reg << " = " << var << "\n"
             "dec " << var << '\n';
@@ -2190,74 +2221,88 @@ BaseExpr *OpEqualExpr::optimize()
 
 void OpEqualExpr::emit(Emit &e, const std::string &result)
 {
-    std::string res= gentemp('I');
+    char ltype = efirst->checkresult();
+    char rtype = esecond->checkresult();
+    std::string res= gentemp(REGint);
     if (efirst->isnull() || esecond->isnull())
     {
-        char type;
         std::string op;
         if (efirst->isnull())
         {
-            type= esecond->checkresult();
-            op= gentemp(type);
+            op= gentemp(rtype);
             esecond->emit(e, op);
         }
         else
         {
-            type= efirst->checkresult();
-            op= gentemp(type);
+            op= gentemp(ltype);
             efirst->emit(e, op);
         }
         e << op_isnull(res, op);
     }
-    else if (efirst->isinteger() && esecond->isinteger())
-    {
-        std::string op1= gentemp('I');
-        std::string op2= gentemp('I');
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
-        e << res << " = iseq " << op1 << " , " << op2;
-    }
-    else if (efirst->isstring() && esecond->isstring())
-    {
-        std::string op1= gentemp('S');
-        std::string op2= gentemp('S');
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
-        e << res << " = iseq " << op1 << " , " << op2;
-    }
     else
     {
-        std::string op1= gentemp('P');
-        std::string op2= gentemp('P');
-        if (efirst->isinteger() )
+        if (ltype == rtype)
         {
-            std::string aux= gentemp('I');
-            efirst->emit(e, aux);
-            e << op_box(res, aux) << '\n';
-        }
-        else if (efirst->isstring() )
-        {
-            std::string aux= gentemp('S');
-            efirst->emit(e, aux);
-            e << op_box(op1, aux) << '\n';
-        }
-        else
+            std::string op1= gentemp(ltype);
+            std::string op2= gentemp(rtype);
             efirst->emit(e, op1);
-        if (esecond->isinteger() )
-        {
-            std::string aux= gentemp('I');
-            esecond->emit(e, aux);
-            e << op_box(op2, aux) << '\n';
+            esecond->emit(e, op2);
+            e << res << " = iseq " << op1 << " , " << op2;
         }
-        else if (esecond->isstring() )
+        else if (ltype == REGvar && rtype == REGstring)
         {
-            std::string aux= gentemp('S');
+            std::string op1= gentemp(REGstring);
+            std::string op2= gentemp(REGstring);
+            std::string aux= gentemp(REGvar);
+            efirst->emit(e, aux);
+            esecond->emit(e, op2);
+            e << op1 << " = " << aux << '\n';
+            e << res << " = iseq " << op1 << " , " << op2;
+        }
+        else if (ltype == REGstring && rtype == REGvar)
+        {
+            std::string op1= gentemp(REGstring);
+            std::string op2= gentemp(REGstring);
+            std::string aux= gentemp(REGvar);
+            efirst->emit(e, op1);
             esecond->emit(e, aux);
-            e << op_box(op2, aux) << '\n';
+            e << op2 << " = " << aux << '\n';
+            e << res << " = iseq " << op1 << " , " << op2;
         }
         else
-            esecond->emit(e, op2);
-        e << res << " = iseq " << op1 << " , " << op2;
+        {
+            std::string op1= gentemp(REGvar);
+            std::string op2= gentemp(REGvar);
+            if (efirst->isinteger() )
+            {
+                std::string aux= gentemp(REGint);
+                efirst->emit(e, aux);
+                e << op_box(res, aux) << '\n';
+            }
+            else if (efirst->isstring() )
+            {
+                std::string aux= gentemp(REGstring);
+                efirst->emit(e, aux);
+                e << op_box(op1, aux) << '\n';
+            }
+            else
+                efirst->emit(e, op1);
+            if (esecond->isinteger() )
+            {
+                std::string aux= gentemp(REGint);
+                esecond->emit(e, aux);
+                e << op_box(op2, aux) << '\n';
+            }
+            else if (esecond->isstring() )
+            {
+                std::string aux= gentemp(REGstring);
+                esecond->emit(e, aux);
+                e << op_box(op2, aux) << '\n';
+            }
+            else
+                esecond->emit(e, op2);
+            e << res << " = iseq " << op1 << " , " << op2;
+        }
     }
     if (!result.empty())
         e << '\n' << result << " = " << res << '\n';
@@ -2296,7 +2341,7 @@ BaseExpr *OpNotEqualExpr::optimize()
 
 void OpNotEqualExpr::emit(Emit &e, const std::string &result)
 {
-    std::string res= gentemp('I');
+    std::string res= gentemp(REGint);
     if (efirst->isnull() || esecond->isnull())
     {
         char type;
@@ -2318,33 +2363,33 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
     }
     else if (efirst->isinteger() && esecond->isinteger())
     {
-        std::string op1= gentemp('I');
-        std::string op2= gentemp('I');
+        std::string op1= gentemp(REGint);
+        std::string op2= gentemp(REGint);
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = isne " << op1 << " , " << op2;
     }
     else if (efirst->isstring() && esecond->isstring())
     {
-        std::string op1= gentemp('S');
-        std::string op2= gentemp('S');
+        std::string op1= gentemp(REGstring);
+        std::string op2= gentemp(REGstring);
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = isne " << op1 << " , " << op2;
     }
     else
     {
-        std::string op1= gentemp('P');
-        std::string op2= gentemp('P');
+        std::string op1= gentemp(REGvar);
+        std::string op2= gentemp(REGvar);
         if (efirst->isinteger() )
         {
-            std::string aux= gentemp('I');
+            std::string aux= gentemp(REGint);
             efirst->emit(e, aux);
             e << op_box(op1, aux) << '\n';
         }
         else if (efirst->isstring() )
         {
-            std::string aux= gentemp('S');
+            std::string aux= gentemp(REGstring);
             efirst->emit(e, aux);
             e << op_box(op1, aux) << '\n';
         }
@@ -2352,13 +2397,13 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
             efirst->emit(e, op1);
         if (esecond->isinteger() )
         {
-            std::string aux= gentemp('I');
+            std::string aux= gentemp(REGint);
             esecond->emit(e, aux);
             e << op_box(op2, aux) << '\n';
         }
         else if (esecond->isstring() )
         {
-            std::string aux= gentemp('S');
+            std::string aux= gentemp(REGstring);
             esecond->emit(e, aux);
             e << op_box(op2, aux) << '\n';
         }
@@ -2389,24 +2434,24 @@ private:
 
 void ComparatorBaseExpr::emit(Emit &e, const std::string &result)
 {
-    std::string res= result.empty() ? gentemp('I') : result;
+    std::string res= result.empty() ? gentemp(REGint) : result;
     char type1= efirst->checkresult();
     char type2= esecond->checkresult();
-    if (type1 == 'I' || type2 == 'I')
+    if (type1 == REGint || type2 == REGint)
     {
-        std::string op1= gentemp('I');
-        std::string op2= gentemp('I');
-        if (type1 == 'I')
+        std::string op1= gentemp(REGint);
+        std::string op2= gentemp(REGint);
+        if (type1 == REGint)
             efirst->emit(e, op1);
         else {
-            std::string aux= gentemp('P');
+            std::string aux= gentemp(REGvar);
             efirst->emit(e, aux);
             e << op1 << " = " << aux << '\n';
         }
-        if (type2 == 'I')
+        if (type2 == REGint)
             esecond->emit(e, op2);
         else {
-            std::string aux= gentemp('P');
+            std::string aux= gentemp(REGvar);
             esecond->emit(e, aux);
             e << op2 << " = " << aux << '\n';
         }
@@ -2414,21 +2459,21 @@ void ComparatorBaseExpr::emit(Emit &e, const std::string &result)
         if (!result.empty())
             e << '\n';
     }
-    else if (type1 == 'S' || type2 == 'S')
+    else if (type1 == REGstring || type2 == REGstring)
     {
-        std::string op1= gentemp('S');
-        std::string op2= gentemp('S');
-        if (type1 == 'S')
+        std::string op1= gentemp(REGstring);
+        std::string op2= gentemp(REGstring);
+        if (type1 == REGstring)
             efirst->emit(e, op1);
         else {
-            std::string aux= gentemp('P');
+            std::string aux= gentemp(REGvar);
             efirst->emit(e, aux);
             e << op1 << " = " << aux << '\n';
         }
-        if (type2 == 'S')
+        if (type2 == REGstring)
             esecond->emit(e, op2);
         else {
-            std::string aux= gentemp('P');
+            std::string aux= gentemp(REGvar);
             esecond->emit(e, aux);
             e << op2 << " = " << aux << '\n';
         }
@@ -2438,8 +2483,8 @@ void ComparatorBaseExpr::emit(Emit &e, const std::string &result)
     }
     else
     {
-        std::string op1= gentemp('P');
-        std::string op2= gentemp('P');
+        std::string op1= gentemp(REGvar);
+        std::string op2= gentemp(REGvar);
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         emitop(e, res, op1, op2);
@@ -2545,10 +2590,10 @@ private:
             char type= checklocal(varname);
             switch (type)
             {
-            case 'I':
+            case REGint:
                 if (!(esecond->isinteger() || esecond->isstring()))
                 {
-                    std::string r= gentemp('P');
+                    std::string r= gentemp(REGvar);
                     esecond->emit(e, r);
                     e.annotate(start);
                     e << varname << " = " << r << '\n';
@@ -2560,7 +2605,7 @@ private:
                         esecond->emit(e, varname);
                     else
                     {
-                        std::string r= gentemp('I');
+                        std::string r= gentemp(REGint);
                         esecond->emit(e, r);
                         e.annotate(start);
                         e << varname << " = " << r << '\n';
@@ -2568,7 +2613,7 @@ private:
                     }
                 }
                 break;
-            case 'S':
+            case REGstring:
                 if (esecond->isnull())
                 {
                     e.annotate(start);
@@ -2576,7 +2621,7 @@ private:
                 }
                 else if (!(esecond->isinteger() || esecond->isstring()))
                 {
-                    std::string r= gentemp('S');
+                    std::string r= gentemp(REGstring);
                     esecond->emit(e, r);
                     e.annotate(start);
                     e << varname << " = " << r << '\n';
@@ -2588,7 +2633,7 @@ private:
                         esecond->emit(e, varname);
                     else
                     {
-                        std::string r= gentemp('S');
+                        std::string r= gentemp(REGstring);
                         esecond->emit(e, r);
                         e.annotate(start);
                         e << varname << " = " << r << '\n';
@@ -2657,11 +2702,11 @@ private:
             char type= checklocal(varname);
             switch(type)
             {
-            case 'I':
-            case 'S':
+            case REGint:
+            case REGstring:
                 if (!(esecond->isinteger() || esecond->isstring()))
                 {
-                    std::string r= gentemp(type == 'S' ? 'S' : 'P');
+                    std::string r= gentemp(type == REGstring ? REGstring : REGvar);
                     esecond->emit(e, r);
                     e.annotate(start);
                     e << varname << " = " << r << '\n';
@@ -2705,7 +2750,7 @@ private:
         {
             if (efirst->isstring())
             {
-                std::string reg= gentemp('S');
+                std::string reg= gentemp(REGstring);
                 esecond->emit(e, reg);
                 e << "concat " << efirst->getidentifier() <<
                     ", " << reg << '\n';
@@ -2803,28 +2848,28 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
 {
     if (efirst->isstring() && esecond->isstring())
     {
-        std::string res= result.empty() ? gentemp('S') : result;
-        std::string op1= gentemp('S');
-        std::string op2= gentemp('S');
+        std::string res= result.empty() ? gentemp(REGstring) : result;
+        std::string op1= gentemp(REGstring);
+        std::string op2= gentemp(REGstring);
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = concat " << op1 << " , " << op2;
     }
     else if (isinteger())
     {
-        std::string res= result.empty() ? gentemp('I') : result;
-        std::string op1= gentemp('I');
-        std::string op2= gentemp('I');
+        std::string res= result.empty() ? gentemp(REGint) : result;
+        std::string op1= gentemp(REGint);
+        std::string op2= gentemp(REGint);
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << op_add(res, op1, op2);
     }
     else if (efirst->isstring() && esecond->isinteger())
     {
-        std::string res= result.empty() ? gentemp('S') : result;
-        std::string op1= gentemp('S');
-        std::string op2= gentemp('I');
-        std::string op2_s= gentemp('S');
+        std::string res= result.empty() ? gentemp(REGstring) : result;
+        std::string op1= gentemp(REGstring);
+        std::string op2= gentemp(REGint);
+        std::string op2_s= gentemp(REGstring);
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << op_set(op2_s, op2) << '\n' <<
@@ -2832,10 +2877,10 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
     }
     else if (efirst->isinteger() && esecond->isstring())
     {
-        std::string res= result.empty() ? gentemp('S') : result;
-        std::string op1= gentemp('I');
-        std::string op2= gentemp('S');
-        std::string op1_s= gentemp('S');
+        std::string res= result.empty() ? gentemp(REGstring) : result;
+        std::string op1= gentemp(REGint);
+        std::string op2= gentemp(REGstring);
+        std::string op1_s= gentemp(REGstring);
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << op_set(op1_s, op1) << '\n' <<
@@ -2843,15 +2888,15 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
     }
     else
     {
-        std::string res= result.empty() ? gentemp('P') : result;
-        std::string op1= gentemp('P');
-        std::string op2= gentemp('P');
+        std::string res= result.empty() ? gentemp(REGvar) : result;
+        std::string op1= gentemp(REGvar);
+        std::string op2= gentemp(REGvar);
         switch (efirst->checkresult() )
         {
-        case 'I':
+        case REGint:
             e << op1 << " = new 'Integer'\n";
             break;
-        case 'S':
+        case REGstring:
             e << op1 << " = new 'String'\n";
             break;
         default:
@@ -2859,10 +2904,10 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
         }
         switch (esecond->checkresult() )
         {
-        case 'I':
+        case REGint:
             e << op2 << " = new 'Integer'\n";
             break;
-        case 'S':
+        case REGstring:
             e << op2 << " = new 'String'\n";
             break;
         default:
@@ -2912,9 +2957,9 @@ BaseExpr *OpSubExpr::optimize()
 
 void OpSubExpr::emit(Emit &e, const std::string &result)
 {
-    std::string res= result.empty() ? gentemp('I') : result;
-    std::string op1= gentemp('I');
-    std::string op2= gentemp('I');
+    std::string res= result.empty() ? gentemp(REGint) : result;
+    std::string op1= gentemp(REGint);
+    std::string op2= gentemp(REGint);
     efirst->emit(e, op1);
     esecond->emit(e, op2);
     e << op_sub(res, op1, op2);
@@ -2933,20 +2978,30 @@ public:
     { }
 private:
     bool isinteger() const { return true; }
-    void emit(Emit &e, const std::string &result);
+    void emit(Emit &e, const std::string &result)
+    {
+        std::string res= result.empty() ? gentemp(REGint) : result;
+        std::string op1= gentemp(REGint);
+        std::string op2= gentemp(REGint);
+        if (esecond->issimple())
+        {
+            efirst->emit(e, op1);
+            esecond->emit(e, op2);
+            e << res << " = or " << op1 << ", " << op2;
+        }
+        else
+        {
+            std::string l = genlocallabel();
+            efirst->emit(e, res);
+            e.annotate(start);
+            e << "if " << res << " goto " << l << '\n';
+            esecond->emit(e, res);
+            e << l << ":\n";
+        }
+        if (!result.empty())
+            e << '\n';
+    }
 };
-
-void OpBoolOrExpr::emit(Emit &e, const std::string &result)
-{
-    std::string res= result.empty() ? gentemp('I') : result;
-    std::string op1= gentemp('I');
-    std::string op2= gentemp('I');
-    efirst->emit(e, op1);
-    esecond->emit(e, op2);
-    e << res << " = or " << op1 << ", " << op2;
-    if (!result.empty())
-        e << '\n';
-}
 
 //**********************************************************************
 
@@ -2962,9 +3017,9 @@ private:
     bool isinteger() const { return true; }
     void emit(Emit &e, const std::string &result)
     {
-        std::string res= result.empty() ? gentemp('I') : result;
-        std::string op1= gentemp('I');
-        std::string op2= gentemp('I');
+        std::string res= result.empty() ? gentemp(REGint) : result;
+        std::string op1= gentemp(REGint);
+        std::string op2= gentemp(REGint);
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = band " << op1 << ", " << op2;
@@ -2987,9 +3042,9 @@ private:
     bool isinteger() const { return true; }
     void emit(Emit &e, const std::string &result)
     {
-        std::string res= result.empty() ? gentemp('I') : result;
-        std::string op1= gentemp('I');
-        std::string op2= gentemp('I');
+        std::string res= result.empty() ? gentemp(REGint) : result;
+        std::string op1= gentemp(REGint);
+        std::string op2= gentemp(REGint);
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << res << " = bor " << op1 << ", " << op2;
@@ -3006,7 +3061,8 @@ public:
     OpBoolAndExpr(BlockBase &block,
             Token t, BaseExpr *first, BaseExpr *second) :
         OpBaseExpr(block, t),
-        efirst(first), esecond(second)
+        efirst(first),
+        esecond(second)
     { }
 private:
     bool isinteger() const { return true; }
@@ -3016,22 +3072,33 @@ private:
         optimize_branch(esecond);
         return this;
     }
-    void emit(Emit &e, const std::string &result);
+    void emit(Emit &e, const std::string &result)
+    {
+        std::string res= result.empty() ? gentemp(REGint) : result;
+        std::string op1= gentemp(REGint);
+        std::string op2= gentemp(REGint);
+        if (esecond->issimple())
+        {
+            efirst->emit(e, op1);
+            esecond->emit(e, op2);
+            e.annotate(start);
+            e << res << " = and " << op1 << ", " << op2;
+        }
+        else
+        {
+            std::string l = genlocallabel();
+            efirst->emit(e, res);
+            e.annotate(start);
+            e << "unless " << res << " goto " << l << '\n';
+            esecond->emit(e, res);
+            e << l << ":\n";
+        }
+        if (!result.empty())
+            e << '\n';
+    }
     BaseExpr *efirst;
     BaseExpr *esecond;
 };
-
-void OpBoolAndExpr::emit(Emit &e, const std::string &result)
-{
-    std::string res= result.empty() ? gentemp('I') : result;
-    std::string op1= gentemp('I');
-    std::string op2= gentemp('I');
-    efirst->emit(e, op1);
-    esecond->emit(e, op2);
-    e << res << " = and " << op1 << ", " << op2;
-    if (!result.empty())
-        e << '\n';
-}
 
 //**********************************************************************
 
@@ -3061,16 +3128,16 @@ void OpMulExpr::emit(Emit &e, const std::string &result)
 {
     if (isstring())
     {
-        std::string res= result.empty() ? gentemp('S') : result;
-        std::string op1= gentemp('S');
-        std::string op2= gentemp('I');
+        std::string res= result.empty() ? gentemp(REGstring) : result;
+        std::string op1= gentemp(REGstring);
+        std::string op2= gentemp(REGint);
         efirst->emit(e, op1);
         esecond->emit(e, op2);
         e << "repeat " << res << ", " << op1 << ", " << op2;
     }
     else
     {
-        char type= efirst->isinteger() && esecond->isinteger() ? 'I' : 'P';
+        char type= efirst->isinteger() && esecond->isinteger() ? REGint : REGvar;
         std::string res= result.empty() ? gentemp(type) : result;
         std::string op1= gentemp(type);
         std::string op2= gentemp(type);
@@ -3095,19 +3162,19 @@ public:
 private:
     void emit(Emit &e, const std::string &result)
     {
-        char type= efirst->isinteger() && esecond->isinteger() ? 'I' : 'P';
+        char type= efirst->isinteger() && esecond->isinteger() ? REGint : REGvar;
         std::string res= result.empty() ? gentemp(type) : result;
         std::string op1= gentemp(type);
         std::string op2= gentemp(type);
-        if (efirst->isinteger() && type != 'I') {
-            std::string i1= gentemp('I');
+        if (efirst->isinteger() && type != REGint) {
+            std::string i1= gentemp(REGint);
             efirst->emit(e, i1);
             e << op_box(op1, i1);
         }
         else
             efirst->emit(e, op1);
-        if (esecond->isinteger() && type != 'I') {
-            std::string i2= gentemp('I');
+        if (esecond->isinteger() && type != REGint) {
+            std::string i2= gentemp(REGint);
             esecond->emit(e, i2);
             e << op_box(op2, i2) << '\n';
         }
@@ -3134,7 +3201,7 @@ public:
 private:
     void emit(Emit &e, const std::string &result)
     {
-        char type= efirst->isinteger() && esecond->isinteger() ? 'I' : 'P';
+        char type= efirst->isinteger() && esecond->isinteger() ? REGint : REGvar;
         std::string res= result.empty() ? gentemp(type) : result;
         std::string op1= gentemp(type);
         std::string op2= gentemp(type);
@@ -3160,7 +3227,7 @@ public:
 private:
     void emit(Emit &e, const std::string &result)
     {
-        char type= efirst->isinteger() && esecond->isinteger() ? 'I' : 'P';
+        char type= efirst->isinteger() && esecond->isinteger() ? REGint : REGvar;
         std::string res= result.empty() ? gentemp(type) : result;
         std::string op1= gentemp(type);
         std::string op2= gentemp(type);
@@ -3204,12 +3271,12 @@ private:
 
 void ArrayExpr::emit(Emit &e, const std::string &result)
 {
-    std::string reg = gentemp('P');
+    std::string reg = gentemp(REGvar);
     e << reg << " = root_new ['parrot';'ResizablePMCArray']\n";
     for (size_t i= 0; i < elems.size(); ++i)
     {
         BaseExpr *elem= elems[i];
-        std::string el = gentemp('P');
+        std::string el = gentemp(REGvar);
         if (elem->issimple() && !elem->isidentifier())
         {
             e << el << " = box ";
@@ -3295,24 +3362,24 @@ public:
                 reg= id;
             else
             {
-                reg = bl.gentemp('P');
+                reg = bl.gentemp(REGvar);
                 (*e) << "get_hll_global " << reg << ", '" <<
                     id << "'\n";
             }
         }
         else if (value->isinteger())
         {
-            reg = bl.gentemp('I');
+            reg = bl.gentemp(REGint);
             value->emit(*e, reg);
         }
         else if (value->isstring())
         {
-            reg = bl.gentemp('S');
+            reg = bl.gentemp(REGstring);
             value->emit(*e, reg);
         }
         else
         {
-            reg = bl.gentemp('P');
+            reg = bl.gentemp(REGvar);
             value->emit(*e, reg);
         }
         (*e) << r << " [" << elem.first << "] = " << reg << '\n';
@@ -3325,7 +3392,7 @@ private:
 
 void HashExpr::emit(Emit &e, const std::string &result)
 {
-    std::string reg = gentemp('P');
+    std::string reg = gentemp(REGvar);
     e << reg << " = root_new ['parrot';'Hash']\n";
     std::for_each(elems.begin(), elems.end(), EmitItem(e, *this, reg) );
     if (!result.empty())
@@ -3350,11 +3417,12 @@ public:
     }
     void emit(Emit &e, const std::string &result)
     {
-        std::string reg = gentemp('P');
+        std::string reg = gentemp(REGvar);
         std::string r = (result.empty() ||
                 (result[0] == '$' && result.substr(0, 2) != "$P") ) ?
-            gentemp('P') : result;
+            gentemp(REGvar) : result;
         left->emit(e, reg);
+        e.annotate(start);
         e << "getattribute " << r << ", " << reg <<
             ", '" << right.identifier() << "'\n";
         if (result != r)
@@ -3366,7 +3434,7 @@ public:
         char type= left->checkresult();
         switch(type)
         {
-        case 'I': case 'S':
+        case REGint: case REGstring:
             {
                 std::string aux= gentemp(type);
                 left->emit(e, aux);
@@ -3386,7 +3454,7 @@ public:
     {
         //std::cerr << typeid(right).name() << '\n';
         e.annotate(start);
-        std::string reg = gentemp('P');
+        std::string reg = gentemp(REGvar);
         left->emit(e, reg);
         char typevalue= value.checkresult();
         std::string regval= gentemp(typevalue);
@@ -3396,11 +3464,11 @@ public:
             value.emit(e, regval);
         e << '\n';
         std::string regattrval;
-        if (typevalue == 'P')
+        if (typevalue == REGvar)
             regattrval= regval;
         else
         {
-            regattrval= gentemp('P');
+            regattrval= gentemp(REGvar);
             e << op_box(regattrval, regval) << '\n';
         }
         e << "setattribute " << reg << ", '" << right.identifier() <<
@@ -3471,7 +3539,7 @@ bool FunctionCallExpr::isinteger() const
         std::string name= called->getidentifier();
         if (const PredefFunction *predef= PredefFunction::find(name, args.size()))
         {
-            return predef->resulttype() == 'I';
+            return predef->resulttype() == REGint;
         }
     }
     return false;
@@ -3484,7 +3552,7 @@ bool FunctionCallExpr::isstring() const
         std::string name= called->getidentifier();
         if (const PredefFunction *predef= PredefFunction::find(name, args.size()))
         {
-            return predef->resulttype() == 'S';
+            return predef->resulttype() == REGstring;
         }
     }
     return false;
@@ -3508,38 +3576,46 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
             char paramtype= predef->paramtype(i);
             switch (paramtype)
             {
-            case 'I':
+            case REGint:
                 if (arg.isliteralinteger())
                     argregs.push_back(arg.gettoken().str());
                 else if (arg.isinteger() && arg.isidentifier())
                     argregs.push_back(arg.getidentifier());
                 else
                 {
-                    std::string reg= gentemp('I');
+                    std::string reg= gentemp(REGint);
                     arg.emit(e, reg);
                     argregs.push_back(reg);
                 }
                 break;
-            case 'S':
+            case REGstring:
                 if (arg.isliteralstring())
                     argregs.push_back(arg.gettoken().pirliteralstring());
                 else if (arg.isstring() && arg.isidentifier())
                     argregs.push_back(arg.getidentifier());
                 else
                 {
-                    std::string reg= gentemp('S');
+                    std::string reg= gentemp(REGstring);
+                    arg.emit(e, reg);
+                    argregs.push_back(reg);
+                }
+                break;
+            case REGany:
+                {
+                    char type= arg.checkresult();
+                    std::string reg= gentemp(type);
                     arg.emit(e, reg);
                     argregs.push_back(reg);
                 }
                 break;
             default:
                 {
-                    std::string reg= gentemp('P');
+                    std::string reg= gentemp(REGvar);
                     char type= arg.checkresult();
                     switch(type)
                     {
-                    case 'I':
-                    case 'S':
+                    case REGint:
+                    case REGstring:
                         {
                         std::string reg2= gentemp(type);
                         arg.emit(e, reg2);
@@ -3555,7 +3631,6 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
         }
         if (predef->resulttype())
         {
-
             std::string r;
             if (result.empty())
                 r= gentemp(predef->resulttype());
@@ -3583,7 +3658,7 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
         {
             if (arg.isnull())
             {
-                std::string reg= gentemp('P');
+                std::string reg= gentemp(REGvar);
                 e << op_null(reg) << '\n';
                 argregs.push_back(reg);
             }
@@ -3604,10 +3679,10 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
     }
     else
     {
-        reg= gentemp('P');
+        reg= gentemp(REGvar);
         if (MemberExpr *me= dynamic_cast<MemberExpr*>(called))
         {
-            std::string mefun= gentemp('P');
+            std::string mefun= gentemp(REGvar);
             me->emitleft(e, mefun);
             e.annotate(start);
             e << reg << " = " << mefun << ".'" << me->getmember() << "'(";
@@ -3679,12 +3754,12 @@ private:
         else
             throw CompileError("Unimplemented", checked);
 
-        std::string reg= gentemp('P');
+        std::string reg= gentemp(REGvar);
         obj->emit(e, reg);
         e.annotate(start);
 
         if (result.empty() ) {
-            std::string regcheck = gentemp('I');
+            std::string regcheck = gentemp(REGint);
             e << op_isa(regcheck, reg, checkedval) << '\n';
         }
         else
@@ -3755,7 +3830,7 @@ void NewExpr::emit(Emit &e, const std::string &result)
     std::string reg;
     if (init)
     {
-        reg= gentemp('P');
+        reg= gentemp(REGvar);
         init->emit(e, reg);
     }
 
@@ -3844,7 +3919,7 @@ void IndexExpr::emitleft(Emit &e)
     {
         if (! arg[i]->issimple() )
         {
-            reg= gentemp('P');
+            reg= gentemp(REGvar);
             arg[i]->emit(e, reg);
             argvalue[i]= reg;
         }
@@ -3865,7 +3940,7 @@ void IndexExpr::emitassign(Emit &e, BaseExpr& value, const std::string &to)
 {
     std::string reg2;
     if (value.isnull()) {
-        reg2= gentemp('P');
+        reg2= gentemp(REGvar);
         e << op_null(reg2) << '\n';
     }
     else
@@ -4304,22 +4379,22 @@ BaseStatement *ValueStatement::optimize()
 
 void ValueStatement::emit (Emit &e, const std::string &name, char type)
 {
-    std::string arraytype(type == 'I' ? "Integer" : "String");
+    std::string arraytype(type == REGint ? "Integer" : "String");
     switch (vtype)
     {
     case ValueSimple:
         e.annotate(start);
-        e << ".local " << (type == 'I' ? "int" : "string") <<
+        e << ".local " << (type == REGint ? "int" : "string") <<
             ' ' << name << '\n';
         if (value.size() == 1)
         {
             char vtype= value[0]->checkresult();
-            if (vtype == 'I' || vtype == 'S' ||
+            if (vtype == REGint || vtype == REGstring ||
                     (dynamic_cast<IndexExpr *>(value[0])))
                 value[0]->emit(e, name);
             else
             {
-                std::string reg= gentemp('P');
+                std::string reg= gentemp(REGvar);
                 value[0]->emit(e, reg);
                 e << op_set(name, reg) << '\n';
             }
@@ -4336,7 +4411,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
             {
                 value[i]->emit(e, reg);
                 e << name << '[' << i << "] = " << reg << '\n';
-                if (type == 'P')
+                if (type == REGvar)
                     e << op_null(reg) << '\n';
             }
         }
@@ -4349,7 +4424,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
             vsize= esize->getintegervalue();
         else
         {
-            regsize= gentemp('I');
+            regsize= gentemp(REGint);
             esize->emit(e, regsize);
         }
         e << ".local pmc " << name << "\n"
@@ -4368,7 +4443,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
             {
                 value[i]->emit(e, reg);
                 e << name << '[' << i << "] = " << reg << '\n';
-                if (type == 'P')
+                if (type == REGvar)
                     e << op_null(reg) << '\n';
             }
         }
@@ -4389,13 +4464,13 @@ IntStatement::IntStatement(Block &block,  const Token &st, Tokenizer &tk) :
     t= tk.get();
     if (t.isop('['))
     {
-        genlocal(name, 'P');
+        genlocal(name, REGvar);
         parseArray(tk);
         t= tk.get();
     }
     else
     {
-        genlocal(name, 'I');
+        genlocal(name, REGint);
         if (t.isop('='))
         {
             value.push_back(parseExpr(block, tk));
@@ -4408,7 +4483,7 @@ IntStatement::IntStatement(Block &block,  const Token &st, Tokenizer &tk) :
 void IntStatement::emit (Emit &e)
 {
     e.annotate(start);
-    emit(e, name, 'I');
+    emit(e, name, REGint);
 }
 
 //**********************************************************************
@@ -4421,13 +4496,13 @@ StringStatement::StringStatement(Block & block, const Token &st, Tokenizer &tk) 
     t= tk.get();
     if (t.isop('['))
     {
-        genlocal(name, 'P');
+        genlocal(name, REGvar);
         parseArray(tk);
         t= tk.get();
     }
     else
     {
-        genlocal(name, 'S');
+        genlocal(name, REGstring);
         if (t.isop('='))
         {
             value.push_back(parseExpr(block, tk));
@@ -4440,7 +4515,7 @@ StringStatement::StringStatement(Block & block, const Token &st, Tokenizer &tk) 
 void StringStatement::emit (Emit &e)
 {
     e.annotate(start);
-    emit(e, name, 'S');
+    emit(e, name, REGstring);
 }
 
 //**********************************************************************
@@ -4450,7 +4525,7 @@ VarStatement::VarStatement(Block & block, const Token &st, Tokenizer &tk) :
 {
     Token t= tk.get();
     name= t.identifier();
-    genlocal(name, 'P');
+    genlocal(name, REGvar);
     t= tk.get();
     if (t.isop('='))
     {
@@ -4487,7 +4562,7 @@ ConstStatement::ConstStatement(Block & block, const Token &st, Tokenizer &tk) :
 {
     Token t= tk.get();
     type = nativetype(t);
-    if (type != 'I' && type != 'S')
+    if (type != REGint && type != REGstring)
         throw SyntaxError("Invalid const type", t);
     t= tk.get();
     name= t.identifier();
@@ -4527,7 +4602,7 @@ UsingStatement::UsingStatement(Block &bl,
         const std::string &name, const NamespaceKey &nspace) :
     n(name), ns(nspace)
 {
-    bl.genlocal(n, 'P');
+    bl.genlocal(n, REGvar);
 }
 
 void UsingStatement::emit (Emit &e)
@@ -4680,10 +4755,10 @@ void ForeachStatement::emit(Emit &e)
     std::string label= genlabel();
     std::string continuelabel = gencontinuelabel();
     std::string breaklabel= genbreaklabel();
-    std::string container_ = genlocalregister('P');
+    std::string container_ = genlocalregister(REGvar);
     if (container-> isstring() )
     {
-        std::string value= gentemp('S');
+        std::string value= gentemp(REGstring);
         container->emit(e, value);
         e.annotate(start);
         e << op_box(container_, value) << '\n';
@@ -4815,7 +4890,7 @@ void ThrowStatement::emit (Emit &e)
     }
     else
     {
-        std::string reg= gentemp('P');
+        std::string reg= gentemp(REGvar);
         excep->emit(e, reg);
         e << "throw " << reg << '\n';
     }
@@ -4864,10 +4939,10 @@ void TryStatement::emit (Emit &e)
     std::string handler = label + "_HANDLER";
     std::string pasthandler = label + "_PAST_HANDLER";
     std::string except = exname.empty() ?
-        gentemp('P') :
+        gentemp(REGvar) :
         exname;
 
-    std::string reghandler= gentemp('P');
+    std::string reghandler= gentemp(REGvar);
     e << reghandler << " = new 'ExceptionHandler'\n"
         "set_addr " << reghandler << ", " << handler << '\n';
     static const char * const ehattrs[] = {
@@ -4903,7 +4978,7 @@ void TryStatement::emit (Emit &e)
         handler << ":\n";
     if (!exname.empty() )
     {
-        genlocal(exname, 'P');
+        genlocal(exname, REGvar);
         e << ".local pmc " << exname << '\n';
     }
     e <<
@@ -4994,10 +5069,10 @@ std::string Condition::emit(Emit &e)
         char type= expr->checkresult();
         reg = gentemp(type);
         expr->emit(e, reg);
-        if (type == 'P' || type == 'S')
+        if (type == REGvar || type == REGstring)
         {
             std::string reg2= reg;
-            reg= gentemp('I');
+            reg= gentemp(REGint);
             std::string nocase= genlocallabel();
             e << reg << " = 0\n"
                 "if_null " << reg2 << ", " << nocase << "\n"
@@ -5086,16 +5161,16 @@ void SwitchStatement::emit(Emit &e)
     for (size_t i= 0; i < casevalue.size(); ++i)
     {
         BaseExpr &value= *casevalue[i];
-        char newtype = 'P';
+        char newtype = REGvar;
         if (value.isinteger())
-            newtype= 'I';
+            newtype= REGint;
         else if (value.isstring())
-            newtype= 'S';
+            newtype= REGstring;
         if (type == '\0')
             type= newtype;
         else
             if (type != newtype)
-                type= 'P';
+                type= REGvar;
     }
     std::string reg= gentemp(type);
 
@@ -5316,7 +5391,7 @@ Function::Function(Tokenizer &tk, const Token &st,
             t= tk.get();
             char ctype= nativetype(t);
             if (ctype == '\0')
-                ctype= 'P';
+                ctype= REGvar;
             else
                 t= tk.get();
             std::string name= t.identifier();
@@ -5522,7 +5597,7 @@ public:
         Function(tk, st, parent, ns_a, name),
         myclass(cl)
     {
-        genlocal("self", 'P');
+        genlocal("self", REGvar);
     }
     void emit (Emit &e)
     {

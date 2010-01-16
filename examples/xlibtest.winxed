@@ -10,6 +10,14 @@
 // Backspace key delete the last item drawed.
 // Delete key delete all lines.
 
+// Event selection masks
+// Warning: hexadecimals not available in stage 0
+const int KeyPressMask      = 0x00000001;
+const int ButtonPressMask   = 0x00000004;
+const int ButtonReleaseMask = 0x00000008;
+const int PointerMotionMask = 0x00000040;
+const int ExposureMask      = 0x00008000;
+
 function getKeycode(display, string keyname)
 {
     using Xlib.StringToKeysym;
@@ -36,9 +44,9 @@ function xlibtest [main] ()
     int white= display.WhitePixel();
     var window= display.CreateSimpleWindow(rootwin, 0, 0, 600, 400, 0, 0, white);
 
-    // KeyPressMask, ButtonPressMask, ButtonReleaseMask, PointerMotionMask,
-    // ExposureMask
-    window.SelectInput(1 | 4 | 8 | 64 | 32768);
+    window.SelectInput(KeyPressMask |
+        ButtonPressMask | ButtonReleaseMask | PointerMotionMask |
+        ExposureMask);
     window.StoreName('Hello, winxed!');
 
     window.Map();
