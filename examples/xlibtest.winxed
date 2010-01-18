@@ -18,6 +18,9 @@ const int ButtonReleaseMask = 0x00000008;
 const int PointerMotionMask = 0x00000040;
 const int ExposureMask      = 0x00008000;
 
+// Key for json line data
+const string JKEY_LINES = 'lines';
+
 function getKeycode(display, string keyname)
 {
     using Xlib.StringToKeysym;
@@ -25,8 +28,42 @@ function getKeycode(display, string keyname)
     return display.KeysymToKeycode(keysym);
 }
 
-function xlibtest [main] ()
+function load(string filename)
 {
+    var listline;
+    if (filename == null || filename == '')
+        listline = [];
+    else {
+        try {
+            var handle = open(filename);
+	    var jsondata = handle.readall();
+	    handle.close();
+	    var json = load_language('data_json');
+	    var object = json.compile(jsondata)();
+	    listline = object[JKEY_LINES];
+	}
+	catch() {
+            listline = [];
+	}
+    }
+    return listline;
+}
+
+function save(string filename, var listline)
+{
+    var object = { JKEY_LINES : listline };
+    using extern JSON;
+    var jsondata = _json(object);
+    var handle = open(filename, 'w');
+    handle.print(jsondata);
+    handle.print("\n");
+    handle.close();
+}
+
+function xlibtest [main] (args)
+{
+    string filename = args[1];
+
     using extern Xlib;
     using Xlib.DisplayName;
     using Xlib.OpenDisplay;
@@ -39,6 +76,7 @@ function xlibtest [main] ()
     int Escape = getKeycode(display, 'Escape');
     int Delete = getKeycode(display, 'Delete');
     int BackSpace = getKeycode(display, 'BackSpace');
+    int codeS = getKeycode(display, 'S');
 
     var rootwin= display.RootWindow();
     int white= display.WhitePixel();
@@ -56,7 +94,7 @@ function xlibtest [main] ()
     int oldx;
     int oldy;
 
-    var listline = [];
+    var listline = load(filename);
     var line;
     var event= newEvent();
     while (looping)
@@ -139,6 +177,9 @@ function xlibtest [main] ()
                 listline= new 'ResizablePMCArray';
                 window.ClearArea(0, 0, 0, 0, 1);
                 break;
+	    case codeS:
+	        save(filename, listline);
+	        break;
             }
             break;
         default:
