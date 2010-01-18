@@ -10,8 +10,9 @@ function read_data(string file)
 
 function main(argv)
 {
+    var data;
     try {
-        var data= read_data(argv[1]);
+        data= read_data(argv[1]);
     }
     catch (e)
     {
