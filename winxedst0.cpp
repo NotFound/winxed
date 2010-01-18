@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 16-jan-2010
+// Revision 17-jan-2010
 
 // Winxed compiler stage 0.
 
@@ -287,6 +287,12 @@ const PredefFunction PredefFunction::predefs[]= {
     PredefFunction("length",
         "length {res}, {arg0}",
         REGint, REGstring),
+    PredefFunction("ord",
+        "ord {res}, {arg0}",
+        REGint, REGstring),
+    PredefFunction("ord",
+        "ord {res}, {arg0}, {arg1}",
+        REGint, REGstring, REGstring),
     PredefFunction("substr",
         "substr {res}, {arg0}, {arg1}",
         REGstring, REGstring, REGint),
@@ -3121,33 +3127,42 @@ private:
         else
             return false;
     }
-    void emit(Emit &e, const std::string &result);
+    BaseExpr *optimize()
+    {
+        optimize_operands();
+        if (efirst->isliteralinteger() && esecond->isliteralinteger())
+        {
+            return new IntegerExpr(*this, start,
+                efirst->getintegervalue() * esecond->getintegervalue());
+        }
+        return this;
+    }
+    void emit(Emit &e, const std::string &result)
+    {
+        if (isstring())
+        {
+            std::string res= result.empty() ? gentemp(REGstring) : result;
+            std::string op1= gentemp(REGstring);
+            std::string op2= gentemp(REGint);
+            efirst->emit(e, op1);
+            esecond->emit(e, op2);
+            e << "repeat " << res << ", " << op1 << ", " << op2;
+        }
+        else
+        {
+            char type= efirst->isinteger() && esecond->isinteger() ? REGint : REGvar;
+            std::string res= result.empty() ? gentemp(type) : result;
+            std::string op1= gentemp(type);
+            std::string op2= gentemp(type);
+            efirst->emit(e, op1);
+            esecond->emit(e, op2);
+            e << op_mul(res, op1, op2);
+        }
+        if (!result.empty())
+            e << '\n';
+    }
 };
 
-void OpMulExpr::emit(Emit &e, const std::string &result)
-{
-    if (isstring())
-    {
-        std::string res= result.empty() ? gentemp(REGstring) : result;
-        std::string op1= gentemp(REGstring);
-        std::string op2= gentemp(REGint);
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
-        e << "repeat " << res << ", " << op1 << ", " << op2;
-    }
-    else
-    {
-        char type= efirst->isinteger() && esecond->isinteger() ? REGint : REGvar;
-        std::string res= result.empty() ? gentemp(type) : result;
-        std::string op1= gentemp(type);
-        std::string op2= gentemp(type);
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
-        e << op_mul(res, op1, op2);
-    }
-    if (!result.empty())
-        e << '\n';
-}
 
 //**********************************************************************
 
