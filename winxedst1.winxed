@@ -1,6 +1,8 @@
 #! winxed
 
-// Winxed stage 1 compiler
+/***********************************************************************
+                   Winxed stage 1 compiler
+***********************************************************************/
 
 //*********************************************
 //          Character test functions
@@ -334,17 +336,17 @@ function getcomment(tk, string start, int line)
 {
     string s= start;
     string c= tk.getchar();
-next:
-    while (c != '' && c != '*')
-    { s+= c; c= tk.getchar(); }
-    if (c == '')
-        TokenError("Unclosed comment", tk, line);
-    c= tk.getchar();
-    if (c == '')
-        TokenError("Unclosed comment", tk, line);
-    if (c != '/')
-    { s+= '*' + c; goto next; }
-    s+= '*/';
+    do {
+        while (c != '' && c != '*')
+        { s+= c; c = tk.getchar(); }
+        if (c == '')
+            TokenError("Unclosed comment", tk, line);
+        s+= c;
+        c= tk.getchar();
+        if (c == '')
+            TokenError("Unclosed comment", tk, line);
+    } while (c != '/');
+    s+= '/';
     return newToken(TypeComment, s, tk.filename, line);
 }
 
@@ -892,6 +894,20 @@ function getpredefs()
         new PredefFunction().set('clone',
             'clone {res}, {arg0}',
             REGvar, REGvar
+        ),
+        new PredefFunction().set('compreg',
+            'compreg {res}, {arg0}',
+            REGvar, REGstring
+        ),
+        new PredefFunction().set('load_language',
+            "load_language {arg0}\n" +
+            "compreg {res}, {arg0}",
+            REGvar, REGstring
+        ),
+        new PredefFunction().set('load_language',
+            "load_language {arg0}\n" +
+            "compreg {res}, {arg1}",
+            REGvar, REGstring, REGstring
         ),
         new PredefFunction().set('loadlib',
             'loadlib {res}, {arg0}',
@@ -2568,6 +2584,24 @@ class OpMulExpr : OpBinaryExpr
             return REGint;
         else
             return REGfloat;
+    }
+    function optimize()
+    {
+        self.optimizearg();
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        if (lexpr.isliteral() && rexpr.isliteral()) {
+            string ltype = lexpr.checkResult();
+            string rtype = rexpr.checkResult();
+            if (ltype == REGint && rtype == REGint) {
+                var lval = lexpr.numval;
+                int ln = lval;
+                var rval = rexpr.numval;
+                int rn = rval;
+                return new IntegerLiteral().set(self.owner, self.start, ln * rn);
+            }
+        }
+        return self;
     }
     function emit(e, result)
     {
