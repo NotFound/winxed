@@ -84,7 +84,7 @@ here:	p.push(a_1);
 	var c;
 	c = new 'Complex';
 	var q = [1, 2, "a", c] ;
-	int i = 0;
+	i = 0;
 	for (it in q) { say (i, "-> ", it); ++i;}
 
 	out();
