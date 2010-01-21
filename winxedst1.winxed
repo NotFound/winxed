@@ -4494,7 +4494,14 @@ class ForeachStatement : Continuable, BlockStatement
     function emit(e)
     {
         self.annotate(e);
-        string regcont = self.container.emit_get(e);
+        string regcont;
+        if (self.container.checkResult() == REGstring) {
+            string value = self.container.emit_get(e);
+            regcont = self.tempreg(REGvar);
+            e.say('box ', regcont, ', ', value);
+        }
+        else
+            regcont = self.container.emit_get(e);
         var itvar = self.getvar(self.varname);
         string iterator = self.createreg(REGvar);
         string continuelabel = self.gencontinuelabel();
