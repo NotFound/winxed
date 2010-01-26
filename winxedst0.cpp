@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 26-jan-2010
+// Revision 27-jan-2010
 
 // Winxed compiler stage 0.
 
@@ -205,10 +205,17 @@ void emit_group(const std::vector<T *> &group, Emit &e)
 class PredefFunction
 {
 public:
+    static const int VarArgs = -1;
     PredefFunction(const std::string &name, char typeresult, int nargs) :
         pname(name),
         tresult(typeresult),
         n(nargs)
+    {
+    }
+    PredefFunction(const std::string &name, char typeresult) :
+        pname(name),
+        tresult(typeresult),
+        n(VarArgs)
     {
     }
     static const PredefFunction *find(const std::string &name,
@@ -244,6 +251,7 @@ public:
         pbody(body),
         t0(type0), t1(type1), t2(type2), t3(type3)
     {}
+private:
     void emit(Emit &e, const std::string &result,
         const std::vector<std::string> args) const;
     char paramtype(size_t n) const
@@ -257,12 +265,61 @@ public:
         default: return '\0';
         }
     }
-private:
     const std::string pbody;
     char t0, t1, t2, t3;
 };
 
+class PredefFunctionVarargs : public PredefFunction
+{
+protected:
+    PredefFunctionVarargs(const std::string &name,
+            char typeresult) :
+        PredefFunction(name, typeresult)
+    { }
+    char paramtype(size_t n) const
+    {
+        return REGany;
+    }
+};
+
+class Predef_print : public PredefFunctionVarargs
+{
+public:
+    Predef_print() : PredefFunctionVarargs("print", '\0')
+    { }
+private:
+    void emit(Emit &e, const std::string &,
+        const std::vector<std::string> args) const
+    {
+        const size_t n = args.size();
+        for (size_t i= 0; i < n; ++i)
+            e << "print " << args[i] << '\n';
+    }
+};
+
+class Predef_say : public PredefFunctionVarargs
+{
+public:
+    Predef_say() : PredefFunctionVarargs("say", '\0')
+    { }
+private:
+    void emit(Emit &e, const std::string &,
+        const std::vector<std::string> args) const
+    {
+        const size_t n = args.size();
+        if (n > 0) {
+            for (size_t i= 0; i < n - 1; ++i)
+                e << "print " << args[i] << '\n';
+            e << "say " << args[n-1] << '\n';
+        }
+        else
+            e << "say ''\n";
+    }
+};
+
 const PredefFunction *PredefFunction::predefs[]= {
+    new Predef_print(),
+    new Predef_say(),
     new PredefFunctionFixargs("int",
         "{res} = {arg0}",
         REGint, REGany),
@@ -369,9 +426,12 @@ const size_t PredefFunction::numpredefs =
 const PredefFunction *PredefFunction::find(const std::string &name,
     size_t numargs)
 {
-    for (size_t i= 0; i < numpredefs; ++i)
-        if (predefs[i]->name_is(name) && predefs[i]->n == numargs)
+    for (size_t i= 0; i < numpredefs; ++i) {
+        int n = predefs[i]->n;
+        if ((n == PredefFunction::VarArgs || n == int(numargs)) &&
+                predefs[i]->name_is(name) )
             return predefs[i];
+    }
     return 0;
 }
 
