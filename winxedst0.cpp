@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 17-jan-2010
+// Revision 26-jan-2010
 
 // Winxed compiler stage 0.
 
@@ -205,26 +205,47 @@ void emit_group(const std::vector<T *> &group, Emit &e)
 class PredefFunction
 {
 public:
-    PredefFunction(const std::string &name,
+    PredefFunction(const std::string &name, char typeresult, int nargs) :
+        pname(name),
+        tresult(typeresult),
+        n(nargs)
+    {
+    }
+    static const PredefFunction *find(const std::string &name,
+        size_t numargs);
+    bool name_is(const std::string &name) const
+    { return pname == name; }
+    size_t numargs() const { return n; }
+    char resulttype() const { return tresult; }
+
+    virtual char paramtype(size_t n) const = 0;
+    virtual void emit(Emit &e, const std::string &result,
+        const std::vector<std::string> args) const = 0;
+private:
+    static const PredefFunction *predefs[];
+    static const size_t numpredefs;
+    const std::string pname;
+    char tresult;
+    unsigned int n;
+};
+
+class PredefFunctionFixargs : public PredefFunction
+{
+public:
+    PredefFunctionFixargs(const std::string &name,
             const std::string &body,
             char typeresult,
             char type0= '\0',
             char type1= '\0',
             char type2= '\0',
             char type3= '\0') :
-        pname(name), pbody(body),
-        tresult(typeresult),
-        t0(type0), t1(type1), t2(type2), t3(type3),
-        n(bool(type0) +bool(type1) + bool(type2) + bool(type3) )
+        PredefFunction(name, typeresult,
+                bool(type0) +bool(type1) + bool(type2) + bool(type3) ),
+        pbody(body),
+        t0(type0), t1(type1), t2(type2), t3(type3)
     {}
-    bool name_is(const std::string &name) const
-    { return pname == name; }
-    static const PredefFunction *find(const std::string &name,
-        size_t numargs);
     void emit(Emit &e, const std::string &result,
         const std::vector<std::string> args) const;
-    size_t numargs() const { return n; }
-    char resulttype() const { return tresult; }
     char paramtype(size_t n) const
     {
         switch(n)
@@ -237,111 +258,107 @@ public:
         }
     }
 private:
-    static const PredefFunction predefs[];
-    static const size_t numpredefs;
-    const std::string pname;
     const std::string pbody;
-    char tresult, t0, t1, t2, t3;
-    unsigned int n;
+    char t0, t1, t2, t3;
 };
 
-const PredefFunction PredefFunction::predefs[]= {
-    PredefFunction("int",
+const PredefFunction *PredefFunction::predefs[]= {
+    new PredefFunctionFixargs("int",
         "{res} = {arg0}",
         REGint, REGany),
-    PredefFunction("string",
+    new PredefFunctionFixargs("string",
         "{res} = {arg0}",
         REGstring, REGany),
-    PredefFunction("die",
+    new PredefFunctionFixargs("die",
         "die {arg0}",
         '\0', REGstring),
-    PredefFunction("exit",
+    new PredefFunctionFixargs("exit",
         "exit {arg0}",
         '\0', REGint),
-    PredefFunction("spawnw",
+    new PredefFunctionFixargs("spawnw",
         "spawnw {res}, {arg0}",
         REGint, REGvar),
-    PredefFunction("open",
+    new PredefFunctionFixargs("open",
         "root_new {res}, ['parrot';'FileHandle']\n"
         "{res}.'open'({arg0})",
         REGvar, REGstring),
-    PredefFunction("open",
+    new PredefFunctionFixargs("open",
         "root_new {res}, ['parrot';'FileHandle']\n"
         "{res}.'open'({arg0},{arg1})",
         REGvar, REGstring, REGstring),
-    PredefFunction("Error",
+    new PredefFunctionFixargs("Error",
         "root_new {res}, ['parrot';'Exception']\n"
         "{res}['message'] = {arg0}\n"
         , REGvar, REGstring),
-    PredefFunction("Error",
+    new PredefFunctionFixargs("Error",
         "root_new {res}, ['parrot';'Exception']\n"
         "{res}['message'] = {arg0}\n"
         "{res}['severity'] = {arg1}\n"
         , REGvar, REGstring, REGint),
-    PredefFunction("Error",
+    new PredefFunctionFixargs("Error",
         "root_new {res}, ['parrot';'Exception']\n"
         "{res}['message'] = {arg0}\n"
         "{res}['severity'] = {arg1}\n"
         "{res}['type'] = {arg2}\n"
         , REGvar, REGstring, REGint, REGint),
-    PredefFunction("length",
+    new PredefFunctionFixargs("length",
         "length {res}, {arg0}",
         REGint, REGstring),
-    PredefFunction("ord",
+    new PredefFunctionFixargs("ord",
         "ord {res}, {arg0}",
         REGint, REGstring),
-    PredefFunction("ord",
+    new PredefFunctionFixargs("ord",
         "ord {res}, {arg0}, {arg1}",
         REGint, REGstring, REGstring),
-    PredefFunction("substr",
+    new PredefFunctionFixargs("substr",
         "substr {res}, {arg0}, {arg1}",
         REGstring, REGstring, REGint),
-    PredefFunction("substr",
+    new PredefFunctionFixargs("substr",
         "substr {res}, {arg0}, {arg1}, {arg2}",
         REGstring, REGstring, REGint, REGint),
-    PredefFunction("indexof",
+    new PredefFunctionFixargs("indexof",
         "index {res}, {arg0}, {arg1}",
         REGint, REGstring, REGstring),
-    PredefFunction("join",
+    new PredefFunctionFixargs("join",
         "join {res}, {arg0}, {arg1}",
         REGstring, REGstring, REGvar),
-    PredefFunction("split",
+    new PredefFunctionFixargs("split",
         "split {res}, {arg0}, {arg1}",
         REGvar, REGstring, REGstring),
 
     // This is quick helper for Resizable...Array usage
     // while a better way is implemeneted.
-    PredefFunction("__push_int",
+    new PredefFunctionFixargs("__push_int",
         "push {arg0}, {arg1}",
         '\0', REGvar, REGint),
-    PredefFunction("__push_string",
+    new PredefFunctionFixargs("__push_string",
         "push {arg0}, {arg1}",
         '\0', REGvar, REGstring),
 
-    PredefFunction("getinterp",
+    new PredefFunctionFixargs("getinterp",
         "getinterp {res}",
         REGvar),
-    PredefFunction("get_class",
+    new PredefFunctionFixargs("get_class",
         "get_class {res}, {arg0}",
         REGvar, REGstring),
-    PredefFunction("clone",
+    new PredefFunctionFixargs("clone",
         "clone {res}, {arg0}",
         REGvar, REGvar),
-    PredefFunction("compreg",
+    new PredefFunctionFixargs("compreg",
         "compreg {res}, {arg0}",
         REGvar, REGstring),
-    PredefFunction("load_language",
+    new PredefFunctionFixargs("load_language",
         "load_language {arg0}\n"
         "compreg {res}, {arg0}",
         REGvar, REGstring),
-    PredefFunction("load_language",
+    new PredefFunctionFixargs("load_language",
         "load_language {arg0}\n"
         "compreg {res}, {arg1}",
         REGvar, REGstring, REGstring),
-    PredefFunction("loadlib",
+    new PredefFunctionFixargs("loadlib",
         "loadlib {res}, {arg0}",
         REGvar, REGstring),
-    PredefFunction("dlfunc",
+    new PredefFunctionFixargs("dlfunc",
         "dlfunc {res}, {arg0}, {arg1}, {arg2}",
         REGvar, REGvar, REGstring, REGstring)
 };
@@ -353,18 +370,18 @@ const PredefFunction *PredefFunction::find(const std::string &name,
     size_t numargs)
 {
     for (size_t i= 0; i < numpredefs; ++i)
-        if (predefs[i].name_is(name) && predefs[i].n == numargs)
-            return predefs + i;
+        if (predefs[i]->name_is(name) && predefs[i]->n == numargs)
+            return predefs[i];
     return 0;
 }
 
-void PredefFunction::emit(Emit &e, const std::string &result,
+void PredefFunctionFixargs::emit(Emit &e, const std::string &result,
     const std::vector<std::string> args) const
 {
     std::string body= pbody;
     const size_t n= args.size();
     size_t pos;
-    if (tresult)
+    if (resulttype())
         while ((pos= body.find("{res}")) != std::string::npos)
             body= body.replace(pos, 5, result);
     if (n > 0)
@@ -3552,7 +3569,8 @@ bool FunctionCallExpr::isinteger() const
     if (called->isidentifier())
     {
         std::string name= called->getidentifier();
-        if (const PredefFunction *predef= PredefFunction::find(name, args.size()))
+        if (const PredefFunction *predef=
+                PredefFunction::find(name, args.size()))
         {
             return predef->resulttype() == REGint;
         }
@@ -3565,7 +3583,8 @@ bool FunctionCallExpr::isstring() const
     if (called->isidentifier())
     {
         std::string name= called->getidentifier();
-        if (const PredefFunction *predef= PredefFunction::find(name, args.size()))
+        if (const PredefFunction *predef=
+                PredefFunction::find(name, args.size()))
         {
             return predef->resulttype() == REGstring;
         }
@@ -3582,7 +3601,8 @@ void FunctionCallExpr::emit(Emit &e, const std::string &result)
         e.annotate(called->gettoken());
         std::string name= called->getidentifier();
 
-    if (const PredefFunction *predef= PredefFunction::find(name, args.size()))
+    if (const PredefFunction *predef=
+            PredefFunction::find(name, args.size()))
     {
         std::vector<std::string> argregs;
         for (size_t i= 0; i < args.size(); ++i)
