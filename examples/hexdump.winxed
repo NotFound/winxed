@@ -1,0 +1,83 @@
+#! winxed
+// hexdump: hexadecimal dump utility
+// (C) 2010 Julian Albo
+
+/********************************************
+          Conversion functions
+*********************************************/
+
+const string hexdig = '0123456789ABCDEF';
+
+function tohex(int c)
+{
+    int cl = c % 16;
+    int ch = (c - cl) / 16;
+    return substr(hexdig, ch, 1) + substr(hexdig, cl, 1);
+}
+
+function wordtohex(int w)
+{
+    int wl = w % 256;
+    int wh = (w - wl) / 256;
+    return string(tohex(wh)) + string(tohex(wl));
+}
+
+function longtohex(int l)
+{
+    int ll = l % 65536;
+    int lh = (l - ll) / 65536;
+    return string(wordtohex(lh)) + string(wordtohex(ll));
+}
+
+/********************************************
+             main
+*********************************************/
+
+const int linesize = 16;
+const int blocksize = 16 * linesize;
+
+function hexdump [main](var args)
+{
+    string filename = args[1];
+    // Open in binary mode
+    var handle = open(filename, 'rb');
+
+    int pos = 0;
+    string buf;
+    while (length(buf = handle.read(blocksize)) > 0) {
+        int size = length(buf);
+        for (int line = 0; line < size; line+= linesize) {
+            print(longtohex(pos));
+            int lsize = linesize;
+            if (line + lsize > size)
+                lsize = size - line;
+
+            // Print codes
+            for (int i= 0; i < linesize; ++i) {
+                if ((i % 8) == 0) print(' ');
+                if (i < lsize) {
+                    int c = ord(substr(buf, line + i, 1));
+                    print(' ', tohex(c));
+                }
+                else
+                    print('   ');
+            }
+
+            // Print ascii characters
+            print('  |');
+            for (int i= 0; i < lsize; ++i) {
+                int c = ord(substr(buf, line + i, 1));
+                if (c > 31 && c < 128)
+                    print(substr(buf, line + i, 1));
+                else
+                    print('.');
+            }
+            say('|');
+
+            pos+= linesize;
+        }
+        say('');
+    }
+}
+
+// End of hexdump
