@@ -5,7 +5,6 @@
 
 #include "token.h"
 #include "errors.h"
-#include "predef.h"
 #include "emit.h"
 
 #include <string>
@@ -382,6 +381,14 @@ const PredefFunction *PredefFunction::predefs[]= {
     new PredefFunctionFixargs("split",
         "split {res}, {arg0}, {arg1}",
         REGvar, REGstring, REGstring),
+    new PredefFunctionFixargs("chomp",
+        "get_root_global $P0, ['parrot';'String';'Utils'], 'chomp'\n"
+        "{res} = $P0({arg0})",
+        REGstring, REGstring),
+    new PredefFunctionFixargs("chomp",
+        "get_root_global $P0, ['parrot';'String';'Utils'], 'chomp'\n"
+        "{res} = $P0({arg0}, {arg1})",
+        REGstring, REGstring, REGstring),
 
     // This is quick helper for Resizable...Array usage
     // while a better way is implemeneted.
@@ -5913,16 +5920,18 @@ void Winxed::emit (Emit &e)
 "#**************************************************\n"    
     ;
 
-    emit_predef(e.get());
-
-    e <<
-"#**************************************************\n\n"    
-    ;
     e.boxedcomment("Begin generated code");
 
     emit_group(namespaces, e);
     emit_group(classes, e);
     emit_group(functions, e);
+
+    //TODO: emit only initialization for things used.
+    e.comment("Initializations");
+    e <<
+        ".sub 'initialize' :load :init :anon\n"
+        "  load_bytecode 'String/Utils.pbc'\n"
+        ".end\n";
 
     e.boxedcomment("End generated code");
 }
