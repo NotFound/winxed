@@ -255,7 +255,16 @@ function getquoted(tk, string start, int line)
     while (c != '"') {
         if (c == '' || c == "\n")
             TokenError('Unterminated string', tk, line);
-        s+= c;
+        // Quick fix for escaped double quotes.
+        if (c == '\') {
+            string c2 = tk.getchar();
+            if (c2 == '' || c2 == "\n")
+                TokenError('Unterminated string', tk, line);
+            s+= c;
+            s+= c2;
+        }
+        else
+            s+= c;
         c= tk.getchar();
     }
     return newToken(TypeQuoted, s, tk.filename, line);
@@ -898,6 +907,10 @@ function getpredefs()
         new PredefFunction().set('compreg',
             'compreg {res}, {arg0}',
             REGvar, REGstring
+        ),
+        new PredefFunction().set('compreg',
+            'compreg {arg0}, {arg1}',
+            REGvar, REGstring, REGvar
         ),
         new PredefFunction().set('load_language',
             "load_language {arg0}\n" +
@@ -5741,6 +5754,37 @@ class MiniWinxed
     }
 }
 
+class WinxedCompiler
+{
+    function compile(string code)
+    {
+        var handlein = new 'StringHandle';
+        //handlein.encoding('utf8');
+        handlein.open('__eval__', 'w');
+        handlein.puts(code);
+        handlein.close();
+        handlein.open('__eval__', 'r');
+        var tk= new Tokenizer();
+        tk.init(handlein, '__eval__');
+        var winxed= new MiniWinxed();
+        winxed.parse(tk);
+        handlein.close();
+        winxed.optimize();
+        var handleout = new 'StringHandle';
+        handleout.open('__eval__', 'w');
+        var emit= new Emit();
+        emit.initialize(handleout);
+        winxed.emit(emit);
+        emit.close();
+        handleout.close();
+        string pircode = handleout.read(0);
+        say(pircode);
+        var pircomp = compreg('PIR');
+        var object = pircomp(pircode);
+        return object;
+    }
+}
+
 function miniwinxed_parser(tk, string outputfile)
 {
     var winxed= new MiniWinxed();
@@ -5763,6 +5807,12 @@ function miniwinxed_parser(tk, string outputfile)
 //*********************************************
 //            Main functions
 //*********************************************
+
+function initializer [init,load]()
+{
+    var comp = new WinxedCompiler();
+    compreg('WINXED', comp);
+}
 
 function stage1(argv)
 {
