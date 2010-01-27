@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 19-nov-2009
+// Revision 27-jan-2010
 
 #include "token.h"
 #include "errors.h"
@@ -197,6 +197,8 @@ std::string unquote (const std::string &s)
             r+= "\\t"; break;
         case '\\':
             r+= "\\\\"; break;
+        case '"':
+            r+= "\\\""; break;
         default:
             r+= c;
         }
@@ -273,6 +275,9 @@ std::string Tokenizer::quoted()
                 break;
             case '\\':
                 s+= '\\';
+                break;
+            case '"':
+                s+= '\"';
                 break;
             }
         }
