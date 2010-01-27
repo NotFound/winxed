@@ -40,10 +40,10 @@ help:
 
 stage0: winxedst0$(EXEEXT)
 
-winxedst0$(EXEEXT): winxedst0$(OBJEXT) token$(OBJEXT) errors$(OBJEXT) predef$(OBJEXT) emit$(OBJEXT)
-	$(CXX) -o winxedst0 winxedst0$(OBJEXT) token$(OBJEXT) errors$(OBJEXT) predef$(OBJEXT) emit$(OBJEXT)
+winxedst0$(EXEEXT): winxedst0$(OBJEXT) token$(OBJEXT) errors$(OBJEXT) emit$(OBJEXT)
+	$(CXX) -o winxedst0 winxedst0$(OBJEXT) token$(OBJEXT) errors$(OBJEXT) emit$(OBJEXT)
 
-winxedst0$(OBJEXT): winxedst0.cpp emit.h token.h errors.h predef.h
+winxedst0$(OBJEXT): winxedst0.cpp emit.h token.h errors.h
 	$(CXX) $(CFLAGS) -c winxedst0.cpp
 
 token$(OBJEXT): token.cpp token.h errors.h
@@ -51,9 +51,6 @@ token$(OBJEXT): token.cpp token.h errors.h
 
 errors$(OBJEXT): errors.cpp errors.h token.h
 	$(CXX) $(CFLAGS) -c errors.cpp
-
-predef$(OBJEXT): predef.cpp predef.h
-	$(CXX) $(CFLAGS) -c predef.cpp
 
 emit$(OBJEXT): emit.cpp emit.h token.h
 	$(CXX) $(CFLAGS) -c emit.cpp
