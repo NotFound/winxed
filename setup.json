@@ -1,0 +1,25 @@
+{
+    "name"             : "winxed",
+    "version"          : "0.0.0",
+
+    "abstract"         : "winxed compiler",
+    "description"      : "Parrot compiler for the Winxed language",
+    "keywords" : [
+        "winxed", "compiler"
+    ],
+
+    "copyright_holder" : "Julián Albo",
+    "license_type"     : "Artistic License 2.0",
+    "license_uri"      : "http://www.perlfoundation.org/artistic_license_2_0",
+
+    "checkout_uri" : "http://winxed.googlecode.com/svn/trunk",
+    "browser_uri"  : "http://code.google.com/p/winxed/source/browse/",
+    "project_uri"  : "http://winxed.org/",
+
+    "pbc_pir" : {
+        "winxed.pbc"    : "winxed.pir",
+	"winxedst1.pbc" : "winxedst1.pir",
+	"winxedst2.pbc" : "winxedst2.pir"
+    },
+    "inst_lang" : "winxed.pbc"
+}
