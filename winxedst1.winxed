@@ -5717,8 +5717,10 @@ class Namespace : Item, VarContainer
 }
 
 //*********************************************
-//            MiniWinxed
+//           Compiler classes
 //*********************************************
+
+const string EVAL_NAME = '__eval__';
 
 class MiniWinxed
 {
@@ -5760,18 +5762,18 @@ class WinxedCompiler
     {
         var handlein = new 'StringHandle';
         //handlein.encoding('utf8');
-        handlein.open('__eval__', 'w');
+        handlein.open(EVAL_NAME, 'w');
         handlein.puts(code);
         handlein.close();
-        handlein.open('__eval__', 'r');
+        handlein.open(EVAL_NAME, 'r');
         var tk= new Tokenizer();
-        tk.init(handlein, '__eval__');
+        tk.init(handlein, EVAL_NAME);
         var winxed= new MiniWinxed();
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
         var handleout = new 'StringHandle';
-        handleout.open('__eval__', 'w');
+        handleout.open(EVAL_NAME, 'w');
         var emit= new Emit();
         emit.initialize(handleout);
         winxed.emit(emit);
@@ -5846,10 +5848,10 @@ function stage1(argv)
         expr = opt_e;
         expr = 'function main[main](argv){' + expr + ';}';
         file = new 'StringHandle';
-        file.open('__eval__', 'w');
+        file.open(EVAL_NAME, 'w');
         file.puts(expr);
         file.close();
-        file.open('__eval__');
+        file.open(EVAL_NAME);
     }
 
     var t= new Tokenizer();
