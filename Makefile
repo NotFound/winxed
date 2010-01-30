@@ -100,6 +100,12 @@ winxed.pbc: winxed.pir
 winxed.pir: winxed.winxed winxedst0$(EXEEXT)
 	./winxedst0$(EXEEXT) -c winxed.winxed
 
+#-------------------------------
+#      Preinstall
+#-------------------------------
+
+pir: winxed.pir winxedst2.pir
+
 #-----------------------------------------------------------------------
 
 # Useful for some tests
