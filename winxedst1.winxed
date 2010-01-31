@@ -5465,7 +5465,7 @@ class FunctionStatement : BlockStatement
             argname = arg['name'];
             a = self.getvar(argname);
             string ptype = typetopirname(a['type']);
-            e.print('.param ', ptype, ' ', argname);
+            e.print('.param ', ptype, ' __', argname, '__');
             var modarg = arg['modifiers'];
             if (modarg != null) {
                 var modarglist = modarg.getlist();
@@ -5498,7 +5498,7 @@ class FunctionStatement : BlockStatement
         for (arg in args) {
             argname = arg['name'];
             a = self.getvar(argname);
-            e.say('set ', a['reg'], ', ', argname);
+            e.say('set ', a['reg'], ', __', argname, '__');
         }
         e.say();
         e.annotate(self.name);
