@@ -1484,6 +1484,30 @@ class SimpleExpr : Expr
 
 //*********************************************
 
+// Check if a condition is evaluable at runtime as true of false,
+// helper for conditional operators and statements.
+
+const int CONDisruntime = 0;
+const int CONDistrue = 1;
+const int CONDisfalse = 2;
+
+function checkCondition(condition)
+{
+    if (condition.isliteral()) {
+        switch(condition.checkResult()) {
+        case REGint:
+            int n = condition.getIntegerValue();
+            if (n == 0)
+                return CONDisfalse;
+            else
+                return CONDistrue;
+        }
+    }
+    return CONDisruntime;
+}
+
+//*********************************************
+
 class StringLiteral : SimpleExpr
 {
     var strval;
@@ -3474,6 +3498,70 @@ class OpInstanceOfExpr : Expr
 }
 
 //*********************************************
+
+class OpConditionalExpr : Expr
+{
+    // TODO
+    // Allow true and false branches to have different types,
+    // or give an error in that case.
+
+    var condition;
+    var etrue;
+    var efalse;
+
+    function set(owner, start, condition, etrue, efalse)
+    {
+        self.initexpr(owner, start);
+        self.condition = condition;
+        self.etrue = etrue;
+        self.efalse = efalse;
+        return self;
+    }
+    function optimize()
+    {
+        self.condition = self.condition.optimize();
+        switch (checkCondition(self.condition)) {
+        case CONDistrue:
+            return self.etrue.optimize();
+        case CONDisfalse:
+            return self.efalse.optimize();
+        default:
+            self.etrue = self.etrue.optimize();
+            self.efalse = self.efalse.optimize();
+            return self;
+        }
+    }
+    function checkResult()
+    { 
+        return self.etrue.checkResult();
+    }
+    function emit(e, result)
+    {
+        string cond_end = self.owner.genlabel();
+        string cond_false = self.owner.genlabel();
+        string reg = self.condition.emit_get(e);
+
+        string type = self.condition.checkResult();
+        switch(type) {
+        case REGstring:
+        case REGvar:
+            e.say('if_null ', reg, ', ', cond_false);
+        case REGint:
+        case REGfloat:
+            e.say('unless ', reg, ' goto ', cond_false);
+            break;
+        default:
+            InternalError('Invalid if condition');
+        }
+        self.etrue.emit(e, result);
+        e.emitgoto(cond_end);
+        e.emitlabel(cond_false);
+        self.efalse.emit(e, result);
+        e.emitlabel(cond_end);
+    }
+}
+
+//*********************************************
 //           Expressions parser
 //*********************************************
 
@@ -3798,9 +3886,25 @@ function parseExpr_14(tk, owner)
     return eleft;
 }
 
+function parseExpr_15(tk, owner)
+{
+    var econd = parseExpr_14(tk, owner);
+    var t = tk.get();
+    if (t.isop('?')) {
+        var etrue = parseExpr_16(tk, owner);
+        ExpectOp(':', tk);
+        var efalse = parseExpr_16(tk, owner);
+        return new OpConditionalExpr().set(owner, t, econd, etrue, efalse);
+    }
+    else {
+        tk.unget(t);
+        return econd;
+    }
+}
+
 function parseExpr_16(tk, owner)
 {
-    var eleft = parseExpr_14(tk, owner);
+    var eleft = parseExpr_15(tk, owner);
     var t;
     int code;
     while ((code = getOpCode_16(t = tk.get())) != Code_none ) {
@@ -4019,10 +4123,6 @@ class GotoStatement : Statement
 //          ConditionalStatement
 //*********************************************
 
-const int CONDisruntime = 0;
-const int CONDistrue = 1;
-const int CONDisfalse = 2;
-
 class ConditionalStatement : Statement
 {
     var condition;
@@ -4034,18 +4134,7 @@ class ConditionalStatement : Statement
     }
     function typeofvalue()
     {
-        var condition = self.condition;
-        if (condition.isliteral()) {
-            switch(condition.checkResult()) {
-            case REGint:
-                int n = condition.getIntegerValue();
-                if (n == 0)
-                    return CONDisfalse;
-                else
-                    return CONDistrue;
-            }
-        }
-        return CONDisruntime;
+        return checkCondition(self.condition);
     }
 }
 
