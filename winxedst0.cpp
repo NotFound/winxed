@@ -4093,7 +4093,63 @@ void IndexExpr::emitassign(Emit &e, BaseExpr& value, const std::string &to)
 
 //**********************************************************************
 
+class OpConditionalExpr : public BaseExpr
+{
+public:
+    OpConditionalExpr(BlockBase &block, const Token &start,
+            BaseExpr *condition, BaseExpr *etrue, BaseExpr *efalse) :
+        BaseExpr(block),
+        exprcond(condition),
+        exprtrue(etrue),
+        exprfalse(efalse)
+    {
+    }
+private:
+    bool isinteger() const { return exprtrue->isinteger(); }
+    bool isstring() const { return exprtrue->isstring(); }
+    BaseExpr *optimize()
+    {
+        exprcond= exprcond->optimize();
+        if (exprcond->issimple())
+        {
+            if (exprcond->isnull())
+                return exprfalse->optimize();
+            if (exprcond->isliteralinteger())
+            {
+                int n = exprcond->getintegervalue();
+                if (n != 0)
+                    return exprtrue->optimize();
+                else
+                    return exprfalse->optimize();
+            }
+        }
+        exprtrue = exprtrue->optimize();
+        exprfalse = exprfalse->optimize();
+        return this;
+    }
+    void emit(Emit &e, const std::string &result)
+    {
+        std::string label_false= genlocallabel();
+        std::string label_end= genlocallabel();
+        std::string regcond = gentemp(REGint);
+        exprcond->emit(e, regcond);
+        e << "\n";
+        e << "unless " << regcond << " goto " << label_false << '\n';
+        exprtrue->emit(e, result);
+        e << "goto " << label_end << '\n';
+        e << label_false << ":\n";
+        exprfalse->emit(e, result);
+        e << label_end << ":\n";
+    }
+    BaseExpr *exprcond;
+    BaseExpr *exprtrue;
+    BaseExpr *exprfalse;
+};
+
+//**********************************************************************
+
 BaseExpr * parseExpr_16(BlockBase &block, Tokenizer &tk);
+BaseExpr * parseExpr_15(BlockBase &block, Tokenizer &tk);
 BaseExpr * parseExpr_14(BlockBase &block, Tokenizer &tk);
 BaseExpr * parseExpr_13(BlockBase &block, Tokenizer &tk);
 BaseExpr * parseExpr_9(BlockBase &block, Tokenizer &tk);
@@ -4375,9 +4431,26 @@ AssignOp getAssignOp(const Token &t)
     return AssignOpNone;
 }
 
-BaseExpr * parseExpr_16(BlockBase &block, Tokenizer &tk)
+BaseExpr * parseExpr_15(BlockBase &block, Tokenizer &tk)
 {
     BaseExpr *subexpr= parseExpr_14(block, tk);
+    Token t = tk.get();
+    if (t.isop('?')) {
+        BaseExpr *extrue = parseExpr_16(block, tk);
+        ExpectOp(':', tk);
+        BaseExpr *exfalse = parseExpr_16(block, tk);
+        return new OpConditionalExpr(block, t, subexpr, extrue, exfalse);
+    }
+    else
+    {
+        tk.unget(t);
+        return subexpr;
+    }
+}
+
+BaseExpr * parseExpr_16(BlockBase &block, Tokenizer &tk)
+{
+    BaseExpr *subexpr= parseExpr_15(block, tk);
     Token t;
     AssignOp op;
     while ((op= getAssignOp(t= tk.get())) != AssignOpNone)
