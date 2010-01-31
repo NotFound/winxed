@@ -166,10 +166,7 @@ class Token
     }
     function checkkeyword()
     {
-        string name = '';
-        if (self.type == TypeIdentifier)
-            name = self.str;
-        return name;
+        return self.type == TypeIdentifier ? string(self.str) : '';
     }
     function isop(string name)
     {
@@ -177,10 +174,7 @@ class Token
     }
     function checkop()
     {
-        string name = '';
-        if (self.type == TypeOp)
-            name = self.str;
-        return name;
+        return self.type == TypeOp ? string(self.str) : '';
     }
 
     function rawstring()
@@ -533,8 +527,7 @@ class Emit
     function predef_is_used(string name)
     {
         var predefs_used = self.predefs_used;
-        if (predefs_used[name] == null) return 0;
-        return 1;
+        return predefs_used[name] == null ? 0 : 1;
     }
     function close()
     {
@@ -2330,11 +2323,7 @@ class OpBoolAndExpr : OpBinaryExpr
     }
     function emit(e, result)
     {
-        string res;
-        if (result != null)
-            res = result;
-        else
-            res = self.tempreg(REGint);
+        string res = result != null ? result : self.tempreg(REGint);
         if (self.lexpr.issimple() && self.rexpr.issimple()) {
             string op1 = self.tempreg(REGint);
             string op2 = self.tempreg(REGint);
@@ -2435,11 +2424,7 @@ class OpBinAndExpr : OpBinaryExpr
     }
     function emit(e, result)
     {
-        string res;
-        if (result != null)
-            res = result;
-        else
-            res = self.tempreg(REGint);
+        string res = result != null ? result : self.tempreg(REGint);
         string op1 = self.tempreg(REGint);
         string op2 = self.tempreg(REGint);
         self.lexpr.emit(e, op1);
@@ -2478,11 +2463,7 @@ class OpBinOrExpr : OpBinaryExpr
     }
     function emit(e, result)
     {
-        string res;
-        if (result != null)
-            res = result;
-        else
-            res = self.tempreg(REGint);
+        string res = result != null ? result : self.tempreg(REGint);
         string op1 = self.tempreg(REGint);
         string op2 = self.tempreg(REGint);
         self.lexpr.emit(e, op1);
