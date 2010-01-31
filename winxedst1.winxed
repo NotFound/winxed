@@ -934,6 +934,14 @@ function getpredefs()
             'dlfunc {res}, {arg0}, {arg1}, {arg2}',
             REGvar, REGvar, REGstring, REGstring
         ),
+        new PredefFunction().set('sprintf',
+            'sprintf {res}, {arg0}, {arg1}',
+            REGstring, REGstring, REGvar
+        ),
+        new PredefFunction().set('sprintf',
+            'sprintf {res}, {arg0}, {arg1}',
+            REGvar, REGvar, REGvar
+        ),
         new PredefFunction().set('print',
             predef_print,
             REGvar, REGarglist
