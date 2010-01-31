@@ -1477,26 +1477,79 @@ class SimpleExpr : Expr
 
 //*********************************************
 
-// Check if a condition is evaluable at runtime as true of false,
-// helper for conditional operators and statements.
+// Condition class, contains and works with expressions used in
+// conditional operators and statements.
 
 const int CONDisruntime = 0;
 const int CONDistrue = 1;
 const int CONDisfalse = 2;
 
-function checkCondition(condition)
+class Condition
 {
-    if (condition.isliteral()) {
-        switch(condition.checkResult()) {
+    var condexpr;
+    function set(expr)
+    {
+        self.condexpr = expr;
+        return self;
+    }
+    function optimize_condition()
+    {
+        self.condexpr = self.condexpr.optimize();
+    }
+    function optimize()
+    {
+        self.condexpr = self.condexpr.optimize();
+        return self;
+    }
+    function getvalue()
+    {
+        var condexpr = self.condexpr;
+        if (condexpr.isliteral()) {
+            switch (condexpr.checkResult()) {
+            case REGint:
+               int n = condexpr.getIntegerValue();
+                if (n == 0)
+                    return CONDisfalse;
+                else
+                    return CONDistrue;
+            }
+        }
+        return CONDisruntime;
+    }
+    function emit_if(e, string labeltrue, string labelfalse)
+    {
+        var condexpr = self.condexpr;
+        string reg = condexpr.emit_get(e);
+        string type = condexpr.checkResult();
+        switch(type) {
+        case REGstring:
+        case REGvar:
+            e.say('if_null ', reg, ', ', labelfalse);
         case REGint:
-            int n = condition.getIntegerValue();
-            if (n == 0)
-                return CONDisfalse;
-            else
-                return CONDistrue;
+        case REGfloat:
+            e.say('if ', reg, ' goto ', labeltrue);
+            break;
+        default:
+            InternalError('Invalid if condition');
         }
     }
-    return CONDisruntime;
+    function emit_else(e, string labelfalse)
+    {
+        var condexpr = self.condexpr;
+        string reg = condexpr.emit_get(e);
+        string type = condexpr.checkResult();
+        switch(type) {
+        case REGstring:
+        case REGvar:
+            e.say('if_null ', reg, ', ', labelfalse);
+        case REGint:
+        case REGfloat:
+            e.say('unless ', reg, ' goto ', labelfalse);
+            break;
+        default:
+            InternalError('Invalid if condition');
+        }
+    }
 }
 
 //*********************************************
@@ -3493,7 +3546,7 @@ class OpConditionalExpr : Expr
     function set(owner, start, condition, etrue, efalse)
     {
         self.initexpr(owner, start);
-        self.condition = condition;
+        self.condition = new Condition().set(condition);
         self.etrue = etrue;
         self.efalse = efalse;
         return self;
@@ -3501,7 +3554,7 @@ class OpConditionalExpr : Expr
     function optimize()
     {
         self.condition = self.condition.optimize();
-        switch (checkCondition(self.condition)) {
+        switch (self.condition.getvalue()) {
         case CONDistrue:
             return self.etrue.optimize();
         case CONDisfalse:
@@ -3520,20 +3573,7 @@ class OpConditionalExpr : Expr
     {
         string cond_end = self.owner.genlabel();
         string cond_false = self.owner.genlabel();
-        string reg = self.condition.emit_get(e);
-
-        string type = self.condition.checkResult();
-        switch(type) {
-        case REGstring:
-        case REGvar:
-            e.say('if_null ', reg, ', ', cond_false);
-        case REGint:
-        case REGfloat:
-            e.say('unless ', reg, ' goto ', cond_false);
-            break;
-        default:
-            InternalError('Invalid if condition');
-        }
+        self.condition.emit_else(e, cond_false);
         self.etrue.emit(e, result);
         e.emitgoto(cond_end);
         e.emitlabel(cond_false);
@@ -4104,18 +4144,13 @@ class GotoStatement : Statement
 //          ConditionalStatement
 //*********************************************
 
-class ConditionalStatement : Statement
+class ConditionalStatement : Statement, Condition
 {
-    var condition;
     function parsecondition(tk)
     {
         ExpectOp('(', tk);
-        self.condition = parseExpr(tk, self);
+        self.set(parseExpr(tk, self));
         ExpectOp(')', tk);
-    }
-    function typeofvalue()
-    {
-        return checkCondition(self.condition);
     }
 }
 
@@ -4143,8 +4178,8 @@ class IfStatement : ConditionalStatement
     }
     function optimize()
     {
-        self.condition = self.condition.optimize();
-        int checkvalue = self.typeofvalue();
+        self.optimize_condition();
+        int checkvalue = self.getvalue();
         self.truebranch = self.truebranch.optimize();
         self.falsebranch = self.falsebranch.optimize();
         switch (checkvalue) {
@@ -4171,25 +4206,7 @@ class IfStatement : ConditionalStatement
         else
             cond_false = elselabel;
         self.annotate(e);
-        var condition = self.condition;
-        string type = condition.checkResult();
-
-        //string reg = self.tempreg(type);
-        //condition.emit(e, reg);
-        string reg = condition.emit_get(e);
-
-        switch(type) {
-        case REGstring:
-        case REGvar:
-            e.say('if_null ', reg, ', ', cond_false);
-        case REGint:
-        case REGfloat:
-            e.say('unless ', reg, ' goto ', cond_false);
-            break;
-        default:
-            InternalError('Invalid if condition');
-        }
-
+        self.emit_else(e, cond_false);
         truebranch.emit(e);
 
         if (! f_empty) {
@@ -4218,7 +4235,7 @@ class WhileStatement : Continuable, ConditionalStatement
     }
     function optimize()
     {
-        self.condition = self.condition.optimize();
+        self.optimize_condition();
         self.body = self.body.optimize();
         return self;
     }
@@ -4229,22 +4246,7 @@ class WhileStatement : Continuable, ConditionalStatement
 
         self.annotate(e);
         e.emitlabel(continuelabel, 'while');
-
-        var condition = self.condition;
-        string type = condition.checkResult();
-        string reg = condition.emit_get(e);
-        switch(type) {
-        case REGstring:
-        case REGvar:
-            e.say('if_null ', reg, ', ', breaklabel);
-        case REGint:
-        case REGfloat:
-            e.say('unless ', reg, ' goto ', breaklabel);
-            break;
-        default:
-            InternalError('Invalid if condition');
-        }
-
+        self.emit_else(e, breaklabel);
         self.body.emit(e);
         e.say('goto ', continuelabel);
         e.emitlabel(breaklabel, 'endwhile');
@@ -4269,7 +4271,7 @@ class DoStatement : Continuable, ConditionalStatement
     }
     function optimize()
     {
-        self.condition = self.condition.optimize();
+        self.optimize_condition();
         self.body = self.body.optimize();
         return self;
     }
@@ -4283,22 +4285,7 @@ class DoStatement : Continuable, ConditionalStatement
         e.emitlabel(looplabel, 'do');
 
         self.body.emit(e);
-
-        var condition = self.condition;
-        string type = condition.checkResult();
-        e.emitlabel(continuelabel, 'do while condition');
-        string reg = condition.emit_get(e);
-        switch(type) {
-        case REGstring:
-        case REGvar:
-            e.say('if_null ', reg, ', ', breaklabel);
-        case REGint:
-        case REGfloat:
-            e.say('if ', reg, ' goto ', looplabel);
-            break;
-        default:
-            InternalError('Invalid if condition');
-        }
+        self.emit_if(e, looplabel, breaklabel);
         e.emitlabel(breaklabel, 'enddo');
     }
 }
