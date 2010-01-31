@@ -1116,6 +1116,28 @@ BaseExpr * parseExpr(BlockBase &block, Tokenizer &tk);
 
 //**********************************************************************
 
+class Condition : public InBlock
+{
+public:
+    Condition (Block &block, Tokenizer &tk);
+    Condition (BlockBase &block, BaseExpr *condexpr);
+    Condition *optimize();
+    bool issimple() const;
+    bool isinteger() const { return true; }
+    //bool isstring() const { return expr->isstring(); }
+    bool isliteralinteger() const;
+    std::string value() const;
+    std::string emit(Emit &e);
+    void emit_if(Emit &e, const std::string &labeltrue);
+    void emit_else(Emit &e, const std::string &labelfalse);
+    enum Value { CVtrue, CVfalse, CVruntime };
+    Value getvalue() const;
+private:
+    BaseExpr *expr;
+};
+
+//**********************************************************************
+
 void BaseStatement::optimize_branch(BaseStatement *&branch)
 {
     if (branch)
@@ -1376,10 +1398,6 @@ public:
 private:
     ArgumentList *values;
 };
-
-//**********************************************************************
-
-class Condition;
 
 //**********************************************************************
 
@@ -4097,9 +4115,9 @@ class OpConditionalExpr : public BaseExpr
 {
 public:
     OpConditionalExpr(BlockBase &block, const Token &start,
-            BaseExpr *condition, BaseExpr *etrue, BaseExpr *efalse) :
+            BaseExpr *econd, BaseExpr *etrue, BaseExpr *efalse) :
         BaseExpr(block),
-        exprcond(condition),
+        condition(new Condition(block, econd)),
         exprtrue(etrue),
         exprfalse(efalse)
     {
@@ -4109,39 +4127,31 @@ private:
     bool isstring() const { return exprtrue->isstring(); }
     BaseExpr *optimize()
     {
-        exprcond= exprcond->optimize();
-        if (exprcond->issimple())
+        condition= condition->optimize();
+        switch (condition->getvalue() )
         {
-            if (exprcond->isnull())
-                return exprfalse->optimize();
-            if (exprcond->isliteralinteger())
-            {
-                int n = exprcond->getintegervalue();
-                if (n != 0)
-                    return exprtrue->optimize();
-                else
-                    return exprfalse->optimize();
-            }
+        case Condition::CVfalse:
+            return exprfalse->optimize();
+        case Condition::CVtrue:
+            return exprtrue->optimize();
+        default:
+            exprtrue = exprtrue->optimize();
+            exprfalse = exprfalse->optimize();
+            return this;
         }
-        exprtrue = exprtrue->optimize();
-        exprfalse = exprfalse->optimize();
-        return this;
     }
     void emit(Emit &e, const std::string &result)
     {
         std::string label_false= genlocallabel();
         std::string label_end= genlocallabel();
-        std::string regcond = gentemp(REGint);
-        exprcond->emit(e, regcond);
-        e << "\n";
-        e << "unless " << regcond << " goto " << label_false << '\n';
+        condition->emit_else(e, label_false);
         exprtrue->emit(e, result);
         e << "goto " << label_end << '\n';
         e << label_false << ":\n";
         exprfalse->emit(e, result);
         e << label_end << ":\n";
     }
-    BaseExpr *exprcond;
+    Condition *condition;
     BaseExpr *exprtrue;
     BaseExpr *exprfalse;
 };
@@ -5179,23 +5189,6 @@ void TryStatement::emit (Emit &e)
 
 //**********************************************************************
 
-class Condition : public InBlock
-{
-public:
-    Condition (Block &block, Tokenizer &tk);
-    Condition *optimize();
-    bool issimple() const;
-    bool isinteger() const { return true; }
-    //bool isstring() const { return expr->isstring(); }
-    bool isliteralinteger() const;
-    std::string value() const;
-    std::string emit(Emit &e);
-    enum Value { CVtrue, CVfalse, CVruntime };
-    Value getvalue() const;
-private:
-    BaseExpr *expr;
-};
-
 Condition::Condition (Block &block, Tokenizer &tk) :
     InBlock (block),
     expr (0)
@@ -5203,6 +5196,12 @@ Condition::Condition (Block &block, Tokenizer &tk) :
     ExpectOp ('(', tk);
     expr= parseExpr(block, tk);
     ExpectOp(')', tk);
+}
+
+Condition::Condition (BlockBase &block, BaseExpr *condexpr) :
+    InBlock(block),
+    expr(condexpr)
+{
 }
 
 Condition *Condition::optimize()
@@ -5269,6 +5268,49 @@ std::string Condition::emit(Emit &e)
         }
     }
     return reg;
+}
+
+void Condition::emit_if(Emit &e, const std::string &labeltrue)
+{
+    std::string reg;
+    if (expr->issimple())
+        e.annotate(expr->gettoken());
+    std::string auxlabel;
+    if (expr->isidentifier() && expr->isinteger()) {
+        reg= expr->getidentifier();
+    }
+    else
+    {
+        char type= expr->checkresult();
+        reg = gentemp(type);
+        expr->emit(e, reg);
+        if (type == REGvar || type == REGstring) {
+            auxlabel = genlocallabel();
+            e << "if_null " << reg << ", " << auxlabel << "\n";
+        }
+    }
+    e << "if " << reg << " goto " << labeltrue << '\n';
+    if (!auxlabel.empty())
+        e << auxlabel << ":\n";
+}
+
+void Condition::emit_else(Emit &e, const std::string &labelfalse)
+{
+    std::string reg;
+    if (expr->issimple())
+        e.annotate(expr->gettoken());
+    if (expr->isidentifier() && expr->isinteger()) {
+        reg= expr->getidentifier();
+    }
+    else
+    {
+        char type= expr->checkresult();
+        reg = gentemp(type);
+        expr->emit(e, reg);
+        if (type == REGvar || type == REGstring)
+            e << "if_null " << reg << ", " << labelfalse << "\n";
+    }
+    e << "unless " << reg << " goto " << labelfalse << '\n';
 }
 
 //**********************************************************************
@@ -5361,7 +5403,7 @@ void SwitchStatement::emit(Emit &e)
     }
     std::string reg= gentemp(type);
 
-        if (condition->checkresult() == type)
+    if (condition->checkresult() == type)
         condition->emit(e, reg);
     else
     {
@@ -5442,16 +5484,14 @@ BaseStatement *IfStatement::optimize()
 void IfStatement::emit(Emit &e)
 {
     std::string label= genlabel();
-    std::string l_else= label + "_ELSE";
-    std::string l_endif= label + "_ENDIF";
-    std::string reg = condition->emit(e);
-    e << "\n";
-    e <<
-        "unless " << reg << " goto " <<
-            (!stelse->isempty() ? l_else : l_endif) << '\n';
+    const bool noelse = stelse->isempty();
+    const std::string l_endif= label + "_ENDIF";
+    const std::string l_else= noelse ? l_endif : label + "_ELSE";
+
+    condition->emit_else(e, l_else);
     if (!st->isempty())
         st->emit(e);
-    if (!stelse->isempty())
+    if (!noelse)
     {
         e << "goto " << l_endif << '\n';
         e << l_else << ":\n";
@@ -5545,11 +5585,8 @@ void DoStatement::emit(Emit &e)
     e << labelcontinue << ": # DO CONTINUE\n";
     if (! forever)
     {
-        if (!oneshot) {
-            std::string reg= condition->emit(e);
-            e << '\n' <<
-                "if " << reg << " goto " << labelstart << '\n';
-        }
+        if (!oneshot)
+            condition->emit_if(e, labelstart);
     }
     else
         e << "goto " << labelstart << '\n';
