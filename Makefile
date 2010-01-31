@@ -104,7 +104,11 @@ winxed.pir: winxed.winxed winxedst0$(EXEEXT)
 #      Preinstall
 #-------------------------------
 
-pir: winxed.pir winxedst2.pir
+pir: winxed.pir winxedst2.pir setup.pir
+
+# setup.winxed need at least stage 1
+setup.pir: setup.winxed winxedst1.pbc
+	parrot winxedst1.pbc -o setup.pir setup.winxed
 
 #-----------------------------------------------------------------------
 
