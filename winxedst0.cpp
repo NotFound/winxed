@@ -275,7 +275,7 @@ protected:
             char typeresult) :
         PredefFunction(name, typeresult)
     { }
-    char paramtype(size_t n) const
+    char paramtype(size_t /*unused*/) const
     {
         return REGany;
     }
@@ -524,7 +524,7 @@ public:
     virtual std::string genlocallabel() = 0;
     virtual std::string genlocalregister(char type)= 0;
     virtual void freelocalregister(const std::string &)= 0;
-    virtual std::string gentemp(char type)
+    virtual std::string gentemp(char /*unused*/)
     {
         throw std::runtime_error("No temp registers here!");
     }
