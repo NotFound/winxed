@@ -1,0 +1,39 @@
+#! winxed
+
+// Example of parrot sockets, query a HTTP server.
+
+// Values from socekt.pasm
+// No way to import yet, just copy here.
+const int PIO_PF_INET     = 2;
+const int PIO_SOCK_STREAM = 1;
+const int PIO_PROTO_TCP   = 6;
+
+// Hardcode values for this test:
+const string USER_AGENT = "Winxed-test";
+const string HOST = 'winxed.org'; // Home, seet home.
+const int PORT = 80;
+
+function main()
+{
+    // Create a TCP socket
+    var socket = new 'Socket';
+    socket.socket(PIO_PF_INET, PIO_SOCK_STREAM, PIO_PROTO_TCP);
+    // Connect to the address and port provided
+    socket.connect(socket.sockaddr(HOST, PORT));
+    // Send HTTP header
+    socket.send(
+        "GET / HTTP/1.0\r\n" +
+        "Host: " + HOST + "\r\n" +
+        "Connection: close\r\n" +
+        "User-agent: " + USER_AGENT + "\r\n" +
+	"\r\n"
+    );
+    // Get answer
+    string buf;
+    do {
+        buf = socket.recv();
+        print(buf);
+    } while (length(buf) > 0);
+    // Done
+    socket.close();
+}
