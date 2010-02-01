@@ -4200,11 +4200,7 @@ class IfStatement : ConditionalStatement
         if (! f_empty)
             elselabel = self.genlabel();
         string endlabel = self.genlabel();
-        string cond_false;
-        if (elselabel == '')
-            cond_false = endlabel;
-        else
-            cond_false = elselabel;
+        string cond_false = f_empty ? endlabel : elselabel;
         self.annotate(e);
         self.emit_else(e, cond_false);
         truebranch.emit(e);
@@ -4219,18 +4215,40 @@ class IfStatement : ConditionalStatement
 }
 
 //*********************************************
+//            LoopStatement
+//*********************************************
+
+class LoopStatement : Continuable
+{
+    var body;
+    function parsebody(tk)
+    {
+        self.body = parseStatement(tk, self);
+    }
+    function emit_infinite(e)
+    {
+        string breaklabel = self.genbreaklabel();
+        string continuelabel = self.gencontinuelabel();
+
+        self.annotate(e);
+        e.emitlabel(continuelabel, 'Infinite loop');
+        self.body.emit(e);
+        e.say('goto ', continuelabel);
+        e.emitlabel(breaklabel, 'Infinite loop end');
+    }
+}
+
+//*********************************************
 //            WhileStatement
 //*********************************************
 
-class WhileStatement : Continuable, ConditionalStatement
+class WhileStatement : LoopStatement, ConditionalStatement
 {
-    var body;
-
     function parse(start, tk, owner)
     {
         self.initstatement(start, owner);
         self.parsecondition(tk);
-        self.body = parseStatement(tk, self);
+        self.parsebody(tk);
         return self;
     }
     function optimize()
@@ -4241,15 +4259,24 @@ class WhileStatement : Continuable, ConditionalStatement
     }
     function emit(e)
     {
-        string breaklabel = self.genbreaklabel();
-        string continuelabel = self.gencontinuelabel();
+        switch (self.getvalue()) {
+	case CONDistrue:
+	    self.emit_infinite(e);
+	    break;
+        case CONDisfalse:
+	     e.comment('while(false) optimized out');
+	    break;
+        default:
+            string breaklabel = self.genbreaklabel();
+            string continuelabel = self.gencontinuelabel();
 
-        self.annotate(e);
-        e.emitlabel(continuelabel, 'while');
-        self.emit_else(e, breaklabel);
-        self.body.emit(e);
-        e.say('goto ', continuelabel);
-        e.emitlabel(breaklabel, 'endwhile');
+            self.annotate(e);
+            e.emitlabel(continuelabel, 'while');
+            self.emit_else(e, breaklabel);
+            self.body.emit(e);
+            e.say('goto ', continuelabel);
+            e.emitlabel(breaklabel, 'endwhile');
+	}
     }
 }
 
@@ -4257,14 +4284,12 @@ class WhileStatement : Continuable, ConditionalStatement
 //            DoStatement
 //*********************************************
 
-class DoStatement : Continuable, ConditionalStatement
+class DoStatement : LoopStatement, ConditionalStatement
 {
-    var body;
-
     function parse(start, tk, owner)
     {
         self.initstatement(start, owner);
-        self.body = parseStatement(tk, self);
+        self.parsebody(tk);
         ExpectKeyword('while', tk);
         self.parsecondition(tk);
         return self;
@@ -4277,16 +4302,22 @@ class DoStatement : Continuable, ConditionalStatement
     }
     function emit(e)
     {
-        string looplabel = self.genlabel();
-        string breaklabel = self.genbreaklabel();
-        string continuelabel = self.gencontinuelabel();
+        switch (self.getvalue()) {
+	case CONDistrue:
+	    self.emit_infinite(e);
+	    break;
+        default:
+            string looplabel = self.genlabel();
+            string breaklabel = self.genbreaklabel();
+            string continuelabel = self.gencontinuelabel();
 
-        self.annotate(e);
-        e.emitlabel(looplabel, 'do');
+            self.annotate(e);
+            e.emitlabel(looplabel, 'do');
 
-        self.body.emit(e);
-        self.emit_if(e, looplabel, breaklabel);
-        e.emitlabel(breaklabel, 'enddo');
+            self.body.emit(e);
+            self.emit_if(e, looplabel, breaklabel);
+            e.emitlabel(breaklabel, 'enddo');
+	}
     }
 }
 
@@ -4465,12 +4496,11 @@ class SwitchStatement : Breakable, Statement
 //            ForStatement
 //*********************************************
 
-class ForStatement : Continuable, BlockStatement
+class ForStatement : LoopStatement, BlockStatement
 {
     var initializer;
     var condition;
     var iteration;
-    var body;
 
     function parse(start, tk, owner)
     {
@@ -4492,7 +4522,7 @@ class ForStatement : Continuable, BlockStatement
             self.iteration = parseExpr(tk, self);
             ExpectOp(')', tk);
         }
-        self.body = parseStatement(tk, self);
+        self.parsebody(tk);
         return self;
     }
     function optimize()
@@ -4508,6 +4538,12 @@ class ForStatement : Continuable, BlockStatement
     }
     function emit(e)
     {
+        if (self.initializer == null &&
+	        self.condition == null &&
+		self.iteration == null) {
+	    self.emit_infinite(e);
+	    return;
+	}
         e.comment('for loop');
         string continuelabel = self.gencontinuelabel();
         string breaklabel = self.genbreaklabel();
@@ -4537,11 +4573,10 @@ class ForStatement : Continuable, BlockStatement
 //            ForeachStatement
 //*********************************************
 
-class ForeachStatement : Continuable, BlockStatement
+class ForeachStatement : LoopStatement, BlockStatement
 {
     var varname;
     var container;
-    var body;
 
     function parse(start, tk, owner)
     {
@@ -4560,7 +4595,7 @@ class ForeachStatement : Continuable, BlockStatement
         aux = tk.get();
         if (!aux.isop(')'))
             SyntaxError("Expected ')'", aux);
-        self.body = parseStatement(tk, self);
+        self.parsebody(tk);
 
         return self;
     }
