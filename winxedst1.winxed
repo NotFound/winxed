@@ -4260,12 +4260,12 @@ class WhileStatement : LoopStatement, ConditionalStatement
     function emit(e)
     {
         switch (self.getvalue()) {
-	case CONDistrue:
-	    self.emit_infinite(e);
-	    break;
+        case CONDistrue:
+            self.emit_infinite(e);
+            break;
         case CONDisfalse:
-	     e.comment('while(false) optimized out');
-	    break;
+             e.comment('while(false) optimized out');
+            break;
         default:
             string breaklabel = self.genbreaklabel();
             string continuelabel = self.gencontinuelabel();
@@ -4276,7 +4276,7 @@ class WhileStatement : LoopStatement, ConditionalStatement
             self.body.emit(e);
             e.say('goto ', continuelabel);
             e.emitlabel(breaklabel, 'endwhile');
-	}
+        }
     }
 }
 
@@ -4303,9 +4303,9 @@ class DoStatement : LoopStatement, ConditionalStatement
     function emit(e)
     {
         switch (self.getvalue()) {
-	case CONDistrue:
-	    self.emit_infinite(e);
-	    break;
+        case CONDistrue:
+            self.emit_infinite(e);
+            break;
         default:
             string looplabel = self.genlabel();
             string breaklabel = self.genbreaklabel();
@@ -4317,7 +4317,7 @@ class DoStatement : LoopStatement, ConditionalStatement
             self.body.emit(e);
             self.emit_if(e, looplabel, breaklabel);
             e.emitlabel(breaklabel, 'enddo');
-	}
+        }
     }
 }
 
@@ -4539,11 +4539,11 @@ class ForStatement : LoopStatement, BlockStatement
     function emit(e)
     {
         if (self.initializer == null &&
-	        self.condition == null &&
-		self.iteration == null) {
-	    self.emit_infinite(e);
-	    return;
-	}
+                self.condition == null &&
+                self.iteration == null) {
+            self.emit_infinite(e);
+            return;
+        }
         e.comment('for loop');
         string continuelabel = self.gencontinuelabel();
         string breaklabel = self.genbreaklabel();
