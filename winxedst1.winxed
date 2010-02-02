@@ -4891,6 +4891,8 @@ class DeclareStatement : Statement
     function optimize()
     {
         var init = self.init;
+        if (self.size != null)
+            self.size = self.size.optimize();
         if (init != null) {
             if (self.typearray == 0)
                 self.init = init.optimize();
@@ -5053,11 +5055,15 @@ class VarStatement : VarBaseStatement
             SyntaxError("Expected ';'", t);
         return self;
     }
-    function optimize()
+    function optimize_init()
     {
         if (self.init != null)
             self.init = self.init.optimize();
         return self;
+    }
+    function optimize()
+    {
+        return self.optimize_init();
     }
     function emit(var e)
     {
@@ -5130,7 +5136,7 @@ class FixedVarStatement : VarBaseStatement
     function optimize()
     {
         self.exprsize = self.exprsize.optimize();
-        return self;
+        return self.optimize_init();
     }
     function emit(var e)
     {
