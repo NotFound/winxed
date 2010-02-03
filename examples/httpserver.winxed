@@ -1,0 +1,472 @@
+#! winxed
+
+/***********************************************************************
+
+=head1 NAME
+
+httpserver.winxed
+
+=head1 AUTHOR
+
+(C) 2010 Julian Albo
+
+=head1 DESCRIPTION
+
+Winxed http server, to be used as a module or from command line.
+
+Example of usage as module in a PIR program.
+
+.sub 'handler_hello'
+    .param pmc request
+    request.'contentType'('text/html')
+    request.'print'( <<'END' )
+<html>
+<body>
+<h1>Hello from PIR!</h1>
+<p><a href="other.html">Other</a></p>
+</body>
+</html>
+END
+.end
+
+.sub 'handler_other'
+    .param pmc request
+    request.'contentType'('text/html')
+    request.'print'( <<'END' )
+<html>
+<body>
+<h1>This is also PIR!</h1>
+<p><a href="/">Return</a></p>
+</body>
+</html>
+END
+.end
+
+.sub main :main
+    load_bytecode 'httpserver.pbc'
+
+    .local pmc host
+    host = new 'Hash'
+    host['name'] = 'localhost'
+    host['port'] = 8080
+    .local pmc config
+    config = new 'Hash'
+    config['host'] = host
+    .local pmc server
+    .local pmc createServer
+    createServer = get_root_global ['parrot';'HTTP'], 'createServer'
+    server = createServer(config)
+    .const 'Sub' hello = 'handler_hello'
+    .const 'Sub' other = 'handler_other'
+    server.'handle'('/', hello)
+    server.'handle'('/other.html', other)
+    server.'serve'()
+.end
+
+=cut
+***********************************************************************/
+
+// Sets DEBUG to 1 to to emit debug info.
+// When set to 0, if (DEBUG) statements are optimized out.
+const int DEBUG = 0;
+
+// Values from socekt.pasm
+// No way to import yet, just copy here.
+const int PIO_PF_INET     = 2;
+const int PIO_SOCK_STREAM = 1;
+const int PIO_PROTO_TCP   = 6;
+
+const string CR = "\r";
+const string LF = "\n";
+
+/***********************************************************************
+=head1 Auxiliary functions
+
+=over
+
+=item Trace
+
+Print a line on stderr.
+
+=cut
+*/
+function Trace(msgs [slurpy])
+{
+    var stderr = getinterp().stdhandle(2);
+    for (var msg in msgs)
+        stderr.print(msg);
+    stderr.print("\n");
+}
+
+//**********************************************************************
+
+function getPage(string line)
+{
+    int p = indexof(line, ' ');
+    if (p < 0)
+        return '';
+    string method = substr(line, 0, p);
+    line = substr(line, p + 1);
+    p = indexof(line, ' ');
+    if (p < 0)
+        return '';
+    string page = substr(line, 0, p);
+    return page;
+}
+
+function getHeader(string buf)
+{
+    var header = {};
+    string line = '';
+    string prev = '';
+    int method = 0;
+    string page = '';
+    for (string ch in buf) {
+        // Accept lines ending with CR, LF, or CRLF.
+        if (ch == CR || (ch == LF && prev != CR)) {
+            if (method == 0) {
+                page = getPage(line);
+                method = 1;
+            }
+            line = '';
+        }
+        else
+            line = line + ch;
+        prev = ch;
+    }
+    header['page'] = page;
+    return header;
+}
+
+function errorNotFound(var request)
+{
+    var server = request.getServer();
+    int numrequests = server.numRequests();
+    string host = server.getHost();
+    request.contentType('text/html');
+    request.status(404);
+    request.print(
+            "<html>\n" +
+            "<body>\n" +
+            "<h1>Page Not Found</h1>\n" +
+            "<p>\n" +
+            "The requested URL was not found\r\n" +
+            "</p>\n" +
+            "</body>\n" +
+            "</html>\n"
+        );
+}
+
+function statusPage(var request)
+{
+    var server = request.getServer();
+    int numrequests = server.numRequests();
+    string host = server.getHost();
+    request.contentType('text/html');
+    request.print(
+            "<html>\n" +
+            "<body>\n" +
+            "<h1>\n" +
+            "Server status\n" +
+            "</h1>\n" +
+            "<p>\n" +
+            "Pages served: " + string(numrequests) +
+            "</p>\n" +
+            "</body>\n" +
+            "</html>\n"
+        );
+}
+
+function helloPage(request)
+{
+    request.contentType('text/html');
+    string response =
+        "<html>\n" +
+        "<body>\n" +
+        "<h1>\n" +
+        "Hola, mundo\n" +
+        "</h1>\n" +
+        "</body>\n" +
+        "</html>\n";
+    request.print(response);
+}
+
+/*
+=back
+
+=cut
+
+*/
+
+namespace HTTP {
+
+/***********************************************************************
+=head1 class HTTP;Request
+
+=head2 Methods
+
+=over
+
+=item None yet.
+
+=back
+
+=cut
+*/
+
+class Request
+{
+    var server;
+    var conn;
+    var st;
+    var contype;
+    var header_sent;
+
+    function set(server, conn)
+    {
+        self.server = server;
+        self.conn = conn;
+        self.st = 200;
+        self.contype = '';
+        self.header_sent = 0;
+    }
+    function getServer()
+    {
+        return self.server;
+    }
+    function status(int newst)
+    {
+        self.st = newst;
+    }
+    function contentType(string type)
+    {
+        self.contype = type;
+    }
+    function send_header()
+    {
+        string type = self.contype;
+        if (type == '')
+            type = 'text/plain';
+        string host = self.server.getHost();
+        string status = self.st;
+        string stext;
+        switch (status) {
+            case 200: stext = 'OK'; break;
+            case 404: stext = 'NotFound'; break;
+            default:  stext = 'unknown'; break;
+        }
+        self.conn.send(
+            "HTTP/1.1 " + status + " " + stext + "\r\n" +
+            "Server: " + host + "\r\n" +
+            "Connection: Close\r\n" +
+            "Content-type: " + type + "\r\n" +
+            "\r\n"
+        );
+        self.header_sent = 1;
+    }
+    function print(string str)
+    {
+        if (! self.header_sent)
+            self.send_header();
+        self.conn.send(str);
+    }
+}
+
+/***********************************************************************
+=head1 class HTTP;Server
+
+Main class of the module.
+
+=head2 Methods
+
+=over
+
+=cut
+*/
+
+class Server
+{
+    var host;
+    var port;
+    var maxrequests;
+    var requests;
+    var handlers;
+/*
+=item init
+
+Initialize server object.
+
+=cut
+*/
+    function init(string host, int port)
+    {
+        self.maxrequests = 0;
+        if (DEBUG) Trace(host, ':', port);
+        self.host = host;
+        self.port = port;
+        self.requests = 0;
+        self.handlers = {};
+    }
+    function getHost()
+    {
+        return self.host;
+    }
+    function setMaxRequests(int limit)
+    {
+        self.maxrequests = limit;
+    }
+    function numRequests()
+    {
+        return int(self.requests);
+    }
+    function handle(string str, var handler)
+    {
+        self.handlers[str] = handler;
+    }
+    function setStatusPage(string st)
+    {
+        using statusPage;
+        self.handle(st, statusPage);
+    }
+    function setHelloPage(string st)
+    {
+        using helloPage;
+        self.handle(st, helloPage);
+    }
+/*
+=item serve
+
+Listen and dispatch requests.
+
+=cut
+*/
+    function serve()
+    {
+        var listener = new 'Socket';
+        listener.socket(PIO_PF_INET, PIO_SOCK_STREAM, PIO_PROTO_TCP);
+        var address = listener.sockaddr(string(self.host), int(self.port));
+        listener.bind(address);
+        listener.listen(1);
+        if (DEBUG) Trace('Accepting conections');
+        for (;;) {
+            var conn = listener.accept();
+            int requests = self.requests;
+            self.requests = ++requests;
+            string buf = conn.recv();
+            var request = new Request();
+            request.set(self, conn);
+            var header = getHeader(buf);
+
+            string page = header['page'];
+            var handler = self.handlers[page];
+            if (handler != null)
+                handler(request);
+            else
+                errorNotFound(request);
+
+            conn.close();
+            int maxrequests = self.maxrequests;
+            if (maxrequests != 0 && requests >= maxrequests)
+                break;
+        };
+    }
+    function process(var conn, string page)
+    {
+        self.sendHello(conn);
+    }
+}
+
+/***********************************************************************
+=back
+
+=head1 Main functions
+
+=over
+
+=item getConfig
+
+Read configuration from a json file.
+
+=cut
+
+*/
+
+function getConfig(string filename)
+{
+    try {
+        var json = load_language('data_json');
+        var code = json.compile(open(filename).readall());
+        var data = code();
+        var config = data['httpserver'];
+        if (config == null)
+            throw Error('Invalid config data');
+        return config;
+    }
+    catch (e) {
+        string msg = e['message'];
+        die('Error loading config: ' + msg);
+    }
+}
+
+/*
+=item createServer
+
+Create a server object with the config provided.
+
+=cut
+*/
+function createServer(config)
+{
+    var host = config['host'];
+    string hostname = host['name'];
+    int port = host['port'];
+
+    var server = new HTTP.Server();
+    server.init(hostname, port);
+
+    var debuginfo = config['debuginfo'];
+    if (debuginfo != null) {
+        var maxreq = debuginfo['maxrequests'];
+        if (maxreq != null)
+            server.setMaxRequests(maxreq);
+        var statuspage = debuginfo['statuspage'];
+        if (statuspage != null)
+            server.setStatusPage(statuspage);
+        var hellopage = debuginfo['hellopage'];
+        if (hellopage != null)
+            server.setHelloPage(hellopage);
+    }
+
+    return server;
+}
+
+/***********************************************************************
+=item main
+
+Program entry point for standalone usage.
+
+=cut
+*/
+function main[main,anon](argv)
+{
+    int argc = argv;
+
+    if (DEBUG) Trace('Reading config');
+    var config = getConfig('examples/httpserver.json');
+    if (DEBUG) Trace('Creating server object');
+    var server = createServer(config);
+    if (DEBUG) Trace('Running');
+    server.serve();
+    if (DEBUG) Trace('Stopped');
+}
+
+} // namespace HTTP
+
+/***********************************************************************
+=back
+
+=cut
+
+*/
+
+// End
