@@ -1,0 +1,51 @@
+{
+    "httpserver" : {
+        "host": {
+            "name" : "localhost",
+	    "port" : 8080
+	},
+	"debuginfo": {
+            "maxrequests" : 0,
+	    "statuspage"  : "/internal/status.html",
+	    "hellopage"  : "/internal/hello.html"
+        },
+	"modules" : {
+	    "test": {
+	        "file" : "examples/httpservertest/testmodule.pbc",
+		"hll" : "fake"
+	    },
+	    "pir": {
+		"compreg": "PIR",
+		"file": "examples/httpservertest/pirmodule.pir",
+		"prerun": 0
+	    },
+	    "nqp": {
+	        "load_language": "nqp",
+		"compreg": "NQP",
+		"file": "examples/httpservertest/nqpmodule.nqp",
+		"compile": 1,
+		"prerun": 1
+	    }
+	},
+	"handlers": [
+	    {
+	        "base": "/",
+		"module": "test",
+		"type": "sub",
+		"name": "handler_test"
+	    },
+	    {
+	        "base": "/pir",
+		"module": "pir",
+		"type": "sub",
+		"name": "pir_handler"
+	    },
+	    {
+	        "base": "/nqp",
+		"module": "nqp",
+		"type": "sub",
+		"name": "nqp_handler"
+	    }
+	]
+    }
+}
