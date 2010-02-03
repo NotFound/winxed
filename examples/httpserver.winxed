@@ -444,7 +444,7 @@ function createServer(config)
     {
         for (var mod in configmodules) {
             string name = mod;
-            say(name);
+            if (DEBUG) Trace('module: ', name);
             var moddata = configmodules[name];
             var filename = moddata['file'];
             var hll = moddata['hll'];
@@ -486,7 +486,6 @@ function createServer(config)
     if (handlers != null) {
         for (var handler in handlers) {
             string base = handler['base'];
-            say(base);
             string type = handler['type'];
             string name = handler['name'];
             var handlerobject;
@@ -509,6 +508,38 @@ function createServer(config)
                 break;
             default:
                 throw Error('Urecognized handler type');
+            }
+        }
+    }
+
+    var security = config['security'];
+    if (security != null) {
+        var userid = security['userid'];
+        int uid = 0;
+        if (userid != null) {
+            uid = userid;
+            if (DEBUG) Trace('userid: ', uid);
+        }
+        var jail = security['chroot'];
+        if (jail != null) {
+            if (DEBUG) Trace('chroot: ', jail);
+            var lib = null;
+            var chdirfun = dlfunc(lib, 'chdir', 'it');
+            var chrootfun = dlfunc(lib, 'chroot', 'it');
+            if (chdirfun == null || chrootfun == null)
+                throw Error("Cannot chroot");
+            // Go Straight to Jail...
+            int r = chdirfun(string(jail));
+            if (r != 0)
+                throw Error("chdir failed");
+            r = chrootfun(string(jail));
+            if (r != 0)
+                throw Error("chroot failed");
+            if (uid) {
+                var setuidfun = dlfunc(lib, 'setuid', 'ii');
+                r = setuidfun(uid);
+                if (r != 0)
+                    throw Error("setuid failed");
             }
         }
     }
