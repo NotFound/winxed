@@ -1406,7 +1406,7 @@ class VarContainer
         locals[sname] = {
             'type': type,
             'value': value,
-            'reg': '**WRONG**',
+            'reg': 'THIS IS WRONG',
             'const': 1 };
     }
     function getvar(var name)
@@ -1891,6 +1891,17 @@ class OpNotExpr : OpUnaryExpr
     function set(owner, t, subexpr)
     {
         self.initunary(owner, t, subexpr);
+        return self;
+    }
+    function optimize()
+    {
+        self.optimizearg();
+        if (self.subexpr.isintegerliteral()) {
+            var numval = self.subexpr.numval;
+            int n = numval;
+            n = ! n;
+            return new IntegerLiteral().set(self.owner, self.subexpr.start, n);
+        }
         return self;
     }
     function emit(e, result)
