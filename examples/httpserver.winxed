@@ -443,74 +443,74 @@ function createServer(config)
     if (configmodules != null)
     {
         for (var mod in configmodules) {
-	    string name = mod;
-	    say(name);
-	    var moddata = configmodules[name];
-	    var filename = moddata['file'];
-	    var hll = moddata['hll'];
-	    var language = moddata['load_language'];
-	    var comp = moddata['compreg'];
-	    var data = { };
-	    if (language != null || comp != null) {
-	        var compiler;
-		string langname;
-	        if (language != null) {
+            string name = mod;
+            say(name);
+            var moddata = configmodules[name];
+            var filename = moddata['file'];
+            var hll = moddata['hll'];
+            var language = moddata['load_language'];
+            var comp = moddata['compreg'];
+            var data = { };
+            if (language != null || comp != null) {
+                var compiler;
+                string langname;
+                if (language != null) {
                     langname = language;
-		    string compname = comp;
-	            compiler = load_language(langname, compname);
-		}
-		else {
-		    langname = comp;
-		    compiler = compreg(string(comp));
-		}
-		if (compiler == null)
-		    throw Error("No such language: " + langname);
-		string source = open(filename).readall();
-		int compile = moddata['compile'];
-		var code = compile ? compiler.compile(source) : compiler(source);
-		int prerun = moddata['prerun'];
-		if (prerun)
-		    code();
-	    }
-	    else {
+                    string compname = comp;
+                    compiler = load_language(langname, compname);
+                }
+                else {
+                    langname = comp;
+                    compiler = compreg(string(comp));
+                }
+                if (compiler == null)
+                    throw Error("No such language: " + langname);
+                string source = open(filename).readall();
+                int compile = moddata['compile'];
+                var code = compile ? compiler.compile(source) : compiler(source);
+                int prerun = moddata['prerun'];
+                if (prerun)
+                    code();
+            }
+            else {
                 load_bytecode(filename);
-	    }
+            }
             if (hll != null)
                 data["hll"] = string(hll);
-	    modules[name] = data;
-	}
+            modules[name] = data;
+        }
     }
 
     // Set handlers
     var handlers = config['handlers'];
     if (handlers != null) {
         for (var handler in handlers) {
-	    string base = handler['base'];
-	    say(base);
-	    string type = handler['type'];
-	    string name = handler['name'];
-	    var handlerobject;
-	    switch (type) {
-	    case 'sub':
-	        var glob = getinterp()['globals'];
-		string hllname = 'parrot';
-		var modulename = handler['module'];
-		if (modulename != null) {
-		    var module = modules[modulename];
-		    if (module == null)
-		        throw Error('Module not found');
-		    if (module['hll'])
-		        hllname = module['hll'];
-		}
-	        handlerobject = glob[hllname][name];
-		if (handlerobject == null)
-		    throw Error('Handler not found');
-		server.handle(base, handlerobject);
-	        break;
-	    default:
-	        throw Error('Urecognized handler type');
-	    }
-	}
+            string base = handler['base'];
+            say(base);
+            string type = handler['type'];
+            string name = handler['name'];
+            var handlerobject;
+            switch (type) {
+            case 'sub':
+                var glob = getinterp()['globals'];
+                string hllname = 'parrot';
+                var modulename = handler['module'];
+                if (modulename != null) {
+                    var module = modules[modulename];
+                    if (module == null)
+                        throw Error('Module not found');
+                    if (module['hll'])
+                        hllname = module['hll'];
+                }
+                handlerobject = glob[hllname][name];
+                if (handlerobject == null)
+                    throw Error('Handler not found');
+                server.handle(base, handlerobject);
+                break;
+            default:
+                throw Error('Urecognized handler type');
+            }
+        }
     }
 
     return server;
@@ -525,10 +525,21 @@ Program entry point for standalone usage.
 */
 function main[main,anon](argv)
 {
-    int argc = argv;
+    const string OPT_CONFIG = 'config';
+    using extern Getopt.Obj;
+    var getopts = new Getopt.Obj;
+    getopts.notOptStop(1);
+    getopts.push_string(OPT_CONFIG + '=s');
+    argv.shift();
+    var opts = getopts.get_options(argv);
+    var optconfig = opts[OPT_CONFIG];
+
+    string configfile = optconfig != null ?
+        optconfig :
+        'examples/httpservertest/httpserver.json';
 
     if (DEBUG) Trace('Reading config');
-    var config = getConfig('examples/httpservertest/httpserver.json');
+    var config = getConfig(configfile);
     if (DEBUG) Trace('Creating server object');
     var server = createServer(config);
     if (DEBUG) Trace('Running');
