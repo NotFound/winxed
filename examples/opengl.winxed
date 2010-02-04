@@ -1,0 +1,74 @@
+#! winxed
+
+// Example of OpenGL module ussage.
+// Mostly borrowed from p6 example in parrot examples.
+
+const int GLUT_RGBA   =         0x0000;
+const int GLUT_DOUBLE =         0x0002;
+const int GL_TRIANGLES        = 0x0004;
+const int GL_DEPTH_BUFFER_BIT = 0x0100;
+const int GL_COLOR_BUFFER_BIT = 0x4000;
+
+// Seudo global variable.
+function vars(v)
+{
+    for (;;) yield(v);
+}
+
+function main(argv)
+{
+    using extern OpenGL;
+    using extern NCI.Utils;
+
+    using OpenGL._export_all_functions;
+    using OpenGL.glutInit;;
+    _export_all_functions();
+    using NCI.Utils.call_toolkit_init;
+    call_toolkit_init(glutInit, argv);
+
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
+
+    var w = glutCreateWindow('Winxed rotating Triangle OpenGL test');
+    float t = floattime();
+    var v = { 'window' : w, 'prev_time': t };
+    vars(v);
+
+    using keyfun; using idlefun; using displayfun;
+    glutDisplayFunc(displayfun);
+    glutKeyboardFunc(keyfun);
+    glutIdleFunc(idlefun);
+
+
+    glutMainLoop();
+}
+
+function keyfun(key, x, y)
+{
+    glutDestroyWindow(vars()['window']);
+}
+
+function idlefun()
+{
+    var v = vars();
+    float prev = v['prev_time'];
+    float now = floattime();
+    if (prev != now) {
+        v['prev_time'] = now;
+        float dt = 360.0 * (now - prev);
+        glRotatef(dt, 0, 1, 0);
+        glutPostRedisplay();
+    }
+}
+
+function displayfun()
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glBegin(GL_TRIANGLES);
+    glColor3f(1, 0, 0); glVertex3f(-0.5, -0.5, 0);
+    glColor3f(0, 1, 0); glVertex3f( 0.5, -0.5, 0);
+    glColor3f(0, 0, 1); glVertex3f( 0  ,  0.5, 0);
+    glEnd();
+    glutSwapBuffers();
+}
+
+// End
