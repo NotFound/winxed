@@ -749,6 +749,14 @@ function getpredefs()
             'exit {arg0}',
             REGvar, REGint
         ),
+        new PredefFunction().set('time',
+            'time {res}',
+            REGint
+        ),
+        new PredefFunction().set('floattime',
+            'time {res}',
+            REGfloat
+        ),
         new PredefFunction().set('spawnw',
             'spawnw {res}, {arg0}',
             REGint, REGvar
@@ -2714,6 +2722,31 @@ class OpMulExpr : OpBinaryExpr
             e.say('repeat ', result, ', ', lreg, ', ', rval);
             return;
         }
+
+        // Quick fix for some float mul
+	// TODO: rewrite this mess
+        if (ltype == REGfloat) {
+            string lreg = lexpr.emit_get(e);
+            string rreg = rexpr.emit_get(e);
+            string rval;
+            switch (rexpr.checkResult()) {
+            case REGint:
+                rval = self.tempreg(REGfloat);
+                e.say('set ', rval, ', ', rreg);
+                rval = rreg;
+                break;
+            case REGfloat:
+                rval = rreg;
+                break;
+            default:
+                rval = self.tempreg(REGfloat);
+                e.say('set ', rval, ', ', rreg);
+            }
+            self.annotate(e);
+            e.say('mul ', result, ', ', lreg, ', ', rval);
+            return;
+        }
+
         string rleft;
         string rright;
         int nleft;
