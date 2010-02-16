@@ -2724,7 +2724,7 @@ class OpMulExpr : OpBinaryExpr
         }
 
         // Quick fix for some float mul
-	// TODO: rewrite this mess
+        // TODO: rewrite this mess
         if (ltype == REGfloat) {
             string lreg = lexpr.emit_get(e);
             string rreg = rexpr.emit_get(e);
@@ -5865,7 +5865,7 @@ class Namespace : Item, VarContainer
 
 const string EVAL_NAME = '__eval__';
 
-class MiniWinxed
+class WinxedCompiler
 {
     var rootns;
     function init [vtable] ()
@@ -5899,7 +5899,9 @@ class MiniWinxed
     }
 }
 
-class WinxedCompiler
+//*********************************************
+
+class WinxedHLL
 {
     function compile(string code)
     {
@@ -5911,7 +5913,7 @@ class WinxedCompiler
         handlein.open(EVAL_NAME, 'r');
         var tk= new Tokenizer();
         tk.init(handlein, EVAL_NAME);
-        var winxed= new MiniWinxed();
+        var winxed= new WinxedCompiler();
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
@@ -5930,9 +5932,11 @@ class WinxedCompiler
     }
 }
 
-function miniwinxed_parser(tk, string outputfile)
+//*********************************************
+
+function winxed_parser(tk, string outputfile)
 {
-    var winxed= new MiniWinxed();
+    var winxed= new WinxedCompiler();
     winxed.parse(tk);
 
     winxed.optimize();
@@ -5955,8 +5959,8 @@ function miniwinxed_parser(tk, string outputfile)
 
 function initializer [init,load]()
 {
-    var comp = new WinxedCompiler();
-    compreg('WINXED', comp);
+    var comp = new WinxedHLL();
+    compreg('winxed', comp);
 }
 
 function stage1(argv)
@@ -6003,7 +6007,7 @@ function stage1(argv)
     string outputfile = '';
     if (opt_o != null)
         outputfile = opt_o;
-    miniwinxed_parser(t, outputfile);
+    winxed_parser(t, outputfile);
 
     file.close();
 }
