@@ -67,8 +67,8 @@ winxedst1$(EXEEXT): winxedst1.pbc
 winxedst1.pbc: winxedst1.pir
 	parrot -o winxedst1.pbc winxedst1.pir
 
-winxedst1.pir: winxed$(EXEEXT) winxedst1.winxed
-	./winxed --stage=0 -c -o winxedst1.pir winxedst1.winxed
+winxedst1.pir: winxedst0$(EXEEXT) winxedst1.winxed
+	./winxedst0 -c -o winxedst1.pir winxedst1.winxed
 
 #-------------------------------
 #    Compiler stage 2
@@ -82,8 +82,8 @@ winxedst2$(EXEEXT): winxedst2.pbc
 winxedst2.pbc: winxedst2.pir
 	parrot -o winxedst2.pbc winxedst2.pir
 
-winxedst2.pir: winxedst1$(EXEEXT) winxedst1.winxed
-	./winxed --stage=1 -c -o winxedst2.pir winxedst1.winxed
+winxedst2.pir: winxedst1.winxed winxedst1.pbc
+	parrot winxedst1.pbc -c -o winxedst2.pir winxedst1.winxed
 
 #-------------------------------
 #      Driver
@@ -126,10 +126,10 @@ testv: winxed.pbc
 TEST1 = \
 	t/preincdec.t.winxed  t/ordchr.t.winxed
 
-test1: winxed$(EXEEXT) winxedst1$(EXEEXT) $(TEST1)
+test1: winxed$(EXEEXT) winxedst1.pbc
 	parrot winxed.pbc t/harness --stage=1 -r t/basic t/*.t $(TEST1)
 
-test2: winxed$(EXEEXT) winxedst2$(EXEEXT) $(TEST1)
+test2: winxed$(EXEEXT) winxedst2.pbc
 	parrot winxed.pbc t/harness --stage=2 -r t/basic t/*.t $(TEST1)
 
 clean:
