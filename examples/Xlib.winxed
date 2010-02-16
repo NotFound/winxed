@@ -1,0 +1,575 @@
+#! winxed
+
+// Testing Xlib via parrot NCI.
+
+/***********************************************************************
+                        Xlib constants
+***********************************************************************/
+
+// Event selection masks
+// Warning: hexadecimals not available in stage 0
+const int KeyPressMask        = 0x00000001;
+const int KeyReleaseMask      = 0x00000002;
+const int ButtonPressMask     = 0x00000004;
+const int ButtonReleaseMask   = 0x00000008;
+const int EnterWindowMask     = 0x00000010;
+const int LeaveWindowMask     = 0x00000020;
+const int PointerMotionMask   = 0x00000040;
+const int ExposureMask        = 0x00008000;
+const int StructureNotifyMask = 0x00020000;
+// Event types
+const int KeyPress      = 2;
+const int KeyRelease    = 3;
+const int ButtonPress   = 4;
+const int ButtonRelease = 5;
+const int MotionNotify  = 6;
+const int Expose        = 12;
+const int DestroyNotify = 17;
+const int ClientMessage = 33;
+
+/***********************************************************************
+                        Internal helper functions
+***********************************************************************/
+
+namespace Xlib__private
+{
+
+function loadXlib()
+{
+    string libs[] = [
+        'libX11',
+        'libX11.so',
+        'libX11.so.6',
+        '/usr/lib/libX11.so',
+        '/usr/lib/libX11.so.6',
+        'cygX11-6'
+    ];
+    var l;
+    for (string lib in libs) {
+        l= loadlib(lib);
+        if (l) break;
+    }
+    return l;
+}
+
+// Harcoded values, from iglobals.pasm and datatypes.pasm
+const int IGLOBALS_CONFIG_HASH = 6;
+const int DATATYPE_CHAR   = -94;
+const int DATATYPE_INT    = -92;
+const int DATATYPE_LONG   = -91;
+const int DATATYPE_PTR    = -71;
+const int DATATYPE_UINT32 = -73;
+const int time_t = DATATYPE_UINT32;
+
+/*
+        Event structure definition.
+        Values used for sizes and offsets are derived
+        from Xlib docs and testing in several platforms.
+*/
+
+function eventstruct()
+{
+    var config_hash = getinterp()[IGLOBALS_CONFIG_HASH];
+    int intsize = config_hash['intsize'];
+    int longsize = config_hash['longsize'];
+    int ptrsize = config_hash['ptrsize'];
+    int timesize = 4;
+    int aligned = intsize;
+    if (longsize == 8) aligned = 8;
+
+    int eventst[];
+    int f = 0;
+    int offs = 0;
+    // Type
+    eventst[f++] = DATATYPE_INT;
+    eventst[f++] = 1;
+    eventst[f++] = offs;
+    offs += aligned;
+    // Serial
+    eventst[f++] = DATATYPE_LONG;
+    eventst[f++] = 1;
+    eventst[f++] = offs;
+    offs += longsize;
+    // send_event
+    eventst[f++] = DATATYPE_INT;
+    eventst[f++] = 1;
+    eventst[f++] = offs;
+    offs += aligned;
+    // display
+    eventst[f++] = DATATYPE_PTR;
+    eventst[f++] = 1;
+    eventst[f++] = offs;
+    offs += ptrsize;
+    // window
+    eventst[f++] = DATATYPE_PTR;
+    eventst[f++] = 1;
+    eventst[f++] = offs;
+    offs += ptrsize;
+    // root
+    eventst[f++] = DATATYPE_PTR;
+    eventst[f++] = 1;
+    eventst[f++] = offs;
+    offs += ptrsize;
+    // subwindow
+    eventst[f++] = DATATYPE_PTR;
+    eventst[f++] = 1;
+    eventst[f++] = offs;
+    offs += ptrsize;
+    // time
+    eventst[f++] = time_t;
+    eventst[f++] = 1;
+    eventst[f++] = offs;
+    offs += aligned;
+    // x
+    eventst[f++] = DATATYPE_INT;
+    eventst[f++] = 1;
+    eventst[f++] = offs;
+    offs += intsize;
+    // y
+    eventst[f++] = DATATYPE_INT;
+    eventst[f++] = 1;
+    eventst[f++] = offs;
+    offs += intsize;
+    // x_root
+    eventst[f++] = DATATYPE_INT;
+    eventst[f++] = 1;
+    eventst[f++] = offs;
+    offs += intsize;
+    // y_root
+    eventst[f++] = DATATYPE_INT;
+    eventst[f++] = 1;
+    eventst[f++] = offs;
+    offs += intsize;
+    // state
+    eventst[f++] = DATATYPE_INT;
+    eventst[f++] = 1;
+    eventst[f++] = offs;
+    offs += intsize;
+    // keycode
+    eventst[f++] = DATATYPE_INT;
+    eventst[f++] = 1;
+    eventst[f++] = offs;
+    offs += intsize;
+    // filler
+    eventst[f++] = DATATYPE_CHAR;
+    eventst[f++] = 128;
+    eventst[f++] = offs;
+
+    for (;;)
+        yield(eventst);
+}
+
+function newAtomlist(int n)
+{
+    var config_hash = getinterp()[IGLOBALS_CONFIG_HASH];
+    int intsize = config_hash['intsize'];
+    int auxdata[n * 3];
+    for (int i = 0; i < n; ++i) {
+        auxdata[3 * i + 0] = DATATYPE_INT;
+        auxdata[3 * i + 1] = 1;
+        auxdata[3 * i + 2] = intsize * i;
+    }
+    var aux = new 'ManagedStruct'(auxdata);
+    return aux;
+}
+
+function AtomlistFromStrings(var display, var atomnames)
+{
+    int natoms = atomnames;
+    using Xlib__private.newAtomlist;
+    var aux = newAtomlist(natoms);
+    for (int i = 0; i< atomnames; ++i) {
+        string name = atomnames[i];
+        int atom = display.InternAtom(name);
+        aux[i] = atom;
+    }
+    return aux;
+}
+
+} // namespace Xlib__private
+
+function getlib()
+{
+    using Xlib__private.loadXlib;
+    var l = loadXlib();
+    if (! l)
+        throw Error('Cannot load Xlib');
+    for (;;)
+        yield l;
+}
+
+
+/***********************************************************************
+                        Display
+***********************************************************************/
+
+class Display
+{
+    var xdisplay;
+    function Close()
+    {
+        var fn = dlfunc(getlib(), 'XCloseDisplay', 'ip');
+        fn(self.xdisplay);
+        self.xdisplay = null;
+    }
+    function DefaultScreen()
+    {
+        var fn = dlfunc(getlib(), 'XDefaultScreen', 'ip');
+        int scrnum = fn(self.xdisplay);
+        return scrnum;
+    }
+    function DefaultDepth(int scrnum)
+    {
+        var fn = dlfunc(getlib(), 'XDefaultDepth', 'ipi');
+        int depth = fn(self.xdisplay, scrnum);
+        return depth;
+    }
+    function BlackPixel(int scrnum)
+    {
+        var fn = dlfunc(getlib(), 'XBlackPixel', 'ipi');
+        return fn(self.xdisplay, scrnum);
+    }
+    function WhitePixel(int scrnum)
+    {
+        var fn = dlfunc(getlib(), 'XWhitePixel', 'ipi');
+        return fn(self.xdisplay, scrnum);
+    }
+    function KeycodeToKeysym(int keycode)
+    {
+        var fn = dlfunc(getlib(), 'XKeycodeToKeysym', 'ipii');
+        int sym = fn(self.xdisplay, keycode, 0);
+        return sym;
+    }
+    function KeysymToKeycode(int keysym)
+    {
+        var fn = dlfunc(getlib(), 'XKeysymToKeycode', 'ipi');
+        int code = fn(self.xdisplay, keysym);
+        return code;
+    }
+    function InternAtom(string name, int only_if_exists[optional])
+    {
+        var fn = dlfunc(getlib(), 'XInternAtom', 'ipti');
+        int atom = fn(self.xdisplay, name, only_if_exists);
+        return atom;
+    }
+    function GetAtomName(int atom)
+    {
+        var fn = dlfunc(getlib(), 'XGetAtomName', 'tpi');
+        string name = fn(self.xdisplay, atom);
+        return name;
+    }
+    function DefaultGC()
+    {
+        var fn = dlfunc(getlib(), 'XDefaultGC', 'ppi');
+        return fn(self.xdisplay, self.DefaultScreen());
+    }
+    function RootWindow(int scrnum)
+    {
+        var fn = dlfunc(getlib(), 'XRootWindow', 'ppi');
+        var rootw = new Window();
+        rootw.display = self;
+        rootw.xdrawable = fn(self.xdisplay, scrnum);
+        return rootw;
+    }
+    function CreateSimpleWindow(var parent,
+        int x, int y, int width, int height,
+        int border_width, int border, int background)
+    {
+        var fn = dlfunc(getlib(), 'XCreateSimpleWindow', 'pppiiiiiii');
+        var w = new Window();
+        w.display = self;
+        w.xdrawable = fn(self.xdisplay, parent.xdrawable,
+                x, y, width, height, border_width, border, background);
+        return w;
+    }
+    function NextEvent(var event)
+    {
+        var fn = dlfunc(getlib(), 'XNextEvent', 'ipp');
+        fn(self.xdisplay, event.eventst);
+    }
+}
+
+function DisplayName()
+{
+    var fn = dlfunc(getlib(), 'XDisplayName', 'tt');
+    return fn('');
+}
+
+function KeysymToString(int keysym)
+{
+    var fn = dlfunc(getlib(), 'XKeysymToString', 'ti');
+    string r = fn(keysym);
+    return r;
+}
+
+function StringToKeysym(string keystring)
+{
+    var fn = dlfunc(getlib(), 'XStringToKeysym', 'it');
+    int k = fn(keystring);
+    return k;
+}
+
+function OpenDisplay()
+{
+    var d = new Display();
+    var fn = dlfunc(getlib(), 'XOpenDisplay', 'pt');
+    d.xdisplay = fn('');
+    return d;
+}
+
+/***********************************************************************
+                        Event
+***********************************************************************/
+
+class Event
+{
+    var eventst;
+    function init[vtable]()
+    {
+        using Xlib__private.eventstruct;
+        self.eventst = new 'ManagedStruct'(eventstruct());
+    }
+    function type()
+    {
+        var eventst = self.eventst;
+        int t = eventst[0];
+        return t;
+    }
+    function x()
+    {
+        var eventst = self.eventst;
+        int t = eventst[8];
+        return t;
+    }
+    function y()
+    {
+        var eventst = self.eventst;
+        int t = eventst[9];
+        return t;
+    }
+    function keycode()
+    {
+        var eventst = self.eventst;
+        int t = eventst[13];
+        return t;
+    }
+}
+
+/***********************************************************************
+                        Drawable
+***********************************************************************/
+
+class Drawable
+{
+    var display;
+    var xdrawable;
+    function DrawPoint(int x, int y)
+    {
+        var gc = self.display.DefaultGC();
+        var fn = dlfunc(getlib(), 'XDrawPoint', 'ipppii');
+        fn(self.display.xdisplay, self.xdrawable, gc, x, y);
+    }
+    function DrawLine(int x1, int y1, int x2, int y2)
+    {
+        var gc = self.display.DefaultGC();
+        var fn = dlfunc(getlib(), 'XDrawLine', 'ipppiiii');
+        fn(self.display.xdisplay, self.xdrawable, gc, x1, y1, x2, y2);
+    }
+}
+
+/***********************************************************************
+                        Window
+***********************************************************************/
+
+class Window : Drawable
+{
+    function Destroy()
+    {
+        var fn = dlfunc(getlib(), 'XDestroyWindow', 'ipp');
+        fn(self.display.xdisplay, self.xdrawable);
+    }
+    function SelectInput(int eventmask)
+    {
+        var fn = dlfunc(getlib(), 'XSelectInput', 'ippi');
+        fn(self.display.xdisplay, self.xdrawable, eventmask);
+    }
+    function StoreName(string name)
+    {
+        var fn = dlfunc(getlib(), 'XStoreName', 'ippt');
+        fn(self.display.xdisplay, self.xdrawable, name);
+    }
+    function Map()
+    {
+        var fn = dlfunc(getlib(), 'XMapWindow', 'ipp');
+        fn(self.display.xdisplay, self.xdrawable);
+    }
+    function Unmap()
+    {
+        var fn = dlfunc(getlib(), 'XUnmapWindow', 'ipp');
+        fn(self.display.xdisplay, self.xdrawable);
+    }
+}
+
+//**********************************************************************
+
+// Data files: array of arrays of int in JSON format.
+
+// Key for json line data
+const string JKEY_LINES = 'lines';
+
+function load(string filename)
+{
+    var listline;
+    if (filename == null || filename == '')
+        listline = [];
+    else {
+        try {
+            var handle = open(filename);
+            var jsondata = handle.readall();
+            handle.close();
+            var json = load_language('data_json');
+            var object = json.compile(jsondata)();
+            listline = object[JKEY_LINES];
+        }
+        catch() {
+            listline = [];
+        }
+    }
+    return listline;
+}
+
+function save(string filename, var listline)
+{
+    var object = { JKEY_LINES : listline };
+    using extern JSON;
+    var jsondata = _json(object);
+    var handle = open(filename, 'w');
+    handle.print(jsondata);
+    handle.print("\n");
+    handle.close();
+}
+
+function main(args)
+{
+    say('Display        : "', DisplayName(), '"');
+
+    var display = OpenDisplay();
+    int scrnum  = display.DefaultScreen();
+    int depth   = display.DefaultDepth(scrnum);
+    int black   = display.BlackPixel(scrnum);
+    int white   = display.WhitePixel(scrnum);
+
+    say('Default screen : ', scrnum);
+    say('Default depth  : ', depth);
+    say('Black pixel    : ', black);
+    say('White pixel    : ', white);
+    say();
+
+    string filename = args[1];
+
+    var rootwindow = display.RootWindow(scrnum);
+    var window = display.CreateSimpleWindow(rootwindow, 0, 0, 600, 400,
+            0, black, white);
+
+    using Xlib__private.AtomlistFromStrings;
+    var aux = AtomlistFromStrings(display, ['WM_DELETE_WINDOW']);
+    var fnaux = dlfunc(getlib(), 'XSetWMProtocols', 'ipppi');
+    fnaux(display.xdisplay, window.xdrawable, aux, 1);
+
+    window.SelectInput(ExposureMask |
+        KeyPressMask | KeyReleaseMask |
+        ButtonPressMask | ButtonReleaseMask |
+        PointerMotionMask |
+        StructureNotifyMask);
+    window.StoreName('Hello, Winxed!');
+    window.Map();
+
+    int keysym = StringToKeysym('Escape');
+    int codeEsc = display.KeysymToKeycode(keysym);
+    keysym = StringToKeysym('S');
+    int codeS = display.KeysymToKeycode(keysym);
+
+    var listline = load(filename);
+    var line;
+
+    var event = new Event();
+    int oldx = 0;
+    int oldy = 0;
+    int pressed = 0;
+    for (int loop = 1; loop;) {
+        display.NextEvent(event);
+        int type = event.type();
+        switch (type) {
+        case Expose:
+            var l;
+            for (l in listline) {
+                int n = l;
+                int px = l[0];
+                int py = l[1];
+                if (n > 2) {
+                    for (int i = 2; i < n; i += 2) {
+                        int nx = l[i];
+                        int ny = l[i+1];
+                        window.DrawLine(px, py, nx, ny);
+                        px = nx; py = ny;
+                    }
+                }
+                else
+                    window.DrawPoint(px, py);
+            }
+            break;
+        case ButtonPress:
+            pressed = 1;
+            oldx = event.x();
+            oldy = event.y();
+            line = [];
+            listline.push(line);
+            line.push(oldx);
+            line.push(oldy);
+            window.DrawPoint(oldx, oldy);
+            break;
+        case ButtonRelease:
+            pressed = 0;
+            break;
+        case MotionNotify:
+            if (pressed) {
+                int x = event.x();
+                int y = event.y();
+                if (x != oldx || y != oldy) {
+                    window.DrawLine(oldx, oldy, x, y);
+                    oldx = x; oldy = y;
+                    line.push(oldx); line.push(oldy);
+                }
+            }
+            break;
+        case DestroyNotify:
+            loop = 0;
+            break;
+        case KeyPress:
+            int code = event.keycode();
+            switch (code) {
+            case codeEsc:
+                window.Destroy();
+                break;
+            case codeS:
+                save(filename, listline);
+                break;
+            default:
+                int sym = display.KeycodeToKeysym(code);
+                say('Key name: ', KeysymToString(sym));
+            }
+            break;
+        case ClientMessage:
+            say('Bye');
+            window.Destroy();
+            break;
+        default:
+            break;
+        }
+    }
+
+    say('End');
+    display.Close();
+}
+
+// End.
