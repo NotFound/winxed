@@ -41,6 +41,8 @@ function extname(string filename, string ext)
 
 function main [main] (argv)
 {
+    const int DEFAULT_STAGE = 0;
+
     var options = [
       [ 'stage=i',  'Compiler stage to use' ],
       [ 'c',        'Compile only. Same as --target=pir' ],
@@ -76,7 +78,7 @@ function main [main] (argv)
         return;
     }
 
-    int stage = 0; // Default: stage 0
+    int stage = DEFAULT_STAGE;
     if (opt_stage != null)
         stage = opt_stage;
     else {
@@ -166,16 +168,26 @@ function main [main] (argv)
         die('Invalid stage ' + stage + '. Must be 0, 1 or 2 (2 is for testing development only).');
     }
     string cmd[]; // Command to execute
-    // Simple heuristic: if the compiler is in the current
-    // directory and has no extension, use it.
-    // If not, assume it's in the PATH or we are on Windows.
-    var check = null;
-    try  check = os.stat(winxedbin);
-    catch () { }
-    if (check != null)
-        cmd.push('./' + winxedbin);
-    else
-        cmd.push(winxedbin);
+
+    int use_pbc = stage > 0;
+
+    if (use_pbc) {
+        cmd.push('parrot');
+        cmd.push(winxedbin + '.pbc');
+    }
+    else {
+        // Simple heuristic: if the compiler is in the current
+        // directory and has no extension, use it.
+        // If not, assume it's in the PATH or we are on Windows.
+        var check = null;
+        try  check = os.stat(winxedbin);
+        catch () { }
+        if (check != null)
+            cmd.push('./' + winxedbin);
+        else
+            cmd.push(winxedbin);
+    }
+
     cmd.push('-c');
     if (noan)
         cmd.push('--noan');;
