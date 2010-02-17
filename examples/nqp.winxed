@@ -1,0 +1,21 @@
+#! winxed
+
+// Compiling and using nqp code within winxed.
+
+function main()
+{
+    string source =
+        "sub hello($msg) {\n" +
+        "    say('Hi from nqp, ', $msg);\n" +
+        "}\n"
+    ;
+    say('Source:');
+    print(source);
+
+    var nqp = load_language('nqp', 'NQP');
+    var code= nqp.compile(source);
+    var hello=code();
+
+    say("Executing: \"hello('winxed world');\"");
+    hello('winxed world');
+}
