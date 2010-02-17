@@ -52,6 +52,43 @@ function dump_constants(var seg)
     }
 }
 
+function dump_fixup(var seg)
+{
+    int n = elements(seg);
+    float numval;
+    say("Fixup table:\n\tLength: ", n);
+    for (int i= 0; i < n; ++i) {
+        var entry = seg[i];
+        int type = entry.get_type();
+        int offset = entry;
+        say("\tName: '", entry, "' type: ", type, " offset: ", offset);
+    }
+}
+
+function dump_annotations(var seg)
+{
+    int n = elements(seg);
+    float numval;
+    say("Annotations:\n\tLength: ", n);
+    for (int i= 0; i < n; ++i) {
+        var annot = seg[i];
+        int offset = annot.get_offset();
+        string name = annot.get_name();
+        print("\tOffset: ", offset, ' type: "', name, '" value: ');
+        switch (name) {
+        case 'file':
+            string filename = annot;
+            print("'", filename, "'");
+            break;
+        case 'line':
+            int line = annot;
+            print(line);
+            break;
+        }
+        say();
+    }
+}
+
 function main(argv)
 {
     var file = new 'FileHandle'.open(argv[1], 'rb');
@@ -99,6 +136,12 @@ function main(argv)
         {
         case PF_CONST_SEG:
             dump_constants(seg);
+            break;
+        case PF_FIXUP_SEG:
+            dump_fixup(seg);
+            break;
+        case PF_ANNOTATIONS_SEG:
+            dump_annotations(seg);
             break;
         default:
             break;
