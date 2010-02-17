@@ -789,6 +789,10 @@ function getpredefs()
             "{res}['type'] = {arg2}",
             REGvar, REGstring, REGint, REGint
         ),
+        new PredefFunction().set('elements',
+            'elements {res}, {arg0}',
+            REGint, REGvar
+        ),
         new PredefFunction().set('length',
             'length {res}, {arg0}',
             REGint, REGstring

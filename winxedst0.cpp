@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 31-jan-2010
+// Revision 17-feb-2010
 
 // Winxed compiler stage 0.
 
@@ -357,6 +357,9 @@ const PredefFunction *PredefFunction::predefs[]= {
         "{res}['severity'] = {arg1}\n"
         "{res}['type'] = {arg2}\n"
         , REGvar, REGstring, REGint, REGint),
+    new PredefFunctionFixargs("elements",
+        "elements {res}, {arg0}",
+        REGint, REGvar),
     new PredefFunctionFixargs("length",
         "length {res}, {arg0}",
         REGint, REGstring),
