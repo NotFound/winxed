@@ -23,29 +23,32 @@ function dump_constants(var seg)
 {
     int n = elements(seg);
     float numval;
-    say('Constant table length: ', n);
+    say("Constant table:\n\tLength: ", n);
     for (int i= 0; i < n; ++i) {
         int type = seg.get_type(i);
-        string value;
+        string typename;
+        string value = '';
         switch (type) {
         case PFC_KEY:
-            value = '(KEY)';
+            typename = 'KEY';
             break;
         case PFC_NUMBER:
+            typename = 'NUMBER';
             numval = seg[i];
             value = numval;
             break;
         case PFC_PMC:
-            value = '(PMC)';
+            typename = 'PMC';
             break;
         case PFC_STRING:
+            typename = 'STRING';
             value = seg[i];
             value = '"' + value + '"';
             break;
         default:
-            value = 'INVALID CONSTANT TYPE';
+            typename = 'INVALID CONSTANT TYPE';
         }
-        say(i, '(', type, '): ', value);
+        say("\t", i, ': ', typename, '(', type, '): ', value);
     }
 }
 
@@ -57,6 +60,7 @@ function main(argv)
 
     var pack= new 'Packfile';
     pack =: content;
+    say('Header:');
     for (string key in [
             'wordsize',
             'byteorder',
@@ -69,22 +73,24 @@ function main(argv)
             'uuid_type'
             ] ) {
         int n= pack[key];
-        say(key, ': ', n);
+        say("\t", key, ': ', n);
     }
+    say('Directory:');
     var dir= pack.get_directory();
     for (var it in dir) {
+        print("\tSegment: ", it, ' type ');
         var seg = it.value();
         int type = seg.type();
         switch (type)
         {
-        case PF_FIXUP_SEG:       print("FIXUP      "); break;
-        case PF_CONST_SEG:       print("CONST      "); break;
-        case PF_BYTEC_SEG:       print("BYTEC      "); break;
-        case PF_DEBUG_SEG:       print("DEBUG      "); break;
+        case PF_FIXUP_SEG:       print("FIXUP"); break;
+        case PF_CONST_SEG:       print("CONST"); break;
+        case PF_BYTEC_SEG:       print("BYTEC"); break;
+        case PF_DEBUG_SEG:       print("DEBUG"); break;
         case PF_ANNOTATIONS_SEG: print("ANNOTATIONS"); break;
-        default:                 print("Unknown    ");
+        default:                 print("Unknown");
         }
-        say(' segment');
+        say(' (', type, ')');
     }
     for (var it in dir) {
         var seg = it.value();
