@@ -1,0 +1,103 @@
+#! winxed
+
+# Show the content of a pbc file using the Packfile PMCs.
+# Work in progress.
+
+// Segment types (from packfile_segments.pasm)
+const int PF_DIR_SEG         = 0;
+const int PF_UNKNOWN_SEG     = 1;
+const int PF_FIXUP_SEG       = 2;
+const int PF_CONST_SEG       = 3;
+const int PF_BYTEC_SEG       = 4;
+const int PF_DEBUG_SEG       = 5;
+const int PF_ANNOTATIONS_SEG = 6;
+
+// Constant types (from packfile_constants.pasm)
+const int PFC_NONE =   0x00;
+const int PFC_NUMBER = 0x6E;
+const int PFC_STRING = 0x73;
+const int PFC_PMC =    0x70;
+const int PFC_KEY =    0x6B;
+
+function dump_constants(var seg)
+{
+    int n = elements(seg);
+    float numval;
+    say('Constant table length: ', n);
+    for (int i= 0; i < n; ++i) {
+        int type = seg.get_type(i);
+        string value;
+        switch (type) {
+        case PFC_KEY:
+            value = '(KEY)';
+            break;
+        case PFC_NUMBER:
+            numval = seg[i];
+            value = numval;
+            break;
+        case PFC_PMC:
+            value = '(PMC)';
+            break;
+        case PFC_STRING:
+            value = seg[i];
+            value = '"' + value + '"';
+            break;
+        default:
+            value = 'INVALID CONSTANT TYPE';
+        }
+        say(i, '(', type, '): ', value);
+    }
+}
+
+function main(argv)
+{
+    var file = new 'FileHandle'.open(argv[1], 'rb');
+    string content= file.readall();
+    file.close();
+
+    var pack= new 'Packfile';
+    pack =: content;
+    for (string key in [
+            'wordsize',
+            'byteorder',
+            'fptype',
+            'version_major',
+            'version_minor',
+            'version_patch',
+            'bytecode_major',
+            'bytecode_minor',
+            'uuid_type'
+            ] ) {
+        int n= pack[key];
+        say(key, ': ', n);
+    }
+    var dir= pack.get_directory();
+    for (var it in dir) {
+        var seg = it.value();
+        int type = seg.type();
+        switch (type)
+        {
+        case PF_FIXUP_SEG:       print("FIXUP      "); break;
+        case PF_CONST_SEG:       print("CONST      "); break;
+        case PF_BYTEC_SEG:       print("BYTEC      "); break;
+        case PF_DEBUG_SEG:       print("DEBUG      "); break;
+        case PF_ANNOTATIONS_SEG: print("ANNOTATIONS"); break;
+        default:                 print("Unknown    ");
+        }
+        say(' segment');
+    }
+    for (var it in dir) {
+        var seg = it.value();
+        int type = seg.type();
+        switch (type)
+        {
+        case PF_CONST_SEG:
+            dump_constants(seg);
+            break;
+        default:
+            break;
+        }
+    }
+}
+
+// That's all folks!
