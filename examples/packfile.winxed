@@ -89,6 +89,78 @@ function dump_annotations(var seg)
     }
 }
 
+function getargs(var opcode)
+{
+    int count = opcode.op_count();
+    print('<', count, '>');
+    string opcodestr = opcode;
+    var chunks = split('_', opcodestr);
+    int n = chunks;
+    while (n > count) {
+        chunks.shift();
+        --n;
+    }
+    chunks.shift();
+    return chunks;
+}
+
+function dump_bytecode(var seg, var const_table)
+{
+    int n = elements(seg);
+    say("Bytecode:\n\tLength: ", n);
+    var oplib = new 'OpLib';
+    for (int i= 0; i < n; ++i) {
+        print("\t", i, ': ');
+        int code = seg[i];
+        print(code, " - ");
+        var opcode = oplib[code & 0xFFFF];
+        var args = getargs(opcode);
+        print(opcode);
+        string sep = ' ';
+        for (string arg in args) {
+            ++i;
+            int isconst = length(arg) > 1 && substr(arg, 1, 1) == 'c';
+            print(sep);
+            if (isconst) {
+                int constindex = seg[i];
+                switch(substr(arg, 0, 1)) {
+                case 'i':
+                    print(constindex);
+                    break;
+                case 'n':
+                    float fval = const_table[constindex];
+                    print(fval);
+                    break;
+                case 's':
+                    string sval = const_table[constindex];
+                    print("'", sval, "'");
+                    break;
+                case 'p':
+                    print("PC", constindex);
+                    break;
+                default:
+                    print('???');
+                    break;
+                }
+            }
+            else {
+                string regtype;
+                switch(substr(arg, 0, 1)) {
+                case 'i': regtype = 'I'; break;
+                case 'n': regtype = 'N'; break;
+                case 's': regtype = 'S'; break;
+                case 'p': regtype = 'P'; break;
+                default:  regtype = '???'; break;
+                }
+                int regnum = seg[i];
+                print(regtype, regnum);
+            }
+            sep = ', ';
+        }
+        say();
+    }
+}
+
 function main(argv)
 {
     var file = new 'FileHandle'.open(argv[1], 'rb');
@@ -114,6 +186,7 @@ function main(argv)
     }
     say('Directory:');
     var dir= pack.get_directory();
+    var const_table = null;
     for (var it in dir) {
         print("\tSegment: ", it, ' type ');
         var seg = it.value();
@@ -121,7 +194,9 @@ function main(argv)
         switch (type)
         {
         case PF_FIXUP_SEG:       print("FIXUP"); break;
-        case PF_CONST_SEG:       print("CONST"); break;
+        case PF_CONST_SEG:       print("CONST");
+            const_table = seg;
+            break;
         case PF_BYTEC_SEG:       print("BYTEC"); break;
         case PF_DEBUG_SEG:       print("DEBUG"); break;
         case PF_ANNOTATIONS_SEG: print("ANNOTATIONS"); break;
@@ -142,6 +217,9 @@ function main(argv)
             break;
         case PF_ANNOTATIONS_SEG:
             dump_annotations(seg);
+            break;
+        case PF_BYTEC_SEG:
+            dump_bytecode(seg, const_table);
             break;
         default:
             break;
