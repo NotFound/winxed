@@ -92,7 +92,6 @@ function dump_annotations(var seg)
 function getargs(var opcode)
 {
     int count = opcode.op_count();
-    print('<', count, '>');
     string opcodestr = opcode;
     var chunks = split('_', opcodestr);
     int n = chunks;
@@ -115,7 +114,23 @@ function dump_bytecode(var seg, var const_table)
         print(code, " - ");
         var opcode = oplib[code & 0xFFFF];
         var args = getargs(opcode);
-        print(opcode);
+        string opstr = opcode;
+        print(opstr);
+
+        // Special opcodes
+        if (opstr == 'set_args_pc' || opstr == 'set_returns_pc' ||
+                opstr == 'get_results_pc' || opstr == 'get_params_pc')
+        {
+            ++i;
+            int sigindex = seg[i];
+            var sig = const_table[sigindex];
+            int siglen = sig;
+            print(' PC', sigindex, '{', siglen, '}');
+            i+= siglen;
+            say();
+            continue;
+        }
+
         string sep = ' ';
         for (string arg in args) {
             ++i;
