@@ -103,6 +103,46 @@ function getargs(var opcode)
     return chunks;
 }
 
+function showarg(string type, int value, var const_table)
+{
+    int isconst = length(type) > 1 && substr(type, 1, 1) == 'c';
+    if (isconst) {
+        switch(substr(type, 0, 1)) {
+        case 'i':
+            print(value);
+            break;
+        case 'n':
+            float fval = const_table[value];
+            print(fval);
+            break;
+        case 's':
+            string sval = const_table[value];
+            print("'", sval, "'");
+            break;
+        case 'p':
+            print("PC", value);
+            break;
+        case 'k':
+            print("KC", value);
+            break;
+        default:
+            print('???');
+            break;
+        }
+    }
+    else {
+        string regtype;
+        switch(substr(type, 0, 1)) {
+        case 'i': regtype = 'I'; break;
+        case 'n': regtype = 'N'; break;
+        case 's': regtype = 'S'; break;
+        case 'p': regtype = 'P'; break;
+        default:  regtype = '???'; break;
+        }
+        print(regtype, value);
+    }
+}
+
 function dump_bytecode(var seg, var const_table)
 {
     int n = elements(seg);
@@ -126,51 +166,29 @@ function dump_bytecode(var seg, var const_table)
             var sig = const_table[sigindex];
             int siglen = sig;
             print(' PC', sigindex, '{', siglen, '}');
-            i+= siglen;
-            say();
-            continue;
+            string sep = ' ';
+            for (int a = 0; a < siglen; ++a) {
+                ++i;
+                int sigvalue = sig[a];
+                int sigtype = sigvalue & 0x3;
+                string type = substr('ispn', sigtype, 1);
+                if (sigvalue & 0x10)
+                    type += 'c';
+                int value = seg[i];
+                print(sep);
+                sep = ', ';
+                showarg(type, value, const_table);
+            }
         }
-
-        string sep = ' ';
-        for (string arg in args) {
-            ++i;
-            int isconst = length(arg) > 1 && substr(arg, 1, 1) == 'c';
-            print(sep);
-            if (isconst) {
-                int constindex = seg[i];
-                switch(substr(arg, 0, 1)) {
-                case 'i':
-                    print(constindex);
-                    break;
-                case 'n':
-                    float fval = const_table[constindex];
-                    print(fval);
-                    break;
-                case 's':
-                    string sval = const_table[constindex];
-                    print("'", sval, "'");
-                    break;
-                case 'p':
-                    print("PC", constindex);
-                    break;
-                default:
-                    print('???');
-                    break;
-                }
+        else { // Not so special
+            string sep = ' ';
+            for (string arg in args) {
+                ++i;
+                print(sep);
+                sep = ', ';
+                int value = seg[i];
+                showarg(arg, value, const_table);
             }
-            else {
-                string regtype;
-                switch(substr(arg, 0, 1)) {
-                case 'i': regtype = 'I'; break;
-                case 'n': regtype = 'N'; break;
-                case 's': regtype = 'S'; break;
-                case 'p': regtype = 'P'; break;
-                default:  regtype = '???'; break;
-                }
-                int regnum = seg[i];
-                print(regtype, regnum);
-            }
-            sep = ', ';
         }
         say();
     }
