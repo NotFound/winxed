@@ -64,12 +64,25 @@ function dump_fixup(var seg, var const_table)
     for (int i= 0; i < n; ++i) {
         var entry = seg[i];
         int type = entry.get_type();
+        say("\tLabel: '", entry, "' type: ", type);
+
         int index = entry;
         var pmcsub = const_table[index];
         int offset = pmcsub.start_offs();
-        say("\tLabel: '", entry, "' type: ", type,
-            " Sub: ", pmcsub.get_namespace(), ';', pmcsub,
-            " Offset: ", offset);
+        string fullname;
+        var ns = pmcsub.get_namespace();
+        if (ns != null) {
+            var nsname = ns.get_name();
+            fullname = nsname;
+            fullname += ' ';
+        }
+        fullname += pmcsub;
+        say("\t\tSub: ", fullname);
+
+        string subid = pmcsub.get_subid();
+        if (subid != null && subid != '')
+            say("\t\tID: ", subid);
+        say("\t\tOffset: ", offset);
     }
 }
 
