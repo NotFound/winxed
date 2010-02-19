@@ -19,6 +19,10 @@ const int PFC_STRING = 0x73;
 const int PFC_PMC =    0x70;
 const int PFC_KEY =    0x6B;
 
+// Opcode arg types (from include/parrot/enums.h)
+const int PARROT_ARG_TYPE_MASK = 0x000F;
+const int PARROT_ARG_CONSTANT  = 0x0010;
+
 function dump_constants(var seg)
 {
     int n = elements(seg);
@@ -52,7 +56,7 @@ function dump_constants(var seg)
     }
 }
 
-function dump_fixup(var seg)
+function dump_fixup(var seg, var const_table)
 {
     int n = elements(seg);
     float numval;
@@ -60,8 +64,12 @@ function dump_fixup(var seg)
     for (int i= 0; i < n; ++i) {
         var entry = seg[i];
         int type = entry.get_type();
-        int offset = entry;
-        say("\tName: '", entry, "' type: ", type, " offset: ", offset);
+        int index = entry;
+        var pmcsub = const_table[index];
+        int offset = pmcsub.start_offs();
+        say("\tLabel: '", entry, "' type: ", type,
+            " Sub: ", pmcsub.get_namespace(), ';', pmcsub,
+            " Offset: ", offset);
     }
 }
 
@@ -170,9 +178,9 @@ function dump_bytecode(var seg, var const_table)
             for (int a = 0; a < siglen; ++a) {
                 ++i;
                 int sigvalue = sig[a];
-                int sigtype = sigvalue & 0x3;
+                int sigtype = sigvalue & PARROT_ARG_TYPE_MASK;
                 string type = substr('ispn', sigtype, 1);
-                if (sigvalue & 0x10)
+                if (sigvalue & PARROT_ARG_CONSTANT)
                     type += 'c';
                 int value = seg[i];
                 print(sep);
@@ -246,7 +254,7 @@ function main(argv)
             dump_constants(seg);
             break;
         case PF_FIXUP_SEG:
-            dump_fixup(seg);
+            dump_fixup(seg, const_table);
             break;
         case PF_ANNOTATIONS_SEG:
             dump_annotations(seg);
