@@ -1,0 +1,125 @@
+#! winxed
+
+// Tests of pbc generation using the packfile PMCs
+
+//**********************************************************************
+
+// Opcodes used. Code it by hand for a now, can be obtained
+// using the oplib PMC.
+
+const int OP_end            = 0;
+const int OP_noop           = 1;
+const int OP_invokecc_p     = 28;
+const int OP_returncc       = 32;
+const int OP_set_args_pc    = 35;
+const int OP_get_results_pc = 36;
+const int OP_set_returns_pc = 38;
+const int OP_say_sc         = 465;
+const int OP_set_p_pc       = 900;
+
+//**********************************************************************
+
+function main()
+{
+    // Generate two simple subs, marking the second as main
+
+    var packfile = new 'Packfile';
+    var dir = packfile.get_directory();
+    say(elements(dir));
+
+
+    var constseg = new 'PackfileConstantTable';
+    int cstindex = 0;
+    constseg[cstindex++] = getinterp();
+    int cst_hello = cstindex;;
+    constseg[cstindex++] = 'Hello, world!';
+    int cst_bye = cstindex;
+    constseg[cstindex++] = 'Bye, world!';
+    var empty = new 'FixedIntegerArray';
+    int cstempty = cstindex;
+    constseg[cstindex++] = empty;
+    dir['CONSTANT_test.pir'] = constseg;
+
+    var code = new 'PackfileRawSegment';
+    int of = 0;
+    code[of++] = OP_noop; // Just to annoy
+
+    int subhellostart = of;
+    code[of++] = OP_say_sc;
+    code[of++] = cst_hello;
+    code[of++] = OP_set_returns_pc;
+    code[of++] = cstempty;
+    code[of++] = OP_returncc;
+    int subhelloend = of;
+
+    var pmcsubhello = new 'Sub'({
+        "name": "hello",
+        "subid": "hello",
+        "ns_entry_name": "hello",
+        "start_offs": subhellostart,
+        "end_offs": subhelloend
+    });
+    int constsubhello = cstindex;
+    constseg[cstindex++] = pmcsubhello;
+
+    int submainstart = of;
+    // Call hello
+    code[of++] = OP_set_p_pc;
+    code[of++] = 0;
+    code[of++] = constsubhello;
+    code[of++] = OP_set_args_pc;
+    code[of++] = cstempty;
+    code[of++] = OP_get_results_pc;
+    code[of++] = cstempty;
+    code[of++] = OP_invokecc_p;
+    code[of++] = 0;
+
+    code[of++] = OP_say_sc;
+    code[of++] = cst_bye;
+    code[of++] = OP_set_returns_pc;
+    code[of++] = cstempty;
+    code[of++] = OP_returncc;
+    int submainend = of;
+    code[of++] = OP_end;
+
+    var pmcsubmain = new 'Sub'({
+        "name": "main",
+        "subid": "main",
+        "ns_entry_name": "main",
+        "start_offs": submainstart,
+        "end_offs": submainend,
+        "n_regs_used": [ 0, 0, 0, 1 ] // Use 1 P register
+    });
+    int constsubmain = cstindex;
+    constseg[cstindex++] = pmcsubmain;
+    constseg.set_main(constsubmain);
+
+    dir['BYTECODE_test.pir'] = code;
+
+    dir['BYTECODE_test.pir_ANN'] = new 'PackfileAnnotations';
+
+    var fixups = new 'PackfileFixupTable';
+    dir['FIXUP_test.pir'] = fixups;
+
+    var fixuphello = new 'PackfileFixupEntry';
+    fixuphello =: 'hello';
+    fixuphello =: constsubhello;
+    fixuphello.set_type(2);
+    fixups[0] = fixuphello;
+    var fixupmain = new 'PackfileFixupEntry';
+    fixupmain =: 'main';
+    fixupmain =: constsubmain;
+    fixupmain.set_type(2);
+    fixups[1] = fixupmain;
+
+    say(elements(dir));
+
+    string rawdata = packfile;
+    say('About to write');
+    var handle = new 'FileHandle'.open('h.pbc', 'wb');
+    handle.print(rawdata);
+    handle.close();
+    say('Bye');
+}
+
+// That's all folks!
