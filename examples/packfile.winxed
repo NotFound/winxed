@@ -248,6 +248,30 @@ class Pbcfile
             out.say("\t\tOffset: ", offset);
         }
     }
+    function get_fixups_hash()
+    {
+        var seg = self.fixup;
+        var const_table = self.const_table;
+        var fixups = {};
+        int n = elements(seg);
+        for (int i= 0; i < n; ++i) {
+            var entry = seg[i];
+            int index = entry;
+            var pmcsub = const_table[index];
+            int offset = pmcsub.start_offs();
+            string fullname = pmcsub;
+            var ns = pmcsub.get_namespace();
+            while (ns != null) {
+                string nsname = ns;
+                if (nsname == '')
+                    break;
+                fullname = nsname + ';' + fullname;
+                ns = ns.get_parent();
+            }
+            fixups[offset] = fullname;
+        }
+        return fixups;
+    }
     function dump_annotations(var out)
     {
         var seg = self.annotations;
@@ -291,7 +315,11 @@ class Pbcfile
         int n = elements(seg);
         var oplib = new 'OpLib';
         var const_table = self.const_table;
+        var fixups = self.get_fixups_hash();
         for (int offset= 0; offset < n; ++offset) {
+            var label = fixups[offset];
+            if (label != null)
+                out.say('.sub ', label);
             out.print("\t", offset, ': ');
             int code = seg[offset];
             out.print(code, " - ");
