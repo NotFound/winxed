@@ -19,9 +19,14 @@ const int PFC_STRING = 0x73;
 const int PFC_PMC =    0x70;
 const int PFC_KEY =    0x6B;
 
-// Opcode arg types (from include/parrot/enums.h)
+// Opcode arg types (from include/parrot/enums.h and include/parrot/op.h)
+const int PARROT_ARG_INTVAL    = 0x0000;
+const int PARROT_ARG_STRING    = 0x0001;
+const int PARROT_ARG_PMC       = 0x0002;
+const int PARROT_ARG_FLOATVAL  = 0x0003;
 const int PARROT_ARG_TYPE_MASK = 0x000F;
 const int PARROT_ARG_CONSTANT  = 0x0010;
+const int PARROT_ARG_KEYED     = 0x0020;
 
 function dump_constants(var seg)
 {
@@ -110,57 +115,35 @@ function dump_annotations(var seg)
     }
 }
 
-function getargs(var opcode)
+function showarg(int type, int value, var const_table)
 {
-    int count = opcode.op_count();
-    string opcodestr = opcode;
-    var chunks = split('_', opcodestr);
-    int n = chunks;
-    while (n > count) {
-        chunks.shift();
-        --n;
-    }
-    chunks.shift();
-    return chunks;
-}
-
-function showarg(string type, int value, var const_table)
-{
-    int isconst = length(type) > 1 && substr(type, 1, 1) == 'c';
-    if (isconst) {
-        switch(substr(type, 0, 1)) {
-        case 'i':
+    const string regtypename = 'ISPN';
+    if (type & PARROT_ARG_CONSTANT) {
+        switch(type & PARROT_ARG_TYPE_MASK) {
+        case PARROT_ARG_INTVAL:
             print(value);
-            break;
-        case 'n':
-            float fval = const_table[value];
-            print(fval);
-            break;
-        case 's':
+	    break;
+        case PARROT_ARG_STRING:
             string sval = const_table[value];
             print("'", sval, "'");
-            break;
-        case 'p':
-            print("PC", value);
-            break;
-        case 'k':
-            print("KC", value);
-            break;
+	    break;
+        case PARROT_ARG_PMC:
+	    if (type & PARROT_ARG_KEYED)
+                print("KC", value);
+	    else
+                print("PC", value);
+	    break;
+        case PARROT_ARG_FLOATVAL:
+            float fval = const_table[value];
+            print(fval);
+	    break;
         default:
             print('???');
-            break;
-        }
+	}
     }
     else {
-        string regtype;
-        switch(substr(type, 0, 1)) {
-        case 'i': regtype = 'I'; break;
-        case 'n': regtype = 'N'; break;
-        case 's': regtype = 'S'; break;
-        case 'p': regtype = 'P'; break;
-        default:  regtype = '???'; break;
-        }
-        print(regtype, value);
+        string typechar = substr(regtypename, type & PARROT_ARG_TYPE_MASK, 1);
+        print(typechar, value);
     }
 }
 
@@ -169,12 +152,12 @@ function dump_bytecode(var seg, var const_table)
     int n = elements(seg);
     say("Bytecode:\n\tLength: ", n);
     var oplib = new 'OpLib';
-    for (int i= 0; i < n; ++i) {
-        print("\t", i, ': ');
-        int code = seg[i];
+    for (int offset= 0; offset < n; ++offset) {
+        print("\t", offset, ': ');
+        int code = seg[offset];
         print(code, " - ");
-        var opcode = oplib[code & 0xFFFF];
-        var args = getargs(opcode);
+        var opcode = oplib[code];
+	int nargs = elements(opcode);
         string opstr = opcode;
         print(opstr);
 
@@ -182,34 +165,31 @@ function dump_bytecode(var seg, var const_table)
         if (opstr == 'set_args_pc' || opstr == 'set_returns_pc' ||
                 opstr == 'get_results_pc' || opstr == 'get_params_pc')
         {
-            ++i;
-            int sigindex = seg[i];
+            ++offset;
+            int sigindex = seg[offset];
             var sig = const_table[sigindex];
             int siglen = sig;
             print(' PC', sigindex, '{', siglen, '}');
             string sep = ' ';
             for (int a = 0; a < siglen; ++a) {
-                ++i;
+                ++offset;
                 int sigvalue = sig[a];
-                int sigtype = sigvalue & PARROT_ARG_TYPE_MASK;
-                string type = substr('ispn', sigtype, 1);
-                if (sigvalue & PARROT_ARG_CONSTANT)
-                    type += 'c';
-                int value = seg[i];
+                int value = seg[offset];
                 print(sep);
                 sep = ', ';
-                showarg(type, value, const_table);
+                showarg(sigvalue, value, const_table);
             }
         }
         else { // Not so special
             string sep = ' ';
-            for (string arg in args) {
-                ++i;
+            for (int arg = 0; arg < nargs; ++arg) {
+                ++offset;
                 print(sep);
                 sep = ', ';
-                int value = seg[i];
-                showarg(arg, value, const_table);
-            }
+                int value = seg[offset];
+		int type = opcode[arg];
+                showarg(type, value, const_table);
+	    }
         }
         say();
     }
