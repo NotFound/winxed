@@ -3,6 +3,32 @@
 # Show the content of a pbc file using the Packfile PMCs.
 # Work in progress.
 
+//**********************************************************************
+
+class Writer
+{
+    var handle;
+
+    function set(var handle)
+    {
+        self.handle = handle;
+        return self;
+    }
+    function print(var args[slurpy])
+    {
+        for (var arg in args)
+            self.handle.print(arg);
+    }
+    function say(var args[slurpy])
+    {
+        for (var arg in args)
+            self.handle.print(arg);
+        self.handle.print("\n");
+    }
+}
+
+//**********************************************************************
+
 // Segment types (from packfile_segments.pasm)
 const int PF_DIR_SEG         = 0;
 const int PF_UNKNOWN_SEG     = 1;
@@ -28,237 +54,315 @@ const int PARROT_ARG_TYPE_MASK = 0x000F;
 const int PARROT_ARG_CONSTANT  = 0x0010;
 const int PARROT_ARG_KEYED     = 0x0020;
 
-function dump_constants(var seg)
-{
-    int n = elements(seg);
-    float numval;
-    say("Constant table:\n\tLength: ", n);
-    for (int i= 0; i < n; ++i) {
-        int type = seg.get_type(i);
-        string typename;
-        string value = '';
-        switch (type) {
-        case PFC_KEY:
-            typename = 'KEY';
-            break;
-        case PFC_NUMBER:
-            typename = 'NUMBER';
-            numval = seg[i];
-            value = numval;
-            break;
-        case PFC_PMC:
-            typename = 'PMC';
-            break;
-        case PFC_STRING:
-            typename = 'STRING';
-            value = seg[i];
-            value = '"' + value + '"';
-            break;
-        default:
-            typename = 'INVALID CONSTANT TYPE';
-        }
-        say("\t", i, ': ', typename, '(', type, '): ', value);
-    }
-}
+//**********************************************************************
 
-function dump_fixup(var seg, var const_table)
-{
-    int n = elements(seg);
-    float numval;
-    say("Fixup table:\n\tLength: ", n);
-    for (int i= 0; i < n; ++i) {
-        var entry = seg[i];
-        int type = entry.get_type();
-        say("\tLabel: '", entry, "' type: ", type);
-
-        int index = entry;
-        var pmcsub = const_table[index];
-        int offset = pmcsub.start_offs();
-        string fullname;
-        var ns = pmcsub.get_namespace();
-        if (ns != null) {
-            var nsname = ns.get_name();
-            fullname = nsname;
-            fullname += ' ';
-        }
-        fullname += pmcsub;
-        say("\t\tSub: ", fullname);
-
-        string subid = pmcsub.get_subid();
-        if (subid != null && subid != '')
-            say("\t\tID: ", subid);
-        say("\t\tOffset: ", offset);
-    }
-}
-
-function dump_annotations(var seg)
-{
-    int n = elements(seg);
-    float numval;
-    say("Annotations:\n\tLength: ", n);
-    for (int i= 0; i < n; ++i) {
-        var annot = seg[i];
-        int offset = annot.get_offset();
-        string name = annot.get_name();
-        print("\tOffset: ", offset, ' type: "', name, '" value: ');
-        switch (name) {
-        case 'file':
-            string filename = annot;
-            print("'", filename, "'");
-            break;
-        case 'line':
-            int line = annot;
-            print(line);
-            break;
-        }
-        say();
-    }
-}
-
-function showarg(int type, int value, var const_table)
+function showarg(var out, int type, int value, var const_table)
 {
     const string regtypename = 'ISPN';
     if (type & PARROT_ARG_CONSTANT) {
         switch(type & PARROT_ARG_TYPE_MASK) {
         case PARROT_ARG_INTVAL:
-            print(value);
-	    break;
+            out.print(value);
+            break;
         case PARROT_ARG_STRING:
             string sval = const_table[value];
-            print("'", sval, "'");
-	    break;
+            out.print("'", sval, "'");
+            break;
         case PARROT_ARG_PMC:
-	    if (type & PARROT_ARG_KEYED)
-                print("KC", value);
-	    else
-                print("PC", value);
-	    break;
+            if (type & PARROT_ARG_KEYED)
+                out.print("KC", value);
+            else
+                out.print("PC", value);
+            break;
         case PARROT_ARG_FLOATVAL:
             float fval = const_table[value];
-            print(fval);
-	    break;
+            out.print(fval);
+            break;
         default:
-            print('???');
-	}
+            out.print('???');
+        }
     }
     else {
         string typechar = substr(regtypename, type & PARROT_ARG_TYPE_MASK, 1);
-        print(typechar, value);
+        out.print(typechar, value);
     }
 }
 
-function dump_bytecode(var seg, var const_table)
-{
-    int n = elements(seg);
-    say("Bytecode:\n\tLength: ", n);
-    var oplib = new 'OpLib';
-    for (int offset= 0; offset < n; ++offset) {
-        print("\t", offset, ': ');
-        int code = seg[offset];
-        print(code, " - ");
-        var opcode = oplib[code];
-	int nargs = elements(opcode);
-        string opstr = opcode;
-        print(opstr);
+//**********************************************************************
 
-        // Special opcodes
-        if (opstr == 'set_args_pc' || opstr == 'set_returns_pc' ||
-                opstr == 'get_results_pc' || opstr == 'get_params_pc')
-        {
-            ++offset;
-            int sigindex = seg[offset];
-            var sig = const_table[sigindex];
-            int siglen = sig;
-            print(' PC', sigindex, '{', siglen, '}');
-            string sep = ' ';
-            for (int a = 0; a < siglen; ++a) {
-                ++offset;
-                int sigvalue = sig[a];
-                int value = seg[offset];
-                print(sep);
-                sep = ', ';
-                showarg(sigvalue, value, const_table);
+class Pbcfile
+{
+    var packfile;
+    var fixup;
+    var const_table;
+    var bytecode;
+    var debug;
+    var annotations;
+
+    function readfile(string filename)
+    {
+        var file = new 'FileHandle'.open(filename, 'rb');
+        string content= file.readall();
+        file.close();
+        
+        var packfile = new 'Packfile';
+        packfile =: content;
+
+        var dir = packfile.get_directory();
+        var fixup = null;
+        var const_table = null;
+        var bytecode = null;
+        var debug = null;
+        var annotations = null;
+
+        for (var it in dir) {
+            var seg = it.value();
+            int type = seg.type();
+            switch (type)
+            {
+            case PF_FIXUP_SEG:
+                fixup = seg;
+                break;
+            case PF_CONST_SEG:
+                const_table = seg;
+                break;
+            case PF_BYTEC_SEG:
+                bytecode = seg;
+                break;
+            case PF_DEBUG_SEG:
+                debug = seg;
+                break;
+            case PF_ANNOTATIONS_SEG:
+                annotations = seg;
+                break;
             }
         }
-        else { // Not so special
-            string sep = ' ';
-            for (int arg = 0; arg < nargs; ++arg) {
-                ++offset;
-                print(sep);
-                sep = ', ';
-                int value = seg[offset];
-		int type = opcode[arg];
-                showarg(type, value, const_table);
-	    }
+
+        self.packfile = packfile;
+        self.fixup = fixup;
+        self.const_table = const_table;
+        self.bytecode = bytecode;
+        self.debug = debug;
+        self.annotations = annotations;
+        return self;
+    }
+    function printheader(var out)
+    {
+        out.say('Header:');
+        for (string key in [
+                'wordsize',
+                'byteorder',
+                'fptype',
+                'version_major',
+                'version_minor',
+                'version_patch',
+                'bytecode_major',
+                'bytecode_minor',
+                'uuid_type'
+                ] ) {
+            int n= self.packfile[key];
+            out.say("\t", key, ': ', n);
         }
-        say();
+    }
+    function printdirectory(var out)
+    {
+        out.say('Directory:');
+        var dir= self.packfile.get_directory();
+        for (var it in dir) {
+            out.print("\tSegment: ", it, ' type ');
+            var seg = it.value();
+            int type = seg.type();
+            switch (type)
+            {
+            case PF_FIXUP_SEG:       out.print("FIXUP"); break;
+            case PF_CONST_SEG:       out.print("CONST"); break;
+            case PF_BYTEC_SEG:       out.print("BYTEC"); break;
+            case PF_DEBUG_SEG:       out.print("DEBUG"); break;
+            case PF_ANNOTATIONS_SEG: out.print("ANNOTATIONS"); break;
+            default:                 out.print("Unknown");
+            }
+            out.say(' (', type, ')');
+        }
+    }
+    function dump_constants(var out)
+    {
+        var seg = self.const_table;
+        int n = elements(seg);
+        float numval;
+        out.say("Constant table:\n\tLength: ", n);
+        for (int i= 0; i < n; ++i) {
+            int type = seg.get_type(i);
+            string typename;
+            string value = '';
+            switch (type) {
+            case PFC_KEY:
+                typename = 'KEY';
+                break;
+            case PFC_NUMBER:
+                typename = 'NUMBER';
+                numval = seg[i];
+                value = numval;
+                break;
+            case PFC_PMC:
+                typename = 'PMC';
+                break;
+            case PFC_STRING:
+                typename = 'STRING';
+                value = seg[i];
+                value = '"' + value + '"';
+                break;
+            default:
+                typename = 'INVALID CONSTANT TYPE';
+            }
+            out.say("\t", i, ': ', typename, '(', type, '): ', value);
+        }
+    }
+    function dump_fixup(var out)
+    {
+        var seg = self.fixup;
+        var const_table = self.const_table;
+        int n = elements(seg);
+        float numval;
+        out.say("Fixup table:\n\tLength: ", n);
+        for (int i= 0; i < n; ++i) {
+            var entry = seg[i];
+            int type = entry.get_type();
+            out.say("\tLabel: '", entry, "' type: ", type);
+
+            int index = entry;
+            var pmcsub = const_table[index];
+            int offset = pmcsub.start_offs();
+            string fullname;
+            var ns = pmcsub.get_namespace();
+            if (ns != null) {
+                var nsname = ns.get_name();
+                fullname = nsname;
+                fullname += ' ';
+            }
+            fullname += pmcsub;
+            out.say("\t\tSub: ", fullname);
+
+            string subid = pmcsub.get_subid();
+            if (subid != null && subid != '')
+                out.say("\t\tID: ", subid);
+            out.say("\t\tOffset: ", offset);
+        }
+    }
+    function dump_annotations(var out)
+    {
+        var seg = self.annotations;
+        int n = elements(seg);
+        float numval;
+        out.say("Annotations:\n\tLength: ", n);
+        for (int i= 0; i < n; ++i) {
+            var annot = seg[i];
+            int offset = annot.get_offset();
+            string name = annot.get_name();
+            out.print("\tOffset: ", offset, ' type: "', name, '" value: ');
+            switch (name) {
+            case 'file':
+                string filename = annot;
+                out.print("'", filename, "'");
+                break;
+            case 'line':
+                int line = annot;
+                out.print(line);
+                break;
+            }
+            out.say();
+        }
+    }
+    function dump_bytecode(var out)
+    {
+        var seg = self.bytecode;
+        int n = elements(seg);
+        out.print("Bytecode:\n\tLength: ", n);
+        for (int offset= 0; offset < n; ++offset) {
+            if ((offset % 8) == 0)
+                out.print("\n\t", offset, ":");
+            int code = seg[offset];
+            out.print(" ", code);
+        }
+        out.say();
+    }
+    function disassemble(var out)
+    {
+        var seg = self.bytecode;
+        int n = elements(seg);
+        var oplib = new 'OpLib';
+        var const_table = self.const_table;
+        for (int offset= 0; offset < n; ++offset) {
+            out.print("\t", offset, ': ');
+            int code = seg[offset];
+            out.print(code, " - ");
+            var opcode = oplib[code];
+            int nargs = elements(opcode);
+            string opstr = opcode;
+            out.print(opstr);
+
+            // Special opcodes
+            if (opstr == 'set_args_pc' || opstr == 'set_returns_pc' ||
+                    opstr == 'get_results_pc' || opstr == 'get_params_pc')
+            {
+                ++offset;
+                int sigindex = seg[offset];
+                var sig = const_table[sigindex];
+                int siglen = sig;
+                out.print(' PC', sigindex, '{', siglen, '}');
+                string sep = ' ';
+                for (int a = 0; a < siglen; ++a) {
+                    ++offset;
+                    int sigvalue = sig[a];
+                    int value = seg[offset];
+                    out.print(sep);
+                    sep = ', ';
+                    showarg(out, sigvalue, value, const_table);
+                }
+            }
+            else { // Not so special
+                string sep = ' ';
+                for (int arg = 0; arg < nargs; ++arg) {
+                    ++offset;
+                    out.print(sep);
+                    sep = ', ';
+                    int value = seg[offset];
+                    int type = opcode[arg];
+                    showarg(out, type, value, const_table);
+                }
+            }
+            out.say();
+        }
+    }
+    function dump_all(var out)
+    {
+        self.printheader(out);
+        self.printdirectory(out);
+        self.dump_constants(out);
+        self.dump_fixup(out);
+        self.dump_annotations(out);
+        self.dump_bytecode(out);
     }
 }
+
+//**********************************************************************
 
 function main(argv)
 {
-    var file = new 'FileHandle'.open(argv[1], 'rb');
-    string content= file.readall();
-    file.close();
+    using extern Getopt.Obj;
+    var getopts = new Getopt.Obj();
+    getopts.notOptStop(1);
+    getopts.push_string('d');
+    argv.shift();
+    var opts = getopts.get_options(argv);
 
-    var pack= new 'Packfile';
-    pack =: content;
-    say('Header:');
-    for (string key in [
-            'wordsize',
-            'byteorder',
-            'fptype',
-            'version_major',
-            'version_minor',
-            'version_patch',
-            'bytecode_major',
-            'bytecode_minor',
-            'uuid_type'
-            ] ) {
-        int n= pack[key];
-        say("\t", key, ': ', n);
-    }
-    say('Directory:');
-    var dir= pack.get_directory();
-    var const_table = null;
-    for (var it in dir) {
-        print("\tSegment: ", it, ' type ');
-        var seg = it.value();
-        int type = seg.type();
-        switch (type)
-        {
-        case PF_FIXUP_SEG:       print("FIXUP"); break;
-        case PF_CONST_SEG:       print("CONST");
-            const_table = seg;
-            break;
-        case PF_BYTEC_SEG:       print("BYTEC"); break;
-        case PF_DEBUG_SEG:       print("DEBUG"); break;
-        case PF_ANNOTATIONS_SEG: print("ANNOTATIONS"); break;
-        default:                 print("Unknown");
-        }
-        say(' (', type, ')');
-    }
-    for (var it in dir) {
-        var seg = it.value();
-        int type = seg.type();
-        switch (type)
-        {
-        case PF_CONST_SEG:
-            dump_constants(seg);
-            break;
-        case PF_FIXUP_SEG:
-            dump_fixup(seg, const_table);
-            break;
-        case PF_ANNOTATIONS_SEG:
-            dump_annotations(seg);
-            break;
-        case PF_BYTEC_SEG:
-            dump_bytecode(seg, const_table);
-            break;
-        default:
-            break;
-        }
-    }
+    var pbcfile = new Pbcfile().readfile(argv[0]);
+    var out = new Writer().set(getinterp().stdhandle(1));
+
+    if (opts['d'] != null)
+        pbcfile.disassemble(out);
+    else
+        pbcfile.dump_all(out);
+
 }
 
 // That's all folks!
