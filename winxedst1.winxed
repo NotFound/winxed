@@ -3129,7 +3129,15 @@ class MemberExpr : Expr
     }
     function emit_left_get(e)
     {
-        return self.left.emit_get(e);
+        var left = self.left;
+	string type = left.checkResult();
+	string reg = left.emit_get(e);
+	if (type != REGvar) {
+	    string auxreg = reg;
+	    reg = self.tempreg(REGvar);
+	    e.say('box ', reg, ', ', auxreg);
+        }
+	return reg;
     }
     function emit_get(e)
     {
