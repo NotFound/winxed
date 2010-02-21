@@ -4,24 +4,21 @@
 
 //**********************************************************************
 
-// Opcodes used. Code it by hand for a now, can be obtained
-// using the oplib PMC.
-
-const int OP_end            = 0;
-const int OP_noop           = 1;
-const int OP_invokecc_p     = 28;
-const int OP_returncc       = 32;
-const int OP_set_args_pc    = 35;
-const int OP_get_results_pc = 36;
-const int OP_set_returns_pc = 38;
-const int OP_say_sc         = 465;
-const int OP_set_p_pc       = 900;
-
-//**********************************************************************
-
 function main()
 {
     // Generate two simple subs, marking the second as main
+
+    // Get opcodes used
+    var oplib = new 'OpLib';
+    int OP_end            = oplib['end'];
+    int OP_noop           = oplib['noop'];
+    int OP_invokecc_p     = oplib['invokecc_p'];
+    int OP_returncc       = oplib['returncc'];
+    int OP_set_args_pc    = oplib['set_args_pc'];
+    int OP_get_results_pc = oplib['get_results_pc'];
+    int OP_set_returns_pc = oplib['set_returns_pc'];
+    int OP_say_sc         = oplib['say_sc'];
+    int OP_set_p_pc       = oplib['set_p_pc'];
 
     var packfile = new 'Packfile';
     var dir = packfile.get_directory();
