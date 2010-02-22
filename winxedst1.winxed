@@ -3130,14 +3130,14 @@ class MemberExpr : Expr
     function emit_left_get(e)
     {
         var left = self.left;
-	string type = left.checkResult();
-	string reg = left.emit_get(e);
-	if (type != REGvar) {
-	    string auxreg = reg;
-	    reg = self.tempreg(REGvar);
-	    e.say('box ', reg, ', ', auxreg);
+        string type = left.checkResult();
+        string reg = left.emit_get(e);
+        if (type != REGvar) {
+            string auxreg = reg;
+            reg = self.tempreg(REGvar);
+            e.say('box ', reg, ', ', auxreg);
         }
-	return reg;
+        return reg;
     }
     function emit_get(e)
     {
@@ -3200,7 +3200,13 @@ class IndexExpr : Expr
     var left;
     var args;
 
-    function checkResult() { return REGvar; }
+    function checkResult()
+    {
+        if (self.left.checkResult() == REGstring)
+            return REGstring;
+        else
+            return REGvar;
+    }
     function parse(tk, owner, start, subexp)
     {
         self.initexpr(owner, start);
@@ -3231,18 +3237,28 @@ class IndexExpr : Expr
             regleft = self.left.getIdentifier();
         else
             regleft = self.left.emit_get(e);
+        var args = self.args;
+        int nargs = args;
         string argregs[];
-        for (var arg in self.args) {
+        string type = self.checkResult();
+        for (var arg in args) {
             string argreg = arg.emit_get(e);
             argregs.push(argreg);
         }
-        e.print(result, ' = ', regleft, '[');
-        string sep = '';
-        for (string reg in argregs) {
-            e.print(sep, reg);
-            sep = ', ';
+        if (type == REGstring) {
+            if (nargs != 1)
+               SyntaxError('Bad string index', self.start);
+            e.say('substr ', result, ', ', regleft, ', ', argregs[0], ', ', 1);
         }
-        e.say(']');
+        else {
+            e.print(result, ' = ', regleft, '[');
+            string sep = '';
+            for (string reg in argregs) {
+                e.print(sep, reg);
+                sep = ', ';
+            }
+            e.say(']');
+        }
     }
     function emit_assign(e, string typeright, string rreg)
     {
