@@ -1,0 +1,366 @@
+#! winxed
+// pirado.winxed
+// Tests towards HLL-based pasm/pir compilers.
+
+//**********************************************************************
+
+function iswhitespace(string c)
+{
+    return indexof(" \t\n", c) > -1;
+}
+
+function isdigit(string c)
+{
+    return indexof('0123456789', c) > -1;
+}
+
+function isidentstart(string c)
+{
+    return indexof(
+        'abcdefghijklmnopqrstuvwxyz' +
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '_',
+        c) > -1;
+}
+
+function isident(string c)
+{
+    return indexof(
+        'abcdefghijklmnopqrstuvwxyz' +
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '_' +
+        '0123456789',
+        c) > -1;
+}
+
+function auxgetchar(string l)
+{
+    yield length(l);
+    for (string c in l)
+        yield c;
+    for (;;)
+        yield '';
+}
+
+//**********************************************************************
+
+class Token
+{
+    var strval;
+    var filename;
+    var line;
+    var pos;
+    function setstrval(var filepos, string val)
+    {
+        self.strval = val;
+        self.filename = filepos[0];
+        int line = filepos[1];
+        self.line = line;
+        int pos = filepos[2];
+        self.pos = pos;
+    }
+    function debdump() {
+        string s = self.strval;
+        s = string(self.filename) + ':' + string(self.line) + ':' + string(self.pos) + ':' + s;
+        return s;
+    }
+}
+
+class TokenIdentifier : Token
+{
+    function setid(var filepos, string str)
+    {
+        self.setstrval(filepos, str);
+        return self;
+    }
+    function getid() { return self.strval; }
+}
+
+class TokenInteger : Token
+{
+    function setint(var filepos, string str)
+    {
+        self.setstrval(filepos, str);
+        return self;
+    }
+    function getint() { return int(self.strval); }
+}
+
+class TokenSingleQuoted : Token
+{
+    function setsquoted(var filepos, string str)
+    {
+        self.setstrval(filepos, str);
+        return self;
+    }
+    function getstr() { return string(self.strval); }
+}
+
+class TokenOperator : Token
+{
+    function setopname(var filepos, string str)
+    {
+        self.setstrval(filepos, str);
+        return self;
+    }
+}
+
+//**********************************************************************
+
+class Line
+{
+    var getchar_fun;
+    var filename;
+    var linenum;
+    var pos;
+    var pending;
+
+    function getchar()
+    {
+        string c;
+        var pending = self.pending;
+        if (pending == null)
+            throw Error('Line reader not initialized');
+        if (elements(pending) > 0) {
+            c = pending.pop();
+        }
+        else {
+            var get = self.getchar_fun;
+            if (get == null)
+                throw Error('Line reader not initialized');
+            c = get();
+            if (c != '')
+                self.pos++;
+        }
+        return c;
+    }
+    function ungetchar(string c)
+    {
+        if (length(c) > 0)
+            self.pending.push(c);
+    }
+    function scannum(var filepos, string c)
+    {
+        string n = c;
+        while (isdigit(c = self.getchar()))
+            n += c;
+        self.ungetchar(c);
+        return new TokenInteger().setint(filepos, n);
+    }
+    function scanident(var filepos, string c)
+    {
+        string id = c;
+        while (isident(c = self.getchar()))
+            id += c;
+        self.ungetchar(c);
+        return new TokenIdentifier().setid(filepos, id);
+    }
+    function scansinglequoted(var filepos)
+    {
+        string s;
+        string c;
+        while ((c = self.getchar()) != '' && c != "'")
+            s += c;
+        return new TokenSingleQuoted().setsquoted(filepos, s);
+    }
+    function scan()
+    {
+        var c;
+        var tokenlist = [];
+        while ((c = self.getchar()) != '') {
+            if (iswhitespace(c)) continue;
+            var filepos = [ self.filename, int(self.linenum), int(self.pos) ];
+            switch (c) {
+            case "'":
+                tokenlist.push(self.scansinglequoted(filepos));
+                break;
+            case '0': case '1': case '2': case '3': case '4':
+            case '5': case '6': case '7': case '8': case '9':
+                tokenlist.push(self.scannum(filepos, c));
+                break;
+            default:
+                if (isidentstart(c))
+                    tokenlist.push(self.scanident(filepos, c));
+                else
+                    tokenlist.push(new TokenOperator().setopname(filepos, c));
+            }
+        }
+        return tokenlist;
+    }
+    function scanline(int linenum, string line)
+    {
+        using auxgetchar;
+        var getchar_f = clone(auxgetchar);
+        int n = getchar_f(line);
+        var tokenlist;
+        if (n) {
+            self.getchar_fun = getchar_f;
+            self.pending = [];
+            self.linenum = linenum;
+            self.pos = 0;
+            tokenlist = self.scan();
+            self.pending = null;
+            self.getchar_fun = null;
+        }
+        return tokenlist;
+    }
+    function setfilename(string filename)
+    {
+        self.filename = filename;
+    }
+}
+
+//**********************************************************************
+
+class Generator
+{
+
+var segname;
+var packfile;
+var dir;
+var constseg;
+var byteseg;
+var nextconst;
+var nextcode;
+
+function initialize(string segname)
+{
+    var packfile = new 'Packfile';
+    var dir = packfile.get_directory();
+    var constseg = new 'PackfileConstantTable';
+    int cstindex = 0;
+    constseg[cstindex++] = getinterp();
+    dir['CONSTANT_' + segname] = constseg;
+    var byteseg = new 'PackfileRawSegment';
+
+    self.segname = segname;
+    self.packfile = packfile;
+    self.dir = dir;
+    self.constseg = constseg;
+    self.byteseg = byteseg;
+    self.nextconst = cstindex;
+    self.nextcode = 0;
+}
+
+function pushop(int opnum)
+{
+    int nextcode = self.nextcode;
+    self.byteseg[nextcode++] = opnum;
+    self.nextcode =: nextcode;
+}
+
+function pushconststring(string value)
+{
+    int nextconst = self.nextconst;
+    int result = nextconst;
+    self.constseg[nextconst++] = value;
+    self.nextconst =: nextconst;
+    return result;
+}
+
+function parse(var tokenlist)
+{
+    var inst = tokenlist[0];
+    int ntokens = elements(tokenlist);
+    if (! (inst instanceof TokenIdentifier))
+       throw Error('No instruction');
+    string opname = inst.getid();
+
+    switch (ntokens) {
+    case 1:
+        break;
+    case 2:
+        var arg = tokenlist[1];
+        if (arg instanceof TokenSingleQuoted)
+            opname += '_sc';
+        else if (arg instanceof TokenInteger)
+            opname += '_ic';
+        else
+            throw Error('Invalid arg');
+        break;
+    default:
+        throw Error('Too much args ' + ntokens);
+    }
+    var oplib = new 'OpLib';
+    int opnum = oplib[opname];
+    if (opnum < 0)
+        throw Error('No op');
+
+    //say(opnum, ' ', opname);
+
+    self.pushop(opnum);
+    if (ntokens == 2) {
+        var arg = tokenlist[1];
+        if (arg instanceof TokenSingleQuoted) {
+            string sarg = arg.getstr();
+            int cnum = self.pushconststring(sarg);
+            self.pushop(cnum);
+        }
+        else if (arg instanceof TokenInteger) {
+            int narg = arg.getint();
+            self.pushop(narg);
+        }
+    }
+}
+
+function writefile(string filename)
+{
+    string segname = self.segname;
+    var dir = self.dir;
+    dir['BYTECODE_' + segname] = self.byteseg;
+    var fixups = new 'PackfileFixupTable';
+    dir['FIXUP_' + segname] = fixups;
+    dir['BYTECODE_' + segname + '_ANN'] = new 'PackfileAnnotations';
+
+    var packfile = self.packfile;
+    string rawdata = packfile;
+    say('About to write');
+    var handle = new 'FileHandle'.open(filename, 'wb');
+    say('Writing');
+    handle.print(rawdata);
+    handle.close();
+    say('Done');
+}
+
+}
+
+//**********************************************************************
+
+function main(argv)
+{
+    string filename = argv[1];
+    var l = new Line();
+    l.setfilename(filename);
+    var file = open(filename);
+    var line;
+    int numline = 0;
+
+    var gen = new Generator();
+    gen.initialize(filename);
+    while ((line = file.readline()) != '') {
+        ++numline;
+        var tokenlist = l.scanline(numline, line);
+        if (tokenlist != null && elements(tokenlist) > 0) {
+/*
+            for (var token in tokenlist) {
+                print(token.debdump());
+            }
+            say();
+*/
+            gen.parse(tokenlist);
+        }
+    }
+
+    string pbcfilename = filename;
+    {
+    int l = length(filename);
+    if (l > 4 && substr(filename, l - 5) == '.pasm')
+        pbcfilename = substr(pbcfilename, 0, l - 5);
+    else if (l > 3 && substr(filename, l - 4) == '.pir')
+        pbcfilename = substr(pbcfilename, 0, l - 4);
+    pbcfilename += '.pbc';
+    }
+
+    say(pbcfilename);
+    gen.writefile(pbcfilename);
+}
+
+// End
