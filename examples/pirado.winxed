@@ -2,6 +2,8 @@
 // pirado.winxed
 // Tests towards HLL-based pasm/pir compilers.
 
+const int DEBUG = 0;
+
 //**********************************************************************
 
 function iswhitespace(string c)
@@ -284,7 +286,7 @@ function parse(var tokenlist)
     if (opnum < 0)
         throw Error('No op');
 
-    //say(opnum, ' ', opname);
+    if (DEBUG) say(opnum, ' ', opname);
 
     self.pushop(opnum);
     if (ntokens == 2) {
@@ -312,12 +314,12 @@ function writefile(string filename)
 
     var packfile = self.packfile;
     string rawdata = packfile;
-    say('About to write');
+    if (DEBUG) say('About to write');
     var handle = new 'FileHandle'.open(filename, 'wb');
-    say('Writing');
+    if (DEBUG) say('Writing');
     handle.print(rawdata);
     handle.close();
-    say('Done');
+    if (DEBUG) say('Done');
 }
 
 }
@@ -339,12 +341,11 @@ function main(argv)
         ++numline;
         var tokenlist = l.scanline(numline, line);
         if (tokenlist != null && elements(tokenlist) > 0) {
-/*
-            for (var token in tokenlist) {
-                print(token.debdump());
+            if (DEBUG) {
+                for (var token in tokenlist)
+                    print(token.debdump());
+                say();
             }
-            say();
-*/
             gen.parse(tokenlist);
         }
     }
@@ -359,7 +360,7 @@ function main(argv)
     pbcfilename += '.pbc';
     }
 
-    say(pbcfilename);
+    if (DEBUG) say(pbcfilename);
     gen.writefile(pbcfilename);
 }
 
