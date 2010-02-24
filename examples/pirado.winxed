@@ -96,6 +96,21 @@ class TokenSingleQuoted : Token
     function getstr() { return string(self.strval); }
 }
 
+class TokenRegister : Token
+{
+    var type;
+    var num;
+    function setregister(var filepos, string type, int num)
+    {
+        self.setstrval(filepos, '$' + type + string(num));
+        self.type = type;
+        self.num = num;
+        return self;
+    }
+    function regtype() { return self.type; }
+    function regnum() { return self.num; }
+}
+
 class TokenOperator : Token
 {
     function setopname(var filepos, string str)
@@ -103,6 +118,13 @@ class TokenOperator : Token
         self.setstrval(filepos, str);
         return self;
     }
+}
+
+//**********************************************************************
+
+function ErrorAt(string msg, var token)
+{
+    throw Error(msg + ' at ' + string(token.debdump()));
 }
 
 //**********************************************************************
@@ -155,6 +177,21 @@ class Line
         self.ungetchar(c);
         return new TokenIdentifier().setid(filepos, id);
     }
+    function scanregister(var filepos)
+    {
+        string c = self.getchar();
+        if (indexof("INSP", c) < 0)
+            throw Error("Invalid register");
+        string type = c;
+        string strnum = '';
+        while (isdigit(c = self.getchar()))
+            strnum += c;
+        if (strnum == '')
+            throw Error("Invalid register number");
+        int regnum = strnum;
+        self.ungetchar(c);
+        return new TokenRegister().setregister(filepos, type, regnum);
+    }
     function scansinglequoted(var filepos)
     {
         string s;
@@ -173,6 +210,9 @@ class Line
             switch (c) {
             case "'":
                 tokenlist.push(self.scansinglequoted(filepos));
+                break;
+            case '$':
+                tokenlist.push(self.scanregister(filepos));
                 break;
             case '0': case '1': case '2': case '3': case '4':
             case '5': case '6': case '7': case '8': case '9':
@@ -258,6 +298,15 @@ function pushconststring(string value)
     return result;
 }
 
+function pushconstpmc(var value)
+{
+    int nextconst = self.nextconst;
+    int result = nextconst;
+    self.constseg[nextconst++] = value;
+    self.nextconst =: nextconst;
+    return result;
+}
+
 function parse(var tokenlist)
 {
     var inst = tokenlist[0];
@@ -266,32 +315,37 @@ function parse(var tokenlist)
        throw Error('No instruction');
     string opname = inst.getid();
 
-    switch (ntokens) {
-    case 1:
-        break;
-    case 2:
-        var arg = tokenlist[1];
-        if (arg instanceof TokenSingleQuoted)
+    for (int i = 1; i < ntokens; ++i) {
+        var arg = tokenlist[i];
+        if (i == 2 && (arg instanceof TokenOperator) )
+            continue;
+        if (arg instanceof TokenRegister)
+            opname += '_' + string(arg.regtype().lower());
+        else if (arg instanceof TokenSingleQuoted)
             opname += '_sc';
         else if (arg instanceof TokenInteger)
             opname += '_ic';
         else
-            throw Error('Invalid arg');
-        break;
-    default:
-        throw Error('Too much args ' + ntokens);
+            ErrorAt('Invalid arg', arg);
     }
+
     var oplib = new 'OpLib';
     int opnum = oplib[opname];
     if (opnum < 0)
-        throw Error('No op');
+        throw Error('No op ' + opname);
 
     if (DEBUG) say(opnum, ' ', opname);
 
     self.pushop(opnum);
-    if (ntokens == 2) {
-        var arg = tokenlist[1];
-        if (arg instanceof TokenSingleQuoted) {
+    for (int i = 1; i < ntokens; ++i) {
+        var arg = tokenlist[i];
+        if (i == 2 && (arg instanceof TokenOperator) )
+            continue;
+        if (arg instanceof TokenRegister) {
+            int regnum = arg.regnum();
+            self.pushop(regnum);
+        }
+        else if (arg instanceof TokenSingleQuoted) {
             string sarg = arg.getstr();
             int cnum = self.pushconststring(sarg);
             self.pushop(cnum);
@@ -310,6 +364,25 @@ function writefile(string filename)
     dir['BYTECODE_' + segname] = self.byteseg;
     var fixups = new 'PackfileFixupTable';
     dir['FIXUP_' + segname] = fixups;
+
+    // Temporary:
+    // Create a sub just to be able to play with some registers.
+    string fakename = 'fakemain';
+    var fakesub = new 'Sub'({
+        "name" : fakename,
+        "subid" : fakename,
+        "ns_entry_name" : fakename,
+        "start_offs" : 0,
+        "end_offs" : self.nextcode,
+        "n_regs_used": [ 8, 8, 8, 8 ]
+    });
+    int fakeconst = self.pushconstpmc(fakesub);
+    var fixupfake = new 'PackfileFixupEntry';
+    fixupfake =: fakename;
+    fixupfake =: fakeconst;
+    fixupfake.set_type(2);
+    fixups[0] = fixupfake;
+
     dir['BYTECODE_' + segname + '_ANN'] = new 'PackfileAnnotations';
 
     var packfile = self.packfile;
