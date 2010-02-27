@@ -3255,7 +3255,7 @@ class IndexExpr : Expr
             string sep = '';
             for (string reg in argregs) {
                 e.print(sep, reg);
-                sep = ', ';
+                sep = '; ';
             }
             e.say(']');
         }
@@ -3273,7 +3273,7 @@ class IndexExpr : Expr
         string sep = '';
         for (string reg in argregs) {
             e.print(sep, reg);
-            sep = ', ';
+            sep = '; ';
         }
         e.say('] = ', rreg);
     }
@@ -3297,7 +3297,7 @@ class IndexExpr : Expr
         string sep = '';
         for (string reg in argregs) {
             e.print(sep, reg);
-            sep = ', ';
+            sep = '; ';
         }
         e.say('] = ', rreg);
         return rreg;
