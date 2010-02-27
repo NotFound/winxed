@@ -20,6 +20,9 @@ const int PARROT_ARG_NC        = PARROT_ARG_N | PARROT_ARG_CONSTANT;
 // Care to not collide with valid parrot values.
 const int PARROT_ARG_UNKNOWN   = 0x80000;
 
+const int PARROT_JUMP_RELATIVE = 1;
+const int PARROT_JUMP_ADDRESS = 2;
+
 function typearg(string rtype)
 {
     switch (rtype) {
@@ -310,6 +313,11 @@ class ArgRegister
 {
     var regtype;
     var regnum;
+    function type()
+    {
+        int regtype = self.regtype;
+        return regtype;
+    }
     function initreg(int regtype, int regnum)
     {
         self.regtype = regtype;
@@ -317,12 +325,18 @@ class ArgRegister
         return self;
     }
     function num() { return int(self.regnum); }
+    function code() { return int(self.regnum); }
 }
 
 class ArgConstant
 {
     var regtype;
     var cstindex;
+    function type()
+    {
+        int regtype = self.regtype;
+        return regtype | PARROT_ARG_CONSTANT;
+    }
     function initconst(int regtype, int cstindex)
     {
         self.regtype = regtype;
@@ -330,17 +344,205 @@ class ArgConstant
         return self;
     }
     function index() { return self.cstindex; }
+    function code() { return int(self.cstindex); }
+}
+
+class ArgConstString
+{
+    var value;
+    var cstindex;
+    function type() { return PARROT_ARG_SC; }
+    function initconststring(string value)
+    {
+        self.value = value;
+        self.cstindex = -1;
+        return self;
+    }
+    function put(var store)
+    {
+        int cstindex = store.pushconststring(self.value);
+        self.cstindex = cstindex;
+    }
+    function code()
+    {
+        int cstindex = self.cstindex;
+        if (cstindex == -1)
+            throw Error('Premature use of constant string');
+        return cstindex;
+    }
 }
 
 class ArgIdentifier
 {
     var idstr;
+    function type() { return PARROT_ARG_UNKNOWN; }
     function initid(string name)
     {
         self.idstr = name;
         return self;
     }
     function name() { return self.idstr; }
+}
+
+//**********************************************************************
+
+function find_opcode(var inst, var args)
+{
+    string opname = inst.getid();
+    int nargs = elements(args);
+    var oplib = new 'OpLib';
+    var ops = oplib.op_family(opname);
+    if (ops == null)
+        throw Error('No such op: ' + opname);
+    int numops = ops;
+    int iop;
+    for (iop = 0; iop < numops; ++iop) {
+        var op = ops[iop];
+        if (nargs != elements(op) )
+            continue;
+        int i;
+        for (i = 0; i < nargs; ++i) {
+            var arg = args[i];
+            int ptype = op[i];
+            int atype = arg.type();
+            if (atype != ptype) {
+                if (atype != PARROT_ARG_UNKNOWN || ! (arg instanceof ArgIdentifier))
+                    break;
+            }
+        }
+        if (i == nargs)
+            break;
+    }
+    if (iop >= numops)
+        ErrorAt('No op with that args', inst);
+    var op = ops[iop];
+    return op;
+}
+
+//**********************************************************************
+
+class GenOp
+{
+    var context;
+    var args;
+    var op;
+
+    function build(var context, var tokenlist)
+    {
+        self.context = context;
+        int ntokens = elements(tokenlist);
+        var args = [];
+        for (int i = 1; i < ntokens; ++i) {
+            var arg = tokenlist[i];
+            if (i == 2 && (arg.isop(',')) )
+                continue;
+            var argnew;
+            if (arg instanceof TokenRegister) {
+                int argt = typearg(arg.regtype());
+                argnew = new ArgRegister().initreg(argt, arg.regnum());
+            }
+            else if (arg instanceof TokenSingleQuoted) {
+                string argstr = arg.getstr();
+                argnew = new ArgConstString().initconststring(argstr);
+            }
+            else if (arg instanceof TokenInteger) {
+                int argint = arg.getint();
+                argnew = new ArgConstant().initconst(PARROT_ARG_I, argint);
+            }
+            else if (arg instanceof TokenIdentifier) {
+                argnew = new ArgIdentifier().initid(arg.getid());
+            }
+            else
+                ErrorAt('Invalid arg', arg);
+            args.push(argnew);
+        }
+        self.args = args;
+        self.op = find_opcode(tokenlist[0], args);
+    }
+    function getargs() { return self.args; }
+    function bytelength()
+    {
+        return elements(self.op) + 1;
+    }
+    function adjust(int codepos)
+    {
+        int jump = self.op.jump();
+        if (jump & PARROT_JUMP_RELATIVE) {
+            var args = self.args;
+            int nargs = elements(args);
+            if (nargs > 0) {
+                var last = args[nargs - 1];
+                if (last instanceof ArgIdentifier) {
+                    int dest = self.context.getlabel(last.name());
+                    if (DEBUG) say('relative at ', codepos, ' is ', dest - codepos);
+                    var newarg = new ArgConstant().initconst(PARROT_ARG_I, dest - codepos);
+                    args[nargs - 1] = newarg;
+                }
+            }
+        }
+    }
+    function gencode(var dest)
+    {
+        int opnum = self.op;
+        dest.pushop(opnum);
+        var args = self.args;
+        int nargs = elements(args);
+        for (int i = 0; i < nargs; ++i) {
+            var arg = args[i];
+            if (arg instanceof ArgConstString)
+                arg.put(dest);
+            dest.pushop(arg.code());
+        }
+    }
+}
+
+class GenLabel
+{
+    var context;
+    var label;
+    function build(var context, var tokenlist)
+    {
+        self.context = context;
+        int ntokens = elements(tokenlist);
+        var ltoken = tokenlist[0];
+        if (! (tokenlist[0] instanceof TokenIdentifier))
+             ErrorAt('Bad label', ltoken);
+        self.label = ltoken.getid();
+        return self;
+    }
+    function bytelength() { return 0; }
+    function set(int pos)
+    {
+        if (DEBUG) say(self.label, ' set to ', pos);
+        self.context.setlabel(self.label, pos);
+    }
+    function adjust(int codepos) {}
+    function gencode(var dest) {}
+}
+
+function gen_item(var context, var tokenlist)
+{
+    int ntokens = elements(tokenlist);
+    var item;
+    if (ntokens > 1 && tokenlist[1].isop(':'))
+        item = new GenLabel().build(context, tokenlist);
+    else {
+        var inst = tokenlist[0];
+        switch (inst.getid()) {
+        case 'goto':
+            item = new GenOp();
+            item.context = context;
+            item.op = new 'OpLib'()['branch_ic'];
+            var args = [];
+            args.push(new ArgIdentifier().initid(tokenlist[1].getid()));
+            item.args = args;
+            break;
+        default:
+            item = new GenOp();
+            item.build(context, tokenlist);
+        }
+    }
+    return item;
 }
 
 //**********************************************************************
@@ -356,6 +558,7 @@ var byteseg;
 var nextconst;
 var nextcode;
 var labels;
+var opgenlist;
 
 function initialize(string segname)
 {
@@ -375,12 +578,21 @@ function initialize(string segname)
     self.nextconst = cstindex;
     self.nextcode = 0;
     self.labels = {};
+    self.opgenlist = [];
 }
 
 function setlabel(string labelstr, int pos)
 {
     if (DEBUG) say('set label ', labelstr, ' to ', pos);
+//    if (self.labels[labelstr] == null)
+//        throw Error('Label already exists');
     self.labels[labelstr] = pos;
+}
+
+function getlabel(string labelstr)
+{
+    int pos = self.labels[labelstr];
+    return pos;
 }
 
 function pushop(int opnum)
@@ -417,116 +629,9 @@ function parse(var tokenlist)
 
     if (! (inst instanceof TokenIdentifier))
        throw Error('No instruction');
-    string opname = inst.getid();
 
-    if (ntokens == 2 && tokenlist[1].isop(':')) {
-        var label = tokenlist[0];
-        if (! (label instanceof TokenIdentifier))
-            ErrotAt('Invalid label', label);
-        self.setlabel(label.getid(), curpos);
-    }
-    else if (opname == 'goto') {
-        // TESTING, ONLY BACKWARDS
-        if (ntokens != 2) ErrorAt('Invalid goto', inst);
-        int target = self.labels[tokenlist[1].getid()];
-        var oplib = new 'OpLib';
-        var branch = oplib['branch_ic'];
-        self.pushop(int(branch));
-        self.pushop(target - curpos);
-    }
-    else {
-        var args = [];
-        var argtype = [];
-        for (int i = 1; i < ntokens; ++i) {
-            var arg = tokenlist[i];
-            if (i == 2 && (arg.isop(',')) )
-                continue;
-            int argt;
-            var argnew;
-            if (arg instanceof TokenRegister) {
-                argt = typearg(arg.regtype());
-                argnew = new ArgRegister().initreg(argt, arg.regnum());
-            }
-            else if (arg instanceof TokenSingleQuoted) {
-                argt = PARROT_ARG_SC;
-                string argstr = arg.getstr();
-                int index = self.pushconststring(argstr);
-                argnew = new ArgConstant().initconst(PARROT_ARG_S, index);
-            }
-            else if (arg instanceof TokenInteger) {
-                argt = PARROT_ARG_IC;
-                int argint = arg.getint();
-                argnew = new ArgConstant().initconst(PARROT_ARG_I, argint);
-            }
-            else if (arg instanceof TokenIdentifier) {
-                argt = PARROT_ARG_UNKNOWN;
-                argnew = new ArgIdentifier().initid(arg.getid());
-            }
-            else
-                ErrorAt('Invalid arg', arg);
-            args.push(argnew);
-            argtype.push(argt);
-        }
-
-        int nargs = elements(args);
-        var oplib = new 'OpLib';
-        var ops = oplib.op_family(opname);
-        if (ops == null)
-            throw Error('No such op: ' + opname);
-        int numops = ops;
-        int iop;
-        for (iop = 0; iop < numops; ++iop) {
-            var op = ops[iop];
-            if (nargs != elements(op) )
-                continue;
-            int i;
-            for (i = 0; i < nargs; ++i) {
-                var arg = args[i];
-                int ptype = op[i];
-                int atype = argtype[i];
-                if (atype != ptype) {
-                    if (atype != PARROT_ARG_UNKNOWN || ! (arg instanceof ArgIdentifier))
-                        break;
-                }
-            }
-            if (i == nargs)
-                break;
-        }
-        if (iop >= numops)
-            ErrorAt('No op with that args', inst);
-        var op = ops[iop];
-        int opnum = op;
-        if (DEBUG) say('<* ', iop, ':', opnum, ':', string(op), ' *>');
-        self.pushop(opnum);
-
-        for (int i = 0; i < nargs; ++i) {
-            var arg = args[i];
-            if (arg instanceof ArgRegister) {
-                int regnum = arg.num();
-                self.pushop(regnum);
-            }
-            else if (arg instanceof ArgConstant) {
-                //string sarg = arg.getstr();
-                //int cnum = self.pushconststring(sarg);
-                int cnum = arg.index();
-                self.pushop(cnum);
-            }
-            else if (arg instanceof ArgIdentifier) {
-                //int narg = arg.getint();
-                //self.pushop(narg);
-                int type = op[i];
-                if (type == PARROT_ARG_IC) {
-                    var labeldest = self.labels[arg.name()];
-                    if (labeldest == null)
-                        ErrorAt('No op with that arg', inst);
-                    int dest = labeldest;
-                    self.pushop(dest - curpos);
-                }
-                else
-                    ErrorAt('No op with that arg', inst);
-            }
-        }
-    }
+    var opgen = gen_item(self, tokenlist);
+    self.opgenlist.push(opgen);
 }
 
 function writefile(string filename)
@@ -567,6 +672,33 @@ function writefile(string filename)
     if (DEBUG) say('Done');
 }
 
+function generate()
+{
+    int nitems = elements(self.opgenlist);
+    int codepos = 0;
+    for (int i = 0; i < nitems; ++i) {
+        var item = self.opgenlist[i];
+        if (item instanceof GenLabel)
+            item.set(codepos);
+        int l = item.bytelength();
+        codepos += l;
+    }
+    if (DEBUG) say('codesize: ', codepos);
+    codepos = 0;
+    for (int i = 0; i < nitems; ++i) {
+        var item = self.opgenlist[i];
+        item.adjust(codepos);
+        int l = item.bytelength();
+        codepos += l;
+    }
+    if (DEBUG) say('codesize: ', codepos);
+    codepos = 0;
+    for (int i = 0; i < nitems; ++i) {
+        var item = self.opgenlist[i];
+        item.gencode(self);
+    }
+}
+
 }
 
 //**********************************************************************
@@ -596,6 +728,9 @@ function main(argv)
             gen.parse(tokenlist);
         }
     }
+    int nopgen = gen.opgenlist;
+    if (DEBUG) say('Items: ', nopgen);
+    gen.generate();
 
     string pbcfilename = filename;
     {
