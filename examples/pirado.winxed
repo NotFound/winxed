@@ -434,7 +434,7 @@ class GenOp
         var args = [];
         for (int i = 1; i < ntokens; ++i) {
             var arg = tokenlist[i];
-            if (i == 2 && (arg.isop(',')) )
+            if ((i %% 2) == 0 && (arg.isop(',')) )
                 continue;
             var argnew;
             if (arg instanceof TokenRegister) {
