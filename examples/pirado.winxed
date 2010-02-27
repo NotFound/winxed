@@ -12,6 +12,13 @@ const int PARROT_ARG_P         = 0x02;
 const int PARROT_ARG_N         = 0x03;
 const int PARROT_ARG_TYPE_MASK = 0x0F;
 const int PARROT_ARG_CONSTANT  = 0x10;
+const int PARROT_ARG_IC        = PARROT_ARG_I | PARROT_ARG_CONSTANT;
+const int PARROT_ARG_SC        = PARROT_ARG_S | PARROT_ARG_CONSTANT;
+const int PARROT_ARG_PC        = PARROT_ARG_P | PARROT_ARG_CONSTANT;
+const int PARROT_ARG_NC        = PARROT_ARG_N | PARROT_ARG_CONSTANT;
+
+// Care to not collide with valid parrot values.
+const int PARROT_ARG_UNKNOWN   = 0x80000;
 
 function typearg(string rtype)
 {
@@ -295,6 +302,49 @@ class Line
 
 //**********************************************************************
 
+class Arg
+{
+}
+
+class ArgRegister
+{
+    var regtype;
+    var regnum;
+    function initreg(int regtype, int regnum)
+    {
+        self.regtype = regtype;
+        self.regnum = regnum;
+        return self;
+    }
+    function num() { return int(self.regnum); }
+}
+
+class ArgConstant
+{
+    var regtype;
+    var cstindex;
+    function initconst(int regtype, int cstindex)
+    {
+        self.regtype = regtype;
+        self.cstindex = cstindex;
+        return self;
+    }
+    function index() { return self.cstindex; }
+}
+
+class ArgIdentifier
+{
+    var idstr;
+    function initid(string name)
+    {
+        self.idstr = name;
+        return self;
+    }
+    function name() { return self.idstr; }
+}
+
+//**********************************************************************
+
 class Generator
 {
 
@@ -392,15 +442,29 @@ function parse(var tokenlist)
             if (i == 2 && (arg.isop(',')) )
                 continue;
             int argt;
-            if (arg instanceof TokenRegister)
+            var argnew;
+            if (arg instanceof TokenRegister) {
                 argt = typearg(arg.regtype());
-            else if (arg instanceof TokenSingleQuoted)
-                argt = PARROT_ARG_S | PARROT_ARG_CONSTANT;
-            else if (arg instanceof TokenInteger)
-                argt = PARROT_ARG_I | PARROT_ARG_CONSTANT;
+                argnew = new ArgRegister().initreg(argt, arg.regnum());
+            }
+            else if (arg instanceof TokenSingleQuoted) {
+                argt = PARROT_ARG_SC;
+                string argstr = arg.getstr();
+                int index = self.pushconststring(argstr);
+                argnew = new ArgConstant().initconst(PARROT_ARG_S, index);
+            }
+            else if (arg instanceof TokenInteger) {
+                argt = PARROT_ARG_IC;
+                int argint = arg.getint();
+                argnew = new ArgConstant().initconst(PARROT_ARG_I, argint);
+            }
+            else if (arg instanceof TokenIdentifier) {
+                argt = PARROT_ARG_UNKNOWN;
+                argnew = new ArgIdentifier().initid(arg.getid());
+            }
             else
                 ErrorAt('Invalid arg', arg);
-            args.push(arg);
+            args.push(argnew);
             argtype.push(argt);
         }
 
@@ -417,10 +481,13 @@ function parse(var tokenlist)
                 continue;
             int i;
             for (i = 0; i < nargs; ++i) {
+                var arg = args[i];
                 int ptype = op[i];
                 int atype = argtype[i];
-                if (atype != ptype)
-                    break;
+                if (atype != ptype) {
+                    if (atype != PARROT_ARG_UNKNOWN || ! (arg instanceof ArgIdentifier))
+                        break;
+                }
             }
             if (i == nargs)
                 break;
@@ -434,18 +501,29 @@ function parse(var tokenlist)
 
         for (int i = 0; i < nargs; ++i) {
             var arg = args[i];
-            if (arg instanceof TokenRegister) {
-                int regnum = arg.regnum();
+            if (arg instanceof ArgRegister) {
+                int regnum = arg.num();
                 self.pushop(regnum);
             }
-            else if (arg instanceof TokenSingleQuoted) {
-                string sarg = arg.getstr();
-                int cnum = self.pushconststring(sarg);
+            else if (arg instanceof ArgConstant) {
+                //string sarg = arg.getstr();
+                //int cnum = self.pushconststring(sarg);
+                int cnum = arg.index();
                 self.pushop(cnum);
             }
-            else if (arg instanceof TokenInteger) {
-                int narg = arg.getint();
-                self.pushop(narg);
+            else if (arg instanceof ArgIdentifier) {
+                //int narg = arg.getint();
+                //self.pushop(narg);
+                int type = op[i];
+                if (type == PARROT_ARG_IC) {
+                    var labeldest = self.labels[arg.name()];
+                    if (labeldest == null)
+                        ErrorAt('No op with that arg', inst);
+                    int dest = labeldest;
+                    self.pushop(dest - curpos);
+                }
+                else
+                    ErrorAt('No op with that arg', inst);
             }
         }
     }
