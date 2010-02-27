@@ -6,6 +6,26 @@ const int DEBUG = 0;
 
 //**********************************************************************
 
+const int PARROT_ARG_I         = 0x00;
+const int PARROT_ARG_S         = 0x01;
+const int PARROT_ARG_P         = 0x02;
+const int PARROT_ARG_N         = 0x03;
+const int PARROT_ARG_TYPE_MASK = 0x0F;
+const int PARROT_ARG_CONSTANT  = 0x10;
+
+function typearg(string rtype)
+{
+    switch (rtype) {
+    case 'I': return PARROT_ARG_I;
+    case 'S': return PARROT_ARG_S;
+    case 'N': return PARROT_ARG_N;
+    case 'P': return PARROT_ARG_P;
+    default: return -1;
+    }
+}
+
+//**********************************************************************
+
 function iswhitespace(string c)
 {
     return indexof(" \t\n", c) > -1;
@@ -50,6 +70,7 @@ class Token
     var filename;
     var line;
     var pos;
+    function isop(string opstr) { return 0; }
     function setstrval(var filepos, string val)
     {
         self.strval = val;
@@ -63,6 +84,15 @@ class Token
         string s = self.strval;
         s = string(self.filename) + ':' + string(self.line) + ':' + string(self.pos) + ':' + s;
         return s;
+    }
+}
+
+class TokenComment : Token
+{
+    function setcomment(var filepos)
+    {
+        self.setstrval(filepos, '# comment');
+        return self;
     }
 }
 
@@ -118,6 +148,10 @@ class TokenOperator : Token
         self.setstrval(filepos, str);
         return self;
     }
+    function isop(string opstr)
+    {
+        return opstr == self.strval;
+    }
 }
 
 //**********************************************************************
@@ -160,6 +194,12 @@ class Line
     {
         if (length(c) > 0)
             self.pending.push(c);
+    }
+    function scancomment(var filepos)
+    {
+        string c;
+        while ((c = self.getchar()) != "\n") ;
+        return new TokenComment().setcomment(filepos);
     }
     function scannum(var filepos, string c)
     {
@@ -208,6 +248,9 @@ class Line
             if (iswhitespace(c)) continue;
             var filepos = [ self.filename, int(self.linenum), int(self.pos) ];
             switch (c) {
+            case '#':
+                tokenlist.push(self.scancomment(filepos));
+                break;
             case "'":
                 tokenlist.push(self.scansinglequoted(filepos));
                 break;
@@ -262,6 +305,7 @@ var constseg;
 var byteseg;
 var nextconst;
 var nextcode;
+var labels;
 
 function initialize(string segname)
 {
@@ -280,6 +324,13 @@ function initialize(string segname)
     self.byteseg = byteseg;
     self.nextconst = cstindex;
     self.nextcode = 0;
+    self.labels = {};
+}
+
+function setlabel(string labelstr, int pos)
+{
+    if (DEBUG) say('set label ', labelstr, ' to ', pos);
+    self.labels[labelstr] = pos;
 }
 
 function pushop(int opnum)
@@ -311,48 +362,91 @@ function parse(var tokenlist)
 {
     var inst = tokenlist[0];
     int ntokens = elements(tokenlist);
+
+    int curpos = self.nextcode;
+
     if (! (inst instanceof TokenIdentifier))
        throw Error('No instruction');
     string opname = inst.getid();
 
-    for (int i = 1; i < ntokens; ++i) {
-        var arg = tokenlist[i];
-        if (i == 2 && (arg instanceof TokenOperator) )
-            continue;
-        if (arg instanceof TokenRegister)
-            opname += '_' + string(arg.regtype().lower());
-        else if (arg instanceof TokenSingleQuoted)
-            opname += '_sc';
-        else if (arg instanceof TokenInteger)
-            opname += '_ic';
-        else
-            ErrorAt('Invalid arg', arg);
+    if (ntokens == 2 && tokenlist[1].isop(':')) {
+        var label = tokenlist[0];
+        if (! (label instanceof TokenIdentifier))
+            ErrotAt('Invalid label', label);
+        self.setlabel(label.getid(), curpos);
     }
-
-    var oplib = new 'OpLib';
-    int opnum = oplib[opname];
-    if (opnum < 0)
-        throw Error('No op ' + opname);
-
-    if (DEBUG) say(opnum, ' ', opname);
-
-    self.pushop(opnum);
-    for (int i = 1; i < ntokens; ++i) {
-        var arg = tokenlist[i];
-        if (i == 2 && (arg instanceof TokenOperator) )
-            continue;
-        if (arg instanceof TokenRegister) {
-            int regnum = arg.regnum();
-            self.pushop(regnum);
+    else if (opname == 'goto') {
+        // TESTING, ONLY BACKWARDS
+        if (ntokens != 2) ErrorAt('Invalid goto', inst);
+        int target = self.labels[tokenlist[1].getid()];
+        var oplib = new 'OpLib';
+        var branch = oplib['branch_ic'];
+        self.pushop(int(branch));
+        self.pushop(target - curpos);
+    }
+    else {
+        var args = [];
+        var argtype = [];
+        for (int i = 1; i < ntokens; ++i) {
+            var arg = tokenlist[i];
+            if (i == 2 && (arg.isop(',')) )
+                continue;
+            int argt;
+            if (arg instanceof TokenRegister)
+                argt = typearg(arg.regtype());
+            else if (arg instanceof TokenSingleQuoted)
+                argt = PARROT_ARG_S | PARROT_ARG_CONSTANT;
+            else if (arg instanceof TokenInteger)
+                argt = PARROT_ARG_I | PARROT_ARG_CONSTANT;
+            else
+                ErrorAt('Invalid arg', arg);
+            args.push(arg);
+            argtype.push(argt);
         }
-        else if (arg instanceof TokenSingleQuoted) {
-            string sarg = arg.getstr();
-            int cnum = self.pushconststring(sarg);
-            self.pushop(cnum);
+
+        int nargs = elements(args);
+        var oplib = new 'OpLib';
+        var ops = oplib.op_family(opname);
+        if (ops == null)
+            throw Error('No such op: ' + opname);
+        int numops = ops;
+        int iop;
+        for (iop = 0; iop < numops; ++iop) {
+            var op = ops[iop];
+            if (nargs != elements(op) )
+                continue;
+            int i;
+            for (i = 0; i < nargs; ++i) {
+                int ptype = op[i];
+                int atype = argtype[i];
+                if (atype != ptype)
+                    break;
+            }
+            if (i == nargs)
+                break;
         }
-        else if (arg instanceof TokenInteger) {
-            int narg = arg.getint();
-            self.pushop(narg);
+        if (iop >= numops)
+            ErrorAt('No op with that args', inst);
+        var op = ops[iop];
+        int opnum = op;
+        if (DEBUG) say('<* ', iop, ':', opnum, ':', string(op), ' *>');
+        self.pushop(opnum);
+
+        for (int i = 0; i < nargs; ++i) {
+            var arg = args[i];
+            if (arg instanceof TokenRegister) {
+                int regnum = arg.regnum();
+                self.pushop(regnum);
+            }
+            else if (arg instanceof TokenSingleQuoted) {
+                string sarg = arg.getstr();
+                int cnum = self.pushconststring(sarg);
+                self.pushop(cnum);
+            }
+            else if (arg instanceof TokenInteger) {
+                int narg = arg.getint();
+                self.pushop(narg);
+            }
         }
     }
 }
@@ -419,6 +513,8 @@ function main(argv)
                     print(token.debdump());
                 say();
             }
+            if (tokenlist[0] instanceof TokenComment)
+                continue;
             gen.parse(tokenlist);
         }
     }
