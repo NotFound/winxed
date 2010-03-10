@@ -540,12 +540,109 @@ class GenLabel
     function gencode(var dest) {}
 }
 
+class GenReturn
+{
+    var context;
+    function build(var context, var tokenlist)
+    {
+        self.context = context;
+        var oper = tokenlist.shift();
+        if (!oper.isop('('))
+            ErrorAt('Unexpected operation', oper);
+        oper = tokenlist.shift();
+        if (!oper.isop(')'))
+            ErrorAt('Return with args not implemented yet', oper);
+        return self;
+    }
+    function bytelength()
+    {
+        return 3;
+    }
+    function adjust(int codepos) {}
+    function gencode(var dest)
+    {
+        var oplib = new 'OpLib';
+        var op;
+        int opnum;
+        int zeroargs = self.context.getzeroargs();
+        op = oplib['set_returns_pc'];
+        opnum = op;
+        dest.pushop(opnum);
+        dest.pushop(zeroargs);
+        op = oplib['returncc'];
+        opnum = op;
+        dest.pushop(opnum);
+    }
+}
+
+class GenCallSub
+{
+    var context;
+    var name;
+    function build(var context, var tokenlist)
+    {
+        self.context = context;
+        var subitem = tokenlist.shift();
+        string name;
+        if (subitem instanceof TokenIdentifier)
+            name = subitem.getid();
+        else if (subitem instanceof TokenSingleQuoted)
+            name = subitem.getstr();
+        else
+            ErrorAt('Invalid call', subitem);
+        self.name = name;
+        var oper = tokenlist.shift();
+        if (!oper.isop('('))
+            ErrorAt('Unexpected operation', oper);
+        oper = tokenlist.shift();
+        if (!oper.isop(')'))
+            ErrorAt('Call with args not implemented yet', oper);
+        return self;
+    }
+    function bytelength()
+    {
+        return 9;
+    }
+    function adjust(int codepos) {}
+    function gencode(var dest)
+    {
+        var oplib = new 'OpLib';
+        var op;
+        int opnum;
+        int zeroargs = self.context.getzeroargs();
+        op = oplib['set_args_pc'];
+        opnum = op;
+        dest.pushop(opnum);
+        dest.pushop(zeroargs);
+
+        op = oplib['find_sub_not_null_p_sc'];
+        opnum = op;
+        dest.pushop(opnum);
+        dest.pushop(0);
+        int nameindex = self.context.pushconststring(self.name);
+        dest.pushop(nameindex);
+
+        op = oplib['get_results_pc'];
+        opnum = op;
+        dest.pushop(opnum);
+        dest.pushop(zeroargs);
+
+        op = oplib['invokecc_p'];
+        opnum = op;
+        dest.pushop(opnum);
+        dest.pushop(0);
+    }
+}
+
 function gen_item(var context, var tokenlist)
 {
     int ntokens = elements(tokenlist);
     var item;
     if (ntokens > 1 && tokenlist[1].isop(':'))
         item = new GenLabel().build(context, tokenlist);
+    else if (ntokens > 1 && tokenlist[1].isop('(')) {
+        item = new GenCallSub().build(context, tokenlist);
+    }
     else {
         var inst = tokenlist[0];
         switch (inst.getid()) {
@@ -601,6 +698,7 @@ var segname;
 var packfile;
 var dir;
 var constseg;
+var zeroargs;
 var byteseg;
 var nextconst;
 var nextcode;
@@ -685,6 +783,21 @@ function pushconstpmc(var value)
     return result;
 }
 
+function getzeroargs()
+{
+    int zeroargsindex;
+    var zeroargs = self.zeroargs;
+    if (zeroargs == null) {
+        var zeroargspmc = new 'FixedIntegerArray';
+        zeroargsindex = self.pushconstpmc(zeroargspmc);
+        zeroargs = zeroargsindex;
+        self.zeroargs = zeroargs;
+    }
+    else
+        zeroargsindex = zeroargs;
+    return zeroargsindex;
+}
+
 function parsesub(var inst, var tokenlist)
 {
     self.checkpirmode(inst);
@@ -754,12 +867,20 @@ function parse(var tokenlist)
                 throw ErrorAt('.end outside sub', inst);
             self.parseend(inst, tokenlist);
             break;
+        case 'return':
+            var opgen = new GenReturn().build(self, tokenlist);
+            self.opgenlist.push(opgen);
+            break;
         default:
             throw ErrorAt('No such directive', inst);
         }
     }
     else if (inst instanceof TokenIdentifier) {
         var opgen = gen_item(self, tokenlist);
+        self.opgenlist.push(opgen);
+    }
+    else if (inst instanceof TokenSingleQuoted && ntokens > 1 && tokenlist[1].isop('(')) {
+        var opgen = new GenCallSub().build(self, tokenlist);
         self.opgenlist.push(opgen);
     }
     else
