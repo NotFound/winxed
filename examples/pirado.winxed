@@ -421,7 +421,26 @@ function find_opcode(var inst, var args)
 
 //**********************************************************************
 
-class GenOp
+class GenItem
+{
+    var codepos;
+}
+
+//**********************************************************************
+
+class GenMark : GenItem
+{
+    function bytelength() { return 0; }
+    function adjust(int codepos)
+    {
+        self.codepos = codepos;
+    }
+    function gencode(var dest) { }
+}
+
+//**********************************************************************
+
+class GenOp : GenItem
 {
     var context;
     var args;
@@ -466,6 +485,7 @@ class GenOp
     }
     function adjust(int codepos)
     {
+        self.codepos = codepos;
         int jump = self.op.jump();
         if (jump & PARROT_JUMP_RELATIVE) {
             var args = self.args;
@@ -547,9 +567,36 @@ function gen_item(var context, var tokenlist)
 
 //**********************************************************************
 
+class BlockSub
+{
+    var name;
+    var startgen;
+    var endgen;
+    var main_flag;
+    function init(string subname, int startgen)
+    {
+        say(subname, ' ', startgen);
+        self.name = subname;
+        self.startgen = startgen;
+        self.endgen = 0;
+        self.main_flag = 0;
+    }
+    function set_main()
+    {
+        self.main_flag =: 1;
+    }
+}
+
+//**********************************************************************
+
+const int FLAG_PASM_MODE = 1;
+
 class Generator
 {
 
+var flags;
+var current_sub;
+var sub_list;
 var segname;
 var packfile;
 var dir;
@@ -559,6 +606,24 @@ var nextconst;
 var nextcode;
 var labels;
 var opgenlist;
+
+function init[vtable]()
+{
+    self.flags = 0;
+    self.sub_list = [];
+}
+
+function modepasm()
+{
+    int flags = int(self.flags) | FLAG_PASM_MODE;
+    self.flags =: flags;
+}
+
+function checkpirmode(var inst)
+{
+    if (int(self.flags) & FLAG_PASM_MODE)
+        throw ErrorAt('Invalid in PASM mode', inst);
+}
 
 function initialize(string segname)
 {
@@ -620,6 +685,54 @@ function pushconstpmc(var value)
     return result;
 }
 
+function parsesub(var inst, var tokenlist)
+{
+    self.checkpirmode(inst);
+    if (self.current_sub != null)
+        throw ErrorAt('.sub cannot nest', inst);
+
+    var subitem = tokenlist.shift();
+    string subname;
+    if (subitem instanceof TokenIdentifier)
+        subname = subitem.getid();
+    else if (subitem instanceof TokenSingleQuoted)
+        subname = subitem.getstr();
+    int startgen = elements(self.opgenlist);
+    int is_main = 0;
+    while (elements(tokenlist) > 0) {
+        var item = tokenlist.shift();
+        if (item.isop(':')) {
+            var flag = tokenlist.shift();
+            var flagname = flag.getid();
+            switch (flagname) {
+            case 'main':
+                is_main = 1;
+                break;
+            default:
+                ErrorAt('Invalid flag', flag);
+            }
+        }
+        else
+            ErrorAt('Invalid sub flag', item);
+    }
+
+    var blocksub = new BlockSub();
+    blocksub.init(subname, startgen);
+    if (is_main)
+        blocksub.set_main();
+
+    self.current_sub = blocksub;
+}
+
+function parseend(var inst, var tokenlist)
+{
+    self.checkpirmode(inst);
+    self.current_sub.endgen = elements(self.opgenlist);
+    self.opgenlist.push(new GenMark());
+    self.sub_list.push(self.current_sub);
+    self.current_sub = null;
+}
+
 function parse(var tokenlist)
 {
     var inst = tokenlist[0];
@@ -627,11 +740,30 @@ function parse(var tokenlist)
 
     int curpos = self.nextcode;
 
-    if (! (inst instanceof TokenIdentifier))
-       throw Error('No instruction');
-
-    var opgen = gen_item(self, tokenlist);
-    self.opgenlist.push(opgen);
+    if (inst.isop('.')) {
+        tokenlist.shift();
+        inst = tokenlist.shift();
+        if (! (inst instanceof TokenIdentifier))
+            throw ErrorAt('No directive', inst);
+        switch (inst.getid()) {
+        case 'sub':
+            self.parsesub(inst, tokenlist);
+            break;
+        case 'end':
+            if (self.current_sub == null)
+                throw ErrorAt('.end outside sub', inst);
+            self.parseend(inst, tokenlist);
+            break;
+        default:
+            throw ErrorAt('No such directive', inst);
+        }
+    }
+    else if (inst instanceof TokenIdentifier) {
+        var opgen = gen_item(self, tokenlist);
+        self.opgenlist.push(opgen);
+    }
+    else
+       throw ErrorAt('No instruction', inst);
 }
 
 function writefile(string filename)
@@ -639,29 +771,63 @@ function writefile(string filename)
     string segname = self.segname;
     var dir = self.dir;
     dir['BYTECODE_' + segname] = self.byteseg;
+
+    // Generate sub fixups.
     var fixups = new 'PackfileFixupTable';
     dir['FIXUP_' + segname] = fixups;
-
-    // Temporary:
-    // Create a sub just to be able to play with some registers.
-    string fakename = 'fakemain';
-    var fakesub = new 'Sub'({
-        "name" : fakename,
-        "subid" : fakename,
-        "ns_entry_name" : fakename,
-        "start_offs" : 0,
-        "end_offs" : self.nextcode,
-        "n_regs_used": [ 8, 8, 8, 8 ]
-    });
-    int fakeconst = self.pushconstpmc(fakesub);
-    var fixupfake = new 'PackfileFixupEntry';
-    fixupfake =: fakename;
-    fixupfake =: fakeconst;
-    fixupfake.set_type(2);
-    fixups[0] = fixupfake;
+    int nsubs = elements(self.sub_list);
+    int fixuppos = 0;
+    if (nsubs > 0) {
+        for (var blocksub in self.sub_list) {
+            string name  = blocksub.name;
+            say(name);
+            int startgen = blocksub.startgen;
+            int startpos = self.opgenlist[startgen].codepos;
+            say(startpos);
+            int endgen = blocksub.endgen;
+            int endpos = self.opgenlist[endgen].codepos;
+            say(endpos);
+            var subpmc = new 'Sub'({
+                "name" : name,
+                "subid" : name,
+                "ns_entry_name" : name,
+                "start_offs" : startpos,
+                "end_offs" : endpos,
+                // Set registers used to a number reasonable for little
+                // tests, for a now.
+                "n_regs_used": [ 8, 8, 8, 8 ]
+            });
+            int subconst = self.pushconstpmc(subpmc);
+            if (blocksub.main_flag)
+                self.constseg.set_main(subconst);
+            var fixupsub = new 'PackfileFixupEntry';
+            fixupsub =: name;
+            fixupsub =: subconst;
+            fixupsub.set_type(2);
+            fixups[fixuppos++] = fixupsub;
+        }
+    }
+    else {
+        // Temporary
+        // Create a fake main sub for tests of PASM mode.
+        string fakename = 'fakemain';
+        var fakesub = new 'Sub'({
+            "name" : fakename,
+            "subid" : fakename,
+            "ns_entry_name" : fakename,
+            "start_offs" : 0,
+            "end_offs" : self.nextcode,
+            "n_regs_used": [ 8, 8, 8, 8 ]
+        });
+        int fakeconst = self.pushconstpmc(fakesub);
+        var fixupfake = new 'PackfileFixupEntry';
+        fixupfake =: fakename;
+        fixupfake =: fakeconst;
+        fixupfake.set_type(2);
+        fixups[fixuppos++] = fixupfake;
+    }
 
     dir['BYTECODE_' + segname + '_ANN'] = new 'PackfileAnnotations';
-
     var packfile = self.packfile;
     string rawdata = packfile;
     if (DEBUG) say('About to write');
@@ -712,7 +878,22 @@ function main(argv)
     var line;
     int numline = 0;
 
+    int is_pasm = 0;
+    string pbcfilename = filename;
+    {
+        int l = length(filename);
+        if (l > 4 && substr(filename, l - 5) == '.pasm') {
+            is_pasm = 1;
+            pbcfilename = substr(pbcfilename, 0, l - 5);
+        }
+        else if (l > 3 && substr(filename, l - 4) == '.pir')
+            pbcfilename = substr(pbcfilename, 0, l - 4);
+        pbcfilename += '.pbc';
+    }
+
     var gen = new Generator();
+    if (is_pasm)
+        gen.modepasm();
     gen.initialize(filename);
     while ((line = file.readline()) != '') {
         ++numline;
@@ -731,16 +912,6 @@ function main(argv)
     int nopgen = gen.opgenlist;
     if (DEBUG) say('Items: ', nopgen);
     gen.generate();
-
-    string pbcfilename = filename;
-    {
-    int l = length(filename);
-    if (l > 4 && substr(filename, l - 5) == '.pasm')
-        pbcfilename = substr(pbcfilename, 0, l - 5);
-    else if (l > 3 && substr(filename, l - 4) == '.pir')
-        pbcfilename = substr(pbcfilename, 0, l - 4);
-    pbcfilename += '.pbc';
-    }
 
     if (DEBUG) say(pbcfilename);
     gen.writefile(pbcfilename);
