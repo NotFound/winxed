@@ -21,7 +21,6 @@ const int PARROT_ARG_NC        = PARROT_ARG_N | PARROT_ARG_CONSTANT;
 const int PARROT_ARG_UNKNOWN   = 0x80000;
 
 const int PARROT_JUMP_RELATIVE = 1;
-const int PARROT_JUMP_ADDRESS = 2;
 
 function typearg(string rtype)
 {
@@ -30,6 +29,17 @@ function typearg(string rtype)
     case 'S': return PARROT_ARG_S;
     case 'N': return PARROT_ARG_N;
     case 'P': return PARROT_ARG_P;
+    default: return -1;
+    }
+}
+
+function pirtype(string nametype)
+{
+    switch (nametype) {
+    case 'int':    return PARROT_ARG_I;
+    case 'string': return PARROT_ARG_S;
+    case 'num':    return PARROT_ARG_N;
+    case 'pmc':    return PARROT_ARG_P;
     default: return -1;
     }
 }
@@ -469,7 +479,13 @@ class GenOp : GenItem
                 argnew = new ArgConstant().initconst(PARROT_ARG_I, argint);
             }
             else if (arg instanceof TokenIdentifier) {
-                argnew = new ArgIdentifier().initid(arg.getid());
+                string argname = arg.getid();
+                var local = context.getlocal(argname);
+                if (local != null) {
+                    argnew = new ArgRegister().initreg(local['type'], local['regnum']);
+                }
+                else
+                    argnew = new ArgIdentifier().initid(argname);
             }
             else
                 ErrorAt('Invalid arg', arg);
@@ -579,9 +595,12 @@ class GenCallSub
 {
     var context;
     var name;
+    var args;
+    var owner;
     function build(var context, var tokenlist)
     {
         self.context = context;
+        self.owner = context.current_sub;
         var subitem = tokenlist.shift();
         string name;
         if (subitem instanceof TokenIdentifier)
@@ -594,31 +613,81 @@ class GenCallSub
         var oper = tokenlist.shift();
         if (!oper.isop('('))
             ErrorAt('Unexpected operation', oper);
-        oper = tokenlist.shift();
-        if (!oper.isop(')'))
-            ErrorAt('Call with args not implemented yet', oper);
+
+        self.args = [];
+        oper = tokenlist[0];
+        if (oper.isop(')'))
+            tokenlist.shift();
+        else {
+            do {
+                var arg = tokenlist.shift();
+                if (arg instanceof TokenInteger || arg instanceof TokenSingleQuoted) {
+                    self.args.push(arg);
+                }
+                else
+                    ErrorAt('Invalid argument', arg);
+            } while ((oper = tokenlist.shift()).isop(','));
+            if (!oper.isop(')'))
+                ErrorAt('Wrong argument list', oper);
+            //ErrorAt('Call with args not implemented yet', oper);
+        }
+
         return self;
     }
     function bytelength()
     {
-        return 9;
+        int n = elements(self.args);
+        return 9 + n;
     }
-    function adjust(int codepos) {}
+    function adjust(int codepos)
+    {}
     function gencode(var dest)
     {
         var oplib = new 'OpLib';
         var op;
         int opnum;
+        int n = elements(self.args);
+        if (DEBUG) say('args: ', n);
         int zeroargs = self.context.getzeroargs();
+        int arglistv;
+        if (n == 0)
+            arglistv = zeroargs;
+        else {
+            var arglist = new 'FixedIntegerArray';
+            arglist =: n;
+            for (int i= 0; i < n; ++i) {
+                int type;
+                var arg = self.args[i];
+                if (arg instanceof TokenInteger)
+                    type = PARROT_ARG_I;
+                else if (arg instanceof TokenSingleQuoted)
+                    type = PARROT_ARG_S;
+                type = type | PARROT_ARG_CONSTANT;
+                arglist[i] = type;
+            }
+            arglistv = dest.pushconstpmc(arglist);
+        }
         op = oplib['set_args_pc'];
         opnum = op;
         dest.pushop(opnum);
-        dest.pushop(zeroargs);
+        dest.pushop(arglistv);
+        for (int i= 0; i < n; ++i) {
+            var arg = self.args[i];
+            int ival;
+            if (arg instanceof TokenInteger)
+                ival = arg.getint();
+            else if (arg instanceof TokenSingleQuoted) {
+                string strval = arg.getstr();
+                ival = self.context.pushconststring(strval);
+            }
+            dest.pushop(ival);
+        }
 
         op = oplib['find_sub_not_null_p_sc'];
         opnum = op;
         dest.pushop(opnum);
-        dest.pushop(0);
+        int tempreg = self.owner.tempcaller();
+        dest.pushop(tempreg);
         int nameindex = self.context.pushconststring(self.name);
         dest.pushop(nameindex);
 
@@ -630,7 +699,7 @@ class GenCallSub
         op = oplib['invokecc_p'];
         opnum = op;
         dest.pushop(opnum);
-        dest.pushop(0);
+        dest.pushop(tempreg);
     }
 }
 
@@ -664,23 +733,106 @@ function gen_item(var context, var tokenlist)
 
 //**********************************************************************
 
-class BlockSub
+class BlockSub : GenItem
 {
     var name;
+    var args;
+    var locals;
+    var registers;
+    var regtempcall;
     var startgen;
     var endgen;
     var main_flag;
     function init(string subname, int startgen)
     {
-        say(subname, ' ', startgen);
+        if (DEBUG) say(subname, ' ', startgen);
         self.name = subname;
+        self.args = [];
+        self.locals = [];
         self.startgen = startgen;
         self.endgen = 0;
         self.main_flag = 0;
+        int registers[] = [ 0, 0, 0, 0];
+        self.registers = registers;
     }
     function set_main()
     {
         self.main_flag =: 1;
+    }
+    function tempcaller()
+    {
+        int newreg;
+        if (self.regtempcall != null)
+            newreg = self.regtempcall;
+        else {
+            var registers = self.registers;
+            newreg = registers[PARROT_ARG_P];
+            self.regtempcall = newreg;
+            registers[PARROT_ARG_P] = newreg + 1;
+        }
+        if (DEBUG) say('tempcaller: ', newreg);
+        return newreg;
+    }
+    function addparam(string name, int type)
+    {
+        var registers = self.registers;
+        int newreg = registers[type];
+        registers[type] = newreg + 1;
+        var argdesc = { 'name': name, 'type': type, 'regnum': newreg };
+        self.args.push(argdesc);
+    }
+    function addlocal(string name, int type)
+    {
+        var registers = self.registers;
+        int newreg = registers[type];
+        registers[type] = newreg + 1;
+        var argdesc = { 'name': name, 'type': type, 'regnum': newreg };
+        self.locals.push(argdesc);
+    }
+    function getlocal(string name)
+    {
+        for (var arg in self.args)
+            if (arg['name'] == name)
+                return arg;
+        for (var local in self.locals)
+            if (local['name'] == name)
+                return local;
+        return null;
+    }
+    function bytelength()
+    {
+        var args = self.args;
+        int nargs = elements(args);
+        if (args == 0)
+            return 0;
+        else
+            return 2 + args;
+    }
+    function adjust(int codepos)
+    {
+        self.codepos = codepos;
+    }
+    function gencode(var dest)
+    {
+        var args = self.args;
+        int nargs = elements(args);
+        if (nargs > 0) {
+            var oplib = new 'OpLib';
+            var op = oplib['get_params_pc'];
+            int opnum = op;
+            var arglist = new 'FixedIntegerArray';
+            arglist =: nargs;
+            for (int i = 0; i < args; ++i) {
+                arglist[i] = args[i]['type'];
+            }
+            int arglistv = dest.pushconstpmc(arglist);
+            dest.pushop(opnum);
+            dest.pushop(arglistv);
+            for (int i = 0; i < args; ++i) {
+                int regnum = args[i]['regnum'];
+                dest.pushop(regnum);
+            }
+        }
     }
 }
 
@@ -758,6 +910,20 @@ function getlabel(string labelstr)
     return pos;
 }
 
+function tempcaller()
+{
+    if (self.current_sub != null)
+        return self.current_sub.tempcaller();
+    return -1;
+}
+
+function getlocal(string name)
+{
+    if (self.current_sub != null)
+        return self.current_sub.getlocal(name);
+    return null;
+}
+
 function pushop(int opnum)
 {
     int nextcode = self.nextcode;
@@ -810,7 +976,6 @@ function parsesub(var inst, var tokenlist)
         subname = subitem.getid();
     else if (subitem instanceof TokenSingleQuoted)
         subname = subitem.getstr();
-    int startgen = elements(self.opgenlist);
     int is_main = 0;
     while (elements(tokenlist) > 0) {
         var item = tokenlist.shift();
@@ -830,11 +995,55 @@ function parsesub(var inst, var tokenlist)
     }
 
     var blocksub = new BlockSub();
+    int startgen = elements(self.opgenlist);
     blocksub.init(subname, startgen);
+    self.opgenlist.push(blocksub);
     if (is_main)
         blocksub.set_main();
 
     self.current_sub = blocksub;
+}
+
+function parseparam(var inst, var tokenlist)
+{
+    var typetok = tokenlist.shift();
+    if (! (typetok instanceof TokenIdentifier))
+        ErrorAt("Invalid param type", typetok);
+    string nametype = typetok.getid();
+    if (DEBUG) say(nametype);
+    int type = pirtype(nametype);
+    if (type < 0)
+        ErrorAt('Invalid params type', typetok);
+
+    var cursub = self.current_sub;
+    if (cursub == null)
+        ErrorAt('param out of sub', inst);
+    if (cursub.startgen + 1 != elements(self.opgenlist))
+        ErrorAt('param after code', inst);
+    var nametok = tokenlist.shift();
+    string name = nametok.getid();
+    cursub.addparam(name, type);
+}
+
+function parselocal(var inst, var tokenlist)
+{
+    var typetok = tokenlist.shift();
+    if (! (typetok instanceof TokenIdentifier))
+        ErrorAt("Invalid param type", typetok);
+    string nametype = typetok.getid();
+    if (DEBUG) say(nametype);
+    int type = pirtype(nametype);
+    if (type < 0)
+        ErrorAt('Invalid params type', typetok);
+
+    var cursub = self.current_sub;
+    if (cursub == null)
+        ErrorAt('param out of sub', inst);
+    if (cursub.startgen + 1 != elements(self.opgenlist))
+        ErrorAt('param after code', inst);
+    var nametok = tokenlist.shift();
+    string name = nametok.getid();
+    cursub.addlocal(name, type);
 }
 
 function parseend(var inst, var tokenlist)
@@ -871,8 +1080,14 @@ function parse(var tokenlist)
             var opgen = new GenReturn().build(self, tokenlist);
             self.opgenlist.push(opgen);
             break;
+        case 'param':
+            self.parseparam(inst, tokenlist);
+            break;
+        case 'local':
+            self.parselocal(inst, tokenlist);
+            break;
         default:
-            throw ErrorAt('No such directive', inst);
+            ErrorAt('No such directive', inst);
         }
     }
     else if (inst instanceof TokenIdentifier) {
@@ -901,13 +1116,20 @@ function writefile(string filename)
     if (nsubs > 0) {
         for (var blocksub in self.sub_list) {
             string name  = blocksub.name;
-            say(name);
+            if (DEBUG) say(name);
             int startgen = blocksub.startgen;
             int startpos = self.opgenlist[startgen].codepos;
-            say(startpos);
+            if (DEBUG) say(startpos);
             int endgen = blocksub.endgen;
             int endpos = self.opgenlist[endgen].codepos;
-            say(endpos);
+            if (DEBUG) say(endpos);
+            var registers = blocksub.registers;
+            int registers_used[4];
+            for (int i = 0; i < 4; ++i) {
+                int r = registers[i];
+                if (r < 2) r = 2;
+                registers_used[i] = r;
+            }
             var subpmc = new 'Sub'({
                 "name" : name,
                 "subid" : name,
@@ -916,7 +1138,7 @@ function writefile(string filename)
                 "end_offs" : endpos,
                 // Set registers used to a number reasonable for little
                 // tests, for a now.
-                "n_regs_used": [ 8, 8, 8, 8 ]
+                "n_regs_used": registers_used
             });
             int subconst = self.pushconstpmc(subpmc);
             if (blocksub.main_flag)
