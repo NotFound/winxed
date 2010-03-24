@@ -1,11 +1,13 @@
 // token.cpp
-// Revision 2-feb-2010
+// Revision 24-mar-2010
 
 #include "token.h"
 #include "errors.h"
 
 #include <sstream>
 
+#include <string.h>
+#include <stdlib.h>
 
 static std::string unsinglequote (const std::string &s);
 
@@ -67,9 +69,7 @@ int Token::getinteger() const
 {
     if (ttype == TokenTInteger)
     {
-        std::istringstream iss(s);
-        int n;
-        iss >> n;
+        long n = strtol(s.c_str(), NULL, 0);
         return n;
     }
     else
@@ -169,6 +169,11 @@ bool Token::isspace() const
 }
 
 //**********************************************************************
+
+bool ishexdigit(char c)
+{
+    return strchr("0123456789abcdefABCDEF", c) != NULL;
+}
 
 bool isidentifierstart(char c)
 {
@@ -442,7 +447,23 @@ Token Tokenizer::getany ()
     case '"':
         s= quoted ();
         return Token(TokenTQuoted, s, linenum, name);
-    case '0': case '1': case '2': case '3': case '4':
+    case '0':
+        c= getchar();
+        if (c == 'x')
+        {
+            s+= c;
+            while ((c= getchar()) && is && ishexdigit(c))
+                s+= c;
+            if (is)
+                ungetchar(c);
+            Token tok(TokenTInteger, s, linenum, name);
+            if (s == "0x")
+                throw SyntaxError("Invalid hex number", tok);
+            return tok;
+        }
+        else
+            ungetchar(c);
+    case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
         while ((c= getchar()) && is && c >= '0' && c <= '9')
             s+= c;
