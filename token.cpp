@@ -449,7 +449,7 @@ Token Tokenizer::getany ()
         return Token(TokenTQuoted, s, linenum, name);
     case '0':
         c= getchar();
-        if (c == 'x')
+        if (c == 'x' || c == 'X')
         {
             s+= c;
             while ((c= getchar()) && is && ishexdigit(c))
