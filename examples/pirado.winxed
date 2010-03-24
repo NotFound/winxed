@@ -559,20 +559,35 @@ class GenLabel
 class GenReturn
 {
     var context;
+    var args;
     function build(var context, var tokenlist)
     {
         self.context = context;
         var oper = tokenlist.shift();
         if (!oper.isop('('))
             ErrorAt('Unexpected operation', oper);
-        oper = tokenlist.shift();
-        if (!oper.isop(')'))
-            ErrorAt('Return with args not implemented yet', oper);
+        oper = tokenlist[0];
+        self.args = [];
+        if (oper.isop(')'))
+            oper = tokenlist.shift();
+        else {
+            do {
+                var arg = tokenlist.shift();
+                if (arg instanceof TokenInteger || arg instanceof TokenSingleQuoted) {
+                    self.args.push(arg);
+                }
+                else
+                    ErrorAt('Invalid return value', arg);
+            } while ((oper = tokenlist.shift()).isop(','));
+            if (!oper.isop(')'))
+                ErrorAt('Wrong return list', oper);
+        }
         return self;
     }
     function bytelength()
     {
-        return 3;
+        int n = elements(self.args);
+        return 3 + n;
     }
     function adjust(int codepos) {}
     function gencode(var dest)
@@ -580,11 +595,42 @@ class GenReturn
         var oplib = new 'OpLib';
         var op;
         int opnum;
-        int zeroargs = self.context.getzeroargs();
+        int n = elements(self.args);
+        if (DEBUG) say('RETURNS: ', n);
+        int arglistv;
+        if (n == 0)
+            arglistv = self.context.getzeroargs();
+        else {
+            var arglist = new 'FixedIntegerArray';
+            arglist =: n;
+            for (int i= 0; i < n; ++i) {
+                int type;
+                var arg = self.args[i];
+                if (arg instanceof TokenInteger)
+                    type = PARROT_ARG_I;
+                else if (arg instanceof TokenSingleQuoted)
+                    type = PARROT_ARG_S;
+                type = type | PARROT_ARG_CONSTANT;
+                arglist[i] = type;
+            }
+            arglistv = dest.pushconstpmc(arglist);
+        }
         op = oplib['set_returns_pc'];
         opnum = op;
         dest.pushop(opnum);
-        dest.pushop(zeroargs);
+        dest.pushop(arglistv);
+        for (int i= 0; i < n; ++i) {
+            var arg = self.args[i];
+            int ival;
+            if (arg instanceof TokenInteger)
+                ival = arg.getint();
+            else if (arg instanceof TokenSingleQuoted) {
+                string strval = arg.getstr();
+                ival = self.context.pushconststring(strval);
+            }
+            dest.pushop(ival);
+        }
+
         op = oplib['returncc'];
         opnum = op;
         dest.pushop(opnum);
