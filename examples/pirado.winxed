@@ -556,13 +556,13 @@ class GenLabel
     function gencode(var dest) {}
 }
 
-class GenReturn
+// Base for call and return instructions
+class WithArgs
 {
     var context;
     var args;
-    function build(var context, var tokenlist)
+    function parseargs(var tokenlist)
     {
-        self.context = context;
         var oper = tokenlist.shift();
         if (!oper.isop('('))
             ErrorAt('Unexpected operation', oper);
@@ -577,27 +577,20 @@ class GenReturn
                     self.args.push(arg);
                 }
                 else
-                    ErrorAt('Invalid return value', arg);
+                    ErrorAt('Invalid argument list', arg);
             } while ((oper = tokenlist.shift()).isop(','));
             if (!oper.isop(')'))
-                ErrorAt('Wrong return list', oper);
+                ErrorAt('Invalid argument list', oper);
         }
-        return self;
     }
-    function bytelength()
+    function argsbytelength()
     {
-        int n = elements(self.args);
-        return 3 + n;
+        return elements(self.args);
     }
-    function adjust(int codepos) {}
-    function gencode(var dest)
+    function genargspc(var dest)
     {
-        var oplib = new 'OpLib';
-        var op;
-        int opnum;
-        int n = elements(self.args);
-        if (DEBUG) say('RETURNS: ', n);
         int arglistv;
+        int n = elements(self.args);
         if (n == 0)
             arglistv = self.context.getzeroargs();
         else {
@@ -615,10 +608,11 @@ class GenReturn
             }
             arglistv = dest.pushconstpmc(arglist);
         }
-        op = oplib['set_returns_pc'];
-        opnum = op;
-        dest.pushop(opnum);
-        dest.pushop(arglistv);
+        return arglistv;
+    }
+    function genargs(var dest)
+    {
+        int n = elements(self.args);
         for (int i= 0; i < n; ++i) {
             var arg = self.args[i];
             int ival;
@@ -630,6 +624,33 @@ class GenReturn
             }
             dest.pushop(ival);
         }
+    }
+}
+
+class GenReturn : WithArgs
+{
+    function build(var context, var tokenlist)
+    {
+        self.context = context;
+        self.parseargs(tokenlist);
+        return self;
+    }
+    function bytelength()
+    {
+        int n = self.argsbytelength();
+        return 3 + n;
+    }
+    function adjust(int codepos) {}
+    function gencode(var dest)
+    {
+        var oplib = new 'OpLib';
+
+        var op = oplib['set_returns_pc'];
+        int opnum = op;
+        dest.pushop(opnum);
+        int arglistv = self.genargspc(dest);
+        dest.pushop(arglistv);
+        self.genargs(dest);
 
         op = oplib['returncc'];
         opnum = op;
@@ -637,11 +658,9 @@ class GenReturn
     }
 }
 
-class GenCallSub
+class GenCallSub : WithArgs
 {
-    var context;
     var name;
-    var args;
     var owner;
     function build(var context, var tokenlist)
     {
@@ -656,78 +675,25 @@ class GenCallSub
         else
             ErrorAt('Invalid call', subitem);
         self.name = name;
-        var oper = tokenlist.shift();
-        if (!oper.isop('('))
-            ErrorAt('Unexpected operation', oper);
-
-        self.args = [];
-        oper = tokenlist[0];
-        if (oper.isop(')'))
-            tokenlist.shift();
-        else {
-            do {
-                var arg = tokenlist.shift();
-                if (arg instanceof TokenInteger || arg instanceof TokenSingleQuoted) {
-                    self.args.push(arg);
-                }
-                else
-                    ErrorAt('Invalid argument', arg);
-            } while ((oper = tokenlist.shift()).isop(','));
-            if (!oper.isop(')'))
-                ErrorAt('Wrong argument list', oper);
-            //ErrorAt('Call with args not implemented yet', oper);
-        }
-
+        self.parseargs(tokenlist);
         return self;
     }
     function bytelength()
     {
-        int n = elements(self.args);
-        return 9 + n;
+        int n = self.argsbytelength();
+        return 7 + n;
     }
     function adjust(int codepos)
     {}
     function gencode(var dest)
     {
         var oplib = new 'OpLib';
-        var op;
-        int opnum;
-        int n = elements(self.args);
-        if (DEBUG) say('args: ', n);
-        int zeroargs = self.context.getzeroargs();
-        int arglistv;
-        if (n == 0)
-            arglistv = zeroargs;
-        else {
-            var arglist = new 'FixedIntegerArray';
-            arglist =: n;
-            for (int i= 0; i < n; ++i) {
-                int type;
-                var arg = self.args[i];
-                if (arg instanceof TokenInteger)
-                    type = PARROT_ARG_I;
-                else if (arg instanceof TokenSingleQuoted)
-                    type = PARROT_ARG_S;
-                type = type | PARROT_ARG_CONSTANT;
-                arglist[i] = type;
-            }
-            arglistv = dest.pushconstpmc(arglist);
-        }
-        op = oplib['set_args_pc'];
-        opnum = op;
+        var op = oplib['set_args_pc'];
+        int opnum = op;
         dest.pushop(opnum);
+        int arglistv = self.genargspc(dest);
         dest.pushop(arglistv);
-        for (int i= 0; i < n; ++i) {
-            var arg = self.args[i];
-            int ival;
-            if (arg instanceof TokenInteger)
-                ival = arg.getint();
-            else if (arg instanceof TokenSingleQuoted) {
-                string strval = arg.getstr();
-                ival = self.context.pushconststring(strval);
-            }
-            dest.pushop(ival);
-        }
+        self.genargs(dest);
 
         op = oplib['find_sub_not_null_p_sc'];
         opnum = op;
@@ -736,12 +702,12 @@ class GenCallSub
         dest.pushop(tempreg);
         int nameindex = self.context.pushconststring(self.name);
         dest.pushop(nameindex);
-
+/*
         op = oplib['get_results_pc'];
         opnum = op;
         dest.pushop(opnum);
         dest.pushop(zeroargs);
-
+*/
         op = oplib['invokecc_p'];
         opnum = op;
         dest.pushop(opnum);
