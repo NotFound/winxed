@@ -5022,8 +5022,7 @@ class DeclareStatement : Statement
             if (size != null) {
                 // Fixed size array
                 string regsize = size.emit_get(e);
-                e.say('root_new ', self.reg, ", ['parrot'; 'Fixed", self.t_array, "Array']");
-                e.say('set ', self.reg, ', ', regsize);
+                e.say('new ', self.reg, ", ['Fixed", self.t_array, "Array'], ", regsize);
             }
             else {
                 // Variable size array
@@ -5210,8 +5209,7 @@ class FixedVarStatement : VarBaseStatement
         string name=  self.name;
         string reg = self.reg;
         e.comment('var ' + name + '[] : ' + reg);
-        e.say('new ', reg, ", 'FixedPMCArray'");
-        e.say('assign ', reg, ', ', regsize);
+        e.say('new ', reg, ", 'FixedPMCArray', ", regsize);
     }
 }
 
