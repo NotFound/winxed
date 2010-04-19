@@ -713,6 +713,19 @@ class Predef_say
     }
 }
 
+class Predef_cry
+{
+    function invoke [vtable](e, start, result, args)
+    {
+        e.annotate(start);
+        e.say('getstderr $P0');
+        int n = int(args);
+        for (int i = 0; i < n; ++i)
+            e.say("$P0.'print'(", args[i], ")");
+        e.say("$P0.'print'(\"\\n\")");
+    }
+}
+
 class Predef_print
 {
     function invoke [vtable](e, start, result, args)
@@ -727,6 +740,7 @@ class Predef_print
 function getpredefs()
 {
     var predef_say = new Predef_say();
+    var predef_cry = new Predef_cry();
     var predef_print = new Predef_print();
     var predefs = [
         new PredefFunction().set('int',
@@ -953,6 +967,10 @@ function getpredefs()
         ),
         new PredefFunction().set('say',
             predef_say,
+            REGvar, REGarglist
+        ),
+        new PredefFunction().set('cry',
+            predef_cry,
             REGvar, REGarglist
         )
     ];

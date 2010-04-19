@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 17-feb-2010
+// Revision 19-apr-2010
 
 // Winxed compiler stage 0.
 
@@ -316,9 +316,27 @@ private:
     }
 };
 
+class Predef_cry : public PredefFunctionVarargs
+{
+public:
+    Predef_cry() : PredefFunctionVarargs("cry", '\0')
+    { }
+private:
+    void emit(Emit &e, const std::string &,
+        const std::vector<std::string> args) const
+    {
+        e << "getstderr $P0\n";
+        const size_t n = args.size();
+        for (size_t i= 0; i < n; ++i)
+            e << "$P0.'print'(" << args[i] << ")\n";
+        e << "$P0.'print'(\"\\n\")\n";
+    }
+};
+
 const PredefFunction *PredefFunction::predefs[]= {
     new Predef_print(),
     new Predef_say(),
+    new Predef_cry(),
     new PredefFunctionFixargs("int",
         "{res} = {arg0}",
         REGint, REGany),
