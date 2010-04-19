@@ -145,7 +145,7 @@ function main [main] (argv)
     if (obj != '' && target == TargetPir)
         pirfile = obj;
     else {
-        if (eval)
+        if (eval != null)
             pirfile = '__eval__.pir';
         else
             pirfile = extname(srcfile, '.pir');
@@ -197,13 +197,14 @@ function main [main] (argv)
     cmd.push('-c');
     if (noan)
         cmd.push('--noan');;
-    if (eval) {
+    if (eval != null) {
         cmd.push('-e');
         cmd.push(eval);
     }
     cmd.push('-o');
     cmd.push(pirfile);
-    cmd.push(srcfile);
+    if (eval == null)
+        cmd.push(srcfile);
     spawnw(cmd);
 
     string runit[] = [ 'parrot' ];
