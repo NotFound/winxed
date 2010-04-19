@@ -78,11 +78,14 @@ function main [main] (argv)
         return;
     }
 
+    var env = new 'Env';
+    // Path for stage pbc files
+    string winxedpath = env['WINXED_PATH'];
+
     int stage = DEFAULT_STAGE;
     if (opt_stage != null)
         stage = opt_stage;
     else {
-        var env = new 'Env';
         string envstage = env['WINXED_STAGE'];
         if (envstage != '')
             stage = envstage;
@@ -173,7 +176,10 @@ function main [main] (argv)
 
     if (use_pbc) {
         cmd.push('parrot');
-        cmd.push(winxedbin + '.pbc');
+        if (winxedpath != null && winxedpath != '')
+            winxedbin = winxedpath + '/' + winxedbin;
+        winxedbin += '.pbc';
+        cmd.push(winxedbin);
     }
     else {
         // Simple heuristic: if the compiler is in the current
