@@ -275,6 +275,8 @@ class Pbcfile
     function dump_annotations(var out)
     {
         var seg = self.annotations;
+        if (seg == null)
+            return;
         int n = elements(seg);
         float numval;
         out.say("Annotations:\n\tLength: ", n);
