@@ -298,6 +298,14 @@ class Pbcfile
             out.say();
         }
     }
+    function dump_debug(var out)
+    {
+        var seg = self.debug;
+        if (seg == null)
+            return;
+        int n = elements(seg);
+        out.say("Debug:\n\tLength: ", n);
+    }
     function dump_bytecode(var out)
     {
         var seg = self.bytecode;
@@ -375,6 +383,7 @@ class Pbcfile
         self.dump_constants(out);
         self.dump_fixup(out);
         self.dump_annotations(out);
+        self.dump_debug(out);
         self.dump_bytecode(out);
     }
 }
