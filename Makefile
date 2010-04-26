@@ -11,7 +11,7 @@ EXEEXT =
 
 #-----------------------------------------------------------------------
 
-default: stage0 driver
+default: stage0 driver winxedst1.pbc winxedst2.pbc
 
 all: stage2 driver
 
@@ -19,10 +19,10 @@ pbc: winxed.pbc
 
 help:
 	@echo "Targets:"
-	@echo "  default - Build the stage 0 and the driver"
+	@echo "  default - Build the stage 0, the driver and stage 1 and 2 .pbc"
 	@echo "  stage0  - Build the stage 0 compiler"
-	@echo "  stage1  - Build the driver and the stage 1 compiler"
-	@echo "  stage2  - Build the driver and the stage 2 compiler"
+	@echo "  stage1  - Build the driver and the stage 1 native executable"
+	@echo "  stage2  - Build the driver and the stage 2 native executable"
 	@echo "  all     - Build all"
 	@echo "  driver  - Build the compiler driver - native executable"
 	@echo "  pbc     - Build the compiler driver - parrot binary"
@@ -118,7 +118,7 @@ setup.pir: setup.winxed winxedst1.pbc
 
 
 test: winxed.pbc
-	parrot winxed.pbc t/harness -r t/basic t/*.t
+	parrot winxed.pbc --stage=0 t/harness --stage=0 -r t/basic t/*.t
 
 testv: winxed.pbc
 	parrot winxed.pbc t/harness -rv t/basic t/*.t
@@ -127,10 +127,10 @@ TEST1 = \
 	t/preincdec.t.winxed  t/ordchr.t.winxed
 
 test1: winxed$(EXEEXT) winxedst1.pbc
-	parrot winxed.pbc t/harness --stage=1 -r t/basic t/*.t $(TEST1)
+	parrot winxed.pbc --stage=1 t/harness --stage=1 -r t/basic t/*.t $(TEST1)
 
 test2: winxed$(EXEEXT) winxedst2.pbc
-	parrot winxed.pbc t/harness --stage=2 -r t/basic t/*.t $(TEST1)
+	parrot winxed.pbc --stage=2 t/harness --stage=2 -r t/basic t/*.t $(TEST1)
 
 clean:
 	rm -f winxedst2$(EXEEXT)
