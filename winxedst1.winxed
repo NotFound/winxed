@@ -5004,7 +5004,7 @@ class DeclareStatement : Statement
         e.comment(tname + ' ' + name + ': ' + reg);
 
         if (self.typearray == 0) {
-            if (self.init == null)
+            if (self.init == null || self.init.isnull())
                 self.defaultinit(e);
             else {
                 e.comment('init');
