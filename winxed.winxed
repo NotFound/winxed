@@ -41,7 +41,7 @@ function extname(string filename, string ext)
 
 function main [main] (argv)
 {
-    const int DEFAULT_STAGE = 0;
+    const int DEFAULT_STAGE = 2;
 
     var options = [
       [ 'stage=i',  'Compiler stage to use' ],
