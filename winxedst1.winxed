@@ -812,9 +812,9 @@ function getpredefs()
             REGint, REGstring
         ),
         new PredefFunction().set('chr',
-            "chr {res}, {arg0}\n" +
+            "chr $S0, {arg0}\n" +
             "find_encoding $I0, 'utf8'\n" +
-            "trans_encoding {res}, $I0",
+            "trans_encoding {res}, $S0, $I0",
             REGstring, REGint
         ),
         new PredefFunction().set('ord',
