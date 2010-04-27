@@ -53,7 +53,7 @@ function loadXlib()
 }
 
 // Harcoded values, from iglobals.pasm and datatypes.pasm
-const int IGLOBALS_CONFIG_HASH = 6;
+const int IGLOBALS_CONFIG_HASH = 8;
 const int DATATYPE_CHAR   = -94;
 const int DATATYPE_INT    = -92;
 const int DATATYPE_LONG   = -91;
