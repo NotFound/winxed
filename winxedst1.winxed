@@ -5653,11 +5653,13 @@ class MethodStatement : FunctionStatement
 //            ClassStatement
 //*********************************************
 
-class ClassStatement : Item
+class ClassStatement : Item, VarContainer
 {
     var parent;
+    var owner;
     var name;
     var bases;
+    var constants;
     var functions;
     var members;
     var classns;
@@ -5668,12 +5670,7 @@ class ClassStatement : Item
         self.functions = [];
         self.members = [];
         self.bases= [];
-    }
-
-    function getvar(name)
-    {
-        // Nothing for a now.
-        return self.parent.getvar(name);
+        self.constants = {};
     }
     function checkclass(string name)
     {
@@ -5682,6 +5679,7 @@ class ClassStatement : Item
     function parse(tk, parent)
     {
         self.parent= parent;
+        self.owner = parent;
         var t= tk.get();
         self.name= t;
         t= tk.get();
@@ -5712,6 +5710,14 @@ class ClassStatement : Item
                 if (! t.isop(';'))
                     SyntaxError("Expected ';' in member declaration", t);
             }
+            else if (t.iskeyword('const')) {
+                var cst = new ConstStatement().parse(t, tk, self);
+                var constants = self.constants;
+                string cstname = cst.name;
+                constants[cstname] = cst;
+            }
+            else
+                SyntaxError("Unexpected item in class", t);
             t= tk.get();
         }
         var classns = self.parent.getpath();
@@ -5720,6 +5726,9 @@ class ClassStatement : Item
     }
     function optimize()
     {
+        var constants = self.constants;
+        for (string cstname in constants)
+            constants[cstname] = constants[cstname].optimize();
         var f = self.functions;
         int n = f;
         for (int i = 0; i < n; ++i)
