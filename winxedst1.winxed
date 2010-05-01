@@ -1406,6 +1406,21 @@ class ExprStatement : Statement
 //            VarContainer
 //*********************************************
 
+class ConstantInternalFail
+{
+    var name;
+    function set(var name)
+    {
+        self.name = name;
+        return self;
+    }
+    function get_string[vtable]()
+    {
+        throw Error('Attempt to use unexpanded constant!!!');
+    }
+}
+
+
 class VarContainer
 {
     var locals;
@@ -1437,7 +1452,7 @@ class VarContainer
         locals[sname] = {
             'type': type,
             'value': value,
-            'reg': 'THIS IS WRONG',
+            'reg': new ConstantInternalFail().set(name),
             'const': 1 };
     }
     function getvar(var name)
