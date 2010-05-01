@@ -579,6 +579,7 @@ class Emit
     }
     function comment(string s)
     {
+        self.updateannot();
         self.handle.print('# ' + s + "\n");
     }
     function emitlabel(string label, string comment [optional])
@@ -1792,13 +1793,13 @@ class IdentifierExpr : SimpleExpr
     }
     function emit_assign_get(e, expr)
     {
+        self.annotate(e);
         string typeleft = self.checkResult();
-        string lreg = self.emit_get(e);
+        string lreg = self.getIdentifier();
         if (expr.isnull()) {
             switch(typeleft) {
             case REGstring:
             case REGvar:
-                self.annotate(e);
                 e.say('null ', lreg);
                 break;
             default:
@@ -2092,12 +2093,14 @@ class OpAssignExpr : OpBaseAssignExpr
     function emit(e, result)
     {
         string reg = self.emit_get(e);
-        self.annotate(e);
-        if (result != '')
+        if (result != '') {
+            self.annotate(e);
             e.say('set ', result, ', ', reg);
+        }
     }
     function emit_get(e)
     {
+        self.annotate(e);
         var eleft = self.eleft;
         return eleft.emit_assign_get(e, self.eright);
     }
@@ -5007,10 +5010,8 @@ class DeclareStatement : Statement
             if (self.init == null || self.init.isnull())
                 self.defaultinit(e);
             else {
-                e.comment('init');
                 string itype = self.init.checkResult();
                 if (itype == t_reg) {
-                    e.comment('init same type');
                     self.init.emit(e, reg);
                 }
                 else {
@@ -5019,7 +5020,6 @@ class DeclareStatement : Statement
                         self.init.emit(e, reg);
                     }
                     else {
-                        e.comment('init other type: ' + itype);
                         string ireg = self.tempreg(itype);
                         self.init.emit(e, ireg);
                         if (t_reg == REGstring && itype == REGvar) {
