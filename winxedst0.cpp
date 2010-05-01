@@ -4602,7 +4602,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
     e.annotate(start);
     e << ".local " <<
         (vtype == ValueSimple ? (type == REGint ? "int" : "string") : "pmc") <<
-	' ' << name << '\n';
+        ' ' << name << '\n';
 
     switch (vtype)
     {
