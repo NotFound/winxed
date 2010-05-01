@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 19-apr-2010
+// Revision 1-may-2010
 
 // Winxed compiler stage 0.
 
@@ -4759,15 +4759,26 @@ void VarStatement::emit (Emit &e)
     e << ".local pmc " << name << '\n';
     if (value.size() == 1)
     {
-        if (value[0]->isnull())
+        BaseExpr & v = *value[0];
+        if (v.isnull())
             e << op_null(name) << '\n';
         else
         {
-            if (value[0]->isinteger())
-                e << name << " = root_new ['parrot'; 'Integer']\n";
-            else if (value[0]->isstring())
-                e << name << " = root_new ['parrot'; 'String']\n";
-            value[0]->emit(e, name);
+            const char type = v.checkresult();
+            std::string reg;
+            switch (type) {
+            case REGint:
+            case REGstring:
+                reg = gentemp(type);
+                v.emit(e, reg);
+                e << "box " << name << ", " << reg << '\n';
+                break;
+            case REGvar:
+                v.emit(e, name);
+                break;
+            default:
+                throw InternalError("Unexpected value type in var statement");
+            }
         }
     }
 }
