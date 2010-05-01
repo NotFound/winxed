@@ -4598,12 +4598,15 @@ BaseStatement *ValueStatement::optimize()
 void ValueStatement::emit (Emit &e, const std::string &name, char type)
 {
     std::string arraytype(type == REGint ? "Integer" : "String");
+
+    e.annotate(start);
+    e << ".local " <<
+        (vtype == ValueSimple ? (type == REGint ? "int" : "string") : "pmc") <<
+	' ' << name << '\n';
+
     switch (vtype)
     {
     case ValueSimple:
-        e.annotate(start);
-        e << ".local " << (type == REGint ? "int" : "string") <<
-            ' ' << name << '\n';
         if (value.size() == 1)
         {
             char vtype= value[0]->checkresult();
@@ -4619,8 +4622,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
         }
         break;
     case ValueArray:
-        e << ".local pmc " << name << "\n"
-            "root_new " << name << ", ['parrot';"
+        e << "root_new " << name << ", ['parrot';"
                 "'Resizable" << arraytype << "Array' ]\n";
         if (value.size() > 0)
         {
@@ -4645,8 +4647,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
             regsize= gentemp(REGint);
             esize->emit(e, regsize);
         }
-        e << ".local pmc " << name << "\n"
-            "root_new " << name << ", ['parrot';"
+        e << "root_new " << name << ", ['parrot';"
                  "'Fixed" << arraytype << "Array' ]\n" <<
             name << " = ";
         if (regsize.empty())
