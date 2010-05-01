@@ -1709,7 +1709,11 @@ class IntegerLiteral : SimpleExpr
     }
     function emit(e, result)
     {
-        e.emitset(result, self.getIntegerValue());
+        int value = self.getIntegerValue();
+        if (value == 0)
+            e.emitnull(result);
+        else
+            e.emitset(result, value);
     }
     function emit_get(e)
     {
@@ -2718,6 +2722,24 @@ class OpAddExpr : OpBinaryExpr
 
 class OpSubExpr : OpBinaryExpr
 {
+    function optimize()
+    {
+        self.optimizearg();
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        if (lexpr.isliteral() && rexpr.isliteral()) {
+            string ltype = lexpr.checkResult();
+            string rtype = rexpr.checkResult();
+            if (ltype == REGint && rtype == REGint) {
+                var lval = lexpr.numval;
+                int ln = lval;
+                var rval = rexpr.numval;
+                int rn = rval;
+                return new IntegerLiteral().set(self.owner, self.start, ln - rn);
+	    }
+        }
+	return self;
+    }
     function checkResult()
     {
         string rl = self.lexpr.checkResult();
