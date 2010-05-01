@@ -604,6 +604,36 @@ class Emit
         }
         handle.print("\n");
     }
+    function emitnull(string dst)
+    {
+        string ins = "null " + dst + "\n";
+        self.handle.print(ins);
+    }
+    function emitset(string dst, string src)
+    {
+        string ins = "set " + dst + ", " + src + "\n";
+        self.handle.print(ins);
+    }
+    function emitassign(string dst, string src)
+    {
+        string ins = "assign " + dst + ", " + src + "\n";
+        self.handle.print(ins);
+    }
+    function emitbox(string dst, string src)
+    {
+        string ins = "box " + dst + ", " + src + "\n";
+        self.handle.print(ins);
+    }
+    function emitaddto(string dst, string src)
+    {
+        string ins = "add " + dst + ", " + src + "\n";
+        self.handle.print(ins);
+    }
+    function emitadd(string dst, string src1, string src2)
+    {
+        string ins = "add " + dst + ", " + src1 + ", " + src2 + "\n";
+        self.handle.print(ins);
+    }
 }
 
 //*********************************************
@@ -1639,7 +1669,7 @@ class StringLiteral : SimpleExpr
     }
     function emit(e, result)
     {
-        e.say('set ', result, ', ', self.getPirString());
+        e.emitset(result, self.getPirString());
     }
     function emit_get(e)
     {
@@ -1679,7 +1709,7 @@ class IntegerLiteral : SimpleExpr
     }
     function emit(e, result)
     {
-        e.say('set ', result, ', ', self.getIntegerValue());
+        e.emitset(result, self.getIntegerValue());
     }
     function emit_get(e)
     {
@@ -1712,7 +1742,7 @@ class FloatLiteral : SimpleExpr
     function emit(e, result)
     {
         var n= self.getFloatValue();
-        e.say('set ', result, ', ', n);
+        e.emitset(result, n);
     }
     function emit_get(e)
     {
@@ -1800,7 +1830,7 @@ class IdentifierExpr : SimpleExpr
     function emit(e, result)
     {
         self.annotate(e);
-        e.say('set ', result, ', ', self.getIdentifier());
+        e.emitset(result, self.getIdentifier());
     }
     function emit_get(e)
     {
@@ -1815,7 +1845,7 @@ class IdentifierExpr : SimpleExpr
             switch(typeleft) {
             case REGstring:
             case REGvar:
-                e.say('null ', lreg);
+                e.emitnull(lreg);
                 break;
             default:
                 SyntaxError("Can't assign null to that type", self.start);
@@ -1826,9 +1856,9 @@ class IdentifierExpr : SimpleExpr
             string rreg = expr.emit_get(e);
             self.annotate(e);
             if (typeleft == REGvar && typeright != REGvar)
-                e.say('box ', lreg, ', ', rreg);
+                e.emitbox(lreg, rreg);
             else
-                e.say('set ', lreg, ', ', rreg);
+                e.emitset(lreg, rreg);
         }
         return lreg;
     }
@@ -1986,7 +2016,7 @@ class OpPreIncExpr : OpUnaryExpr
     {
         string reg = self.emit_get(e);
         if (result != '')
-            e.say('set ', result, ', ', reg);
+            e.emitset(result, reg);
     }
     function emit_get(e)
     {
@@ -2014,7 +2044,7 @@ class OpPostIncExpr : OpUnaryExpr
     {
         string reg = self.subexpr.emit_get(e);
         self.annotate(e);
-        e.say('set ', result, ', ', reg);
+        e.emitset(result, reg);
         e.say('inc ', reg);
         return reg;
     }
@@ -2037,7 +2067,7 @@ class OpPreDecExpr : OpUnaryExpr
     {
         string reg = self.emit_get(e);
         if (result != '')
-            e.say('set ', result, ', ', reg);
+            e.emitset(result, reg);
     }
     function emit_get(e)
     {
@@ -2065,7 +2095,7 @@ class OpPostDecExpr : OpUnaryExpr
     {
         string reg = self.subexpr.emit_get(e);
         self.annotate(e);
-        e.say('set ', result, ', ', reg);
+        e.emitset(result, reg);
         e.say('dec ', reg);
         return reg;
     }
@@ -2110,7 +2140,7 @@ class OpAssignExpr : OpBaseAssignExpr
         string reg = self.emit_get(e);
         if (result != '') {
             self.annotate(e);
-            e.say('set ', result, ', ', reg);
+            e.emitset(result, reg);
         }
     }
     function emit_get(e)
@@ -2136,14 +2166,14 @@ class OpAssignToExpr : OpBaseAssignExpr
     {
         string reg = self.emit_get(e);
         self.annotate(e);
-        e.say('assign ', result, ', ', reg);
+        e.emitassign(result, reg);
     }
     function emit_get(e)
     {
         self.annotate(e);
         string reg = self.eleft.emit_get(e);
         string reg2 = self.eright.emit_get(e);
-        e.say('assign ', reg, ', ', reg2);
+        e.emitassign(reg, reg2);
         return reg;
     }
 }
@@ -2163,7 +2193,7 @@ class OpAddToExpr : OpBaseAssignExpr
     {
         string reg = self.emit_get(e);
         if (result != '')
-            e.say('set ', result, ', ', reg);
+            e.emitset(result, reg);
     }
     function emit_get(e)
     {
@@ -2181,7 +2211,7 @@ class OpAddToExpr : OpBaseAssignExpr
             e.say('concat ', reg, ', ', reg2);
         }
         else
-            e.say('add ', reg, ', ', reg2);
+            e.emitaddto(reg, reg2);
         return reg;
     }
 }
@@ -2201,7 +2231,7 @@ class OpSubToExpr : OpBaseAssignExpr
     {
         string reg = self.emit_get(e);
         if (result != '')
-            e.say('set ', result, ', ', reg);
+            e.emitset(result, reg);
     }
     function emit_get(e)
     {
@@ -2231,23 +2261,23 @@ class ComparatorBaseExpr : OpBinaryExpr
         {
             if (rl == REGint) {
                 aux = self.tempreg(REGfloat);
-                e.say('set ', aux, ', ', regl);
+                e.emitset(aux, regl);
                 regl = aux;
             }
             if (rr == REGint) {
                 aux = self.tempreg(REGfloat);
-                e.say('set ', aux, ', ', regr);
+                e.emitset(aux, regr);
                 regr = aux;
             }
         }
         else if (rr == REGint && rl == REGvar) {
             aux = self.tempreg(REGint);
-            e.say('set ', aux, ', ', regl);
+            e.emitset( aux, regl);
             regl = aux;
         }
         else if (rr == REGvar && rl == REGint) {
             aux = self.tempreg(REGint);
-            e.say('set ', aux, ', ', regr);
+            e.emitset(aux, regr);
             regr = aux;
         }
         else if (rr == REGstring && rl == REGvar) {
@@ -2668,18 +2698,18 @@ class OpAddExpr : OpBinaryExpr
                 if (ltype == REGint) l = rleft;
                 else {
                     l = self.tempreg(REGint);
-                    e.say('set ', l, ', ', rleft);
+                    e.emitset(l, rleft);
                 }
                 string r;
                 if (rtype == REGint) r = rright;
                 else {
                     r = self.tempreg(REGint);
-                    e.say('set ', r, ', ', rright);
+                    e.emitset(r, rright);
                 }
-                e.say('add ', result, ', ', l, ', ', r);
+                e.emitadd(result, l, r);
             }
             else
-                e.say('add ', result, ', ', rleft, ', ', rright);
+                e.emitadd(result, rleft, rright);
         }
     }
 }
@@ -2756,7 +2786,7 @@ class OpMulExpr : OpBinaryExpr
                 break;
             default:
                 rval = self.tempreg(REGint);
-                e.say('set ', rval, ', ', rreg);
+                e.emitset(rval, rreg);
             }
             self.annotate(e);
             e.say('repeat ', result, ', ', lreg, ', ', rval);
@@ -2772,7 +2802,7 @@ class OpMulExpr : OpBinaryExpr
             switch (rexpr.checkResult()) {
             case REGint:
                 rval = self.tempreg(REGfloat);
-                e.say('set ', rval, ', ', rreg);
+                e.emitset(rval, rreg);
                 rval = rreg;
                 break;
             case REGfloat:
@@ -2780,7 +2810,7 @@ class OpMulExpr : OpBinaryExpr
                 break;
             default:
                 rval = self.tempreg(REGfloat);
-                e.say('set ', rval, ', ', rreg);
+                e.emitset(rval, rreg);
             }
             self.annotate(e);
             e.say('mul ', result, ', ', lreg, ', ', rval);
@@ -3080,7 +3110,7 @@ class CallExpr : Expr
             string reg;
             if (arg.isnull()) {
                 reg = self.tempreg(REGvar);
-                e.say('null ', reg);
+                e.emitnull(reg);
             }
             else
                 reg = arg.emit_get(e);
@@ -3171,7 +3201,7 @@ class MemberExpr : Expr
         if (type != REGvar) {
             string auxreg = reg;
             reg = self.tempreg(REGvar);
-            e.say('box ', reg, ', ', auxreg);
+            e.emitbox(reg, auxreg);
         }
         return reg;
     }
@@ -3200,13 +3230,13 @@ class MemberExpr : Expr
             // Special case temporarily
             if (rreg == 'null') {
                 rreg = self.tempreg(REGvar);
-                e.say('null ', rreg);
+                e.emitnull(rreg);
             }
             value = rreg;
         }
         else {
             value = self.tempreg(REGvar);
-            e.say('box ', value, ', ', rreg);
+            e.emitbox(value, rreg);
         }
         e.say("setattribute ", obj, ", '", ident, "', ", value);
     }
@@ -3216,11 +3246,11 @@ class MemberExpr : Expr
         string ident = self.right.getidentifier();
         string value = self.tempreg(REGvar);
         if (expr.isnull())
-            e.say('null ', value);
+            e.emitnull(value);
         else {
             string rreg = expr.emit_get(e);
             if (expr.checkResult() != REGvar)
-                e.say('box ', value, ', ', rreg);
+                e.emitbox(value, rreg);
             else
                 value = rreg;
         }
@@ -3324,7 +3354,7 @@ class IndexExpr : Expr
         string rreg;
         if (expr.isnull()) {
             rreg = self.tempreg(REGvar);
-            e.say('null ', rreg);
+            e.emitnull(rreg);
         }
         else
             rreg = expr.emit_get(e);
@@ -3374,7 +3404,7 @@ class ArrayExpr : Expr
     function emit(e, result)
     {
         string value = self.emit_get(e);
-        e.say('set ', result, ', ', value);
+        e.emitset(result, value);
     }
     function emit_get(e)
     {
@@ -3388,7 +3418,7 @@ class ArrayExpr : Expr
             switch (type) {
             case REGint: case REGfloat: case REGstring:
                 string aux = item.emit_get(e);
-                e.say('box ', it_p, ', ', aux);
+                e.emitbox(it_p, aux);
                 itemreg = it_p;
                 break;
             default:
@@ -4161,7 +4191,7 @@ class ReturnYieldStatement : Statement
             string reg;
             if (value.isnull()) {
                 reg = self.tempreg(REGvar);
-                e.say('null ', reg);
+                e.emitnull(reg);
             }
             else
                 reg = value.emit_get(e);
@@ -4563,7 +4593,7 @@ class SwitchStatement : Breakable, Statement
             self.condition.emit(e, reg);
         else {
             string regcond = self.condition.emit_get(e);
-            e.say('set ', reg, ', ', regcond);
+            e.emitset(reg, regcond);
         }
 
         // Prpeare labels and check values
@@ -4719,7 +4749,7 @@ class ForeachStatement : LoopStatement, BlockStatement
         if (self.container.checkResult() == REGstring) {
             string value = self.container.emit_get(e);
             regcont = self.tempreg(REGvar);
-            e.say('box ', regcont, ', ', value);
+            e.emitbox(regcont, value);
         }
         else
             regcont = self.container.emit_get(e);
@@ -4728,7 +4758,7 @@ class ForeachStatement : LoopStatement, BlockStatement
         string continuelabel = self.gencontinuelabel();
         string breaklabel = self.genbreaklabel();
         e.say('iter ', iterator, ', ', regcont);
-        e.say('set ', iterator, ', 0');
+        e.emitset(iterator, '0');
         e.emitlabel(continuelabel, 'for iteration');
         e.say('unless ', iterator, " goto ", breaklabel);
         e.say('shift ', itvar['reg'], ', ', iterator);
@@ -5039,13 +5069,13 @@ class DeclareStatement : Statement
                         self.init.emit(e, ireg);
                         if (t_reg == REGstring && itype == REGvar) {
                             string auxlabel = self.genlabel();
-                            e.say('null ', reg);
+                            e.emitnull(reg);
                             e.say('if_null ', ireg, ', ', auxlabel);
-                            e.say('set ', reg, ', ', ireg);
+                            e.emitset(reg, ireg);
                             e.emitlabel(auxlabel);
                         }
                         else
-                            e.say('set ', reg, ', ', ireg);
+                            e.emitset(reg, ireg);
                     }
                 }
             }
@@ -5067,7 +5097,7 @@ class DeclareStatement : Statement
                 if (size == null) {
                     if (n > 0) {
                         // Allocate initializers size
-                        e.say('set ', self.reg, ', ', n);
+                        e.emitset(self.reg, n);
                     }
                 }
                 int i= 0;
@@ -5183,14 +5213,14 @@ class VarStatement : VarBaseStatement
             case REGfloat:
                 string value = self.tempreg(type);
                 init.emit(e, value);
-                e.say('box ', reg, ', ', value);
+                e.emitbox(reg, value);
                 break;
             default:
                 SyntaxError("Invalid var initializer", self.name);
             }
         }
         else
-            e.say('null ', reg);
+            e.emitnull(reg);
     }
 }
 
@@ -5281,7 +5311,7 @@ class StringStatement : DeclareStatement
     }
     function defaultinit(var e)
     {
-        e.say('null ', self.reg);
+        e.emitnull(self.reg);
     }
 }
 
@@ -5299,7 +5329,7 @@ class IntStatement : DeclareStatement
     }
     function defaultinit(var e)
     {
-        e.say('set ', self.reg, ', 0');
+        e.emitnull(self.reg);
     }
 }
 
@@ -5317,7 +5347,7 @@ class FloatStatement : DeclareStatement
     }
     function defaultinit(var e)
     {
-        e.say('set ', self.reg, ', 0.0');
+        e.emitnull(self.reg);
     }
 }
 
