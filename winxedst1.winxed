@@ -876,6 +876,18 @@ function getpredefs()
             'join {res}, {arg0}, {arg1}',
             REGstring, REGstring, REGvar
         ),
+        new PredefFunction().set('upcase',
+            'upcase {res}, {arg0}',
+            REGstring, REGstring
+        ),
+        new PredefFunction().set('downcase',
+            'downcase {res}, {arg0}',
+            REGstring, REGstring
+        ),
+        new PredefFunction().set('titlecase',
+            'titlecase {res}, {arg0}',
+            REGstring, REGstring
+        ),
         new PredefFunction().set('split',
             'split {res}, {arg0}, {arg1}',
             REGvar, REGstring, REGstring
