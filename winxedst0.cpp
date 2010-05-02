@@ -5782,6 +5782,26 @@ private:
 
 class RootNamespaceBlock : public NamespaceBlockBase
 {
+    char checkconstant(const std::string &name) const
+    {
+        char result = NamespaceBlockBase::checkconstant(name);
+        if (result == '\0') {
+            if (name == "__STAGE__")
+                result = REGstring;
+        }
+        return result;
+    }
+    ConstantValue getconstant(const std::string &name) const
+    {
+        if (NamespaceBlockBase::checkconstant(name) != '\0')
+            return NamespaceBlockBase::getconstant(name);
+        else if (name == "__STAGE__") {
+                // This is stage 0
+                return ConstantValue(REGstring,
+                    Token(TokenTSingleQuoted, "0", 0, "predefconstant"));
+        }
+        else throw InternalError("No such constant");
+    }
 };
 
 class NamespaceBlock : public NamespaceBlockBase

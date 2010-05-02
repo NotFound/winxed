@@ -5990,7 +5990,17 @@ class WinxedCompiler
     var rootns;
     function init [vtable] ()
     {
-        self.rootns= new Namespace();
+        var rootns= new Namespace();
+
+        // Store predefined constants in the root namespace.
+
+        // Tricky way of setting __STAGE__: stage 1 is built with
+        // stage 0 and stage 2 is built with stage 1. Increment
+        // the current stage and we are done.
+	rootns.createconst('__STAGE__', REGstring,
+                new StringLiteral().set(rootns, string(int(__STAGE__) + 1)));
+
+        self.rootns = rootns;
     }
     function parse(tk)
     {
