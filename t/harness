@@ -103,6 +103,19 @@ function run_test_list(var args, int verbose, int stage)
         say('PASSED ', total_passed, ' tests in ', total_files, ' files');
 }
 
+// Use the OS pmc for file operations.
+function getOS()
+{
+    var os;
+    try {
+        loadlib('os');
+        os = new 'OS';
+    }
+    catch() { }
+    for (;;)
+        yield os;
+}
+
 function add_file(var result, string path)
 {
     // Add a file to result list only if it has a .t extension.
@@ -117,7 +130,7 @@ function build_from_dir(var result, string path, int recursive)
     // test files it contains.
     var filepaths = [];
     var dirpaths = [];
-    var os = new 'OS';
+    var os = getOS();
     int l = length(path);
     if (substr(path, l - 1, 1) == '/')
         path = substr(path, 0, l - 1);
@@ -149,7 +162,7 @@ function build_from_dir(var result, string path, int recursive)
 
 function build_file_list(var result, var args, int recursive)
 {
-    var os = new 'OS';
+    var os = getOS();
     for (string path in args) {
         var st= os.stat(path);
         int mode = st[2];

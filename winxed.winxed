@@ -39,6 +39,19 @@ function extname(string filename, string ext)
     return newname;
 }
 
+// Use the OS pmc for file operations.
+function getOS()
+{
+    var os;
+    try {
+        loadlib('os');
+        os = new 'OS';
+    }
+    catch() { }
+    for (;;)
+        yield os;
+}
+
 function main [main] (argv)
 {
     const int DEFAULT_STAGE = 2;
@@ -151,8 +164,7 @@ function main [main] (argv)
             pirfile = extname(srcfile, '.pir');
     }
 
-    // Use the OS pmc for file operations.
-    var os = new 'OS';
+    var os = getOS();
 
     // Call backend compiler
 
@@ -186,8 +198,8 @@ function main [main] (argv)
         // directory and has no extension, use it.
         // If not, assume it's in the PATH or we are on Windows.
         var check = null;
-        try  check = os.stat(winxedbin);
-        catch () { }
+        if (os != null)
+            check = os.stat(winxedbin);
         if (check != null)
             cmd.push('./' + winxedbin);
         else
@@ -225,7 +237,13 @@ function main [main] (argv)
             runit.push(a);
         spawnw(runit);
         // Delete the generated pir file.
-        os.rm(pirfile);
+        try {
+            os.rm(pirfile);
+        }
+        catch (e)
+        {
+            cry('WARNING: cannot delete temporary PIR file: ', e['message']);
+        }
         break;
     case TargetPbc:
         // Call parrot to ceate the pbc
@@ -239,7 +257,13 @@ function main [main] (argv)
         runit.push(pirfile);
         spawnw(runit);
         // Delete the generated pir file.
-        os.rm(pirfile);
+        try {
+            os.rm(pirfile);
+        }
+        catch (e)
+        {
+            cry('WARNING: cannot delete temporary PIR file: ', e['message']);
+        }
         break;
     default:
         ; // Otherwise, nothing to do.
