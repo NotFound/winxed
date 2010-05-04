@@ -634,6 +634,11 @@ class Emit
         string ins = "add " + dst + ", " + src1 + ", " + src2 + "\n";
         self.handle.print(ins);
     }
+    function emitconcat(string dst, string src1, string src2)
+    {
+        string ins = "concat " + dst + ", " + src1 + ", " + src2 + "\n";
+        self.handle.print(ins);
+    }
 }
 
 //*********************************************
@@ -2224,7 +2229,7 @@ class OpAddToExpr : OpBaseAssignExpr
                 e.say(aux, ' = ', reg2);
                 reg2 = aux;
             }
-            e.say('concat ', reg, ', ', reg2);
+            e.emitconcat(reg, reg, reg2);
         }
         else
             e.emitaddto(reg, reg2);
@@ -2706,7 +2711,7 @@ class OpAddExpr : OpBinaryExpr
                     rright = aux;
                 }
             }
-            e.say('concat ', result, ', ', rleft, ', ', rright);
+            e.emitconcat(result, rleft, rright);
         }
         else {
             if (restype == REGint && (ltype != REGint || rtype != REGint)) {

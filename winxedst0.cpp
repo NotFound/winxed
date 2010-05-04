@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 2-may-2010
+// Revision 4-may-2010
 
 // Winxed compiler stage 0.
 
@@ -2902,8 +2902,8 @@ private:
             {
                 std::string reg= gentemp(REGstring);
                 esecond->emit(e, reg);
-                e << "concat " << efirst->getidentifier() <<
-                    ", " << reg << '\n';
+		std::string dest = efirst->getidentifier();
+                e << "concat " << dest << ", " << dest << ", " << reg << '\n';
             }
             else
             {
