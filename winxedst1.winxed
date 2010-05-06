@@ -1663,25 +1663,44 @@ class StringLiteral : SimpleExpr
     function getPirString()
     {
         var strtok = self.strval;
-        string str = strtok;
-        var s = str;
-        for (int code in s) {
+        string str = strtok.str;
+        int type = strtok.type;
+        int need_unicode = 0;
+        for (int code in str) {
             if (code > 127) {
-                if (strtok.type == TypeSingleQuoted) {
-                    string straux = strtok.str;
-                    str = '"';
-                    var saux = straux;
-                    for (string c in saux) {
-                        if (c == '\')
-                            c = '\\';
-                        str += c;
-                    }
-                    str += '"';
-                }
-                str = 'utf8:unicode:' + str;
+                need_unicode = 1;
                 break;
             }
         }
+        if (need_unicode) {
+            if (type == TypeSingleQuoted) {
+                type = TypeQuoted;
+                string saux = str;
+                str = '';
+                for (string c in saux) {
+                    if (c == '\')
+                        c = '\\';
+                    str += c;
+                }
+            }
+            string result = '';
+            int l = length(str);
+            for (int i = 0; i < l; ++i) {
+                string c = substr(str, i, 1);
+                int n = ord(c);
+                if (n > 127) {
+                    string h = n.get_as_base(16);
+                    result += '\x{' + h + '}';
+                }
+                else
+                    result += c;
+            }
+            str = result;
+        }
+        string q = (type == TypeSingleQuoted) ? "'" : '"';
+        str = q + str + q;
+        if (need_unicode)
+            str = 'unicode:' + str;
         return str;
     }
     function emit(e, result)
@@ -2753,9 +2772,9 @@ class OpSubExpr : OpBinaryExpr
                 var rval = rexpr.numval;
                 int rn = rval;
                 return new IntegerLiteral().set(self.owner, self.start, ln - rn);
-	    }
+            }
         }
-	return self;
+        return self;
     }
     function checkResult()
     {
@@ -6014,8 +6033,9 @@ class WinxedCompiler
         // Tricky way of setting __STAGE__: stage 1 is built with
         // stage 0 and stage 2 is built with stage 1. Increment
         // the current stage and we are done.
-	rootns.createconst('__STAGE__', REGstring,
-                new StringLiteral().set(rootns, string(int(__STAGE__) + 1)));
+        rootns.createconst('__STAGE__', REGstring,
+                new StringLiteral().set(rootns,
+                    newToken(TypeQuoted, string(int(__STAGE__) + 1), 0, '')));
 
         self.rootns = rootns;
     }
@@ -6137,6 +6157,7 @@ function stage1(argv)
 
         filename= argv[0];
         file = open(filename); // Must throw on error
+        file.encoding('utf8');
     }
     else {
         expr = opt_e;
