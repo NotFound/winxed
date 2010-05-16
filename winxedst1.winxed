@@ -4983,6 +4983,7 @@ class TryStatement : BlockStatement
         e.emitlabel(labelhandler);
         e.say('.get_results(', exreg, ')');
         e.say('pop_eh');
+	e.say('unroll ', exreg);
         self.scatch.emit(e);
 
         e.comment('catch end');
