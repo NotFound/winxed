@@ -1297,9 +1297,9 @@ class Statement : Item, CommonBase
     {
         return self.owner.createlabel(name);
     }
-    function createconst(name, string type, value)
+    function createconst(name, string type, var value, string id)
     {
-        return self.owner.createconst(name, type, value);
+        return self.owner.createconst(name, type, value, id);
     }
     function createvar(name, string type)
     {
@@ -1489,18 +1489,21 @@ class VarContainer
             'const': 0 };
         return reg;
     }
-    function createconst(var name, string type, value)
+    function createconst(var name, string type, var value, string id)
     {
         var locals= self.locals;
         string sname= name;
         var exist= locals[sname];
         if (exist != null)
             SyntaxError("Redeclared '" + sname + "'", name);
-        locals[sname] = {
+        var data = {
             'type': type,
             'value': value,
             'reg': new ConstantInternalFail().set(name),
             'const': 1 };
+        if (id != null && id != '')
+            data['id'] = id;
+        locals[sname] = data;
     }
     function getvar(var name)
     {
@@ -1844,8 +1847,12 @@ class IdentifierExpr : SimpleExpr
                 s = '';
             }
         }
-        else
-            s= desc['reg'];
+        else {
+            if (desc['id'] != null)
+                return desc['id'];
+            else
+                s= desc['reg'];
+        }
         return s;
     }
     function getIdentifier()
@@ -1862,8 +1869,8 @@ class IdentifierExpr : SimpleExpr
         var name = self.name;
         var desc = self.owner.getvar(name);
         if (desc != null) {
-            if (desc['const'])
-                return desc['value'];
+            if (desc['const'] && desc['id'] == null)
+                    return desc['value'];
         }
         return self;
     }
@@ -4983,7 +4990,7 @@ class TryStatement : BlockStatement
         e.emitlabel(labelhandler);
         e.say('.get_results(', exreg, ')');
         e.say('pop_eh');
-	e.say('unroll ', exreg);
+        e.say('unroll ', exreg);
         self.scatch.emit(e);
 
         e.comment('catch end');
@@ -5183,6 +5190,7 @@ class ConstStatement : Statement
     var type;
     var name;
     var value;
+    var id;
 
     function parse(start, tk, owner)
     {
@@ -5207,7 +5215,13 @@ class ConstStatement : Statement
                 self.start);
         }
         string type = self.type;
-        self.createconst(self.name, type, value);
+        if (type == REGstring) {
+            string id = self.owner.createconstid();
+            self.createconst(self.name, type, value, id);
+            self.id = id;
+        }
+        else
+            self.createconst(self.name, type, value, '');
         return self;
     }
     function checkResult()
@@ -5216,9 +5230,16 @@ class ConstStatement : Statement
     }
     function emit(e)
     {
-        // Put a hint in the generated code
         string name = self.name;
-        e.comment('Constant ' + name + ' evaluted at compile time');
+        if (self.id != null) {
+            string value = self.value.getPirString();
+            e.comment('Constant ' + name);
+            e.say('.const string ', self.id, ' = ', value);
+        }
+        else {
+            // Put a hint in the generated code
+            e.comment('Constant ' + name + ' evaluted at compile time');
+        }
     }
 }
 
@@ -5893,6 +5914,7 @@ class Namespace : Item, VarContainer
     var classes;
     var functions;
     var items;
+    var constidserial;
 
     function isNamespace() { return 1; }
     function init [vtable] ()
@@ -5901,6 +5923,7 @@ class Namespace : Item, VarContainer
         self.classes= [];
         self.functions = [];
         self.items = [];
+        self.constidserial = 0;
     }
     function init_child(parent, string name)
     {
@@ -5931,6 +5954,19 @@ class Namespace : Item, VarContainer
             return self.parent.checkclass(name);
         else
             return null;
+    }
+    function createconstid()
+    {
+        if (self.parent)
+            self.parent.createconstid();
+        else {
+            var constidserial = self.constidserial;
+            int serial = constidserial;
+            string id = 'WINXED_CONST_' + string(serial);
+            ++serial;
+            constidserial =: serial;
+            return id;
+        }
     }
     function parse(tk)
     {
@@ -6036,7 +6072,8 @@ class WinxedCompiler
         // the current stage and we are done.
         rootns.createconst('__STAGE__', REGstring,
                 new StringLiteral().set(rootns,
-                    newToken(TypeQuoted, string(int(__STAGE__) + 1), 0, '')));
+                    newToken(TypeQuoted, string(int(__STAGE__) + 1), 0, '')),
+                    '');
 
         self.rootns = rootns;
     }
