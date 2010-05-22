@@ -1209,6 +1209,9 @@ function parseStatement(tk, owner)
         return new EmptyStatement();
     if (t.isop('{'))
         return new CompoundStatement().parse(t, tk, owner);
+    if (t.isop('$'))
+        return new PiropStatement().parse(t, tk, owner);
+
     string key = t.checkkeyword();
     var st;
     switch (key) {
@@ -1359,6 +1362,71 @@ class EmptyStatement : Statement
     function emit(e)
     {
         // Do nothing
+    }
+}
+
+//*********************************************
+//           PiropStatement
+//*********************************************
+
+class PiropStatement : Statement
+{
+    var opname;
+    var args;
+
+    function parse(start, tk, owner)
+    {
+        self.initstatement(start, owner);
+        var t = tk.get();
+        if (! t.isop('{'))
+            SyntaxError("Invalid '$' statement", start);
+        t = tk.get();
+        string opname = t.getidentifier();
+        self.opname = opname;
+        t = tk.get();
+        if (! t.isop('}')) {
+            var args = [];
+            tk.unget(t);
+            do {
+                var arg = parseExpr(tk, self);
+                args.push(arg);
+                self.args = args;
+            } while ((t = tk.get()).isop(','));
+            if (! t.isop('}'))
+                SyntaxError("Invalid '$' statement", start);
+        }
+        return self;
+    }
+    function optimize()
+    {
+        var args = self.args;
+        if (args != null) {
+            int n = args;
+            for (int i= 0; i < n; ++i)
+                args[i] = args[i].optimize();
+        }
+        return self;
+    }
+    function emit(e)
+    {
+        string opname = self.opname;
+        self.annotate(e);
+        e.comment('pirop ' + opname);
+        var args = self.args;
+        if (args == null)
+            e.say(opname);
+        else {
+            var argreg = [];
+            for (var a in args) {
+                string reg = a.emit_get(e);
+                argreg.push(reg);
+            }
+            e.print(opname, ' ');
+            int n = elements(argreg) - 1;
+            for (int i = 0; i < n; ++i)
+                e.print(argreg[i], ', ');
+            e.say(argreg[n]);
+        }
     }
 }
 
