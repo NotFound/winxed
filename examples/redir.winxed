@@ -1,0 +1,29 @@
+#! winxed
+// redir.winxed
+// Example of stdout redirection using pir ops.
+
+function main()
+{
+  var s = new 'StringHandle';
+  s.open("test", "wt");
+  s.print("StringHandle\n");
+
+  say('Redirecting...');
+  var old;
+  ${getstdout old};
+  ${setstdout s};
+  msg();
+  ${setstdout old};
+
+  s.close();
+
+  say('Stored output:');
+  string result = s.read(0);
+  print(result);
+}
+
+function msg()
+{
+  print('Hello');
+  say(', world!');
+}
