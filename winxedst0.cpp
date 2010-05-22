@@ -2905,7 +2905,7 @@ private:
             {
                 std::string reg= gentemp(REGstring);
                 esecond->emit(e, reg);
-		std::string dest = efirst->getidentifier();
+                std::string dest = efirst->getidentifier();
                 e << "concat " << dest << ", " << dest << ", " << reg << '\n';
             }
             else
@@ -5226,7 +5226,7 @@ void TryStatement::emit (Emit &e)
     e <<
         ".get_results(" << except << ")\n"
         "pop_eh\n"
-	"unroll " << except << '\n';
+        "unroll " << except << '\n';
         ;
 
     scatch->emit(e);
