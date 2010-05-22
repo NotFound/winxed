@@ -847,6 +847,10 @@ function getpredefs()
             'length {res}, {arg0}',
             REGint, REGstring
         ),
+        new PredefFunction().set('bytelength',
+            'bytelength {res}, {arg0}',
+            REGint, REGstring
+        ),
         new PredefFunction().set('chr',
             "chr $S0, {arg0}\n" +
             "find_encoding $I0, 'utf8'\n" +

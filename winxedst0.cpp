@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 16-may-2010
+// Revision 22-may-2010
 
 // Winxed compiler stage 0.
 
@@ -380,6 +380,9 @@ const PredefFunction *PredefFunction::predefs[]= {
         REGint, REGvar),
     new PredefFunctionFixargs("length",
         "length {res}, {arg0}",
+        REGint, REGstring),
+    new PredefFunctionFixargs("bytelength",
+        "bytelength {res}, {arg0}",
         REGint, REGstring),
     new PredefFunctionFixargs("ord",
         "ord {res}, {arg0}",
