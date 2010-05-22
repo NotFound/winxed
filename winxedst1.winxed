@@ -474,6 +474,7 @@ const string REGvar =     'P';
 // Pseudotypes for predefined functions
 const string REGarglist = '*';
 const string REGany     = '?';
+const string REGnone    = 'v'; // void return
 
 function typetoregcheck(string type)
 {
@@ -709,13 +710,27 @@ class PredefFunction
     function expand(e, start, string result, args)
     {
         string name = self.name;
+        string typeresult = self.typeresult;
         e.use_predef(name);
         e.comment('predefined ' + name);
+
         if (self.body instanceof 'String') {
             string body = self.body;
-            int pos;
-            while ((pos = indexof(body, '{res}')) != -1)
-                body = substr(body, 0, pos) + result + substr(body, pos + 5);
+            int pos = indexof(body, '{res}');
+            if (typeresult == REGnone) {
+                if (result != null && result != '')
+                    SyntaxError('using return value from void predef');
+                if (pos != -1)
+                    InternalError('void predef with {res}');
+            }
+            else {
+                if (pos == -1)
+                    InternalError('non void predef without {res}');
+                do {
+                    body = substr(body, 0, pos) + result + substr(body, pos + 5);
+                } while ((pos = indexof(body, '{res}')) != -1);
+            }
+
             int n = args;
             for (int i = 0; i < n; ++i) {
                 string argmark = '{arg' + i + '}';
@@ -797,7 +812,7 @@ function getpredefs()
         ),
         new PredefFunction().set('exit',
             'exit {arg0}',
-            REGvar, REGint
+            REGnone, REGint
         ),
         new PredefFunction().set('time',
             'time {res}',
@@ -981,7 +996,7 @@ function getpredefs()
         ),
         new PredefFunction().set('compreg',
             'compreg {arg0}, {arg1}',
-            REGvar, REGstring, REGvar
+            REGnone, REGstring, REGvar
         ),
         new PredefFunction().set('load_language',
             "load_language {arg0}\n" +
@@ -999,7 +1014,7 @@ function getpredefs()
         ),
         new PredefFunction().set('load_bytecode',
             'load_bytecode {arg0}',
-            REGvar, REGstring
+            REGnone, REGstring
         ),
         new PredefFunction().set('dlfunc',
             'dlfunc {res}, {arg0}, {arg1}, {arg2}',
@@ -1560,7 +1575,7 @@ class Expr : CommonBase
     function emit_get(e)
     {
         string type = self.checkResult();
-        string reg = self.tempreg(type);
+        string reg = type == REGnone ? '' : self.tempreg(type);
         self.emit(e, reg);
         return reg;
     }
