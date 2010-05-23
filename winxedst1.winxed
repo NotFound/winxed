@@ -1576,6 +1576,10 @@ class VarContainer
             'const': 0 };
         return reg;
     }
+    function createconstid()
+    {
+        return self.owner.createconstid();
+    }
     function createconst(var name, string type, var value, string id)
     {
         var locals= self.locals;
