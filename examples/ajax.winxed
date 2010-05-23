@@ -1,0 +1,71 @@
+#! winxed
+// ajax.winxed
+
+// A simplified implementation of the W3C XMLHttpRequest specification.
+// See: http://www.w3.org/TR/XMLHttpRequest/
+
+//**********************************************************************
+
+class XMLHttpRequest
+{
+    // Private
+    // Internal usage variables and methods
+
+    var ua;  // Parrot LWP;UserAgent
+    var url; // URL specifid in the open method
+
+    function init [vtable]()
+    {
+        self.status = 0;
+	self.responseText = '';
+	using extern LWP.UserAgent;
+    }
+
+    // Public
+    // Properties and methods defined by the specification.
+
+    var status;
+    var responseText;
+
+    function open(string method, string url, int async)
+    {
+        if (async)
+	    throw Error('Asynchronous mode not supported yet');
+        string m = upcase(method);
+	if (m != 'GET')
+	    throw Error('Unsupported method');
+
+        self.url = url;
+    }
+    function send(var data)
+    {
+        string url = self.url;
+        self.ua = new LWP.UserAgent();
+	var resp = self.ua.get(url,
+           {
+               'Connection' : 'close'
+           }:[named,slurpy]
+        );
+        self.status = resp.code();
+	self.responseText = resp.content();
+    }
+}
+
+//**********************************************************************
+
+// main function for testing.
+
+function main(var args)
+{
+    int nargs = elements(args);
+    if (nargs < 2)
+        Error('No URL');
+
+    var req = new XMLHttpRequest();
+    req.open('get', args[1], 0);
+    req.send(null);
+    say('Status: ', req.status);
+    say('Response: ', req.responseText);
+}
+
+// End
