@@ -5080,8 +5080,8 @@ class TryStatement : BlockStatement
         e.comment('catch');
         e.emitlabel(labelhandler);
         e.say('.get_results(', exreg, ')');
+        e.say('finalize ', exreg);
         e.say('pop_eh');
-        e.say('unroll ', exreg);
         self.scatch.emit(e);
 
         e.comment('catch end');

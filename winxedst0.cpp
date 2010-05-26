@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 22-may-2010
+// Revision 26-may-2010
 
 // Winxed compiler stage 0.
 
@@ -5225,8 +5225,8 @@ void TryStatement::emit (Emit &e)
     }
     e <<
         ".get_results(" << except << ")\n"
+        "finalize " << except << "\n"
         "pop_eh\n"
-        "unroll " << except << '\n';
         ;
 
     scatch->emit(e);
