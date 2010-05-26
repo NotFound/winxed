@@ -44,7 +44,7 @@ class XMLHttpRequest
 	var resp = self.ua.get(url,
            {
                'Connection' : 'close'
-           }:[named,slurpy]
+           }:[named,flat]
         );
         self.status = resp.code();
 	self.responseText = resp.content();
