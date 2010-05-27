@@ -3,14 +3,6 @@ Version: 0.Work-in-progress
 
 (C) 2009-2010 Julian Albo
 
-------------------------------------------------------------------------
-WARNING:
-
-	This versions works only with parrot svn release 47050
-	Further releases are not yer supported.
-------------------------------------------------------------------------
-
-
 - Stage 0 compiler:
 
 Usage:

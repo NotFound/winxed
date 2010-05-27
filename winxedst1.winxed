@@ -21,7 +21,7 @@ function isdigit(string c)
 function hexdigit(string c)
 {
     int i = indexof('0123456789abcdef0123456789ABCDEF', c);
-    if (i >= 0) i = i %% 16;
+    if (i >= 0) i = i % 16;
     return i;
 }
 
@@ -769,7 +769,8 @@ class Predef_cry
     function invoke [vtable](e, start, result, args)
     {
         e.annotate(start);
-        e.say('getstderr $P0');
+        e.say("getinterp $P0");
+        e.say("$P0 = $P0.'stdhandle'(2)");
         int n = int(args);
         for (int i = 0; i < n; ++i)
             e.say("$P0.'print'(", args[i], ")");
@@ -3097,7 +3098,11 @@ class OpCModExpr : OpBinaryExpr
             rexpr.emit(e, rreg);
         }
         self.annotate(e);
-        e.say('cmod ', result, ', ', lreg, ', ', rreg);
+
+        // WORKAROUND:
+        // e.say('cmod ', result, ', ', lreg, ', ', rreg);
+        // cmod is now a dynop. Silly workaround, use mod instead.
+        e.say('mod ', result, ', ', lreg, ', ', rreg);
     }
 }
 

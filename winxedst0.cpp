@@ -325,7 +325,9 @@ private:
     void emit(Emit &e, const std::string &,
         const std::vector<std::string> args) const
     {
-        e << "getstderr $P0\n";
+        e <<
+            "getinterp $P0\n"
+            "$P0 = $P0.'stdhandle'(2)\n";
         const size_t n = args.size();
         for (size_t i= 0; i < n; ++i)
             e << "$P0.'print'(" << args[i] << ")\n";
