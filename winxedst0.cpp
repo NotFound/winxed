@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 26-may-2010
+// Revision 27-may-2010
 
 // Winxed compiler stage 0.
 
@@ -5015,7 +5015,7 @@ void ForeachStatement::emit(Emit &e)
 
     e << ".local pmc " << iter << "\n" <<
         iter << " = iter " << container_ << "\n" <<
-        iter << " = .ITERATE_FROM_START\n" <<
+        iter << " = 0\n" << // ITERATE_FROM_START
         continuelabel << ": # FOR IN\n" <<
         "unless " << iter << " goto " << breaklabel<< "\n"
         "shift " << varname << ", " << iter << '\n'
@@ -6101,10 +6101,6 @@ void Winxed::emit (Emit &e)
     e <<
 "#\n"
 "# Winxed generated file\n"
-"#**************************************************\n"    
-"\n"
-".include 'iterator.pasm'\n"
-"\n"
 "#**************************************************\n"    
     ;
 
