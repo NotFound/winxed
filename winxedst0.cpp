@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 27-may-2010
+// Revision 31-may-2010
 
 // Winxed compiler stage 0.
 
@@ -31,6 +31,7 @@ const char REGstring = 'S';
 const char REGvar    = 'P';
 // Pseudotypes for predefined functions
 const char REGany    = '?';
+const char REGnone   = '\0'; // void return
 
 static const char * nameoftype(char ctype)
 {
@@ -284,7 +285,7 @@ protected:
 class Predef_print : public PredefFunctionVarargs
 {
 public:
-    Predef_print() : PredefFunctionVarargs("print", '\0')
+    Predef_print() : PredefFunctionVarargs("print", REGnone)
     { }
 private:
     void emit(Emit &e, const std::string &,
@@ -299,7 +300,7 @@ private:
 class Predef_say : public PredefFunctionVarargs
 {
 public:
-    Predef_say() : PredefFunctionVarargs("say", '\0')
+    Predef_say() : PredefFunctionVarargs("say", REGnone)
     { }
 private:
     void emit(Emit &e, const std::string &,
@@ -319,7 +320,7 @@ private:
 class Predef_cry : public PredefFunctionVarargs
 {
 public:
-    Predef_cry() : PredefFunctionVarargs("cry", '\0')
+    Predef_cry() : PredefFunctionVarargs("cry", REGnone)
     { }
 private:
     void emit(Emit &e, const std::string &,
@@ -347,10 +348,10 @@ const PredefFunction *PredefFunction::predefs[]= {
         REGstring, REGany),
     new PredefFunctionFixargs("die",
         "die {arg0}",
-        '\0', REGstring),
+        REGnone, REGstring),
     new PredefFunctionFixargs("exit",
         "exit {arg0}",
-        '\0', REGint),
+        REGnone, REGint),
     new PredefFunctionFixargs("spawnw",
         "spawnw {res}, {arg0}",
         REGint, REGvar),
@@ -429,10 +430,10 @@ const PredefFunction *PredefFunction::predefs[]= {
     // while a better way is implemeneted.
     new PredefFunctionFixargs("__push_int",
         "push {arg0}, {arg1}",
-        '\0', REGvar, REGint),
+        REGnone, REGvar, REGint),
     new PredefFunctionFixargs("__push_string",
         "push {arg0}, {arg1}",
-        '\0', REGvar, REGstring),
+        REGnone, REGvar, REGstring),
 
     new PredefFunctionFixargs("getinterp",
         "getinterp {res}",
@@ -448,7 +449,7 @@ const PredefFunction *PredefFunction::predefs[]= {
         REGvar, REGstring),
     new PredefFunctionFixargs("compreg",
         "compreg {arg0}, {arg1}",
-        '\0', REGstring, REGvar),
+        REGnone, REGstring, REGvar),
     new PredefFunctionFixargs("load_language",
         "load_language {arg0}\n"
         "compreg {res}, {arg0}",
