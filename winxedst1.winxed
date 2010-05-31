@@ -3753,6 +3753,24 @@ class NewExpr : Expr
     }
     function optimize()
     {
+        var value = self.value;
+        if ((value instanceof Token) && value.isidentifier()) {
+            // The identifier can be a string constant, check for that case
+            // and obtain the string value.
+            var name = value.getidentifier();
+            var desc = self.owner.getvar(name);
+            if (desc != null && desc['const']) {
+                if (desc['id'] != null) {
+                    value = desc['value'];
+                    if (! (value instanceof StringLiteral))
+                        SyntaxError('Constant value must evaluate to a string', value);
+                    self.value = value.strval;
+                }
+                else
+                    SyntaxError('Constant value must evaluate to a string', value);
+            }
+        }
+
         var initializer = self.initializer;
         if (initializer != null)
             self.initializer = initializer.optimize();
