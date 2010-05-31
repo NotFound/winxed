@@ -809,7 +809,7 @@ function getpredefs()
         ),
         new PredefFunction().set('die',
             'die {arg0}',
-            REGvar, REGstring
+            REGnone, REGstring
         ),
         new PredefFunction().set('exit',
             'exit {arg0}',
