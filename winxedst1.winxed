@@ -3751,6 +3751,13 @@ class NewExpr : Expr
             tk.unget(t);
         return self;
     }
+    function optimize()
+    {
+        var initializer = self.initializer;
+        if (initializer != null)
+            self.initializer = initializer.optimize();
+        return self;
+    }
     function emit(e, result)
     {
         self.annotate(e);
@@ -3774,7 +3781,10 @@ class NewExpr : Expr
             var aux = get_class(name);
             if (aux == null)
                 Warn("Can't locate class " + name + " at compile time", self.value);
-            e.say('root_new ', result, ", ['parrot'; ", self.value, " ]", reginit);
+
+            // Avoid using root_new here for a now.
+            //e.say('root_new ', result, ", ['parrot'; ", self.value, " ]", reginit);
+            e.say('new ', result, ", [ ", self.value, " ]", reginit);
         }
         else if (self.value.isidentifier()) {
             var id = self.owner.getvar(self.value);
