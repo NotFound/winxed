@@ -1078,6 +1078,49 @@ class CommonBase
 }
 
 //*********************************************
+//          SimpleArgList
+//*********************************************
+
+// A list of arguments without modifiers.
+
+class SimpleArgList
+{
+    var args;
+
+    function elements[vtable]()
+    {
+        return elements(self.args);
+    }
+    function get_pmc_keyed_int[vtable](int i)
+    {
+        var args = self.args;
+        return args[i];
+    }
+
+    function parseargs(var tk, var owner, string oper_end)
+    {
+        var args = [];
+        var t;
+        do {
+            var value = parseExpr(tk, owner);
+            args.push(value);
+        } while ((t= tk.get()).isop(','));
+        self.args = args;
+        RequireOp(oper_end, t);
+    }
+
+    function optimizeargs()
+    {
+        var args = self.args;
+        if (args != null) {
+            int n = args;
+            for (int i= 0; i < n; ++i)
+                args[i] = args[i].optimize();
+        }
+    }
+}
+
+//*********************************************
 //            Modifiers
 //*********************************************
 
@@ -1089,13 +1132,13 @@ class Modifier
     function getname() { return self.name; }
     function numargs()
     {
-        int nargs = self.args;
+        int nargs = elements(self.args);
         return nargs;
     }
     function getarg(int argnum)
     {
         var args = self.args;
-        if (argnum < int(args))
+        if (argnum < elements(args))
             return args[argnum];
         else
             InternalError('Wrong modifier arg number');
@@ -1109,12 +1152,7 @@ class Modifier
     }
     function optimize()
     {
-        var args = self.args;
-        if (args != null) {
-            int n = args;
-            for (int i= 0; i < n; ++i)
-                args[i] = args[i].optimize();
-        }
+        self.args.optimizeargs();
     }
 }
 
@@ -1133,13 +1171,9 @@ class ModifierList
             t = tk.get();
             string name = t.getidentifier();
             t = tk.get();
-            var args = [];
+            var args = new SimpleArgList();
             if (t.isop('(')) {
-                do {
-                    var value = parseExpr(tk, owner);
-                    args.push(value);
-                } while ((t= tk.get()).isop(','));
-                RequireOp(')', t);
+                args.parseargs(tk, owner, ')');
                 t= tk.get();
             }
             self.list.push(new Modifier().set(name, args));
@@ -1385,27 +1419,17 @@ class PiropStatement : Statement
         string opname = t.getidentifier();
         self.opname = opname;
         t = tk.get();
+        var args = new SimpleArgList();
         if (! t.isop('}')) {
-            var args = [];
             tk.unget(t);
-            do {
-                var arg = parseExpr(tk, self);
-                args.push(arg);
-                self.args = args;
-            } while ((t = tk.get()).isop(','));
-            if (! t.isop('}'))
-                SyntaxError("Invalid '$' statement", start);
+            args.parseargs(tk, self, '}');
         }
+        self.args = args;
         return self;
     }
     function optimize()
     {
-        var args = self.args;
-        if (args != null) {
-            int n = args;
-            for (int i= 0; i < n; ++i)
-                args[i] = args[i].optimize();
-        }
+        self.args.optimizeargs();
         return self;
     }
     function emit(e)
@@ -1418,7 +1442,9 @@ class PiropStatement : Statement
             e.say(opname);
         else {
             var argreg = [];
-            for (var a in args) {
+            int nargs = elements(args);
+            for (int i= 0; i < nargs; ++i) {
+                var a = args[i];
                 string reg = a.emit_get(e);
                 argreg.push(reg);
             }
@@ -3438,23 +3464,15 @@ class IndexExpr : Expr
     {
         self.initexpr(owner, start);
         self.left = subexp;
-        self.args = [];
-        var t;
-        do {
-            var arg = parseExpr(tk, owner);
-            self.args.push(arg);
-        } while ( (t= tk.get()).isop(','));
-        if (! t.isop(']'))
-            SyntaxError("Expected ']' or ',' in index expr", t);
+        var args = new SimpleArgList();
+        args.parseargs(tk, owner, ']');
+        self.args = args;
         return self;
     }
     function optimize()
     {
         self.left = self.left.optimize();
-        var args = self.args;
-        int n = args;
-        for (int i = 0; i < n; ++i)
-            args[i] = args[i].optimize();
+        self.args.optimizeargs();
         return self;
     }
     function emit(e, result)
@@ -3465,10 +3483,11 @@ class IndexExpr : Expr
         else
             regleft = self.left.emit_get(e);
         var args = self.args;
-        int nargs = args;
+        int nargs = elements(args);
         string argregs[];
         string type = self.checkResult();
-        for (var arg in args) {
+        for (int i = 0; i < nargs; ++i) {
+            var arg = args[i];
             string argreg = arg.emit_get(e);
             argregs.push(argreg);
         }
@@ -3490,8 +3509,11 @@ class IndexExpr : Expr
     function emit_assign(e, string typeright, string rreg)
     {
         var regleft = self.left.emit_get(e);
+        var args = self.args;
+        int nargs = elements(args);
         string argregs[];
-        for (var arg in self.args) {
+        for (int i = 0; i < nargs; ++i) {
+            var arg = args[i];
             string argreg = arg.emit_get(e);
             argregs.push(argreg);
         }
@@ -3507,8 +3529,11 @@ class IndexExpr : Expr
     function emit_assign_get(e, expr)
     {
         var regleft = self.left.emit_get(e);
+        var args = self.args;
+        int nargs = elements(args);
         string argregs[];
-        for (var arg in self.args) {
+        for (int i = 0; i < nargs; ++i) {
+            var arg = args[i];
             string argreg = arg.emit_get(e);
             argregs.push(argreg);
         }
