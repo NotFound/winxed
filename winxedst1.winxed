@@ -1089,7 +1089,11 @@ class SimpleArgList
 
     function elements[vtable]()
     {
-        return elements(self.args);
+        var args = self.args;
+	if (args == null)
+             return 0;
+        else
+            return elements(self.args);
     }
     function get_pmc_keyed_int[vtable](int i)
     {
