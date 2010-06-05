@@ -13,12 +13,13 @@ class XMLHttpRequest
 
     var ua;  // Parrot LWP;UserAgent
     var url; // URL specifid in the open method
+    var async;
 
     function init [vtable]()
     {
         self.status = 0;
-	self.responseText = '';
-	using extern LWP.UserAgent;
+        self.responseText = '';
+        using extern LWP.UserAgent;
     }
 
     // Public
@@ -26,14 +27,14 @@ class XMLHttpRequest
 
     var status;
     var responseText;
+    var onreadystatechange;
 
     function open(string method, string url, int async)
     {
-        if (async)
-	    throw Error('Asynchronous mode not supported yet');
+        self.async = async;
         string m = upcase(method);
-	if (m != 'GET')
-	    throw Error('Unsupported method');
+        if (m != 'GET')
+            throw Error('Unsupported method');
 
         self.url = url;
     }
@@ -41,13 +42,17 @@ class XMLHttpRequest
     {
         string url = self.url;
         self.ua = new LWP.UserAgent();
-	var resp = self.ua.get(url,
+        var resp = self.ua.get(url,
            {
                'Connection' : 'close'
            }:[named,flat]
         );
         self.status = resp.code();
-	self.responseText = resp.content();
+        self.responseText = resp.content();
+        if (self.async) {
+            var onreadystatechange = self.onreadystatechange;
+            onreadystatechange();
+        }
     }
 }
 
@@ -55,17 +60,41 @@ class XMLHttpRequest
 
 // main function for testing.
 
+class StChange
+{
+    var req;
+
+    function invoke[vtable]()
+    {
+        say('Status changed');
+        say('Status: ', self.req.status);
+        self.showresp();
+    }
+
+    function showresp()
+    {
+        var req = self.req;
+        say('Response: ', req.responseText);
+    }
+}
+
 function main(var args)
 {
     int nargs = elements(args);
     if (nargs < 2)
         Error('No URL');
 
+    int use_async = 1;
+
     var req = new XMLHttpRequest();
-    req.open('get', args[1], 0);
+    var stchange = new StChange();
+    stchange.req = req;
+    req.onreadystatechange = stchange;
+
+    req.open('get', args[1], use_async);
     req.send(null);
-    say('Status: ', req.status);
-    say('Response: ', req.responseText);
+    if (! use_async)
+        stchange.showresp();
 }
 
 // End
