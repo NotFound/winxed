@@ -6209,13 +6209,22 @@ class WinxedCompiler
         var rootns= new Namespace();
 
         // Store predefined constants in the root namespace.
+        var taux = newToken(TypeIdentifier, 'predefconst', 0, '__predefconst__');
 
+        rootns.createconst('false', REGint,
+                new IntegerLiteral().set(rootns,
+                    newTokenFrom(TypeInteger, 'false', taux), 0),
+                    '');
+        rootns.createconst('true', REGint,
+                new IntegerLiteral().set(rootns,
+                    newTokenFrom(TypeInteger, 'false', taux), 1),
+                    '');
         // Tricky way of setting __STAGE__: stage 1 is built with
         // stage 0 and stage 2 is built with stage 1. Increment
         // the current stage and we are done.
         rootns.createconst('__STAGE__', REGstring,
                 new StringLiteral().set(rootns,
-                    newToken(TypeQuoted, string(int(__STAGE__) + 1), 0, '')),
+                    newTokenFrom(TypeQuoted, string(int(__STAGE__) + 1), taux)),
                     '');
 
         self.rootns = rootns;

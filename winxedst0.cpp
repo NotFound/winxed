@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 31-may-2010
+// Revision 8-jun-2010
 
 // Winxed compiler stage 0.
 
@@ -5802,7 +5802,9 @@ class RootNamespaceBlock : public NamespaceBlockBase
     {
         char result = NamespaceBlockBase::checkconstant(name);
         if (result == '\0') {
-            if (name == "__STAGE__")
+            if (name == "true" || name == "false")
+                result = REGint;
+            else if (name == "__STAGE__")
                 result = REGstring;
         }
         return result;
@@ -5811,10 +5813,18 @@ class RootNamespaceBlock : public NamespaceBlockBase
     {
         if (NamespaceBlockBase::checkconstant(name) != '\0')
             return NamespaceBlockBase::getconstant(name);
+        else if (name == "true") {
+            return ConstantValue(REGint,
+                Token(TokenTInteger, "1", 0, "__predefconst__"));
+        }
+        else if (name == "false") {
+            return ConstantValue(REGint,
+                Token(TokenTInteger, "0", 0, "__predefconst__"));
+        }
         else if (name == "__STAGE__") {
-                // This is stage 0
-                return ConstantValue(REGstring,
-                    Token(TokenTSingleQuoted, "0", 0, "predefconstant"));
+            // This is stage 0
+            return ConstantValue(REGstring,
+                    Token(TokenTSingleQuoted, "0", 0, "__predefconst__"));
         }
         else throw InternalError("No such constant");
     }
