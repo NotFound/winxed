@@ -14,17 +14,33 @@ class XMLHttpRequest
     var ua;  // Parrot LWP;UserAgent
     var url; // URL specifid in the open method
     var async;
+    // Constants for readyState values
+    const int UNSENT           = 0;
+    const int OPENED           = 1;
+    const int HEADERS_RECEIVED = 2;
+    const int LOADING          = 3;
+    const int DONE             = 4;
 
     function init [vtable]()
     {
+        self.readyState = UNSENT;
         self.status = 0;
         self.responseText = '';
         using extern LWP.UserAgent;
     }
 
+    function changeState(int state)
+    {
+        self.readyState=: state;
+        var onreadystatechange = self.onreadystatechange;
+        if (onreadystatechange != null)
+            onreadystatechange();
+    }
+
     // Public
     // Properties and methods defined by the specification.
 
+    var readyState;
     var status;
     var responseText;
     var onreadystatechange;
@@ -37,22 +53,30 @@ class XMLHttpRequest
             throw Error('Unsupported method');
 
         self.url = url;
+        self.changeState(OPENED);
     }
     function send(var data)
     {
+        if (self.readyState != OPENED)
+            throw Error('INVALID_STATE_ERR');
         string url = self.url;
+
+        if (self.async)
+            self.changeState(OPENED);
+
         self.ua = new LWP.UserAgent();
         var resp = self.ua.get(url,
            {
                'Connection' : 'close'
            }:[named,flat]
         );
-        self.status = resp.code();
+        if (self.async)
+            self.changeState(HEADERS_RECEIVED);
+        if (self.async)
+            self.changeState(LOADING);
+        self.status =: resp.code();
         self.responseText = resp.content();
-        if (self.async) {
-            var onreadystatechange = self.onreadystatechange;
-            onreadystatechange();
-        }
+        self.changeState(DONE);
     }
 }
 
@@ -66,15 +90,18 @@ class StChange
 
     function invoke[vtable]()
     {
-        say('Status changed');
-        say('Status: ', self.req.status);
-        self.showresp();
+        var req = self.req;
+        say('Status changed to ', req.readyState);
+        if (req.readyState == 4) {
+            say('Status: ', req.status);
+            self.showresp();
+        }
     }
 
     function showresp()
     {
         var req = self.req;
-        say('Response: ', req.responseText);
+        say("Response:\n", req.responseText);
     }
 }
 
@@ -89,7 +116,9 @@ function main(var args)
     var req = new XMLHttpRequest();
     var stchange = new StChange();
     stchange.req = req;
-    req.onreadystatechange = stchange;
+
+    if (use_async)
+        req.onreadystatechange = stchange;
 
     req.open('get', args[1], use_async);
     req.send(null);
