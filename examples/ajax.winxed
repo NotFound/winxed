@@ -12,7 +12,9 @@ class XMLHttpRequest
     // Internal usage variables and methods
 
     var ua;  // Parrot LWP;UserAgent
-    var url; // URL specifid in the open method
+    // HTTP method, URL and async mode specified in open.
+    var method;
+    var url;
     var async;
     // Constants for readyState values
     const int UNSENT           = 0;
@@ -49,9 +51,10 @@ class XMLHttpRequest
     {
         self.async = async;
         string m = upcase(method);
-        if (m != 'GET')
-            throw Error('Unsupported method');
+        if (m != 'GET' && m != 'HEAD')
+            throw Error("Unsupported method '" + method + "'");
 
+        self.method = m;
         self.url = url;
         self.changeState(OPENED);
     }
@@ -65,11 +68,19 @@ class XMLHttpRequest
             self.changeState(OPENED);
 
         self.ua = new LWP.UserAgent();
-        var resp = self.ua.get(url,
-           {
-               'Connection' : 'close'
-           }:[named,flat]
-        );
+        var nargs = {
+            'Connection' : 'close'
+        };
+        var resp;
+        switch (self.method) {
+          case 'GET':
+            resp = self.ua.get(url, nargs:[named,flat]);
+            break;
+          case 'HEAD':
+            resp = self.ua.head(url, nargs:[named,flat]);
+            break;
+        }
+
         if (self.async)
             self.changeState(HEADERS_RECEIVED);
         if (self.async)
@@ -105,13 +116,31 @@ class StChange
     }
 }
 
-function main(var args)
+function main(var argv)
 {
-    int nargs = elements(args);
-    if (nargs < 2)
-        Error('No URL');
+    const string optAsync  = 'async';
+    const string optMethod = 'method';
 
-    int use_async = 1;
+    using extern Getopt.Obj;
+    var getopts = new Getopt.Obj();
+    getopts.notOptStop(1);
+    getopts.push_string(optAsync);
+    getopts.push_string(optMethod + '=s');
+    argv.shift();
+    var opts = getopts.get_options(argv);
+
+    int use_async = false;
+    string method;
+    if (opts[optMethod] != null)
+        method = opts[optMethod];
+    else
+        method = 'GET';
+    if (opts[optAsync] != null)
+        use_async = true;
+
+    int argc = elements(argv);
+    if (argc < 1)
+        Error('No URL');
 
     var req = new XMLHttpRequest();
     var stchange = new StChange();
@@ -120,7 +149,7 @@ function main(var args)
     if (use_async)
         req.onreadystatechange = stchange;
 
-    req.open('get', args[1], use_async);
+    req.open(method, argv[0], use_async);
     req.send(null);
     if (! use_async)
         stchange.showresp();
