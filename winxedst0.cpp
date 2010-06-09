@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 9-jun-2010
+// Revision 10-jun-2010
 
 // Winxed compiler stage 0.
 
@@ -386,6 +386,11 @@ const PredefFunction *PredefFunction::predefs[]= {
     new PredefFunctionFixargs("bytelength",
         "bytelength {res}, {arg0}",
         REGint, REGstring),
+    new PredefFunctionFixargs("chr",
+        "chr $S0, {arg0}\n"
+        "find_encoding $I0, 'utf8'\n"
+        "trans_encoding {res}, $S0, $I0\n",
+        REGstring, REGint),
     new PredefFunctionFixargs("ord",
         "ord {res}, {arg0}",
         REGint, REGstring),
