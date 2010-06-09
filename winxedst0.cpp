@@ -1137,6 +1137,7 @@ public:
     virtual std::string getstringvalue () const
     { throw InternalError("Not a string"); }
     virtual bool isstring() const { return false; }
+    virtual bool isindex() const { return false; }
     char checkresult() const
     {
         if (isinteger() ) return REGint;
@@ -2796,6 +2797,13 @@ private:
         {
             std::string varname= efirst->getidentifier();
             char type= checklocal(varname);
+            if (esecond->isindex())
+            {
+                esecond->emit(e, varname);
+                if (! result.empty() )
+                    e << result << " = " << varname << '\n';
+                return;
+            }
             switch (type)
             {
             case REGint:
@@ -4073,6 +4081,7 @@ public:
     IndexExpr(BlockBase &block, Tokenizer &tk, Token tname);
 private:
     bool isleft() const { return true; }
+    bool isindex() const { return true; }
     BaseExpr *optimize();
     void emit(Emit &e, const std::string &result);
     void emitleft(Emit &e);
