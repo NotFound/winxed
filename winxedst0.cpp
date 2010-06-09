@@ -327,8 +327,7 @@ private:
         const std::vector<std::string> args) const
     {
         e <<
-            "getinterp $P0\n"
-            "$P0 = $P0.'stdhandle'(2)\n";
+            "getstderr $P0\n";
         const size_t n = args.size();
         for (size_t i= 0; i < n; ++i)
             e << "$P0.'print'(" << args[i] << ")\n";
@@ -1317,6 +1316,7 @@ public:
             if (! t.isop('}'))
                throw Expected('}', t);
         }
+        ExpectOp(';', tk);
     }
 private:
     PiropStatement * optimize()

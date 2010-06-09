@@ -53,7 +53,8 @@ const int ERRORparser    = 557;
 
 function Warn(string msg, var pos [optional], int has_pos [opt_flag])
 {
-    var stderr = getinterp().stdhandle(2);
+    var stderr;
+    ${ getstderr stderr };
     stderr.print('WARNING: ');
     stderr.print(msg);
     if (has_pos) {
@@ -769,8 +770,7 @@ class Predef_cry
     function invoke [vtable](e, start, result, args)
     {
         e.annotate(start);
-        e.say("getinterp $P0");
-        e.say("$P0 = $P0.'stdhandle'(2)");
+        e.say("getstderr $P0");
         int n = int(args);
         for (int i = 0; i < n; ++i)
             e.say("$P0.'print'(", args[i], ")");
@@ -1443,6 +1443,7 @@ class PiropStatement : Statement, SimpleArgList
             tk.unget(t);
             self.parseargs(tk, self, '}');
         }
+        ExpectOp(';', tk);
         return self;
     }
     function optimize()
@@ -6300,7 +6301,7 @@ function winxed_parser(tk, string outputfile)
 
     var handle;
     if (outputfile == '-')
-        handle = getinterp().stdhandle(1);
+        ${ getstdout handle };
     else
         handle = open(outputfile, 'w');
     var emit= new Emit();
