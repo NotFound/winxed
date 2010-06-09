@@ -2025,6 +2025,8 @@ class IdentifierExpr : SimpleExpr
                 SyntaxError("Can't assign null to that type", self.start);
             }
         }
+	else if (expr instanceof IndexExpr)
+            expr.emit(e, lreg);
         else {
             string typeright = expr.checkResult();
             string rreg = expr.emit_get(e);
