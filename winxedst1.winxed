@@ -4015,7 +4015,7 @@ function parseExpr_0(tk, owner)
         return new FloatLiteral().set(owner, t);
     if (t.isidentifier())
         return new IdentifierExpr().set(owner, t);
-    SyntaxError('Lots of things unsupported', t);
+    SyntaxError('Expression expected', t);
 }
 
 function parseExpr_2(tk, owner)
