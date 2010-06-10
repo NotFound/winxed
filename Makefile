@@ -124,7 +124,7 @@ testv: winxed.pbc
 	parrot winxed.pbc t/harness -rv t/basic t/*.t
 
 TEST1 = \
-	t/preincdec.t.winxed  t/ordchr.t.winxed
+	t/preincdec.t.winxed
 
 test1: winxed$(EXEEXT) winxedst1.pbc
 	parrot winxed.pbc --stage=1 t/harness --stage=1 -r t/basic t/*.t $(TEST1)
