@@ -1612,10 +1612,6 @@ class VarContainer
             'const': 0 };
         return reg;
     }
-    function createconstid()
-    {
-        return self.owner.createconstid();
-    }
     function createconst(var name, string type, var value, string id)
     {
         var locals= self.locals;
@@ -5340,13 +5336,7 @@ class ConstStatement : Statement
                 self.start);
         }
         string type = self.type;
-        if (type == REGstring) {
-            string id = self.owner.createconstid();
-            self.createconst(self.name, type, value, id);
-            self.id = id;
-        }
-        else
-            self.createconst(self.name, type, value, '');
+        self.createconst(self.name, type, value, '');
         return self;
     }
     function checkResult()
@@ -5356,15 +5346,8 @@ class ConstStatement : Statement
     function emit(e)
     {
         string name = self.name;
-        if (self.id != null) {
-            string value = self.value.getPirString();
-            e.comment('Constant ' + name);
-            e.say('.const string ', self.id, ' = ', value);
-        }
-        else {
-            // Put a hint in the generated code
-            e.comment('Constant ' + name + ' evaluted at compile time');
-        }
+        // Put a hint in the generated code
+        e.comment('Constant ' + name + ' evaluted at compile time');
     }
 }
 
@@ -6060,7 +6043,6 @@ class Namespace : Item, VarContainer
     var classes;
     var functions;
     var items;
-    var constidserial;
 
     function isNamespace() { return 1; }
     function init [vtable] ()
@@ -6069,7 +6051,6 @@ class Namespace : Item, VarContainer
         self.classes= [];
         self.functions = [];
         self.items = [];
-        self.constidserial = 0;
     }
     function init_child(parent, string name)
     {
@@ -6100,19 +6081,6 @@ class Namespace : Item, VarContainer
             return self.parent.checkclass(name);
         else
             return null;
-    }
-    function createconstid()
-    {
-        if (self.parent)
-            self.parent.createconstid();
-        else {
-            var constidserial = self.constidserial;
-            int serial = constidserial;
-            string id = 'WINXED_CONST_' + string(serial);
-            ++serial;
-            constidserial =: serial;
-            return id;
-        }
     }
     function parse(tk)
     {
