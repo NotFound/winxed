@@ -133,7 +133,7 @@ class Connection
     function get_client_info()
     {
         using WinxedMysql.getlib;
-        var f= dlfunc(getlib(), 'mysql_get_client_info', 'tv');
+        var f= dlfunc(getlib(), 'mysql_get_client_info', 't');
         string s= f();
         return s;
     }
