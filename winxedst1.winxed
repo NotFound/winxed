@@ -2025,12 +2025,17 @@ class IdentifierExpr : SimpleExpr
             expr.emit(e, lreg);
         else {
             string typeright = expr.checkResult();
-            string rreg = expr.emit_get(e);
-            self.annotate(e);
-            if (typeleft == REGvar && typeright != REGvar)
-                e.emitbox(lreg, rreg);
-            else
-                e.emitset(lreg, rreg);
+	    if (typeleft == typeright) {
+                expr.emit(e, lreg);
+            }
+            else {
+                string rreg = expr.emit_get(e);
+                self.annotate(e);
+                if (typeleft == REGvar && typeright != REGvar)
+                    e.emitbox(lreg, rreg);
+                else
+                    e.emitset(lreg, rreg);
+            }
         }
         return lreg;
     }
