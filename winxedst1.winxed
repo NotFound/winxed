@@ -2025,7 +2025,7 @@ class IdentifierExpr : SimpleExpr
             expr.emit(e, lreg);
         else {
             string typeright = expr.checkResult();
-	    if (typeleft == typeright) {
+            if (typeleft == typeright) {
                 expr.emit(e, lreg);
             }
             else {
@@ -5314,9 +5314,8 @@ class DeclareStatement : Statement
 class ConstStatement : Statement
 {
     var type;
-    var name;
-    var value;
-    var id;
+    var names;
+    var values;
 
     function parse(start, tk, owner)
     {
@@ -5326,22 +5325,44 @@ class ConstStatement : Statement
         if (type != REGint && type != REGfloat && type != REGstring)
             SyntaxError('Invalid type for const', self.start);
         self.type = type;
-        t = tk.get();
-        self.name = t;
-        ExpectOp('=', tk);
-        self.value = parseExpr(tk, owner);
-        ExpectOp(';', tk);
+        var names= [];
+        var values= [];
+
+        do {
+            t = tk.get();
+            var name = t;
+            ExpectOp('=', tk);
+            var value = parseExpr(tk, owner);
+            names.push(name);
+            values.push(value);
+        } while ((t = tk.get()).isop(','));
+        RequireOp(';', t);
+        self.names = names;
+        self.values = values;
         return self;
     }
     function optimize()
     {
-        var value = self.value.optimize();
-        if (! value.hascompilevalue()) {
-            SyntaxError('Value for const is not evaluable at compile time',
-                self.start);
+        var values = self.values;
+        var names = self.names;
+        var value;
+        var name;
+        int n = elements(values);
+        int i;
+        for (i = 0; i < n; ++i) {
+            value = values[i].optimize();
+            if (! value.hascompilevalue()) {
+                SyntaxError('Value for const is not evaluable at compile time',
+                    self.start);
+            }
+            values[i] = value;
         }
         string type = self.type;
-        self.createconst(self.name, type, value, '');
+        for (i = 0; i < n; ++i) {
+            name = names[i];
+            value = values[i];
+            self.createconst(name, type, value, '');
+        }
         return self;
     }
     function checkResult()
@@ -5350,9 +5371,10 @@ class ConstStatement : Statement
     }
     function emit(e)
     {
-        string name = self.name;
+        var names = self.names;
         // Put a hint in the generated code
-        e.comment('Constant ' + name + ' evaluted at compile time');
+        for (string name in names)
+            e.comment('Constant ' + name + ' evaluated at compile time');
     }
 }
 
