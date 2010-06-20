@@ -3316,13 +3316,18 @@ class CallExpr : Expr
             argreg.push(reg);
         }
         self.annotate(e);
-        if (result != null)
-            e.print(result, ' = ');
 
-        if (funref instanceof MemberExpr)
-            e.print(call, ".'", funref.get_member(), "'");
-        else
-            e.print(call);
+        if (result == '.tailcall')
+            e.print('.tailcall ', call);
+        else {
+            if (result != null)
+                e.print(result, ' = ');
+
+            if (funref instanceof MemberExpr)
+                e.print(call, ".'", funref.get_member(), "'");
+            else
+                e.print(call);
+        }
         e.print('(');
 
         string sep = '';
@@ -4377,6 +4382,17 @@ class ReturnYieldStatement : Statement
         var args = [];
         var values = self.values;
         int n = values;
+
+        // Experimental tailcall optimization
+        if (n == 1 && (self instanceof ReturnStatement)) {
+            var func = values[0];
+            // Generate a tailcall only in simpls function calls.
+            if ((func instanceof CallExpr) && func.funref.isidentifier()) {
+                self.annotate(e);
+                func.emit(e, '.tailcall');
+                return;
+            }
+        }
         for (int i= 0; i < n; ++i) {
             var value = values[i];
             string reg;
