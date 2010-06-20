@@ -5345,6 +5345,7 @@ class ConstStatement : Statement
     {
         var values = self.values;
         var names = self.names;
+        string type = self.type;
         var value;
         var name;
         int n = elements(values);
@@ -5355,13 +5356,9 @@ class ConstStatement : Statement
                 SyntaxError('Value for const is not evaluable at compile time',
                     self.start);
             }
-            values[i] = value;
-        }
-        string type = self.type;
-        for (i = 0; i < n; ++i) {
             name = names[i];
-            value = values[i];
             self.createconst(name, type, value, '');
+            values[i] = value;
         }
         return self;
     }
