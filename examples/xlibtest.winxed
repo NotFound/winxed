@@ -10,13 +10,24 @@
 // Backspace key delete the last item drawed.
 // Delete key delete all lines.
 
+// Warning: uses syntax not available in stage 0
+
 // Event selection masks
-// Warning: hexadecimals not available in stage 0
-const int KeyPressMask      = 0x00000001;
-const int ButtonPressMask   = 0x00000004;
-const int ButtonReleaseMask = 0x00000008;
-const int PointerMotionMask = 0x00000040;
-const int ExposureMask      = 0x00008000;
+const int
+    KeyPressMask      = 0x00000001,
+    ButtonPressMask   = 0x00000004,
+    ButtonReleaseMask = 0x00000008,
+    PointerMotionMask = 0x00000040,
+    ExposureMask      = 0x00008000;
+
+// Event types
+const int
+    KeyPress      =  2,
+    ButtonPress   =  4,
+    ButtonRelease =  5,
+    MotionNotify  =  6,
+    Expose        = 12,
+    ClientMessage = 33;
 
 // Key for json line data
 const string JKEY_LINES = 'lines';
@@ -36,15 +47,15 @@ function load(string filename)
     else {
         try {
             var handle = open(filename);
-	    var jsondata = handle.readall();
-	    handle.close();
-	    var json = load_language('data_json');
-	    var object = json.compile(jsondata)();
-	    listline = object[JKEY_LINES];
-	}
-	catch() {
+            var jsondata = handle.readall();
+            handle.close();
+            var json = load_language('data_json');
+            var object = json.compile(jsondata)();
+            listline = object[JKEY_LINES];
+        }
+        catch() {
             listline = [];
-	}
+        }
     }
     return listline;
 }
@@ -73,10 +84,10 @@ function xlibtest [main] (args)
     var display= OpenDisplay();
     say('DefaultScreen: ', display.DefaultScreen());
 
-    int Escape = getKeycode(display, 'Escape');
-    int Delete = getKeycode(display, 'Delete');
+    int Escape    = getKeycode(display, 'Escape');
+    int Delete    = getKeycode(display, 'Delete');
     int BackSpace = getKeycode(display, 'BackSpace');
-    int codeS = getKeycode(display, 'S');
+    int codeS     = getKeycode(display, 'S');
 
     var rootwin= display.RootWindow();
     int white= display.WhitePixel();
@@ -102,7 +113,7 @@ function xlibtest [main] (args)
         display.NextEvent(event);
         int t= event.type();
         switch(t) {
-        case 4: // ButtonPress
+        case ButtonPress:
             pressed= 1;
             oldx= event.x();
             oldy= event.y();
@@ -112,10 +123,10 @@ function xlibtest [main] (args)
             line.push(oldy);
             window.DrawPoint(oldx, oldy);
             break;
-        case 5: // ButtonRelease
+        case ButtonRelease:
             pressed= 0;
             break;
-        case 6: // MotionNotify
+        case MotionNotify:
             if (pressed)
             {
                 int x= event.x();
@@ -129,7 +140,7 @@ function xlibtest [main] (args)
                 }
             }
             break;
-        case 12: // Expose
+        case Expose:
             var l;
             for (l in listline)
             {
@@ -150,10 +161,10 @@ function xlibtest [main] (args)
                     window.DrawPoint(l[0], l[1]);
             }
             break;
-        case 33: // ClientMessage
+        case ClientMessage:
             looping= 0;
             break;
-        case 2: // KeyPress
+        case KeyPress:
             switch (event.keycode())
             {
             case Escape:
@@ -177,9 +188,9 @@ function xlibtest [main] (args)
                 listline= new 'ResizablePMCArray';
                 window.ClearArea(0, 0, 0, 0, 1);
                 break;
-	    case codeS:
-	        save(filename, listline);
-	        break;
+            case codeS:
+                save(filename, listline);
+                break;
             }
             break;
         default:
