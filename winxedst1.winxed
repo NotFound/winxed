@@ -1434,9 +1434,16 @@ class MultiStatement
     {
         self.statements = [];
     }
+    function set(var st1, var st2)
+    {
+       self.statements.push(st1);
+       self.statements.push(st2);
+       return self;
+    }
     function push(var statement)
     {
        self.statements.push(statement);
+       return self;
     }
     function optimize()
     {
@@ -1448,6 +1455,16 @@ class MultiStatement
         for (var statement in self.statements)
             statement.emit(e);
     }
+}
+
+function addtomulti(var multi, var newst)
+{
+    if (multi == null)
+        return newst;
+    else if (multi instanceof MultiStatement)
+        return multi.push(newst);
+    else
+        return new MultiStatement().set(multi, newst);
 }
 
 //*********************************************
@@ -5371,26 +5388,16 @@ function parseConst(start, tk, owner)
     if (type != REGint && type != REGfloat && type != REGstring)
         SyntaxError('Invalid type for const', start);
 
-    var last = null;
     var multi = null;
     do {
         t = tk.get();
         var name = t;
         ExpectOp('=', tk);
         var value = parseExpr(tk, owner);
-        if (last != null) {
-            if (multi == null)
-                multi = new MultiStatement();
-            multi.push(last);
-        }
-        last = new ConstStatement().set(t, owner, type, name, value);
+        multi = addtomulti(multi,
+                new ConstStatement().set(t, owner, type, name, value));
     } while ((t = tk.get()).isop(','));
-    if (multi == null)
-        return last;
-    else {
-        multi.push(last);
-        return multi;
-    }
+    return multi;
 }
 
 //*********************************************
