@@ -1282,12 +1282,10 @@ function parseStatement(tk, owner)
     case 'using':
         return parseUsing(t, tk, owner);
     case 'const':
-        st = new ConstStatement();
+        return parseConst(t, tk, owner);
         break;
     case 'var':
-        //st = new VarStatement();
         return parseVar(t, tk, owner);
-        break;
     case 'string':
         st = new StringStatement();
         break;
@@ -1426,6 +1424,29 @@ class EmptyStatement : Statement
     function emit(e)
     {
         // Do nothing
+    }
+}
+
+class MultiStatement
+{
+    var statements;
+    function init[vtable]()
+    {
+        self.statements = [];
+    }
+    function push(var statement)
+    {
+       self.statements.push(statement);
+    }
+    function optimize()
+    {
+        optimize_array(self.statements);
+        return self;
+    }
+    function emit(e)
+    {
+        for (var statement in self.statements)
+            statement.emit(e);
     }
 }
 
@@ -5307,52 +5328,29 @@ class DeclareStatement : Statement
 class ConstStatement : Statement
 {
     var type;
-    var names;
-    var values;
+    var name;
+    var value;
 
-    function parse(start, tk, owner)
+    function set(var start, var owner, string type, var name, var value)
     {
         self.initstatement(start, owner);
-        var t = tk.get();
-        string type = typetoregcheck(t);
-        if (type != REGint && type != REGfloat && type != REGstring)
-            SyntaxError('Invalid type for const', self.start);
         self.type = type;
-        var names= [];
-        var values= [];
-
-        do {
-            t = tk.get();
-            var name = t;
-            ExpectOp('=', tk);
-            var value = parseExpr(tk, owner);
-            names.push(name);
-            values.push(value);
-        } while ((t = tk.get()).isop(','));
-        RequireOp(';', t);
-        self.names = names;
-        self.values = values;
+        self.name= name;
+        self.value = value;
         return self;
     }
     function optimize()
     {
-        var values = self.values;
-        var names = self.names;
+        var value = self.value;
+        var name = self.name;
         string type = self.type;
-        var value;
-        var name;
-        int n = elements(values);
-        int i;
-        for (i = 0; i < n; ++i) {
-            value = values[i].optimize();
-            if (! value.hascompilevalue()) {
-                SyntaxError('Value for const is not evaluable at compile time',
-                    self.start);
-            }
-            name = names[i];
-            self.createconst(name, type, value, '');
-            values[i] = value;
+        value = value.optimize();
+        if (! value.hascompilevalue()) {
+            SyntaxError('Value for const is not evaluable at compile time',
+                self.start);
         }
+        self.createconst(name, type, value, '');
+        self.value = value;
         return self;
     }
     function checkResult()
@@ -5361,10 +5359,37 @@ class ConstStatement : Statement
     }
     function emit(e)
     {
-        var names = self.names;
-        // Put a hint in the generated code
-        for (string name in names)
-            e.comment('Constant ' + name + ' evaluated at compile time');
+        string name = self.name;
+        e.comment('Constant ' + name + ' evaluated at compile time');
+    }
+}
+
+function parseConst(start, tk, owner)
+{
+    var t = tk.get();
+    string type = typetoregcheck(t);
+    if (type != REGint && type != REGfloat && type != REGstring)
+        SyntaxError('Invalid type for const', start);
+
+    var last = null;
+    var multi = null;
+    do {
+        t = tk.get();
+        var name = t;
+        ExpectOp('=', tk);
+        var value = parseExpr(tk, owner);
+        if (last != null) {
+            if (multi == null)
+                multi = new MultiStatement();
+            multi.push(last);
+        }
+        last = new ConstStatement().set(t, owner, type, name, value);
+    } while ((t = tk.get()).isop(','));
+    if (multi == null)
+        return last;
+    else {
+        multi.push(last);
+        return multi;
     }
 }
 
@@ -6114,7 +6139,7 @@ class Namespace : Item, VarContainer
                 child.parse(tk);
             }
             else if (t.iskeyword('const')) {
-                var cst = new ConstStatement().parse(t, tk, self);
+                var cst = parseConst(t, tk, self);
                 self.items.push(cst);
             }
             else if (t.iskeyword('function'))
