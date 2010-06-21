@@ -1058,6 +1058,17 @@ function findpredef(string name, int nargs)
 }
 
 //*********************************************
+//               Auxiliar functions
+//*********************************************
+
+function optimize_array(var arr)
+{
+    int n = elements(arr);
+    for (int i= 0; i < n; ++i)
+        arr[i] = arr[i].optimize();
+}
+
+//*********************************************
 //               CommonBase
 //*********************************************
 
@@ -1116,11 +1127,8 @@ class SimpleArgList
     function optimizeargs()
     {
         var args = self.args;
-        if (args != null) {
-            int n = args;
-            for (int i= 0; i < n; ++i)
-                args[i] = args[i].optimize();
-        }
+        if (args != null)
+            optimize_array(args);
     }
     function getargvalues(var e)
     {
@@ -3265,21 +3273,15 @@ class CallExpr : Expr
     {
         self.funref = self.funref.optimize();
         var args = self.args;
-        //var modifiers = self.modifiers;
-        int n = args;
-        for (int i= 0; i < n; ++i) {
-            args[i] = args[i].optimize();
-            //if (modifiers[i] != null)
-            //    modifiers[i].optimize();
-        }
+        optimize_array(args);
 
         // Check for predefined functions
         var funref = self.funref;
         if (funref.isidentifier()) {
             string call = funref.getName();
-            var predef = findpredef(call, n);
+            var predef = findpredef(call, elements(args));
             if (predef != null)
-                return new CallPredefExpr().init(self.owner, self.start, predef, self.args);
+                return new CallPredefExpr().init(self.owner, self.start, predef, args);
         }
 
         return self;
@@ -3563,10 +3565,7 @@ class ArrayExpr : Expr
     }
     function optimize()
     {
-        var values = self.values;
-        int n = values;
-        for (int i = 0; i < n; ++i)
-            values[i] = values[i].optimize();
+        optimize_array(self.values);
         return self;
     }
     function emit(e, result)
@@ -3639,14 +3638,8 @@ class HashExpr : Expr
     }
     function optimize()
     {
-        var keys = self.keys;
-        int n = keys;
-        for (int i = 0; i < n; ++i)
-            keys[i] = keys[i].optimize();
-        var values = self.values;
-        n = values;
-        for (int i = 0; i < n; ++i)
-            values[i] = values[i].optimize();
+        optimize_array(self.keys);
+        optimize_array(self.values);
         return self;
     }
     function emit(e, result)
@@ -4371,10 +4364,7 @@ class ReturnYieldStatement : Statement
     }
     function optimize()
     {
-        var values = self.values;
-        int n = values;
-        for (int i= 0; i < n; ++i)
-            values[i] = values[i].optimize();
+        optimize_array(self.values);
         return self;
     }
     function emit(e)
@@ -4765,20 +4755,10 @@ class SwitchStatement : Breakable, Statement
     function optimize()
     {
         self.condition = self.condition.optimize();
-        var caseval = self.case_value;
-        int n = caseval;
-        int i;
-        for (i = 0; i < n; ++i)
-            caseval[i] = caseval[i].optimize();
-        for (var casest in self.case_st) {
-            n = casest;
-            for (i = 0; i < n; ++i)
-                casest[i] = casest[i].optimize();
-        }
-        var defaultst = self.default_st;
-        n = defaultst;
-        for (i = 0; i < n; ++i)
-            defaultst[i] = defaultst[i].optimize();
+        optimize_array(self.case_value);
+        for (var casest in self.case_st)
+            optimize_array(casest);
+        optimize_array(self.default_st);
         return self;
     }
     function emit(e)
@@ -5242,11 +5222,8 @@ class DeclareStatement : Statement
         if (init != null) {
             if (self.typearray == 0)
                 self.init = init.optimize();
-            else {
-                int n = init;
-                for (int i = 0; i < n; ++i)
-                    init[i] = init[i].optimize();
-            }
+            else
+                optimize_array(init);
         }
         return self;
     }
@@ -5632,10 +5609,7 @@ class CompoundStatement : BlockStatement
     function getend() { return self.end; }
     function optimize()
     {
-        var st = self.statements;
-        int n = st;
-        for (int i = 0; i < n; ++i)
-            st[i] = st[i].optimize();
+        optimize_array(self.statements);
         return self;
     }
     function emit(var e)
@@ -6019,16 +5993,8 @@ class ClassStatement : Item, VarContainer
     }
     function optimize()
     {
-        int n;
-        int i;
-        var constants = self.constants;
-        n = elements(constants);
-        for (i = 0; i < n; ++i)
-            constants[i] = constants[i].optimize();
-        var f = self.functions;
-        n = elements(f);
-        for (i = 0; i < n; ++i)
-            f[i] = f[i].optimize();
+        optimize_array(self.constants);
+        optimize_array(self.functions);
         return self;
     }
     function getclasskey()
@@ -6183,10 +6149,7 @@ class Namespace : Item, VarContainer
     }
     function optimize()
     {
-        var items = self.items;
-        int n = items;
-        for (int i = 0; i < n; ++i)
-           items[i] = items[i].optimize();
+        optimize_array(self.items);
         return self;
     }
     function emit(var e)
