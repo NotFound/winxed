@@ -5964,7 +5964,7 @@ class ClassStatement : Item, VarContainer
         self.functions = [];
         self.members = [];
         self.bases= [];
-        self.constants = {};
+        self.constants = [];
     }
     function checkclass(string name)
     {
@@ -6007,8 +6007,7 @@ class ClassStatement : Item, VarContainer
             else if (t.iskeyword('const')) {
                 var cst = new ConstStatement().parse(t, tk, self);
                 var constants = self.constants;
-                string cstname = cst.name;
-                constants[cstname] = cst;
+                constants.push(cst);
             }
             else
                 SyntaxError("Unexpected item in class", t);
@@ -6020,12 +6019,15 @@ class ClassStatement : Item, VarContainer
     }
     function optimize()
     {
+        int n;
+        int i;
         var constants = self.constants;
-        for (string cstname in constants)
-            constants[cstname] = constants[cstname].optimize();
+        n = elements(constants);
+        for (i = 0; i < n; ++i)
+            constants[i] = constants[i].optimize();
         var f = self.functions;
-        int n = f;
-        for (int i = 0; i < n; ++i)
+        n = elements(f);
+        for (i = 0; i < n; ++i)
             f[i] = f[i].optimize();
         return self;
     }
