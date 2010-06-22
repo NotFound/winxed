@@ -6011,7 +6011,7 @@ class ClassStatement : Item, VarContainer
                     SyntaxError("Expected ';' in member declaration", t);
             }
             else if (t.iskeyword('const')) {
-                var cst = new ConstStatement().parse(t, tk, self);
+                var cst = parseConst(t, tk, self);
                 var constants = self.constants;
                 constants.push(cst);
             }
