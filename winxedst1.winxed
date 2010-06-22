@@ -5461,7 +5461,7 @@ class VarStatement : VarBaseStatement
     }
 }
 
-class ResizableVarStatement : VarBaseStatement
+class ResizableVarStatement : VarStatement
 {
     function parse(start, tk, owner, name)
     {
@@ -5481,7 +5481,7 @@ class ResizableVarStatement : VarBaseStatement
     }
 }
 
-class FixedVarStatement : VarBaseStatement
+class FixedVarStatement : VarStatement
 {
     var exprsize;
 
