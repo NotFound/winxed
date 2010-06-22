@@ -22,6 +22,8 @@ const int PARROT_ARG_UNKNOWN   = 0x80000;
 
 const int PARROT_JUMP_RELATIVE = 1;
 
+const int FIXUP_TYPE_SUB = 1;
+
 function typearg(string rtype)
 {
     switch (rtype) {
@@ -1158,7 +1160,7 @@ function writefile(string filename)
             var fixupsub = new 'PackfileFixupEntry';
             fixupsub =: name;
             fixupsub =: subconst;
-            fixupsub.set_type(2);
+            fixupsub.set_type(FIXUP_TYPE_SUB);
             fixups[fixuppos++] = fixupsub;
         }
     }
