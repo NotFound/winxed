@@ -1148,6 +1148,7 @@ function writefile(string filename)
                 "name" : name,
                 "subid" : name,
                 "ns_entry_name" : name,
+		"vtable_index" : -1,
                 "start_offs" : startpos,
                 "end_offs" : endpos,
                 // Set registers used to a number reasonable for little
