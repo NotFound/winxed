@@ -6100,16 +6100,9 @@ class Namespace : Item, VarContainer
     }
     function getpath()
     {
-        if (self.parent != null) {
-            var path=self.parent.getpath();
-            path.push(self.name);
-            return path;
-        }
-        else
-        {
-            string path[];
-            return path;
-        }
+        var path=self.parent.getpath();
+        path.push(self.name);
+        return path;
     }
     function addlib(string libname)
     {
@@ -6230,6 +6223,11 @@ class RootNamespace : Namespace
             self.libs = libs;
         }
         libs[libname] = 1;
+    }
+    function getpath()
+    {
+        string path[];
+        return path;
     }
     function emitroot(var e)
     {
