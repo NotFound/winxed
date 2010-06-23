@@ -6111,6 +6111,10 @@ class Namespace : Item, VarContainer
             return path;
         }
     }
+    function addlib(string libname)
+    {
+        self.parent.addlib(libname);
+    }
     function checkclass(string name)
     {
         var classes = self.classes;
@@ -6149,26 +6153,34 @@ class Namespace : Item, VarContainer
                 var cst = parseConst(t, tk, self);
                 self.items.push(cst);
             }
-            else if (t.iskeyword('function'))
-            {
+            else if (t.iskeyword('function')) {
                 var f= new FunctionStatement().parse(t, tk, self);
                 var functions= self.functions;
                 functions.push(f);
                 self.items.push(f);
             }
-            else if (t.iskeyword('class'))
-            {
+            else if (t.iskeyword('class')) {
                 var c= new ClassStatement();
                 c.parse(tk, self);
                 var classes= self.classes;
                 classes.push(c);
                 self.items.push(c);
             }
-            else if (t.isop('}'))
-            {
+            else if (t.iskeyword('using')) {
+                t = tk.get();
+                if (! t.iskeyword('extern'))
+                    SyntaxError('Unsupported at nmaespace level', t);
+                t = tk.get();
+                if (! t.isstring())
+                    Expected('string literal', t);
+                string reqlib = t;
+                self.addlib(reqlib);
+                t = tk.get();
+                RequireOp(';', t);
+            }
+            else if (t.isop('}')) {
                 int n= namespace;
-                if (n < 1)
-                {
+                if (n < 1) {
                     if (self.parent != null) return;
                     string line= t.line;
                     SyntaxError('Unclosed namespace', t);
@@ -6204,6 +6216,34 @@ class Namespace : Item, VarContainer
 }
 
 //*********************************************
+//            RootNamespace
+//*********************************************
+
+class RootNamespace : Namespace
+{
+    var libs;
+    function addlib(string libname)
+    {
+        var libs = self.libs;
+        if (libs == null) {
+            libs = {};
+            self.libs = libs;
+        }
+        libs[libname] = 1;
+    }
+    function emitroot(var e)
+    {
+        var libs = self.libs;
+        if (libs != null) {
+            for (string libname in libs)
+                e.say('.loadlib ', libname);
+        }
+        e.comment('end libs');
+        self.emit(e);
+    }
+}
+
+//*********************************************
 //           Compiler classes
 //*********************************************
 
@@ -6214,7 +6254,7 @@ class WinxedCompiler
     var rootns;
     function init [vtable] ()
     {
-        var rootns= new Namespace();
+        var rootns= new RootNamespace();
 
         // Store predefined constants in the root namespace.
         var taux = newToken(TypeIdentifier, 'predefconst', 0, '__predefconst__');
@@ -6250,7 +6290,7 @@ class WinxedCompiler
         e.comment('Begin generated code');
         e.say('');
 
-        self.rootns.emit(e);
+        self.rootns.emitroot(e);
 
         if (e.predef_is_used('chomp')) {
             e.say(
