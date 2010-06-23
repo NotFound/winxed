@@ -1427,7 +1427,7 @@ class EmptyStatement : Statement
     }
 }
 
-class MultiStatement
+class MultiStatement : Item
 {
     var statements;
     function init[vtable]()
