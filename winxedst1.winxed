@@ -510,7 +510,6 @@ class Emit
     var line;
     var pendingf;
     var pendingl;
-    var predefs_used;
 
     function initialize(var handle)
     {
@@ -519,17 +518,6 @@ class Emit
         self.line= 0;
         self.pendingf= 0;
         self.pendingl= 0;
-        self.predefs_used = {};
-    }
-    function use_predef(string name)
-    {
-        var predefs_used = self.predefs_used;
-        predefs_used[name] = 1;
-    }
-    function predef_is_used(string name)
-    {
-        var predefs_used = self.predefs_used;
-        return predefs_used[name] == null ? 0 : 1;
     }
     function close()
     {
@@ -712,7 +700,6 @@ class PredefFunction
     {
         string name = self.name;
         string typeresult = self.typeresult;
-        e.use_predef(name);
         e.comment('predefined ' + name);
 
         if (self.body instanceof 'String') {
@@ -1085,6 +1072,10 @@ class CommonBase
     function annotate(e)
     {
         e.annotate(self.start);
+    }
+    function use_predef(string name)
+    {
+        self.owner.use_predef(name);
     }
 }
 
@@ -3318,8 +3309,10 @@ class CallExpr : Expr
         if (funref.isidentifier()) {
             string call = funref.getName();
             var predef = findpredef(call, elements(args));
-            if (predef != null)
+            if (predef != null) {
+                self.use_predef(call);
                 return new CallPredefExpr().init(self.owner, self.start, predef, args);
+            }
         }
 
         return self;
@@ -5976,6 +5969,10 @@ class ClassStatement : Item, VarContainer
     {
         return self.parent.checkclass(name);
     }
+    function use_predef(string name)
+    {
+        return self.owner.use_predef(name);
+    }
     function parse(tk, parent)
     {
         self.parent= parent;
@@ -6214,7 +6211,24 @@ class Namespace : Item, VarContainer
 
 class RootNamespace : Namespace
 {
+    var predefs_used;
     var libs;
+
+    function init [vtable] ()
+    {
+        self.predefs_used = {};
+    }
+    function use_predef(string name)
+    {
+        var predefs_used = self.predefs_used;
+        predefs_used[name] = 1;
+    }
+    function predef_is_used(string name)
+    {
+        var predefs_used = self.predefs_used;
+        return predefs_used[name] == null ? 0 : 1;
+    }
+
     function addlib(string libname)
     {
         var libs = self.libs;
@@ -6231,6 +6245,24 @@ class RootNamespace : Namespace
     }
     function emitroot(var e)
     {
+        var predefs_used = self.predefs_used;
+        if (predefs_used['chomp'] != null) {
+            e.say(
+".sub 'initialize' :load :init :anon\n" +
+"  load_bytecode 'String/Utils.pbc'\n" +
+".end\n"
+            );
+        }
+        int trans = 0;
+        string trfuncs[] = [
+            'acos', 'asin', 'atan', 'cos', 'exp', 'ln', 'sin', 'tan', 'pow'
+        ];
+        for (string trfun in trfuncs)
+            if (predefs_used[trfun] != null)
+                trans = 1;
+        if (trans)
+            e.say(".loadlib 'trans_ops'");
+
         var libs = self.libs;
         if (libs != null) {
             for (string libname in libs)
@@ -6289,14 +6321,6 @@ class WinxedCompiler
         e.say('');
 
         self.rootns.emitroot(e);
-
-        if (e.predef_is_used('chomp')) {
-            e.say(
-".sub 'initialize' :load :init :anon\n" +
-"  load_bytecode 'String/Utils.pbc'\n" +
-".end\n"
-            );
-        }
 
         e.comment('End generated code');
     }
