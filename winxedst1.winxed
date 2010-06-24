@@ -1240,12 +1240,6 @@ function namespacekey(var path)
     return s;
 }
 
-class Item
-{
-    function isNamespace() { return 0; }
-    function isClass() { return 0; }
-}
-
 function parseUsing(t, tk, owner)
 {
     var taux = tk.get();
@@ -1341,7 +1335,7 @@ function parseStatement(tk, owner)
 //            Statement
 //*********************************************
 
-class Statement : Item, CommonBase
+class Statement : CommonBase
 {
     function initstatement(start, owner)
     {
@@ -1418,7 +1412,7 @@ class EmptyStatement : Statement
     }
 }
 
-class MultiStatement : Item
+class MultiStatement
 {
     var statements;
     function init[vtable]()
@@ -5265,24 +5259,25 @@ class DeclareStatement : Statement
         string name = self.name;
         string reg = self.reg;
         string t_reg = self.t_reg;
+        var init = self.init;
         e.comment(tname + ' ' + name + ': ' + reg);
 
         if (self.typearray == 0) {
-            if (self.init == null || self.init.isnull())
+            if (init == null || init.isnull())
                 self.defaultinit(e);
             else {
-                string itype = self.init.checkResult();
+                string itype = init.checkResult();
                 if (itype == t_reg) {
-                    self.init.emit(e, reg);
+                    init.emit(e, reg);
                 }
                 else {
-                    if (self.init instanceof IndexExpr) {
+                    if (init instanceof IndexExpr) {
                         // Use the declared type for the indexing
-                        self.init.emit(e, reg);
+                        init.emit(e, reg);
                     }
                     else {
                         string ireg = self.tempreg(itype);
-                        self.init.emit(e, ireg);
+                        init.emit(e, ireg);
                         if (t_reg == REGstring && itype == REGvar) {
                             string auxlabel = self.genlabel();
                             e.emitnull(reg);
@@ -5301,25 +5296,25 @@ class DeclareStatement : Statement
             if (size != null) {
                 // Fixed size array
                 string regsize = size.emit_get(e);
-                e.say('new ', self.reg, ", ['Fixed", self.t_array, "Array'], ", regsize);
+                e.say('new ', reg, ", ['Fixed", self.t_array, "Array'], ", regsize);
             }
             else {
                 // Variable size array
-                e.say('root_new ', self.reg, ", ['parrot'; 'Resizable", self.t_array, "Array']");
+                e.say('root_new ', reg, ", ['parrot'; 'Resizable", self.t_array, "Array']");
             }
-            if (self.init != null) {
-                string reg = self.tempreg(t_reg);
-                int n = self.init;
+            if (init != null) {
+                string itemreg = self.tempreg(t_reg);
+                int n = elements(init);
                 if (size == null) {
                     if (n > 0) {
                         // Allocate initializers size
-                        e.emitset(self.reg, n);
+                        e.emitset(reg, n);
                     }
                 }
                 int i= 0;
-                for (var item in self.init) {
-                    item.emit(e, reg);
-                    e.say(self.reg, '[', i , '] = ', reg);
+                for (var item in init) {
+                    item.emit(e, itemreg);
+                    e.say(reg, '[', i , '] = ', itemreg);
                     ++i;
                 }
             }
@@ -5946,7 +5941,7 @@ class MethodStatement : FunctionStatement
 //            ClassStatement
 //*********************************************
 
-class ClassStatement : Item, VarContainer
+class ClassStatement : VarContainer
 {
     var parent;
     var owner;
@@ -5957,7 +5952,6 @@ class ClassStatement : Item, VarContainer
     var members;
     var classns;
 
-    function isClass() { return 1; }
     function init [vtable] ()
     {
         self.functions = [];
@@ -6068,10 +6062,10 @@ class ClassStatement : Item, VarContainer
 }
 
 //*********************************************
-//            Namespace
+//            NamespaceStatement
 //*********************************************
 
-class Namespace : Item, VarContainer
+class NamespaceStatement : VarContainer
 {
     var parent;
     var owner;
@@ -6081,7 +6075,6 @@ class Namespace : Item, VarContainer
     var functions;
     var items;
 
-    function isNamespace() { return 1; }
     function init [vtable] ()
     {
         self.namespaces= [];
@@ -6133,7 +6126,7 @@ class Namespace : Item, VarContainer
                 t= tk.get();
                 if (!t.isop('{'))
                     Expected('{', t);
-                var child= new Namespace();
+                var child= new NamespaceStatement();
                 child.init_child(self, name);
                 self.namespaces.push(child);
                 self.items.push(child);
@@ -6193,7 +6186,8 @@ class Namespace : Item, VarContainer
 
         int activate= 1;
         for (var item in self.items) {
-            if (item.isNamespace() || item.isClass())
+            if ((item instanceof NamespaceStatement) || 
+                    (item instanceof ClassStatement))
                 activate= 1;
             else
                 if (activate) {
@@ -6209,7 +6203,7 @@ class Namespace : Item, VarContainer
 //            RootNamespace
 //*********************************************
 
-class RootNamespace : Namespace
+class RootNamespace : NamespaceStatement
 {
     var predefs_used;
     var libs;
