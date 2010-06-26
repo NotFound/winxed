@@ -6088,6 +6088,10 @@ class NamespaceStatement : VarContainer
         self.owner = parent;
         self.name= name;
     }
+    function use_predef(string name)
+    {
+        self.owner.use_predef(name);
+    }
     function getpath()
     {
         var path=self.parent.getpath();
