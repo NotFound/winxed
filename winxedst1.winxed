@@ -2862,6 +2862,8 @@ class OpAddExpr : OpBinaryExpr
     {
         string rl = self.lexpr.checkResult();
         string rr = self.rexpr.checkResult();
+        if (rl == rr)
+            return rl;
         if (rl == REGstring && rr == REGstring)
             return REGstring;
         if (rl == REGint && rr == REGstring)
@@ -2948,6 +2950,8 @@ class OpSubExpr : OpBinaryExpr
     {
         string rl = self.lexpr.checkResult();
         string rr = self.rexpr.checkResult();
+        if (rl == rr)
+            return rl;
         if (rl == REGfloat && rr == REGfloat)
             return REGfloat;
         if (rl == REGint && rr == REGfloat)
@@ -2968,17 +2972,6 @@ class OpSubExpr : OpBinaryExpr
 
 class OpMulExpr : OpBinaryExpr
 {
-    function checkResult()
-    {
-        var lexpr = self.lexpr;
-        var ltype = lexpr.checkResult();
-        if (ltype == REGstring)
-            return REGstring;
-        if (ltype == REGint && self.rexpr.checkResult() == REGint)
-            return REGint;
-        else
-            return REGfloat;
-    }
     function optimize()
     {
         self.optimizearg();
@@ -2996,6 +2989,20 @@ class OpMulExpr : OpBinaryExpr
             }
         }
         return self;
+    }
+    function checkResult()
+    {
+        var lexpr = self.lexpr;
+        string rl = self.lexpr.checkResult();
+        string rr = self.rexpr.checkResult();
+        if (rl == rr)
+            return rl;
+        if (rl == REGstring)
+            return REGstring;
+        if (rl == REGint && rr == REGint)
+            return REGint;
+        else
+            return REGfloat;
     }
     function emit(e, result)
     {
