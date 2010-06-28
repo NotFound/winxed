@@ -187,24 +187,54 @@ function main(argv)
     getopts.push_string('user|u=s');
     getopts.push_string('password|p:s');
     getopts.push_string('database|D=s');
+    getopts.push_string('config|D=s');
     argv.shift();
     var opts = getopts.get_options(argv);
-    string host = opts['host'];
-    string user = opts['user'];
-    var vpass = opts['password'];
-    string database = opts['database'];
+
+    string host;
+    string user;
+    string pass;
+    string database;
+
+    string config = opts['config'];
+    if (config != null && config != '') {
+        // Get config from file in json format.
+        try {
+            var json = load_language('data_json');
+            var code = json.compile(open(config).readall());
+            var data = code();
+            if (data['host'] != null)
+                host = data['host'];
+            if (data['user'] != null)
+                user = data['user'];
+            if (data['password'] != null)
+                pass = data['password'];
+            if (data['database'] != null)
+                database = data['database'];
+        }
+        catch(e) {
+            cry('Error reading config file: ', e['message']);
+            return;
+        }
+    }
+
+    host = opts['host'];
+    if (opts['user'] != null)
+        user = opts['user'];
+    if (opts['password'] != null)
+        pass= opts['password'];
+    if (opts['database'] != null)
+        database = opts['database'];
 
     if (host == null || host == '') host = 'localhost';
     if (user == null || user == '') user = 'parrot';
 
-    // Need a ver here, keyed string access returns empty
+    // Need a var here, keyed string access returns empty
     // string instead of null in current parrot versions.
-    string pass;
-    if (vpass == null) pass = 'baDworD';
-    else {
-        pass= vpass;
-        if (pass == '') die("Sorry, asking for password not implemented");
-    }
+    if (pass == null)
+        pass = 'baDworD';
+    else if (pass == '')
+        die("Sorry, asking for password not implemented");
 
     if (database == null || database == '') database = 'parrot';
 
@@ -244,7 +274,7 @@ function main(argv)
         say("\tERROR: ", e['message']);
         if (result != null) result.close();
         mysql.close();
-	return;
+        return;
     }
     mysql.close();
 }
