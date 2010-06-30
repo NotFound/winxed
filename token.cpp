@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 24-mar-2010
+// Revision 30-jun-2010
 
 #include "token.h"
 #include "errors.h"
@@ -320,6 +320,34 @@ std::string Tokenizer::quoted()
     return s;
 }
 
+Token Tokenizer::getheredoc()
+{
+    unsigned int linenum = ln;
+    std::string mark;
+    char c;
+    while ((c = getchar()) != '\n' && c != '\0')
+        mark += c;
+    if (c == 0)
+        throw SyntaxError ("Unterminated heredoc ",
+            Token(TokenTQuoted, "<<:", linenum, name));
+    mark += ":>>";
+    std::string content;
+    std::string line;
+    do {
+        line = "";
+        while ((c = getchar()) != '\n' && c != '\0')
+            line += c;
+        if (c == 0)
+            throw SyntaxError ("Unterminated heredoc ",
+                Token(TokenTQuoted, "<<:", linenum, name));
+        if (line != mark) {
+            content += line;
+            content += '\n';
+        }
+    } while (line != mark);
+    return Token(TokenTQuoted, content, linenum, name);
+}
+
 void Tokenizer::unget (const Token & t)
 {
     untoc.push_back(t);
@@ -387,7 +415,16 @@ Token Tokenizer::getany ()
     case '<':
         switch ((c= getchar()))
         {
-        case '<': case '=':
+        case '<':
+            c = getchar();
+            if (c == ':')
+                return getheredoc();
+            else {
+                s+= '<';
+                ungetchar(c);
+            }
+            break;
+        case '=':
             s+= c;
             break;
         default:

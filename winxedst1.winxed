@@ -278,6 +278,36 @@ function getsinglequoted(tk, string start, int line)
     return newToken(TypeSingleQuoted, s, tk.filename, line);
 }
 
+function getheredoc(tk, string start, int linenum)
+{
+    string mark = '';
+    string c = tk.getchar();
+    while (c != "\n" && c != '') {
+        mark = mark + c;
+        c = tk.getchar();
+    }
+    if (c == '')
+        TokenError('Unterminated heredoc', tk, linenum);
+    mark = mark + ':>>';
+    string content = '';
+    string line;
+    do {
+        line = '';
+        c = tk.getchar();
+        while (c != "\n" && c != '') {
+            line = line + c;
+            c = tk.getchar();
+        }
+        if (c == '')
+            TokenError('Unterminated heredoc', tk, linenum);
+        if (line != mark) {
+            content += line;
+            content += '\n';
+        }
+    } while (line != mark);
+    return newToken(TypeQuoted, content, tk.filename, linenum);
+}
+
 function getident(tk, string start, int line)
 {
     string s= start;
@@ -387,7 +417,7 @@ class Tokenizer
             '-': { '-': getop, '=': getop },
             '|': { '|': getop },
             '&': { '&': getop },
-            '<': { '<': getop, '=': getop },
+            '<': { '<': { '': getop, ':': getheredoc }, '=': getop },
             '>': { '>': getop, '=': getop },
             '!': { '=': getop },
             '%': { '%': getop },
@@ -442,7 +472,22 @@ class Tokenizer
             var current2= current[c2];
             if (current2) {
                 c+= c2;
-                return current2(self, c, line);
+                if (current2 instanceof 'Hash') {
+                    string c3 = self.getchar();
+                    var current3 = current2[c3];
+                    if (current3) {
+                        c+= c3;
+                        return current3(self, c, line);
+                    }
+                    else {
+                        self.ungetchar(c3);
+                        current3 = current[''];
+                        if (current3)
+                            return current3(self, c, line);
+                    }
+                }
+                else
+                    return current2(self, c, line);
             }
             else {
                 self.ungetchar(c2);
