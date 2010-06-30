@@ -218,7 +218,8 @@ function main(argv)
         }
     }
 
-    host = opts['host'];
+    if (opts['host'] != null)
+        host = opts['host'];
     if (opts['user'] != null)
         user = opts['user'];
     if (opts['password'] != null)
