@@ -134,13 +134,18 @@ test2: winxed$(EXEEXT) winxedst2.pbc
 
 clean:
 	rm -f winxedst2$(EXEEXT)
+	rm -f winxedst2$(OBJEXT)
+	rm -f winxedst2.c
 	rm -f winxedst1$(EXEEXT)
+	rm -f winxedst1$(OBJEXT)
+	rm -f winxedst1.c
 	rm -f winxedst0$(EXEEXT)
 	rm -f winxedst2.pbc
 	rm -f winxedst1.pbc
 	rm -f winxedst2.pir
 	rm -f winxedst1.pir
 	rm -f winxed$(EXEEXT)
+	rm -f winxed$(OBJEXT)
 	rm -f winxed.c
 	rm -f winxed.pbc
 	rm -f winxed.pir
