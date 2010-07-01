@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 10-jun-2010
+// Revision 1-jul-2010
 
 // Winxed compiler stage 0.
 
@@ -4925,7 +4925,7 @@ void UsingStatement::emit (Emit &e)
             ", '" << n << "'\n";
     else
         e  << n <<
-            " = get_hll_global " << n << ", '" << n << "'\n";
+            " = get_hll_global '" << n << "'\n";
 }
 
 //**********************************************************************
