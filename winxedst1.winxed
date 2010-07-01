@@ -5950,6 +5950,7 @@ class FunctionStatement : BlockStatement
                         default:
                             SyntaxError('Invalid modifier', self.start);
                         }
+                        e.print(" :named(", setname, ")");
                     }
                     else if (slurpy != null) {
                         e.print(" :slurpy");
