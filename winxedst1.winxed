@@ -465,38 +465,25 @@ class Tokenizer
             return getident(self, c, line);
         if (isdigit(c))
             return getnumber(self, c, line);
+
+        string op = c;
         var select = self.select;
-        var current= select[c];
-        if (current) {
-            string c2= self.getchar();
-            var current2= current[c2];
-            if (current2) {
-                c+= c2;
-                if (current2 instanceof 'Hash') {
-                    string c3 = self.getchar();
-                    var current3 = current2[c3];
-                    if (current3) {
-                        c+= c3;
-                        return current3(self, c, line);
-                    }
-                    else {
-                        self.ungetchar(c3);
-                        current3 = current[''];
-                        if (current3)
-                            return current3(self, c, line);
-                    }
-                }
-                else
-                    return current2(self, c, line);
+        var current = select[c];
+
+        while (current != null && (current instanceof 'Hash')) {
+            c = self.getchar();
+            select = current;
+            current= select[c];
+            if (current == null) {
+                self.ungetchar(c);
+                current = select[''];
             }
-            else {
-                self.ungetchar(c2);
-                current2= current[''];
-                if (current2)
-                    return current2(self, c, line);
-            }
+            else
+                op += c;
         }
-        return getop(self, c, line);
+        if (current)
+            return current(self, op, line);
+        return getop(self, op, line);
     }
     function get(int withcomments [optional])
     {
