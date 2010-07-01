@@ -1688,6 +1688,18 @@ class VarContainer
             'const': 0 };
         return reg;
     }
+    function createvarnamed(var name, string type, string pirname)
+    {
+        var locals= self.locals;
+        string sname= name;
+        var exist= locals[sname];
+        if (exist != null)
+            SyntaxError("Redeclared '" + sname + "'", name);
+        locals[sname] = {
+            'type': type,
+            'reg': pirname,
+            'const': 0 };
+    }
     function createconst(var name, string type, var value, string id)
     {
         var locals= self.locals;
@@ -5850,6 +5862,7 @@ class FunctionStatement : BlockStatement
         t= tk.get();
         if (! t.isop(')')) {
             tk.unget(t);
+            int argnum = 0;
             do {
                 t= tk.get();
                 string type = typetoregcheck(t.checkkeyword());
@@ -5857,7 +5870,8 @@ class FunctionStatement : BlockStatement
                     t= tk.get();
                 else
                     type = REGvar;
-                self.createvar(t, type);
+                string argname = '__ARG_' + string(++argnum);
+                self.createvarnamed(t, type, argname);
 
                 string varname = t;
                 var arg = { };
@@ -5906,7 +5920,7 @@ class FunctionStatement : BlockStatement
             argname = arg['name'];
             a = self.getvar(argname);
             string ptype = typetopirname(a['type']);
-            e.print('.param ', ptype, ' __', argname, '__');
+            e.print('.param ', ptype, ' ', a['reg']);
             var modarg = arg['modifiers'];
             if (modarg != null) {
                 var named = null;
@@ -5956,11 +5970,6 @@ class FunctionStatement : BlockStatement
                 }
             }
             e.say('');
-        }
-        for (arg in args) {
-            argname = arg['name'];
-            a = self.getvar(argname);
-            e.say('set ', a['reg'], ', __', argname, '__');
         }
         e.say();
         e.annotate(self.name);
