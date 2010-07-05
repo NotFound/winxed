@@ -1359,8 +1359,7 @@ function parseStatement(tk, owner)
     }
     if (st == null)
         InternalError('parseStatement failure');
-    st = st.parse(t, tk, owner);
-    return st;
+    return st.parse(t, tk, owner);
 }
 
 //*********************************************
@@ -3365,6 +3364,7 @@ class CallExpr : Expr
     function emit(e, result)
     {
         var funref = self.funref;
+        int ismethod = funref instanceof MemberExpr;
         string call;
         if (funref.isidentifier()) {
             call = funref.checkIdentifier();
@@ -3373,13 +3373,9 @@ class CallExpr : Expr
                 call = "'" + aux + "'";
             }
         }
-        else {
-            if (funref instanceof MemberExpr) {
-                call = funref.emit_left_get(e);
-            }
-            else
-                call = funref.emit_get(e);
-        }
+        else
+            call = ismethod ? funref.emit_left_get(e) : funref.emit_get(e);
+
         string argreg[];
         var args = self.args;
         for (var argument in args) {
@@ -3395,17 +3391,18 @@ class CallExpr : Expr
         }
         self.annotate(e);
 
-        if (result == '.tailcall')
-            e.print('.tailcall ', call);
-        else {
-            if (result != null)
-                e.print(result, ' = ');
-
-            if (funref instanceof MemberExpr)
-                e.print(call, ".'", funref.get_member(), "'");
+        if (result != null) {
+            if (result == '.tailcall')
+                e.print('.tailcall ');
             else
-                e.print(call);
+                e.print(result, ' = ');
         }
+
+        if (ismethod)
+            e.print(call, ".'", funref.get_member(), "'");
+        else
+            e.print(call);
+
         e.print('(');
 
         string sep = '';
@@ -4452,11 +4449,13 @@ class ReturnYieldStatement : Statement
         // Experimental tailcall optimization
         if (n == 1 && (self instanceof ReturnStatement)) {
             var func = values[0];
-            // Generate a tailcall only in simpls function calls.
-            if ((func instanceof CallExpr) && func.funref.isidentifier()) {
-                self.annotate(e);
-                func.emit(e, '.tailcall');
-                return;
+            // Generate a tailcall in simple function calls and in method calls.
+            if (func instanceof CallExpr) {
+                var funref = func.funref;
+                if (funref.isidentifier() || (funref instanceof MemberExpr)) {
+                    self.annotate(e);
+                    return func.emit(e, '.tailcall');
+                }
             }
         }
         for (int i= 0; i < n; ++i) {
