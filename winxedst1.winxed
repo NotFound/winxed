@@ -671,6 +671,7 @@ class PredefFunction
 {
     var name;
     var body;
+    var evalfun;
     var typeresult;
     var type0;
     var type1;
@@ -726,6 +727,18 @@ class PredefFunction
             }
         }
         self.nparams = n;
+        return self;
+    }
+    function set_eval(string name,
+        var evalfun,
+        string body,
+        string typeresult,
+        string type0[optional],
+        string type1[optional],
+        string type2[optional])
+    {
+        self.evalfun = evalfun;
+        self.set(name, body, typeresult, type0, type1, type2);
         return self;
     }
     function expand(e, start, string result, args)
@@ -808,11 +821,52 @@ class Predef_print
     }
 }
 
+function predefeval_length(var owner, var start, var args)
+{
+    var arg = args[0].arg;
+    string s = arg.get_value();
+    int l = length(s);
+    return new IntegerLiteral().set(owner, start, l);
+}
+
+function predefeval_bytelength(var owner, var start, var args)
+{
+    var arg = args[0].arg;
+    string s = arg.get_value();
+    int l = bytelength(s);
+    return new IntegerLiteral().set(owner, start, l);
+}
+
+function predefeval_ord(var owner, var start, var args)
+{
+    var arg = args[0].arg;
+    string s = arg.get_value();
+    int c = ord(s);
+    return new IntegerLiteral().set(owner, start, c);
+}
+
+function predefeval_chr(var owner, var start, var args)
+{
+    var arg = args[0].arg;
+
+    int n = arg.numval;
+    string s = chr(n);
+
+    var t = newTokenFrom(TypeQuoted, s, start);
+    return new StringLiteral().set(owner, t);
+}
+
 function getpredefs()
 {
     var predef_say = new Predef_say();
     var predef_cry = new Predef_cry();
     var predef_print = new Predef_print();
+
+    using predefeval_length;
+    using predefeval_bytelength;
+    using predefeval_chr;
+    using predefeval_ord;
+
     var predefs = [
         new PredefFunction().set('int',
             '{res} = {arg0}',
@@ -878,21 +932,25 @@ function getpredefs()
             'elements {res}, {arg0}',
             REGint, REGvar
         ),
-        new PredefFunction().set('length',
+        new PredefFunction().set_eval('length',
+            predefeval_length,
             'length {res}, {arg0}',
             REGint, REGstring
         ),
-        new PredefFunction().set('bytelength',
+        new PredefFunction().set_eval('bytelength',
+            predefeval_bytelength,
             'bytelength {res}, {arg0}',
             REGint, REGstring
         ),
-        new PredefFunction().set('chr',
+        new PredefFunction().set_eval('chr',
+            predefeval_chr,
             "chr $S0, {arg0}\n" +
             "find_encoding $I0, 'utf8'\n" +
             "trans_encoding {res}, $S0, $I0",
             REGstring, REGint
         ),
-        new PredefFunction().set('ord',
+        new PredefFunction().set_eval('ord',
+            predefeval_ord,
             'ord {res}, {arg0}',
             REGint, REGstring
         ),
@@ -1901,6 +1959,16 @@ class StringLiteral : SimpleExpr
         str = q + str + q;
         if (need_unicode)
             str = 'unicode:' + str;
+        return str;
+    }
+    function get_value()
+    {
+        var strtok = self.strval;
+        string str = strtok.str;
+        if (strtok.type == TypeQuoted) {
+            var s = str;
+            str = s.unescape('unicode', 'utf8');
+        }
         return str;
     }
     function emit(e, result)
@@ -3242,6 +3310,18 @@ class Argument
         self.arg = self.arg.optimize();
         return self;
     }
+    function hascompilevalue()
+    {
+        return self.arg.hascompilevalue();
+    }
+}
+
+function arglist_hascompilevalue(var arglist)
+{
+    for (var arg in arglist)
+        if (! arg.hascompilevalue())
+            return false;
+    return true;
 }
 
 //*********************************************
@@ -3355,6 +3435,14 @@ class CallExpr : Expr
             var predef = findpredef(call, elements(args));
             if (predef != null) {
                 self.use_predef(call);
+
+                // Check for compile time evaluation.
+                var evalfun = predef.evalfun;
+                if (evalfun != null) {
+                    if (arglist_hascompilevalue(args))
+                        return evalfun(self.owner, self.start, args);
+                }
+
                 return new CallPredefExpr().init(self.owner, self.start, predef, args);
             }
         }
