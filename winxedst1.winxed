@@ -283,18 +283,37 @@ function getheredoc(tk, string start, int linenum)
     string mark = '';
     string c = tk.getchar();
     while (c != "\n" && c != '') {
+        // Encode the mark the same way as the heredoc content
+        // to simplify its detection
+        switch (c) {
+          case '"':
+            c = '\"';
+            break;
+          case '\':
+            c = '\\';
+            break;
+        }
         mark = mark + c;
         c = tk.getchar();
     }
     if (c == '')
         TokenError('Unterminated heredoc', tk, linenum);
     mark = mark + ':>>';
+
     string content = '';
     string line;
     do {
         line = '';
         c = tk.getchar();
         while (c != "\n" && c != '') {
+            switch (c) {
+              case '"':
+                c = '\"';
+                break;
+              case '\':
+                c = '\\';
+                break;
+            }
             line = line + c;
             c = tk.getchar();
         }
