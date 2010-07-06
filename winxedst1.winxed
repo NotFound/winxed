@@ -864,6 +864,16 @@ function predefeval_ord(var owner, var start, var args)
     return new IntegerLiteral().set(owner, start, c);
 }
 
+function predefeval_ord_n(var owner, var start, var args)
+{
+    var arg = args[0].arg;
+    string s = arg.get_value();
+    var argn = args[1].arg;
+    int n = argn.numval;
+    int c = ord(s, n);
+    return new IntegerLiteral().set(owner, start, c);
+}
+
 function predefeval_chr(var owner, var start, var args)
 {
     var arg = args[0].arg;
@@ -885,6 +895,7 @@ function getpredefs()
     using predefeval_bytelength;
     using predefeval_chr;
     using predefeval_ord;
+    using predefeval_ord_n;
 
     var predefs = [
         new PredefFunction().set('int',
@@ -973,7 +984,8 @@ function getpredefs()
             'ord {res}, {arg0}',
             REGint, REGstring
         ),
-        new PredefFunction().set('ord',
+        new PredefFunction().set_eval('ord',
+            predefeval_ord_n,
             'ord {res}, {arg0}, {arg1}',
             REGint, REGstring, REGint
         ),
