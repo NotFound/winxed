@@ -429,19 +429,22 @@ class Tokenizer
         self.filename= filename;
         self.line= 1;
         var select = {
-            '"': { '': getquoted },
-            "'": { '': getsinglequoted },
+            '"': getquoted,
+            "'": getsinglequoted,
             '=': { '=': getop, ':': getop },
             '+': { '+': getop, '=': getop },
             '-': { '-': getop, '=': getop },
             '|': { '|': getop },
             '&': { '&': getop },
-            '<': { '<': { '': getop, ':': getheredoc }, '=': getop },
+            '<': {
+                '<': { '': getop, ':': getheredoc },
+                '=': getop
+            },
             '>': { '>': getop, '=': getop },
             '!': { '=': getop },
             '%': { '%': getop },
             '/': { '/': getlinecomment, '*': getcomment },
-            '#': { '': getlinecomment }
+            '#': getlinecomment
         };
         self.select= select;
     }
