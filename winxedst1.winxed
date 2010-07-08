@@ -686,6 +686,16 @@ class Emit
 }
 
 //*********************************************
+//         Helper functions
+//*********************************************
+
+function integerValue(var owner, var start, int value)
+{
+    var ival = new IntegerLiteral();
+    return ival.set(owner, start, value);
+}
+
+//*********************************************
 //         Predefined functions
 //*********************************************
 
@@ -847,24 +857,21 @@ function predefeval_length(var owner, var start, var args)
 {
     var arg = args[0].arg;
     string s = arg.get_value();
-    int l = length(s);
-    return new IntegerLiteral().set(owner, start, l);
+    return integerValue(owner, start, length(s));
 }
 
 function predefeval_bytelength(var owner, var start, var args)
 {
     var arg = args[0].arg;
     string s = arg.get_value();
-    int l = bytelength(s);
-    return new IntegerLiteral().set(owner, start, l);
+    return integerValue(owner, start, bytelength(s));
 }
 
 function predefeval_ord(var owner, var start, var args)
 {
     var arg = args[0].arg;
     string s = arg.get_value();
-    int c = ord(s);
-    return new IntegerLiteral().set(owner, start, c);
+    return integerValue(owner, start, ord(s));
 }
 
 function predefeval_ord_n(var owner, var start, var args)
@@ -873,8 +880,7 @@ function predefeval_ord_n(var owner, var start, var args)
     string s = arg.get_value();
     var argn = args[1].arg;
     int n = argn.numval;
-    int c = ord(s, n);
-    return new IntegerLiteral().set(owner, start, c);
+    return integerValue(owner, start, ord(s, n));
 }
 
 function predefeval_chr(var owner, var start, var args)
@@ -2296,8 +2302,7 @@ class OpUnaryMinusExpr : OpUnaryExpr
         if (self.subexpr.isintegerliteral()) {
             var numval = self.subexpr.numval;
             int n = numval;
-            n = - n;
-            return new IntegerLiteral().set(self.owner, self.subexpr.start, n);
+            return integerValue(self.owner, self.subexpr.start, -n);
         }
         return self;
     }
@@ -2328,8 +2333,7 @@ class OpNotExpr : OpUnaryExpr
         if (self.subexpr.isintegerliteral()) {
             var numval = self.subexpr.numval;
             int n = numval;
-            n = ! n;
-            return new IntegerLiteral().set(self.owner, self.subexpr.start, n);
+            return integerValue(self.owner, self.subexpr.start, ! n);
         }
         return self;
     }
@@ -2701,7 +2705,7 @@ class OpEqualExpr : ComparatorBaseExpr
         int lnull = self.lexpr.isnull();
         int rnull = self.rexpr.isnull();
         if (lnull && rnull)
-            return new IntegerLiteral().set(self.owner, self.start, 1);
+            return integerValue(self.owner, self.start, 1);
         else if (lnull)
             return new OpIsNullExpr().set(self, self.rexpr);
         else if (rnull)
@@ -2729,7 +2733,7 @@ class OpNotEqualExpr : ComparatorBaseExpr
         int lnull = self.lexpr.isnull();
         int rnull = self.rexpr.isnull();
         if (lnull && rnull)
-            return new IntegerLiteral().set(self.owner, self.start, 0);
+            return integerValue(self.owner, self.start, 0);
         else if (lnull)
             return new OpNotNullExpr().set(self, self.rexpr);
         else if (rnull)
@@ -2789,20 +2793,18 @@ class OpGreaterEqualExpr : ComparatorBaseExpr
 
 //*********************************************
 
-class OpBoolAndExpr : OpBinaryExpr
+class OpBaseBoolExpr : OpBinaryExpr
 {
     function checkResult()
     {
         return REGint;
     }
-    function set(owner, t, eleft, eright)
-    {
-        self.owner = owner;
-        self.start = t;
-        self.lexpr = eleft;
-        self.rexpr = eright;
-        return self;
-    }
+}
+
+//*********************************************
+
+class OpBoolAndExpr : OpBaseBoolExpr
+{
     function optimize()
     {
         self.optimizearg();
@@ -2812,7 +2814,7 @@ class OpBoolAndExpr : OpBinaryExpr
             if (ln != 0)
                return self.rexpr;
             else
-                return new IntegerLiteral().set(self.owner, self.start, ln);
+                return integerValue(self.owner, self.start, ln);
         }
         return self;
     }
@@ -2838,20 +2840,8 @@ class OpBoolAndExpr : OpBinaryExpr
 
 //*********************************************
 
-class OpBoolOrExpr : OpBinaryExpr
+class OpBoolOrExpr : OpBaseBoolExpr
 {
-    function checkResult()
-    {
-        return REGint;
-    }
-    function set(owner, t, eleft, eright)
-    {
-        self.owner = owner;
-        self.start = t;
-        self.lexpr = eleft;
-        self.rexpr = eright;
-        return self;
-    }
     function optimize()
     {
         self.optimizearg();
@@ -2861,7 +2851,7 @@ class OpBoolOrExpr : OpBinaryExpr
             if (ln == 0)
                return self.rexpr;
             else
-                return new IntegerLiteral().set(self.owner, self.start, ln);
+                return integerValue(self.owner, self.start, ln);
         }
         return self;
     }
@@ -2891,20 +2881,18 @@ class OpBoolOrExpr : OpBinaryExpr
 
 //*********************************************
 
-class OpBinAndExpr : OpBinaryExpr
+class OpBaseBinExpr : OpBinaryExpr
 {
     function checkResult()
     {
         return REGint;
     }
-    function set(owner, t, eleft, eright)
-    {
-        self.owner = owner;
-        self.start = t;
-        self.lexpr = eleft;
-        self.rexpr = eright;
-        return self;
-    }
+}
+
+//*********************************************
+
+class OpBinAndExpr : OpBaseBinExpr
+{
     function optimize()
     {
         self.optimizearg();
@@ -2913,7 +2901,7 @@ class OpBinAndExpr : OpBinaryExpr
             int ln = lval;
             var rval = self.rexpr.numval;
             int rn = rval;
-            return new IntegerLiteral().set(self.owner, self.start, ln & rn);
+            return integerValue(self.owner, self.start, ln & rn);
         }
         return self;
     }
@@ -2930,20 +2918,8 @@ class OpBinAndExpr : OpBinaryExpr
 
 //*********************************************
 
-class OpBinOrExpr : OpBinaryExpr
+class OpBinOrExpr : OpBaseBinExpr
 {
-    function checkResult()
-    {
-        return REGint;
-    }
-    function set(owner, t, eleft, eright)
-    {
-        self.owner = owner;
-        self.start = t;
-        self.lexpr = eleft;
-        self.rexpr = eright;
-        return self;
-    }
     function optimize()
     {
         self.optimizearg();
@@ -2952,7 +2928,7 @@ class OpBinOrExpr : OpBinaryExpr
             int ln = lval;
             var rval = self.rexpr.numval;
             int rn = rval;
-            return new IntegerLiteral().set(self.owner, self.start, ln | rn);
+            return integerValue(self.owner, self.start, ln | rn);
         }
         return self;
     }
@@ -2998,7 +2974,7 @@ class OpAddExpr : OpBinaryExpr
                 int ln = lval;
                 var rval = rexpr.numval;
                 int rn = rval;
-                return new IntegerLiteral().set(self.owner, self.start, ln + rn);
+                return integerValue(self.owner, self.start, ln + rn);
             }
         }
         return self;
@@ -3086,7 +3062,7 @@ class OpSubExpr : OpBinaryExpr
                 int ln = lval;
                 var rval = rexpr.numval;
                 int rn = rval;
-                return new IntegerLiteral().set(self.owner, self.start, ln - rn);
+                return integerValue(self.owner, self.start, ln - rn);
             }
         }
         return self;
@@ -3130,7 +3106,7 @@ class OpMulExpr : OpBinaryExpr
                 int ln = lval;
                 var rval = rexpr.numval;
                 int rn = rval;
-                return new IntegerLiteral().set(self.owner, self.start, ln * rn);
+                return integerValue(self.owner, self.start, ln * rn);
             }
         }
         return self;
@@ -6458,11 +6434,11 @@ class WinxedCompiler
         var taux = newToken(TypeIdentifier, 'predefconst', 0, '__predefconst__');
 
         rootns.createconst('false', REGint,
-                new IntegerLiteral().set(rootns,
+                integerValue(rootns,
                     newTokenFrom(TypeInteger, 'false', taux), 0),
                     '');
         rootns.createconst('true', REGint,
-                new IntegerLiteral().set(rootns,
+                integerValue(rootns,
                     newTokenFrom(TypeInteger, 'false', taux), 1),
                     '');
         // Tricky way of setting __STAGE__: stage 1 is built with
