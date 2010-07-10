@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 30-jun-2010
+// Revision 10-jul-2010
 
 #include "token.h"
 #include "errors.h"
@@ -270,10 +270,10 @@ void Tokenizer::ungetchar(char c)
     unc = c;
 }
 
-std::string Tokenizer::quoted()
+Token Tokenizer::getquoted()
 {
     std::string s;
-    unsigned int line = ln;
+    unsigned int linenum = ln;
     char c;
     while ((c= getchar()) && is && c != '"' && c != '\n')
     {
@@ -316,8 +316,23 @@ std::string Tokenizer::quoted()
     }
     if ((!is) || c != '"')
         throw SyntaxError ("Unterminated string ",
-            Token(TokenTQuoted, s, line, name));
-    return s;
+            Token(TokenTQuoted, s, linenum, name));
+    return Token(TokenTQuoted, s, linenum, name);
+}
+
+Token Tokenizer::getsinglequoted()
+{
+    std::string s;
+    unsigned int linenum = ln;
+    char c;
+    while ((c= getchar()) && is && c != '\'' && c != '\n')
+        s+= c;
+    if ((!is) || c != '\'')
+    {
+        throw SyntaxError("Unterminated string",
+            Token(TokenTSingleQuoted, s, linenum, name));
+    }
+    return Token(TokenTSingleQuoted, s, linenum, name);
 }
 
 Token Tokenizer::getheredoc()
@@ -472,18 +487,9 @@ Token Tokenizer::getany ()
         }
         break;
     case '\'':
-        s= std::string();
-        while ((c= getchar()) && is && c != '\'' && c != '\n')
-            s+= c;
-        if ((!is) || c != '\'')
-        {
-            throw SyntaxError("Unterminated string",
-                Token(TokenTSingleQuoted, s, linenum, name));
-        }
-        return Token(TokenTSingleQuoted, s, linenum, name);
+        return getsinglequoted ();
     case '"':
-        s= quoted ();
-        return Token(TokenTQuoted, s, linenum, name);
+        return getquoted ();
     case '0':
         c= getchar();
         if (c == 'x' || c == 'X')

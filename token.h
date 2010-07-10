@@ -2,7 +2,7 @@
 #define INCLUDE_TOKEN_H
 
 // token.h
-// Revision 30-jun-2010
+// Revision 10-jul-2010
 
 #include <string>
 #include <istream>
@@ -67,9 +67,10 @@ public:
 private:
 	char getchar();
 	void ungetchar(char c);
-	std::string quoted();
-	Token getany();
+	Token getquoted();
+	Token getsinglequoted();
 	Token getheredoc();
+	Token getany();
 
 	std::istream &is;
 	std::string name;
