@@ -1,0 +1,348 @@
+#! winxed
+
+// glcubes.winxed
+// Opengl demo
+
+//**********************************************************************
+
+const float PI = 3.1415926;
+
+const int
+  GLUT_RGBA           = 0x0000,
+  GLUT_DOUBLE         = 0x0002,
+  GLUT_DEPTH          = 0x0010,
+  GLUT_KEY_LEFT       = 0x0064,
+  GLUT_KEY_RIGHT      = 0x0066,
+  GLUT_KEY_UP         = 0x0065,
+  GLUT_KEY_DOWN       = 0x0067,
+  GL_COLOR_BUFFER_BIT = 0x00004000,
+  GL_DEPTH_BUFFER_BIT = 0x00000100,
+  GL_TRIANGLES        = 0x0004,
+  GL_QUADS            = 0x0007,
+  GL_BACK             = 0x0405,
+  GL_DEPTH_TEST       = 0x0B71,
+  GL_MODELVIEW        = 0x1700,
+  GL_PROJECTION       = 0x1701;
+
+/***********************************************************************
+                           Callbacks
+    OpenGL callbacks take no parameters, work around that by creating
+funtion objects for each callback that forward to the corresponding
+methods in a OpenGlWindow object.
+
+***********************************************************************/
+
+class OpenGlCallback
+{
+    var w; // The window this callback refers
+
+    // The callback mechanics checks 'does invokable',
+    // overriding does takes care of that requisite.
+    function does[vtable](string doname)
+    {
+        return doname == 'invokable';
+    }
+
+    // Initialize
+    function set(var w)
+    {
+        self.w = w;
+    }
+}
+
+class Reshape : OpenGlCallback
+{
+    function invoke[vtable](int w, int h)
+    {
+        self.w.reshape(w, h);
+    }
+}
+
+class Draw : OpenGlCallback
+{
+    function invoke[vtable]()
+    {
+        self.w.draw();
+    }
+}
+
+class Idle : OpenGlCallback
+{
+    function invoke[vtable]()
+    {
+        self.w.idle();
+    }
+}
+
+class Keyboard : OpenGlCallback
+{
+    function invoke[vtable](int key, int x, int y)
+    {
+        self.w.keyboard(key, x, y);
+    }
+}
+
+class Special : OpenGlCallback
+{
+    function invoke[vtable](int key, int x, int y)
+    {
+        self.w.specialKey(key, x, y);
+    }
+}
+
+//**********************************************************************
+
+class OpenGlWindow
+{
+    const float basestepangle = 1.0;
+
+    var savecb;
+    var w;
+    var init;
+    var aspect;
+    var ipos;
+    var vangle;
+    var angle;
+    var stepangle;
+    var distance;
+
+    function create(string title)
+    {
+        int w = glutCreateWindow(title);
+        self.w = w;
+        self.aspect = 1.0;
+        self.vangle = 20.0;
+        self.angle = 0.0;
+        self.stepangle = basestepangle;
+        self.ipos = 0;
+        self.distance = 6.0;
+
+        var savecb = [];
+        self.savecb = savecb;
+
+        var d = new Reshape(); d.set(self);
+        savecb.push(d);
+        glutReshapeFunc(d);
+        d = new Draw(); d.set(self);
+        savecb.push(d);
+        glutDisplayFunc(d);
+        d = new Keyboard(); d.set(self);
+        savecb.push(d);
+        glutKeyboardFunc(d);
+        d = new Special(); d.set(self);
+        savecb.push(d);
+        glutSpecialFunc(d);
+
+        float now;
+        ${ time now };
+        self.init = now;
+        d = new Idle(); d.set(self);
+        savecb.push(d);
+        glutIdleFunc(d);
+    }
+
+    function quad()
+    {
+        glBegin(GL_QUADS);
+        glVertex3f( 0.5,  0.5, 0.0);
+        glVertex3f( 0.5, -0.5, 0.0);
+        glVertex3f(-0.5, -0.5, 0.0);
+        glVertex3f(-0.5,  0.5, 0.0);
+        glEnd();
+    }
+    function cube(float r, float g, float b)
+    {
+        float f = 0.8;
+        glColor3f(r * f, g * f, b * f);
+
+        glPushMatrix();
+        glTranslatef(0.0, 0.0, -0.5);
+        self.quad();
+
+        f = 0.4;
+        glColor3f(r * f, g * f, b * f);
+        glPushMatrix();
+        glTranslatef(0.0, 0.0, 1.0);
+        glRotatef(180.0, 0.0, 1.0, 0.0);
+        self.quad();
+        glPopMatrix();
+
+        f = 0.7;
+        glColor3f(r * f, g * f, b * f);
+        glPushMatrix();
+        glRotatef(90.0, 0.0, 1.0, 0.0);
+        glTranslatef(-0.5, 0.0, -0.5);
+        self.quad();
+        f = 0.6;
+        glColor3f(r * f, g * f, b * f);
+        glTranslatef(0.0, 0.0, 1.0);
+        self.quad();
+        glPopMatrix();
+
+        f = 1.0;
+        glColor3f(r * f, g * f, b * f);
+        glPushMatrix();
+        glRotatef(90.0, 1.0, 0.0, 0.0);
+        glTranslatef( 0.0,  0.5, -0.5);
+        self.quad();
+        f = 0.3;
+        glColor3f(r * f, g * f, b * f);
+        glTranslatef(0.0, 0.0, 1.0);
+        self.quad();
+        glPopMatrix();
+
+        glPopMatrix();
+    }
+
+    function idle()
+    {
+        float init = self.init;
+        float now;
+        ${ time now };
+        float dt = (now - init) * 10.0;
+        int it = dt;
+        int ipos = self.ipos;
+        if (it != ipos) {
+            self.ipos = it;
+            self.angle += self.stepangle;
+            glutPostRedisplay();
+        }
+    }
+
+    function reshape(int w, int h)
+    {
+        float aspect = w;
+        aspect = aspect / h;
+        self.aspect = aspect;
+        glViewport(0, 0, w, h);
+    }
+
+    function draw()
+    {
+        int buffers = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
+        glClear(buffers);
+
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        gluPerspective(60.0, self.aspect, 0.1, 60.0);
+
+        float angle = self.angle;
+        float hangle = angle * PI / 180.0;
+        float distance = self.distance;
+        float vangle = self.vangle;
+        vangle = vangle * PI / 180.0;
+        float ypos = distance * sin(vangle);
+
+        float hdistance = distance * cos(vangle);
+        float xpos = hdistance * sin(hangle);
+        float zpos = hdistance * cos(hangle);
+
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        gluLookAt(
+             xpos, ypos, zpos,
+             0.0, 0.0, 0.0,
+             0.0, 1.0, 0.0);
+
+        if (distance < 20.0) {
+            glPushMatrix();
+            glColor4f(1.0, 1.0, 1.0, 0.2);
+            glutWireCube(1.3);
+            glTranslatef(2.0, 0.0, 0.0);
+            glutWireCube(1.3);
+            glTranslatef(-4.0, 0.0, 0.0);
+            glutWireCube(1.3);
+            glPopMatrix();
+        }
+
+        self.cube(0.0, 1.0, 0.0);
+
+        glPushMatrix();
+        glTranslatef(2.0, 0.0, 0.0);
+        self.cube(1.0, 0.0, 0.0);
+        glPopMatrix();
+
+        glPushMatrix();
+        glTranslatef(-2.0, 0.0, 0.0);
+        self.cube(1.0, 1.0, 0.0);
+        glPopMatrix();
+
+        glutSwapBuffers();
+    }
+    function keyboard(int key, int x, int y)
+    {
+        float distance = self.distance;
+        const float step = 0.1;
+        switch (key) {
+          case ord("\e"):
+            glutDestroyWindow(self.w);
+            break;
+          case ord("+"):
+            distance = distance - step;
+            self.distance = distance;
+            break;
+          case ord("-"):
+            distance = distance + step;
+            self.distance = distance;
+            break;
+        }
+    }
+    function specialKey(int key, int x, int y)
+    {
+        float vangle = self.vangle;
+        float stepangle = self.stepangle;
+        const float step = 0.1;
+        switch (key) {
+          case GLUT_KEY_LEFT:
+            if (stepangle < 0)
+                stepangle = basestepangle;
+            else
+                stepangle += basestepangle;
+            self.stepangle = stepangle;
+            break;
+          case GLUT_KEY_RIGHT:
+            if (stepangle > 0)
+                stepangle = -basestepangle;
+            else
+                stepangle -= basestepangle;
+            self.stepangle = stepangle;
+            break;
+          case GLUT_KEY_UP:
+            vangle = vangle + basestepangle;
+            if (vangle < 90.0)
+                self.vangle = vangle;
+            break;
+          case GLUT_KEY_DOWN:
+            vangle = vangle - basestepangle;
+            if (vangle > -90.0)
+                self.vangle = vangle;
+            break;
+        }
+    }
+}
+
+//**********************************************************************
+
+function main(var argv)
+{
+    using extern OpenGL;
+    using OpenGL._export_all_functions;
+    _export_all_functions();
+
+    using extern NCI.Utils;
+    using NCI.Utils.call_toolkit_init;
+    using OpenGL.glutInit;
+    call_toolkit_init(glutInit, argv);
+
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
+
+    var window = new OpenGlWindow();
+    window.create('glcubes - Winxed OpenGL demo');
+
+    glCullFace(GL_BACK);
+    glEnable(GL_DEPTH_TEST);
+
+    glutMainLoop();
+}
+
+// End
