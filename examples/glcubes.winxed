@@ -188,7 +188,8 @@ class Cube
 
 class OpenGlWindow
 {
-    const float basestepangle = 1.0;
+    const float basestepvangle = 1.0;
+    const float basestephangle = 0.1;
 
     var savecb;
     var w;
@@ -198,7 +199,7 @@ class OpenGlWindow
     var ipos;
     var vangle;
     var angle;
-    var stepangle;
+    var stephangle;
     var distance;
     var cubes;
 
@@ -210,7 +211,7 @@ class OpenGlWindow
         self.aspect = 1.0;
         self.vangle = 20.0;
         self.angle = 0.0;
-        self.stepangle = basestepangle;
+        self.stephangle = basestephangle;
         self.ipos = 0;
         self.distance = 6.0;
 
@@ -287,12 +288,12 @@ class OpenGlWindow
         float init = self.init;
         float now;
         ${ time now };
-        float dt = (now - init) * 10.0;
+        float dt = (now - init) * 100.0;
         int it = dt;
         int ipos = self.ipos;
         if (it != ipos) {
             self.ipos =: it;
-            self.angle += self.stepangle;
+            self.angle += self.stephangle;
             glutPostRedisplay();
         }
     }
@@ -372,30 +373,30 @@ class OpenGlWindow
     function specialKey(int key, int x, int y)
     {
         float vangle = self.vangle;
-        float stepangle = self.stepangle;
+        float stephangle = self.stephangle;
         const float step = 0.1;
         switch (key) {
           case GLUT_KEY_LEFT:
-            if (stepangle < 0)
-                stepangle = basestepangle;
+            if (stephangle < 0)
+                stephangle = basestephangle;
             else
-                stepangle += basestepangle;
-            self.stepangle =: stepangle;
+                stephangle += basestephangle;
+            self.stephangle =: stephangle;
             break;
           case GLUT_KEY_RIGHT:
-            if (stepangle > 0)
-                stepangle = -basestepangle;
+            if (stephangle > 0)
+                stephangle = -basestephangle;
             else
-                stepangle -= basestepangle;
-            self.stepangle =: stepangle;
+                stephangle -= basestephangle;
+            self.stephangle =: stephangle;
             break;
           case GLUT_KEY_UP:
-            vangle = vangle + basestepangle;
+            vangle = vangle + basestepvangle;
             if (vangle < 90.0)
                 self.vangle =: vangle;
             break;
           case GLUT_KEY_DOWN:
-            vangle = vangle - basestepangle;
+            vangle = vangle - basestepvangle;
             if (vangle > -90.0)
                 self.vangle =: vangle;
             break;
