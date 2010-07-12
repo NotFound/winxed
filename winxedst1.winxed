@@ -3914,8 +3914,13 @@ class NewExpr : Expr
             t = tk.get();
             if (! t.isop(')')) {
                 tk.unget(t);
-                self.initializer = parseExpr(tk, owner);
-                ExpectOp(')', tk);
+                var initializer = [];
+                do {
+                    var auxinit = parseExpr(tk, owner);
+                    initializer.push(auxinit);
+                } while ((t = tk.get()).isop(','));
+                self.initializer = initializer;
+                RequireOp(')', t);
             }
         }
         else
@@ -3944,27 +3949,33 @@ class NewExpr : Expr
 
         var initializer = self.initializer;
         if (initializer != null)
-            self.initializer = initializer.optimize();
+            optimize_array(self.initializer);
         return self;
     }
     function emit(e, result)
     {
         self.annotate(e);
+
+        var initializer = self.initializer;
+        int numinits = initializer == null ? 0 : elements(initializer);
+
         string reginit = '';
-        if (self.initializer != null) {
-            reginit = self.initializer.emit_get(e);
+        if (numinits > 0) {
+            if (numinits != 1)
+                SyntaxError('Multiple init arguments not allowed yet', self.start);
+            var initval = initializer[0];
+            reginit = initval.emit_get(e);
             reginit = ', ' + reginit;
         }
-        if (self.value instanceof 'ResizableStringArray') {
-            e.print('new ', result, ", [");
-            string sep = '';
-            for (string value in self.value) {
-                e.print(sep, "'", value, "'");
-                sep = ';';
-            }
-            e.say("]", reginit);
-        }
-        else if (self.value.isstring()) {
+
+        const int BYNAME = 0;
+        const int BYIDENT = 1;
+        const int BYMULTI = 2;
+        int type = (self.value instanceof 'ResizableStringArray') ? BYMULTI :
+                self.value.isstring() ? BYNAME : 
+                self.value.isidentifier() ? BYIDENT : -1;
+        switch (type) {
+          case BYNAME:
             // By name, usually a pmc.
             string name = self.value.rawstring();
             var aux = get_class(name);
@@ -3974,8 +3985,17 @@ class NewExpr : Expr
             // Avoid using root_new here for a now.
             //e.say('root_new ', result, ", ['parrot'; ", self.value, " ]", reginit);
             e.say('new ', result, ", [ ", self.value, " ]", reginit);
-        }
-        else if (self.value.isidentifier()) {
+            break;
+          case BYMULTI:
+            e.print('new ', result, ", [");
+            string sep = '';
+            for (string value in self.value) {
+                e.print(sep, "'", value, "'");
+                sep = ';';
+            }
+            e.say("]", reginit);
+            break;
+          case BYIDENT:
             var id = self.owner.getvar(self.value);
             if (id == null) {
                 //say('new with no var');
@@ -3992,9 +4012,10 @@ class NewExpr : Expr
                 //say('new with var');
                 e.say('new ', result, ", ", id['reg'], "", reginit);
             }
-        }
-        else
+            break;
+          default:
             InternalError('Unexpected type in new');
+        }
     }
 }
 
