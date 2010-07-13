@@ -2714,7 +2714,7 @@ class OpEqualExpr : ComparatorBaseExpr
         int lnull = lexpr.isnull();
         int rnull = rexpr.isnull();
         if (lnull) {
-	    if (rnull)
+            if (rnull)
                 return integerValue(self.owner, self.start, 1);
             else
                 return new OpIsNullExpr().set(self, self.rexpr);
@@ -2728,7 +2728,7 @@ class OpEqualExpr : ComparatorBaseExpr
                 string ls = (lexpr.strval).str;
                 string rs = (rexpr.strval).str;
                 return integerValue(self.owner, self.start, ls == rs);
-	    }
+            }
         }
         return self;
     }
@@ -2754,7 +2754,7 @@ class OpNotEqualExpr : ComparatorBaseExpr
         int lnull = lexpr.isnull();
         int rnull = rexpr.isnull();
         if (lnull) {
-	    if (rnull)
+            if (rnull)
                 return integerValue(self.owner, self.start, 0);
             else
                 return new OpNotNullExpr().set(self, self.rexpr);
@@ -2768,7 +2768,7 @@ class OpNotEqualExpr : ComparatorBaseExpr
                 string ls = (lexpr.strval).str;
                 string rs = (rexpr.strval).str;
                 return integerValue(self.owner, self.start, ls != rs);
-	    }
+            }
         }
         return self;
     }
