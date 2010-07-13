@@ -695,6 +695,13 @@ function integerValue(var owner, var start, int value)
     return ival.set(owner, start, value);
 }
 
+function floatValue(var owner, var start, float value)
+{
+    var ival = new FloatLiteral();
+    var t = newTokenFrom(TypeFloat, value, start);
+    return ival.set(owner, t);
+}
+
 //*********************************************
 //         Predefined functions
 //*********************************************
@@ -2975,6 +2982,15 @@ class OpAddExpr : OpBinaryExpr
                 var rval = rexpr.numval;
                 int rn = rval;
                 return integerValue(self.owner, self.start, ln + rn);
+            }
+            if (ltype == REGfloat && rtype == REGfloat) {
+                if (__STAGE__ != '0') {
+                    var lvalf = lexpr.numval;
+                    float lf = string(lvalf);
+                    var rvalf = rexpr.numval;
+                    float rf = string(rvalf);
+                    return floatValue(self.owner, self.start, lf + rf);
+                }
             }
         }
         return self;
