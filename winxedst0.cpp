@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 6-jul-2010
+// Revision 13-jul-2010
 
 // Winxed compiler stage 0.
 
@@ -27,6 +27,7 @@
 
 // Register types
 const char REGint    = 'I';
+const char REGfloat  = 'N';
 const char REGstring = 'S';
 const char REGvar    = 'P';
 // Pseudotypes for predefined functions
@@ -38,6 +39,7 @@ static const char * nameoftype(char ctype)
     switch (ctype)
     {
     case REGint:    return "int";
+    case REGfloat:  return "num";
     case REGstring: return "string";
     case REGvar:    return "pmc";
     default:
@@ -48,6 +50,7 @@ static const char * nameoftype(char ctype)
 char nativetype(const Token &name)
 {
     if (name.iskeyword("int")) return REGint;
+    else if (name.iskeyword("float")) return REGfloat;
     else if (name.iskeyword("string")) return REGstring;
     else if (name.iskeyword("var")) return REGvar;
     else return '\0';
@@ -1409,6 +1412,18 @@ private:
 
 //**********************************************************************
 
+class FloatStatement : public ValueStatement
+{
+public:
+    FloatStatement(Block & block, const Token &st, Tokenizer &tk);
+    void emit (Emit &e);
+    using ValueStatement::emit;
+private:
+    std::string name;
+};
+
+//**********************************************************************
+
 class StringStatement : public ValueStatement
 {
 public:
@@ -1803,6 +1818,8 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
     {
     case REGint:
         return new IntStatement(block, t, tk);
+    case REGfloat:
+        return new FloatStatement(block, t, tk);
     case REGstring:
         return new StringStatement(block, t, tk);
     case REGvar:
@@ -4682,7 +4699,10 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
 
     e.annotate(start);
     e << ".local " <<
-        (vtype == ValueSimple ? (type == REGint ? "int" : "string") : "pmc") <<
+        (vtype == ValueSimple ?
+                (type == REGint ? "int" : (
+                    type == REGfloat ? "num" : "string") ) :
+                "pmc") <<
         ' ' << name << '\n';
 
     switch (vtype)
@@ -4788,6 +4808,38 @@ void IntStatement::emit (Emit &e)
 
 //**********************************************************************
 
+FloatStatement::FloatStatement(Block &block,  const Token &st, Tokenizer &tk) :
+    ValueStatement (block, st)
+{
+    Token t= tk.get();
+    name= t.identifier();
+    t= tk.get();
+    if (t.isop('['))
+    {
+        genlocal(name, REGvar);
+        parseArray(tk);
+        t= tk.get();
+    }
+    else
+    {
+        genlocal(name, REGfloat);
+        if (t.isop('='))
+        {
+            value.push_back(parseExpr(block, tk));
+            t= tk.get();
+        }
+    }
+    RequireOp (';', t);
+}
+
+void FloatStatement::emit (Emit &e)
+{
+    e.annotate(start);
+    emit(e, name, REGfloat);
+}
+
+//**********************************************************************
+
 StringStatement::StringStatement(Block & block, const Token &st, Tokenizer &tk) :
     ValueStatement (block, st)
 {
@@ -4873,8 +4925,17 @@ ConstStatement::ConstStatement(Block & block, const Token &st, Tokenizer &tk) :
 {
     Token t= tk.get();
     type = nativetype(t);
-    if (type != REGint && type != REGstring)
+
+    switch (type) {
+    case REGint:
+    case REGstring:
+        break;
+    case REGfloat:
+        throw SyntaxError("const float not allowed in stage 0", t);
+    default:
         throw SyntaxError("Invalid const type", t);
+    }
+
     t= tk.get();
     name= t.identifier();
     ExpectOp('=', tk);
