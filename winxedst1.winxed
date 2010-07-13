@@ -3007,8 +3007,8 @@ class OpAddExpr : OpBinaryExpr
                 int rn = rval;
                 return integerValue(self.owner, self.start, ln + rn);
             }
-            if (ltype == REGfloat && rtype == REGfloat) {
-                if (__STAGE__ != '0') {
+            if (__STAGE__ != '0') {
+                if (ltype == REGfloat && rtype == REGfloat) {
                     var lvalf = lexpr.numval;
                     float lf = string(lvalf);
                     var rvalf = rexpr.numval;
@@ -3250,6 +3250,37 @@ class OpMulExpr : OpBinaryExpr
 
 class OpDivExpr : OpBinaryExpr
 {
+    function optimize()
+    {
+        self.optimizearg();
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        if (lexpr.isliteral() && rexpr.isliteral()) {
+            string ltype = lexpr.checkResult();
+            string rtype = rexpr.checkResult();
+            var lval;
+            var rval;
+            if (ltype == REGint && rtype == REGint) {
+                lval = lexpr.numval;
+                int ln = lval;
+                rval = rexpr.numval;
+                int rn = rval;
+                if (rn != 0)
+                    return integerValue(self.owner, self.start, ln / rn);
+            }
+            if (__STAGE__ != '0') {
+                if (ltype == REGfloat && rtype == REGfloat) {
+                    lval = lexpr.numval;
+                    float lf = string(lval);
+                    rval = rexpr.numval;
+                    float rf = string(rval);
+                    if (rf != 0)
+                        return floatValue(self.owner, self.start, lf / rf);
+                }
+            }
+        }
+        return self;
+    }
     function checkResult()
     {
         return REGfloat;

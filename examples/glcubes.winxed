@@ -6,6 +6,7 @@
 //**********************************************************************
 
 const float PI = 3.1415926;
+const float ToRad = PI / 180.0;
 
 const int
   GLUT_RGBA           = 0x0000,
@@ -316,10 +317,10 @@ class OpenGlWindow
         gluPerspective(60.0, self.aspect, 0.1, 60.0);
 
         float angle = self.angle;
-        float hangle = angle * PI / 180.0;
+        float hangle = angle * ToRad;
         float distance = self.distance;
         float vangle = self.vangle;
-        vangle = vangle * PI / 180.0;
+        vangle = vangle * ToRad;
         float ypos = distance * sin(vangle);
 
         float hdistance = distance * cos(vangle);
