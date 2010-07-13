@@ -1091,6 +1091,10 @@ function getpredefs()
             'atan {res}, {arg0}',
             REGfloat, REGfloat
         ),
+        new PredefFunction().set('atan',
+            'atan {res}, {arg0}, {arg1}',
+            REGfloat, REGfloat, REGfloat
+        ),
         new PredefFunction().set('getinterp',
             'getinterp {res}',
             REGvar
