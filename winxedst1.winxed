@@ -2709,16 +2709,28 @@ class OpEqualExpr : ComparatorBaseExpr
     function optimize()
     {
         self.optimizearg();
-        int lnull = self.lexpr.isnull();
-        int rnull = self.rexpr.isnull();
-        if (lnull && rnull)
-            return integerValue(self.owner, self.start, 1);
-        else if (lnull)
-            return new OpIsNullExpr().set(self, self.rexpr);
-        else if (rnull)
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        int lnull = lexpr.isnull();
+        int rnull = rexpr.isnull();
+        if (lnull) {
+	    if (rnull)
+                return integerValue(self.owner, self.start, 1);
+            else
+                return new OpIsNullExpr().set(self, self.rexpr);
+        }
+        if (rnull)
             return new OpIsNullExpr().set(self, self.lexpr);
-        else
-            return self;
+        if (lexpr.isliteral() && rexpr.isliteral()) {
+            string ltype = lexpr.checkResult();
+            string rtype = rexpr.checkResult();
+            if (ltype == REGstring && rtype == REGstring) {
+                string ls = (lexpr.strval).str;
+                string rs = (rexpr.strval).str;
+                return integerValue(self.owner, self.start, ls == rs);
+	    }
+        }
+        return self;
     }
     function emitop(e, string result, string regl, string regr)
     {
@@ -2737,16 +2749,28 @@ class OpNotEqualExpr : ComparatorBaseExpr
     function optimize()
     {
         self.optimizearg();
-        int lnull = self.lexpr.isnull();
-        int rnull = self.rexpr.isnull();
-        if (lnull && rnull)
-            return integerValue(self.owner, self.start, 0);
-        else if (lnull)
-            return new OpNotNullExpr().set(self, self.rexpr);
-        else if (rnull)
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        int lnull = lexpr.isnull();
+        int rnull = rexpr.isnull();
+        if (lnull) {
+	    if (rnull)
+                return integerValue(self.owner, self.start, 0);
+            else
+                return new OpNotNullExpr().set(self, self.rexpr);
+        }
+        if (rnull)
             return new OpNotNullExpr().set(self, self.lexpr);
-        else
-            return self;
+        if (lexpr.isliteral() && rexpr.isliteral()) {
+            string ltype = lexpr.checkResult();
+            string rtype = rexpr.checkResult();
+            if (ltype == REGstring && rtype == REGstring) {
+                string ls = (lexpr.strval).str;
+                string rs = (rexpr.strval).str;
+                return integerValue(self.owner, self.start, ls != rs);
+	    }
+        }
+        return self;
     }
     function emitop(e, string result, string regl, string regr)
     {
