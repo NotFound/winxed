@@ -1,0 +1,456 @@
+#! winxed
+// fly.winxed
+// Open your eyes and spread your wings.
+
+//**********************************************************************
+
+const float PI = 3.1415926;
+const float ToRad = PI / 180.0;
+
+const int
+  GLUT_RGBA           = 0x0000,
+  GLUT_DOUBLE         = 0x0002,
+  GLUT_DEPTH          = 0x0010,
+  GLUT_KEY_LEFT       = 0x0064,
+  GLUT_KEY_RIGHT      = 0x0066,
+  GLUT_KEY_UP         = 0x0065,
+  GLUT_KEY_DOWN       = 0x0067,
+  GL_COLOR_BUFFER_BIT = 0x00004000,
+  GL_DEPTH_BUFFER_BIT = 0x00000100,
+  GL_TRIANGLES        = 0x0004,
+  GL_QUADS            = 0x0007,
+  GL_BACK             = 0x0405,
+  GL_DEPTH_TEST       = 0x0B71,
+  GL_CULL_FACE        = 0x0B44,
+  GL_MODELVIEW        = 0x1700,
+  GL_PROJECTION       = 0x1701;
+
+//**********************************************************************
+
+class OpenGlCallback
+{
+    var w; // The window this callback refers
+
+    function does[vtable](string doname)
+    {
+        return doname == 'invokable';
+    }
+    function set(var w)
+    {
+        self.w = w;
+    }
+}
+
+class Reshape : OpenGlCallback
+{
+    function invoke[vtable](int w, int h)
+    {
+        self.w.reshape(w, h);
+    }
+}
+
+class Draw : OpenGlCallback
+{
+    function invoke[vtable]()
+    {
+        self.w.draw();
+    }
+}
+
+class Idle : OpenGlCallback
+{
+    function invoke[vtable]()
+    {
+        self.w.idle();
+    }
+}
+
+class Keyboard : OpenGlCallback
+{
+    function invoke[vtable](int key, int x, int y)
+    {
+        self.w.keyboard(key, x, y);
+    }
+}
+
+class Special : OpenGlCallback
+{
+    function invoke[vtable](int key, int x, int y)
+    {
+        self.w.specialKey(key, x, y);
+    }
+}
+
+//**********************************************************************
+
+class Thing
+{
+    var r;
+    var g;
+    var b;
+    var x;
+    var z;
+    var height;
+    function set(float r, float g, float b,
+            float x, float z, float height)
+    {
+        self.r = r;
+        self.g = g;
+        self.b = b;
+        self.x = x;
+        self.z = z;
+        self.height = height;
+    }
+    function draw()
+    {
+        float r = self.r;
+        float g = self.g;
+        float b = self.b;
+        float x = self.x;
+        float z = self.z;
+        float height = self.height;
+        float f;
+        glPushMatrix();
+        glColor3f(r, g, b);
+
+        if (0) {
+            glTranslatef(x, height / 2.0, x);
+            glScalef(1.0, height, 1.0);
+            glutSolidCube(1.0);
+        }
+        else {
+            glTranslatef(x, 0.0, z);
+
+            glBegin(GL_QUADS);
+
+            glVertex3f( 0.5, height,  0.5);
+            glVertex3f( 0.5, height, -0.5);
+            glVertex3f(-0.5, height, -0.5);
+            glVertex3f(-0.5, height,  0.5);
+
+            f = 0.7;
+            glColor3f(r * f, g * f, b * f);
+            glVertex3f( 0.5, 0.0,    -0.5);
+            glVertex3f( 0.5, height, -0.5);
+            glVertex3f( 0.5, height,  0.5);
+            glVertex3f( 0.5, 0.0,     0.5);
+
+            f = 0.6;
+            glColor3f(r * f, g * f, b * f);
+            glVertex3f(-0.5, 0.0,     0.5);
+            glVertex3f(-0.5, height,  0.5);
+            glVertex3f(-0.5, height, -0.5);
+            glVertex3f(-0.5, 0.0,    -0.5);
+
+            f = 0.3;
+            glColor3f(r * f, g * f, b * f);
+            glVertex3f(-0.5, 0.0,    -0.5);
+            glVertex3f(-0.5, height, -0.5);
+            glVertex3f( 0.5, height, -0.5);
+            glVertex3f( 0.5, 0.0,    -0.5);
+
+            f = 0.4;
+            glColor3f(r * f, g * f, b * f);
+            glVertex3f( 0.5, 0.0,     0.5);
+            glVertex3f( 0.5, height,  0.5);
+            glVertex3f(-0.5, height,  0.5);
+            glVertex3f(-0.5, 0.0,     0.5);
+
+            glEnd();
+        }
+
+        glPopMatrix();
+    }
+}
+
+//**********************************************************************
+
+class Fly
+{
+    var w;
+    var aspect;
+    var savecb;
+    var things;
+
+    var posx;
+    var posy;
+    var posz;
+
+    var dx;
+    var dy;
+    var dz;
+
+    var speed;
+    var prev;
+
+    function create(string title)
+    {
+        int w = glutCreateWindow(title);
+        self.w = w;
+        self.aspect = 1.0;
+
+        self.posx =  60.0;
+        self.posy =  10.0;
+        self.posz = -10.0;
+
+        self.dx  = -1.0;
+        self.dy  =  0.0;
+        self.dz  =  0.0;
+
+        self.speed = 2.0;
+
+        var things = [];
+        var t;
+        t = new Thing();
+        t.set(0.0, 0.8, 0.2, 4.0, 4.0, 1.0);
+        things.push(t);
+        t = new Thing();
+        t.set(0.0, 1.0, 0.0, -1.0, -3.0, 1.0);
+        things.push(t);
+        t = new Thing();
+        t.set(1.0, 0.2, 0.2, -2.0, -3.0, 10.0);
+        things.push(t);
+        t = new Thing();
+        t.set(0.8, 1.0, 0.8, -2.0, 5.0, 1.0);
+        things.push(t);
+        t = new Thing();
+        t.set(0.4, 1.0, 0.4, 3.0, 3.0, 12.0);
+        things.push(t);
+
+        t = new Thing();
+        t.set(0.0, 0.0, 1.0, 9.0, 9.0, 12.0);
+        things.push(t);
+        t = new Thing();
+        t.set(0.0, 0.0, 1.0, 9.0, 8.0, 11.0);
+        things.push(t);
+        t = new Thing();
+        t.set(0.0, 0.0, 1.0, 9.0, 7.0, 10.0);
+        things.push(t);
+
+        t = new Thing();
+        t.set(0.0, 0.0, 1.0, 0.0, -10.0, 14.0);
+        things.push(t);
+        t = new Thing();
+        t.set(0.0, 0.0, 1.0, 0.0, -11.0, 14.0);
+        things.push(t);
+        t = new Thing();
+        t.set(0.0, 0.0, 1.0, 0.0, -12.0, 14.0);
+        things.push(t);
+
+        t = new Thing();
+        t.set(1.0, 1.0, 0.0, 20.0, 20.0, 30.0);
+        things.push(t);
+
+        int i; int j;
+        int posi; int posj;
+        float r; float g; float b;
+        r = 0.2; g = 1.0; b = 0.2;
+        posi = -70; posj = -80;
+        for (i = 0; i < 11; ++i)
+            for (j = 0; j < 11; ++j) {
+                if (i == j || i == 10 - j) continue;
+                t = new Thing();
+                t.set(r, g, b, float(i*2 + posi), float(j*2 + posj), 2.0);
+                things.push(t);
+            }
+
+        r = 1.0; g = 0.8; b = 0.4;
+        posi = 90; posj = 110;
+        for (i = 0; i < 11; ++i)
+            for (j = 0; j < 11; ++j) {
+                if (i == j || i == 10 - j) continue;
+                t = new Thing();
+                t.set(r, g, b, float(i*2 + posi), float(j*2 + posj), 2.0);
+                things.push(t);
+            }
+
+        r = 0.4; g = 0.4; b = 0.7;
+        posi = 30; posj = 150;
+        for (i = 0; i < 11; ++i)
+            for (j = 0; j < 11; ++j) {
+                if (i == j || i == 10 - j) continue;
+                t = new Thing();
+                t.set(r, g, b, float(i*2 + posi), float(j*2 + posj), 2.0);
+                things.push(t);
+            }
+
+        self.things = things;
+
+        var savecb = [];
+        self.savecb = savecb;
+        var d;
+        d = new Keyboard(); d.set(self);
+        savecb.push(d);
+        glutKeyboardFunc(d);
+        d = new Special(); d.set(self);
+        savecb.push(d);
+        glutSpecialFunc(d);
+        d = new Reshape(); d.set(self);
+        savecb.push(d);
+        glutReshapeFunc(d);
+        d = new Draw(); d.set(self);
+        savecb.push(d);
+        glutDisplayFunc(d);
+
+        float prev;
+        ${ time prev };
+        cry(prev);
+        self.prev = prev;
+
+        d = new Idle(); d.set(self);
+        savecb.push(d);
+        glutIdleFunc(d);
+    }
+
+    function reshape(int w, int h)
+    {
+        float aspect = w;
+        aspect = aspect / h;
+        self.aspect =: aspect;
+        glViewport(0, 0, w, h);
+    }
+
+    function draw()
+    {
+        int buffers = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
+        glClearColor(0.8, 0.9, 1.0, 1.0);
+        glClear(buffers);
+
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        gluPerspective(60.0, self.aspect, 0.1, 1000.0);
+
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+
+        float x = self.posx;
+        float y = self.posy;
+        float z = self.posz;
+        float dx = self.dx;
+        float dy = self.dy;
+        float dz = self.dz;
+        gluLookAt(
+             x, y, z,
+             x + dx, y + dy, z + dz,
+             0.0, 1.0, 0.0);
+
+        float length = 200.0;
+        glColor3f(0.4, 0.4, 0.4);
+        glBegin(GL_QUADS);
+        glVertex3f( length,  0.0,  length);
+        glVertex3f( length,  0.0, -length);
+        glVertex3f(-length,  0.0, -length);
+        glVertex3f(-length,  0.0,  length);
+        glEnd();
+
+
+        for (var t in self.things)
+            t.draw();
+
+        glutSwapBuffers();
+        ${ sweep 1 };
+    }
+
+    function idle()
+    {
+        float x = self.posx;
+        float y = self.posy;
+        float z = self.posz;
+        float dx = self.dx;
+        float dy = self.dy;
+        float dz = self.dz;
+
+        float prev = self.prev;
+        float now;
+        ${ time now };
+        float speed = self.speed;
+        float diff = (now - prev) * speed;
+        //cry(diff);
+        self.prev =: now;
+
+        x += dx * diff;
+        y += dy * diff;
+        z += dz * diff;
+        self.posx =: x;
+        self.posy =: y;
+        self.posz =: z;
+        glutPostRedisplay();
+    }
+
+    function keyboard(int key, int x, int y)
+    {
+        float speed;
+        switch (key) {
+          case ord("\e"):
+            glutDestroyWindow(self.w);
+            break;
+          case ord("+"):
+            speed = self.speed;
+            speed = speed * 1.1;
+            self.speed = speed;
+            break;
+          case ord("-"):
+            speed = self.speed;
+            speed = speed * 0.9;
+            self.speed = speed;
+            break;
+        }
+    }
+    function specialKey(int key, int x, int y)
+    {
+        float dx = self.dx;
+        float dy = self.dy;
+        float dz = self.dz;
+        float hang = atan(dx, dz);
+        switch (key) {
+          case GLUT_KEY_LEFT:
+            hang += 0.02;
+            self.dx =: sin(hang);
+            self.dz =: cos(hang);
+            break;
+          case GLUT_KEY_RIGHT:
+            hang -= 0.02;
+            self.dx =: sin(hang);
+            self.dz =: cos(hang);
+            break;
+          case GLUT_KEY_DOWN:
+            hang = sin(dy);
+            hang += 0.02;
+            self.dy = hang;
+            break;
+          case GLUT_KEY_UP:
+            hang = sin(dy);
+            hang -= 0.02;
+            self.dy = hang;
+            break;
+        }
+
+        glutPostRedisplay();
+    }
+}
+
+//**********************************************************************
+
+function main(var argv)
+{
+    using extern OpenGL;
+    using OpenGL._export_all_functions;
+    _export_all_functions();
+    using extern NCI.Utils;
+    using NCI.Utils.call_toolkit_init;
+    using OpenGL.glutInit;
+    call_toolkit_init(glutInit, argv);
+
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
+
+    var f = new Fly();
+    f.create('Fly - xinxed');
+
+    glCullFace(GL_BACK);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+
+    glutMainLoop();
+}
+
+// End
