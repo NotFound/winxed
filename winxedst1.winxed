@@ -5812,7 +5812,7 @@ class FloatStatement : DeclareStatement
     {
         self.t_reg = REGfloat;
         self.t_name = 'float';
-        self.t_array = 'Number';
+        self.t_array = 'Float';
     }
     function defaultinit(var e)
     {
