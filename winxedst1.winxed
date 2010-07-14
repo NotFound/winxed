@@ -4034,21 +4034,28 @@ class NewExpr : Expr
         var initializer = self.initializer;
         int numinits = initializer == null ? 0 : elements(initializer);
 
-        string reginit = '';
-        if (numinits > 0) {
-            if (numinits != 1)
-                SyntaxError('Multiple init arguments not allowed yet', self.start);
-            var initval = initializer[0];
-            reginit = initval.emit_get(e);
-            reginit = ', ' + reginit;
-        }
-
         const int BYNAME = 0;
         const int BYIDENT = 1;
         const int BYMULTI = 2;
         int type = (self.value instanceof 'ResizableStringArray') ? BYMULTI :
                 self.value.isstring() ? BYNAME : 
                 self.value.isidentifier() ? BYIDENT : -1;
+
+        string reginit = '';
+        string constructor;
+        switch (numinits) {
+          case 0:
+            break;
+          case 1:
+            var initval = initializer[0];
+            reginit = initval.emit_get(e);
+            reginit = ', ' + reginit;
+            break;
+          default:
+            if (type != BYIDENT && type != BYMULTI)
+                SyntaxError('Multiple init arguments not allowed here', self.start);
+        }
+
         switch (type) {
           case BYNAME:
             // By name, usually a pmc.
@@ -4060,6 +4067,9 @@ class NewExpr : Expr
             // Avoid using root_new here for a now.
             //e.say('root_new ', result, ", ['parrot'; ", self.value, " ]", reginit);
             e.say('new ', result, ", [ ", self.value, " ]", reginit);
+            if (numinits > 1) {
+                e.say(result, ".'", self.value, "'()");
+            }
             break;
           case BYMULTI:
             e.print('new ', result, ", [");
@@ -4067,6 +4077,7 @@ class NewExpr : Expr
             for (string value in self.value) {
                 e.print(sep, "'", value, "'");
                 sep = ';';
+                constructor = value;
             }
             e.say("]", reginit);
             break;
@@ -4082,6 +4093,7 @@ class NewExpr : Expr
                     Warn('Checking: new unknown type');
                     e.say('new ', result, ", ['", self.value, "']", reginit);
                 }
+                constructor = self.value;
             }
             else {
                 //say('new with var');
@@ -4090,6 +4102,16 @@ class NewExpr : Expr
             break;
           default:
             InternalError('Unexpected type in new');
+        }
+        if (numinits > 1) {
+            string argregs[];
+            for (var arg in initializer) {
+                string reg = arg.emit_get(e);
+                argregs.push(reg);
+            }
+            e.print(result, ".'", constructor, "'(");
+            e.print(join(", ", argregs));
+            e.say(")");
         }
     }
 }
