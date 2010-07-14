@@ -91,7 +91,7 @@ class Thing
     var x;
     var z;
     var height;
-    function set(float r, float g, float b,
+    function Thing(float r, float g, float b,
             float x, float z, float height)
     {
         self.r = r;
@@ -200,46 +200,21 @@ class Fly
         self.speed = 2.0;
 
         var things = [];
-        var t;
-        t = new Thing();
-        t.set(0.0, 0.8, 0.2, 4.0, 4.0, 1.0);
-        things.push(t);
-        t = new Thing();
-        t.set(0.0, 1.0, 0.0, -1.0, -3.0, 1.0);
-        things.push(t);
-        t = new Thing();
-        t.set(1.0, 0.2, 0.2, -2.0, -3.0, 10.0);
-        things.push(t);
-        t = new Thing();
-        t.set(0.8, 1.0, 0.8, -2.0, 5.0, 1.0);
-        things.push(t);
-        t = new Thing();
-        t.set(0.4, 1.0, 0.4, 3.0, 3.0, 12.0);
-        things.push(t);
+        things.push(new Thing(0.0, 0.8, 0.2, 4.0, 4.0, 1.0));
+        things.push(new Thing(0.0, 1.0, 0.0, -1.0, -3.0, 1.0));
+        things.push(new Thing(1.0, 0.2, 0.2, -2.0, -3.0, 10.0));
+        things.push(new Thing(0.8, 1.0, 0.8, -2.0, 5.0, 1.0));
+        things.push(new Thing(0.4, 1.0, 0.4, 3.0, 3.0, 12.0));
 
-        t = new Thing();
-        t.set(0.0, 0.0, 1.0, 9.0, 9.0, 12.0);
-        things.push(t);
-        t = new Thing();
-        t.set(0.0, 0.0, 1.0, 9.0, 8.0, 11.0);
-        things.push(t);
-        t = new Thing();
-        t.set(0.0, 0.0, 1.0, 9.0, 7.0, 10.0);
-        things.push(t);
+        things.push(new Thing(0.0, 0.0, 1.0, 9.0, 9.0, 12.0));
+        things.push(new Thing(0.0, 0.0, 1.0, 9.0, 8.0, 11.0));
+        things.push(new Thing(0.0, 0.0, 1.0, 9.0, 7.0, 10.0));
 
-        t = new Thing();
-        t.set(0.0, 0.0, 1.0, 0.0, -10.0, 14.0);
-        things.push(t);
-        t = new Thing();
-        t.set(0.0, 0.0, 1.0, 0.0, -11.0, 14.0);
-        things.push(t);
-        t = new Thing();
-        t.set(0.0, 0.0, 1.0, 0.0, -12.0, 14.0);
-        things.push(t);
+        things.push(new Thing(0.0, 0.0, 1.0, 0.0, -10.0, 14.0));
+        things.push(new Thing(0.0, 0.0, 1.0, 0.0, -11.0, 14.0));
+        things.push(new Thing(0.0, 0.0, 1.0, 0.0, -12.0, 14.0));
 
-        t = new Thing();
-        t.set(1.0, 1.0, 0.0, 20.0, 20.0, 30.0);
-        things.push(t);
+        things.push(new Thing(1.0, 1.0, 0.0, 20.0, 20.0, 30.0));
 
         int i; int j;
         int posi; int posj;
@@ -247,32 +222,23 @@ class Fly
         r = 0.2; g = 1.0; b = 0.2;
         posi = -70; posj = -80;
         for (i = 0; i < 11; ++i)
-            for (j = 0; j < 11; ++j) {
-                if (i == j || i == 10 - j) continue;
-                t = new Thing();
-                t.set(r, g, b, float(i*2 + posi), float(j*2 + posj), 2.0);
-                things.push(t);
-            }
+            for (j = 0; j < 11; ++j)
+                if (i != j && i != 10 - j)
+                    things.push(new Thing(r, g, b, float(i*2 + posi), float(j*2 + posj), 2.0));
 
         r = 1.0; g = 0.8; b = 0.4;
         posi = 90; posj = 110;
         for (i = 0; i < 11; ++i)
-            for (j = 0; j < 11; ++j) {
-                if (i == j || i == 10 - j) continue;
-                t = new Thing();
-                t.set(r, g, b, float(i*2 + posi), float(j*2 + posj), 2.0);
-                things.push(t);
-            }
+            for (j = 0; j < 11; ++j)
+                if (i != j && i != 10 - j)
+                    things.push(new Thing(r, g, b, float(i*2 + posi), float(j*2 + posj), 2.0));
 
         r = 0.4; g = 0.4; b = 0.7;
         posi = 30; posj = 150;
         for (i = 0; i < 11; ++i)
-            for (j = 0; j < 11; ++j) {
-                if (i == j || i == 10 - j) continue;
-                t = new Thing();
-                t.set(r, g, b, float(i*2 + posi), float(j*2 + posj), 2.0);
-                things.push(t);
-            }
+            for (j = 0; j < 11; ++j)
+                if (i != j && i != 10 - j)
+                    things.push(new Thing(r, g, b, float(i*2 + posi), float(j*2 + posj), 2.0));
 
         self.things = things;
 
