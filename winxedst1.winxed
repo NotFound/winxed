@@ -421,7 +421,7 @@ class Tokenizer
     var stacked;
     var filename;
     var line;
-    function init(handle, string filename)
+    function Tokenizer(handle, string filename)
     {
         self.h= handle;
         self.pending= '';
@@ -1304,7 +1304,7 @@ class Modifier
         else
             InternalError('Wrong modifier arg number');
     }
-    function set(string name, var args)
+    function Modifier(string name, var args)
     {
         self.name = name;
         if (args != null)
@@ -1337,7 +1337,7 @@ class ModifierList
                 args.parseargs(tk, owner, ')');
                 t= tk.get();
             }
-            self.list.push(new Modifier().set(name, args));
+            self.list.push(new Modifier(name, args));
         } while (t.isop(','));
         RequireOp(']', t);
 
@@ -3384,7 +3384,7 @@ class Argument
 {
     var arg;
     var modifiers;
-    function set(var arg, var modifiers)
+    function Argument(var arg, var modifiers)
     {
         self.arg = arg;
         self.modifiers = modifiers;
@@ -3416,7 +3416,7 @@ class CallPredefExpr : Expr
     var predef;
     var args;
 
-    function init(owner, start, predef, args)
+    function CallPredefExpr(owner, start, predef, args)
     {
         self.initexpr(owner, start);
         self.predef = predef;
@@ -3499,7 +3499,7 @@ class CallExpr : Expr
                         InternalError('Checking implementation');
                     }
                 }
-                self.args.push(new Argument().set(expr, modifier));
+                self.args.push(new Argument(expr, modifier));
             } while (t.isop(','));
             if (! t.isop(')'))
                 SyntaxError("Expected ')' or ','", t);
@@ -3528,7 +3528,7 @@ class CallExpr : Expr
                         return evalfun(self.owner, self.start, args);
                 }
 
-                return new CallPredefExpr().init(self.owner, self.start, predef, args);
+                return new CallPredefExpr(self.owner, self.start, predef, args);
             }
         }
 
@@ -6600,8 +6600,7 @@ class WinxedHLL
         handlein.puts(code);
         handlein.close();
         handlein.open(EVAL_NAME, 'r');
-        var tk= new Tokenizer();
-        tk.init(handlein, EVAL_NAME);
+        var tk= new Tokenizer(handlein, EVAL_NAME);
         var winxed= new WinxedCompiler();
         winxed.parse(tk);
         handlein.close();
@@ -6691,8 +6690,7 @@ function stage1(argv)
         file.open(EVAL_NAME);
     }
 
-    var t= new Tokenizer();
-    t.init(file, filename);
+    var t= new Tokenizer(file, filename);
 
     string outputfile = '';
     if (opt_o != null)
