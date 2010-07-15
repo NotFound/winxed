@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 13-jul-2010
+// Revision 15-jul-2010
 
 // Winxed compiler stage 0.
 
@@ -4032,7 +4032,8 @@ private:
     void emit(Emit &e, const std::string &result);
     unsigned int ln;
     std::string value;
-    BaseExpr *init;
+    std::string constructor;
+    std::vector<BaseExpr *> init;
 };
 
 NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
@@ -4047,7 +4048,7 @@ NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
         value = "root_new ['parrot'; " + t.pirliteralstring() + " ]";
         if ((t= tk.get()).isop('('))
         {
-            init = parseExpr(block, tk);
+            init.push_back(parseExpr(block, tk));
             ExpectOp(')', tk);
         }
         else
@@ -4069,8 +4070,18 @@ NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
             value+= "'" + prefix[i] + "';";
         }
         value+= "'" + name + "' ]";
+        constructor = name;
         RequireOp('(', t);
-        ExpectOp(')', tk);
+        t = tk.get();
+        if (! t.isop(')') )
+        {
+            tk.unget(t);
+            do {
+                init.push_back(parseExpr(block, tk));
+                t = tk.get();
+            } while (t.isop(','));
+            RequireOp(')', t);
+        }
     }
     //std::cerr << "NewExpr::NewExpr end\n";
 }
@@ -4078,10 +4089,17 @@ NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
 void NewExpr::emit(Emit &e, const std::string &result)
 {
     std::string reg;
-    if (init)
+    size_t numinits = init.size();
+    switch (numinits)
     {
+    case 0:
+        break;
+    case 1:
         reg= gentemp(REGvar);
-        init->emit(e, reg);
+        init[0]->emit(e, reg);
+        break;
+    default:
+        break;
     }
 
     if (! result.empty())
@@ -4093,6 +4111,20 @@ void NewExpr::emit(Emit &e, const std::string &result)
     }
     else
         e << value;
+    if (numinits > 1)
+    {
+        std::vector<std::string> regs;
+        for (size_t i= 0; i < numinits; ++i)
+        {
+            std::string reg = gentemp(init[i]->checkresult());
+            init[i]->emit(e, reg);
+            regs.push_back(reg);
+        }
+        e << result << ".'" << constructor << "'(" << regs[0];
+        for (size_t i= 1; i < numinits; ++i)
+            e << ", " << regs[i];
+        e << ")\n";
+    }
 }
 
 //**********************************************************************
