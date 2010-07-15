@@ -4029,6 +4029,7 @@ class NewExpr : public BaseExpr
 public:
     NewExpr(BlockBase &block, Tokenizer &tk, Token t);
 private:
+    BaseExpr *optimize();
     void emit(Emit &e, const std::string &result);
     unsigned int ln;
     std::string value;
@@ -4084,6 +4085,13 @@ NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
         }
     }
     //std::cerr << "NewExpr::NewExpr end\n";
+}
+
+BaseExpr *NewExpr::optimize()
+{
+    for (size_t i= 0; i < init.size(); ++i)
+        optimize_branch(init[i]);
+    return this;
 }
 
 void NewExpr::emit(Emit &e, const std::string &result)
