@@ -19,6 +19,7 @@ const int
   GL_DEPTH_BUFFER_BIT = 0x00000100,
   GL_TRIANGLES        = 0x0004,
   GL_QUADS            = 0x0007,
+  GL_QUAD_STRIP       = 0x0008,
   GL_BACK             = 0x0405,
   GL_DEPTH_TEST       = 0x0B71,
   GL_CULL_FACE        = 0x0B44,
@@ -91,8 +92,9 @@ class Thing
     var x;
     var z;
     var height;
+    var width;
     function Thing(float r, float g, float b,
-            float x, float z, float height)
+            float x, float z, float height, float width [optional])
     {
         self.r = r;
         self.g = g;
@@ -100,6 +102,9 @@ class Thing
         self.x = x;
         self.z = z;
         self.height = height;
+        if (width == 0.0)
+            width = 1.0;
+        self.width = width / 2.0;
     }
     function draw()
     {
@@ -109,6 +114,7 @@ class Thing
         float x = self.x;
         float z = self.z;
         float height = self.height;
+        float width = self.width;
         float f;
         glPushMatrix();
         glColor3f(r, g, b);
@@ -123,38 +129,38 @@ class Thing
 
             glBegin(GL_QUADS);
 
-            glVertex3f( 0.5, height,  0.5);
-            glVertex3f( 0.5, height, -0.5);
-            glVertex3f(-0.5, height, -0.5);
-            glVertex3f(-0.5, height,  0.5);
+            glVertex3f( width, height,  width);
+            glVertex3f( width, height, -width);
+            glVertex3f(-width, height, -width);
+            glVertex3f(-width, height,  width);
 
             f = 0.7;
             glColor3f(r * f, g * f, b * f);
-            glVertex3f( 0.5, 0.0,    -0.5);
-            glVertex3f( 0.5, height, -0.5);
-            glVertex3f( 0.5, height,  0.5);
-            glVertex3f( 0.5, 0.0,     0.5);
+            glVertex3f( width, 0.0,    -width);
+            glVertex3f( width, height, -width);
+            glVertex3f( width, height,  width);
+            glVertex3f( width, 0.0,     width);
 
             f = 0.6;
             glColor3f(r * f, g * f, b * f);
-            glVertex3f(-0.5, 0.0,     0.5);
-            glVertex3f(-0.5, height,  0.5);
-            glVertex3f(-0.5, height, -0.5);
-            glVertex3f(-0.5, 0.0,    -0.5);
+            glVertex3f(-width, 0.0,     width);
+            glVertex3f(-width, height,  width);
+            glVertex3f(-width, height, -width);
+            glVertex3f(-width, 0.0,    -width);
 
             f = 0.3;
             glColor3f(r * f, g * f, b * f);
-            glVertex3f(-0.5, 0.0,    -0.5);
-            glVertex3f(-0.5, height, -0.5);
-            glVertex3f( 0.5, height, -0.5);
-            glVertex3f( 0.5, 0.0,    -0.5);
+            glVertex3f(-width, 0.0,    -width);
+            glVertex3f(-width, height, -width);
+            glVertex3f( width, height, -width);
+            glVertex3f( width, 0.0,    -width);
 
             f = 0.4;
             glColor3f(r * f, g * f, b * f);
-            glVertex3f( 0.5, 0.0,     0.5);
-            glVertex3f( 0.5, height,  0.5);
-            glVertex3f(-0.5, height,  0.5);
-            glVertex3f(-0.5, 0.0,     0.5);
+            glVertex3f( width, 0.0,     width);
+            glVertex3f( width, height,  width);
+            glVertex3f(-width, height,  width);
+            glVertex3f(-width, 0.0,     width);
 
             glEnd();
         }
@@ -181,6 +187,7 @@ class Fly
     var dz;
 
     var speed;
+    var initial;
     var prev;
 
     function create(string title)
@@ -216,6 +223,11 @@ class Fly
 
         things.push(new Thing(1.0, 1.0, 0.0, 20.0, 20.0, 30.0));
 
+        things.push(new Thing(1.0, 0.0, 0.0, -120.0,  120.0, 20.0, 5.0));
+        things.push(new Thing(0.0, 1.0, 0.0, -120.0, -120.0, 20.0, 5.0));
+        things.push(new Thing(0.0, 0.0, 1.0,  120.0, -120.0, 20.0, 5.0));
+        things.push(new Thing(1.0, 0.0, 1.0,  120.0,  120.0, 20.0, 5.0));
+
         int i; int j;
         int posi; int posj;
         float r; float g; float b;
@@ -224,21 +236,21 @@ class Fly
         for (i = 0; i < 11; ++i)
             for (j = 0; j < 11; ++j)
                 if (i != j && i != 10 - j)
-                    things.push(new Thing(r, g, b, float(i*2 + posi), float(j*2 + posj), 2.0));
+                    things.push(new Thing(r, g, b, float(i*2 + posi), float(j*2 + posj), 4.0));
 
         r = 1.0; g = 0.8; b = 0.4;
         posi = 90; posj = 110;
         for (i = 0; i < 11; ++i)
             for (j = 0; j < 11; ++j)
                 if (i != j && i != 10 - j)
-                    things.push(new Thing(r, g, b, float(i*2 + posi), float(j*2 + posj), 2.0));
+                    things.push(new Thing(r, g, b, float(i*2 + posi), float(j*2 + posj), 4.0));
 
         r = 0.4; g = 0.4; b = 0.7;
         posi = 30; posj = 150;
         for (i = 0; i < 11; ++i)
             for (j = 0; j < 11; ++j)
                 if (i != j && i != 10 - j)
-                    things.push(new Thing(r, g, b, float(i*2 + posi), float(j*2 + posj), 2.0));
+                    things.push(new Thing(r, g, b, float(i*2 + posi), float(j*2 + posj), 4.0));
 
         self.things = things;
 
@@ -262,6 +274,7 @@ class Fly
         ${ time prev };
         cry(prev);
         self.prev = prev;
+        self.initial = prev;
 
         d = new Idle(); d.set(self);
         savecb.push(d);
@@ -300,6 +313,7 @@ class Fly
              x + dx, y + dy, z + dz,
              0.0, 1.0, 0.0);
 
+        glPushMatrix();
         float length = 200.0;
         glColor3f(0.4, 0.4, 0.4);
         glBegin(GL_QUADS);
@@ -308,10 +322,68 @@ class Fly
         glVertex3f(-length,  0.0, -length);
         glVertex3f(-length,  0.0,  length);
         glEnd();
+        glPopMatrix();
 
 
         for (var t in self.things)
             t.draw();
+
+        glPushMatrix();
+        float now;
+        ${ time now };
+        now = (now - float(self.initial)) / 10.0;
+        float xt = sin(now) * 180.0;
+        float zt = cos(now) * 180.0;
+        glTranslatef(xt, 0.0, zt);
+        glRotatef(now/ToRad, 0.0, 1.0, 0.0);
+
+        glColor3f(1.0, 1.0, 0.0);
+        glBegin(GL_QUAD_STRIP);
+        glVertex3f( 10.0, 2.0, -1.0);
+        glVertex3f(-10.0, 2.0, -1.0);
+        glVertex3f( 10.0, 2.0,  1.0);
+        glVertex3f(-10.0, 2.0,  1.0);
+        glEnd();
+
+        glColor3f(0.7, 0.7, 0.0);
+        glBegin(GL_QUAD_STRIP);
+        glVertex3f( 10.0, 2.0,  1.0);
+        glVertex3f(-10.0, 2.0,  1.0);
+        glVertex3f( 10.0, 0.0,  1.0);
+        glVertex3f(-10.0, 0.0,  1.0);
+        glEnd();
+
+        glBegin(GL_QUAD_STRIP);
+        glVertex3f( 10.0, 0.0,  1.0);
+        glVertex3f(-10.0, 0.0,  1.0);
+        glVertex3f( 10.0, 0.0, -1.0);
+        glVertex3f(-10.0, 0.0, -1.0);
+        glEnd();
+
+        glColor3f(0.8, 0.8, 0.0);
+        glBegin(GL_QUAD_STRIP);
+        glVertex3f( 10.0, 0.0, -1.0);
+        glVertex3f(-10.0, 0.0, -1.0);
+        glVertex3f( 10.0, 2.0, -1.0);
+        glVertex3f(-10.0, 2.0, -1.0);
+        glEnd();
+
+        glColor3f(0.6, 0.6, 0.0);
+        glBegin(GL_QUADS);
+        glVertex3f( 10.0, 2.0, -1.0);
+        glVertex3f( 10.0, 2.0,  1.0);
+        glVertex3f( 10.0, 0.0,  1.0);
+        glVertex3f( 10.0, 0.0, -1.0);
+
+        glColor3f(0.5, 0.5, 0.0);
+        glVertex3f(-10.0, 0.0, -1.0);
+        glVertex3f(-10.0, 0.0,  1.0);
+        glVertex3f(-10.0, 2.0,  1.0);
+        glVertex3f(-10.0, 2.0, -1.0);
+
+        glEnd();
+
+        glPopMatrix();
 
         glutSwapBuffers();
         ${ sweep 1 };
