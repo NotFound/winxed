@@ -15,6 +15,7 @@ const int
   GLUT_KEY_RIGHT      = 0x0066,
   GLUT_KEY_UP         = 0x0065,
   GLUT_KEY_DOWN       = 0x0067,
+  GLUT_MULTISAMPLE    = 0x0080,
   GL_COLOR_BUFFER_BIT = 0x00004000,
   GL_DEPTH_BUFFER_BIT = 0x00000100,
   GL_TRIANGLES        = 0x0004,
@@ -24,7 +25,8 @@ const int
   GL_DEPTH_TEST       = 0x0B71,
   GL_CULL_FACE        = 0x0B44,
   GL_MODELVIEW        = 0x1700,
-  GL_PROJECTION       = 0x1701;
+  GL_PROJECTION       = 0x1701,
+  GL_MULTISAMPLE      = 0x809D;
 
 //**********************************************************************
 
@@ -569,7 +571,7 @@ function main(var argv)
     using OpenGL.glutInit;
     call_toolkit_init(glutInit, argv);
 
-    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH | GLUT_MULTISAMPLE);
 
     var f = new Fly();
     f.create('Fly - xinxed');
@@ -577,6 +579,7 @@ function main(var argv)
     glCullFace(GL_BACK);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
+    glEnable(GL_MULTISAMPLE);
 
     glutMainLoop();
 }
