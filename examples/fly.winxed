@@ -252,6 +252,8 @@ class Fly
     var savecb;
     var things;
 
+    var auto;
+
     var posx;
     var posy;
     var posz;
@@ -270,6 +272,8 @@ class Fly
         self.w = w;
         self.aspect = 1.0;
 
+        self.auto = true;
+
         self.posx =  60.0;
         self.posy =  10.0;
         self.posz = -10.0;
@@ -278,7 +282,7 @@ class Fly
         self.dy  =  0.0;
         self.dz  =  0.0;
 
-        self.speed = 2.0;
+        self.speed = 25.0;
 
         var things = [];
         things.push(new Thing(0.0, 0.8, 0.2, 4.0, 4.0, 1.0));
@@ -455,24 +459,43 @@ class Fly
 
     function idle()
     {
-        float x = self.posx;
-        float y = self.posy;
-        float z = self.posz;
-        float dx = self.dx;
-        float dy = self.dy;
-        float dz = self.dz;
-
+        float x; float y; float z;
+        float dx; float dy; float dz;
         float prev = self.prev;
         float now;
+        float diff;
         ${ time now };
-        float speed = self.speed;
-        float diff = (now - prev) * speed;
-        //cry(diff);
-        self.prev =: now;
+        if (self.auto) {
+            float dis = 174.0;
+            float initial = self.initial;
+            diff = (now - initial - 1.2) / 7.2;
+            x = sin(diff) * dis;
+            z = cos(diff) * dis;
+            y = 16.0 + 11.0 * cos((now - initial) / 8.5);
+            dx = sin(diff + PI / 2.0);
+            dy = 0;
+            dz = cos(diff + PI / 2.0);
+            self.dx =: dx;
+            self.dy =: dy;
+            self.dz =: dz;
+        }
+        else {
+            x = self.posx;
+            y = self.posy;
+            z = self.posz;
+            dx = self.dx;
+            dy = self.dy;
+            dz = self.dz;
 
-        x += dx * diff;
-        y += dy * diff;
-        z += dz * diff;
+            float speed = self.speed;
+            diff = (now - prev) * speed;
+            //cry(diff);
+
+            x += dx * diff;
+            y += dy * diff;
+            z += dz * diff;
+        }
+        self.prev =: now;
         self.posx =: x;
         self.posy =: y;
         self.posz =: z;
@@ -500,6 +523,9 @@ class Fly
     }
     function specialKey(int key, int x, int y)
     {
+        if (self.auto)
+            self.auto =: false;
+
         float dx = self.dx;
         float dy = self.dy;
         float dz = self.dz;
