@@ -171,59 +171,73 @@ class Thing
 
 //**********************************************************************
 
-function train(float now)
+function train(float angle, float dis)
 {
     glPushMatrix();
 
-    float radius = 180.0;
-    float xt = sin(now) * radius;
-    float zt = cos(now) * radius;
+    float dismod = dis + 3.0 * sin(angle * 4.0) + 7.0 * sin(angle * 8.0);
+    float xt = sin(angle) * dismod;
+    float zt = cos(angle) * dismod;
     glTranslatef(xt, 0.0, zt);
-    glRotatef(now/ToRad, 0.0, 1.0, 0.0);
 
+    float angle1 = angle + 0.0001;
+    float dismod1 = dis + 3.0 * sin(angle1 * 4.0) + 7.0 * sin(angle1 * 8.0);
+    float xt1 = sin(angle1) * dismod1;
+    float zt1 = cos(angle1) * dismod1;
+
+    float angle2 = angle - 0.0001;
+    float dismod2 = dis + 3.0 * sin(angle2 * 4.0) + 7.0 * sin(angle2 * 8.0);
+    float xt2 = sin(angle2) * dismod2;
+    float zt2 = cos(angle2) * dismod2;
+
+    glRotatef((atan(xt1 - xt2, zt1 - zt2)) / ToRad + 90.0, 0.0, 1.0, 0.0);
+
+    const float len = 5.0;
+    const float height = 1.2;
+    const float width = 0.8;
     glColor3f(1.0, 1.0, 0.0);
     glBegin(GL_QUAD_STRIP);
-    glVertex3f( 10.0, 2.0, -1.0);
-    glVertex3f(-10.0, 2.0, -1.0);
-    glVertex3f( 10.0, 2.0,  1.0);
-    glVertex3f(-10.0, 2.0,  1.0);
+    glVertex3f( len, height, -width / 2);
+    glVertex3f(-len, height, -width / 2);
+    glVertex3f( len, height,  width / 2);
+    glVertex3f(-len, height,  width / 2);
     glEnd();
 
     glColor3f(0.7, 0.7, 0.0);
     glBegin(GL_QUAD_STRIP);
-    glVertex3f( 10.0, 2.0,  1.0);
-    glVertex3f(-10.0, 2.0,  1.0);
-    glVertex3f( 10.0, 0.0,  1.0);
-    glVertex3f(-10.0, 0.0,  1.0);
+    glVertex3f( len, height,  width / 2);
+    glVertex3f(-len, height,  width / 2);
+    glVertex3f( len, 0.0,     width / 2);
+    glVertex3f(-len, 0.0,     width / 2);
     glEnd();
 
     glBegin(GL_QUAD_STRIP);
-    glVertex3f( 10.0, 0.0,  1.0);
-    glVertex3f(-10.0, 0.0,  1.0);
-    glVertex3f( 10.0, 0.0, -1.0);
-    glVertex3f(-10.0, 0.0, -1.0);
+    glVertex3f( len, 0.0,  width / 2);
+    glVertex3f(-len, 0.0,  width / 2);
+    glVertex3f( len, 0.0, -width / 2);
+    glVertex3f(-len, 0.0, -width / 2);
     glEnd();
 
     glColor3f(0.8, 0.8, 0.0);
     glBegin(GL_QUAD_STRIP);
-    glVertex3f( 10.0, 0.0, -1.0);
-    glVertex3f(-10.0, 0.0, -1.0);
-    glVertex3f( 10.0, 2.0, -1.0);
-    glVertex3f(-10.0, 2.0, -1.0);
+    glVertex3f( len, 0.0,    -width / 2);
+    glVertex3f(-len, 0.0,    -width / 2);
+    glVertex3f( len, height, -width / 2);
+    glVertex3f(-len, height, -width / 2);
     glEnd();
 
     glColor3f(0.6, 0.6, 0.0);
     glBegin(GL_QUADS);
-    glVertex3f( 10.0, 2.0, -1.0);
-    glVertex3f( 10.0, 2.0,  1.0);
-    glVertex3f( 10.0, 0.0,  1.0);
-    glVertex3f( 10.0, 0.0, -1.0);
+    glVertex3f( len, height, -width / 2);
+    glVertex3f( len, height,  width / 2);
+    glVertex3f( len, 0.0,     width / 2);
+    glVertex3f( len, 0.0,     -width / 2);
 
     glColor3f(0.5, 0.5, 0.0);
-    glVertex3f(-10.0, 0.0, -1.0);
-    glVertex3f(-10.0, 0.0,  1.0);
-    glVertex3f(-10.0, 2.0,  1.0);
-    glVertex3f(-10.0, 2.0, -1.0);
+    glVertex3f(-len, 0.0,    -width / 2);
+    glVertex3f(-len, 0.0,     width / 2);
+    glVertex3f(-len, height,  width / 2);
+    glVertex3f(-len, height, -width / 2);
 
     glEnd();
 
@@ -313,10 +327,16 @@ class Fly
                     things.push(new Thing(r, g, b, float(i*2 + posi), float(j*2 + posj), 4.0));
 
         r = 1.0; g = 0.8; b = 0.7;
-        float dis = 183.0;
+        float dis = 178.6;
         for (i = 0;  i < 360; i+=8) {
-            float xi = dis * sin(float(i) * ToRad);
-            float zi = dis * cos(float(i) * ToRad);
+            float angle = float(i) * ToRad;
+            float dismod = dis + 3.0 * sin(angle * 4.0) + 7.0 * sin(angle * 8.0);
+            float xi = dismod * sin(angle);
+            float zi = dismod * cos(angle);
+            things.push(new Thing(r, g, b, xi, zi, 3.0, 0.3));
+            dismod = dis + 3.0 * sin(angle * 4.0) + 7.0 * sin(angle * 8.0) + 5.0;
+            xi = dismod * sin(angle);
+            zi = dismod * cos(angle);
             things.push(new Thing(r, g, b, xi, zi, 3.0, 0.3));
         }
 
@@ -398,13 +418,36 @@ class Fly
 
         float now;
         ${ time now };
-        now = (now - float(self.initial)) / 10.0;
+        float t = (now - float(self.initial)) / 7.2;
 
-        train(now);
-        now = now + 0.115;
-        train(now);
-        now = now + 0.115;
-        train(now);
+        float step = 0.058;
+        float dis = 180.0;
+        train(t, dis);
+        t = t + step;
+        train(t, dis);
+        t = t + step;
+        train(t, dis);
+        t = t + step;
+        train(t, dis);
+        t = t + step;
+        train(t, dis);
+        t = t + step;
+        train(t, dis);
+
+        dis = 182.0;
+        t = - (now - float(self.initial)) / 6.8;
+        step = -0.058;
+        train(t, dis);
+        t = t + step;
+        train(t, dis);
+        t = t + step;
+        train(t, dis);
+        t = t + step;
+        train(t, dis);
+        t = t + step;
+        train(t, dis);
+        t = t + step;
+        train(t, dis);
 
         glutSwapBuffers();
         ${ sweep 1 };
