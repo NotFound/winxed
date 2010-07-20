@@ -702,6 +702,17 @@ function floatValue(var owner, var start, float value)
     return ival.set(owner, t);
 }
 
+function floatresult(string r1, string r2)
+/*
+    Check if the passed types can give a float result in arithmetic
+    operations.
+*/
+{
+    int result = (r1 == REGfloat && (r2 == REGfloat || r2 == REGint)) ||
+           (r2 == REGfloat && (r1 == REGfloat || r1 == REGint));
+    return result;
+}
+
 //*********************************************
 //         Predefined functions
 //*********************************************
@@ -2312,8 +2323,15 @@ class OpUnaryMinusExpr : OpUnaryExpr
         self.optimizearg();
         if (self.subexpr.isintegerliteral()) {
             var numval = self.subexpr.numval;
-            int n = numval;
-            return integerValue(self.owner, self.subexpr.start, -n);
+            int i = numval;
+            return integerValue(self.owner, self.subexpr.start, -i);
+        }
+        if (__STAGE__ != '0') {
+            if (self.subexpr.isfloatliteral()) {
+                var numval = self.subexpr.numval;
+                float n = string(numval);
+                return floatValue(self.owner, self.subexpr.start, -n);
+            }
         }
         return self;
     }
@@ -3012,7 +3030,7 @@ class OpAddExpr : OpBinaryExpr
                 return integerValue(self.owner, self.start, ln + rn);
             }
             if (__STAGE__ != '0') {
-                if (ltype == REGfloat && rtype == REGfloat) {
+                if (floatresult(ltype, rtype)) {
                     var lvalf = lexpr.numval;
                     float lf = string(lvalf);
                     var rvalf = rexpr.numval;
@@ -3035,11 +3053,7 @@ class OpAddExpr : OpBinaryExpr
             return REGstring;
         if (rl == REGstring && rr == REGint)
             return REGstring;
-        if (rl == REGfloat && rr == REGfloat)
-            return REGfloat;
-        if (rl == REGint && rr == REGfloat)
-            return REGfloat;
-        if (rl == REGfloat && rr == REGint)
+        if (floatresult(rl, rr))
             return REGfloat;
         return REGint;
     }
@@ -3151,6 +3165,15 @@ class OpMulExpr : OpBinaryExpr
                 var rval = rexpr.numval;
                 int rn = rval;
                 return integerValue(self.owner, self.start, ln * rn);
+            }
+            if (__STAGE__ != '0') {
+                if (floatresult(ltype, rtype)) {
+                    var lvalf = lexpr.numval;
+                    float lf = string(lvalf);
+                    var rvalf = rexpr.numval;
+                    float rf = string(rvalf);
+                    return floatValue(self.owner, self.start, lf * rf);
+                }
             }
         }
         return self;
@@ -3273,7 +3296,7 @@ class OpDivExpr : OpBinaryExpr
                     return integerValue(self.owner, self.start, ln / rn);
             }
             if (__STAGE__ != '0') {
-                if (ltype == REGfloat && rtype == REGfloat) {
+                if (floatresult(ltype, rtype)) {
                     lval = lexpr.numval;
                     float lf = string(lval);
                     rval = rexpr.numval;
