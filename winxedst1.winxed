@@ -3047,8 +3047,6 @@ class OpAddExpr : OpBinaryExpr
         string rr = self.rexpr.checkResult();
         if (rl == rr)
             return rl;
-        if (rl == REGstring && rr == REGstring)
-            return REGstring;
         if (rl == REGint && rr == REGstring)
             return REGstring;
         if (rl == REGstring && rr == REGint)
@@ -3131,8 +3129,6 @@ class OpSubExpr : OpBinaryExpr
         string rr = self.rexpr.checkResult();
         if (rl == rr)
             return rl;
-        if (rl == REGfloat && rr == REGfloat)
-            return REGfloat;
         if (rl == REGint && rr == REGfloat)
             return REGfloat;
         if (rl == REGfloat && rr == REGint)
@@ -3187,8 +3183,6 @@ class OpMulExpr : OpBinaryExpr
             return rl;
         if (rl == REGstring)
             return REGstring;
-        if (rl == REGint && rr == REGint)
-            return REGint;
         else
             return REGfloat;
     }
