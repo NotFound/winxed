@@ -68,6 +68,15 @@ class Idle : OpenGlCallback
     }
 }
 
+class Timer : OpenGlCallback
+{
+    function invoke[vtable](int value)
+    {
+        self.w.timer(value);
+        glutTimerFunc(self, 40, 0);
+    }
+}
+
 class Keyboard : OpenGlCallback
 {
     function invoke[vtable](int key, int x, int y)
@@ -359,9 +368,9 @@ class Fly
         self.prev = prev;
         self.initial = prev;
 
-        d = new Idle(); d.set(self);
+        d = new Timer(); d.set(self);
         savecb.push(d);
-        glutIdleFunc(d);
+        glutTimerFunc(d, 40, 0);
     }
 
     function reshape(int w, int h)
@@ -429,7 +438,7 @@ class Fly
         ${ sweep 1 };
     }
 
-    function idle()
+    function timer(int ignored)
     {
         float x; float y; float z;
         float dx; float dy; float dz;
