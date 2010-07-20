@@ -246,6 +246,13 @@ function train(float angle, float dis)
     glPopMatrix();
 }
 
+function village(var things, int posi, int posj, float r, float g, float b)
+{
+    for (int i = 0; i < 11; ++i)
+        for (int j = 0; j < 11; ++j)
+            if (i != j && i != 10 - j)
+                things.push(new Thing(r, g, b, float(i*2 + posi), float(j*2 + posj), 4.0));
+}
 
 class Fly
 {
@@ -308,42 +315,24 @@ class Fly
         things.push(new Thing(0.0, 0.0, 1.0,  120.0, -120.0, 20.0, 5.0));
         things.push(new Thing(1.0, 0.0, 1.0,  120.0,  120.0, 20.0, 5.0));
 
-        int i; int j;
-        int posi; int posj;
-        float r; float g; float b;
-        r = 0.2; g = 1.0; b = 0.2;
-        posi = -70; posj = -80;
-        for (i = 0; i < 11; ++i)
-            for (j = 0; j < 11; ++j)
-                if (i != j && i != 10 - j)
-                    things.push(new Thing(r, g, b, float(i*2 + posi), float(j*2 + posj), 4.0));
+        village(things, -70, -80, 0.2, 1.0, 0.2);
+        village(things,  90, 110, 1.0, 0.8, 0.4);
+        village(things,  30, 150, 0.4, 0.4, 0.7);
 
-        r = 1.0; g = 0.8; b = 0.4;
-        posi = 90; posj = 110;
-        for (i = 0; i < 11; ++i)
-            for (j = 0; j < 11; ++j)
-                if (i != j && i != 10 - j)
-                    things.push(new Thing(r, g, b, float(i*2 + posi), float(j*2 + posj), 4.0));
-
-        r = 0.4; g = 0.4; b = 0.7;
-        posi = 30; posj = 150;
-        for (i = 0; i < 11; ++i)
-            for (j = 0; j < 11; ++j)
-                if (i != j && i != 10 - j)
-                    things.push(new Thing(r, g, b, float(i*2 + posi), float(j*2 + posj), 4.0));
-
-        r = 1.0; g = 0.8; b = 0.7;
-        float dis = 178.6;
-        for (i = 0;  i < 360; i+=8) {
+        const float r = 1.0; const float g = 0.8; const float b = 0.7;
+        const float dis = 178.9;
+        const float pheight = 2.5;
+        const float pwidth = 0.18;
+        for (int i = 0;  i < 360; i+=8) {
             float angle = float(i) * ToRad;
             float dismod = dis + 3.0 * sin(angle * 4.0) + 7.0 * sin(angle * 8.0);
             float xi = dismod * sin(angle);
             float zi = dismod * cos(angle);
-            things.push(new Thing(r, g, b, xi, zi, 3.0, 0.3));
-            dismod = dis + 3.0 * sin(angle * 4.0) + 7.0 * sin(angle * 8.0) + 5.0;
+            things.push(new Thing(r, g, b, xi, zi, pheight, pwidth));
+            dismod += 4.2;
             xi = dismod * sin(angle);
             zi = dismod * cos(angle);
-            things.push(new Thing(r, g, b, xi, zi, 3.0, 0.3));
+            things.push(new Thing(r, g, b, xi, zi, pheight, pwidth));
         }
 
         self.things = things;
@@ -419,41 +408,22 @@ class Fly
         glPopMatrix();
 
 
-        for (var t in self.things)
-            t.draw();
+        for (var thing in self.things)
+            thing.draw();
 
         float now;
         ${ time now };
         float t = (now - float(self.initial)) / 7.2;
-
-        float step = 0.058;
-        float dis = 180.0;
-        train(t, dis);
-        t = t + step;
-        train(t, dis);
-        t = t + step;
-        train(t, dis);
-        t = t + step;
-        train(t, dis);
-        t = t + step;
-        train(t, dis);
-        t = t + step;
-        train(t, dis);
-
-        dis = 182.0;
+        int i;
+        for (i = 0; i < 7; ++i) {
+            train(t, 180.0);
+            t += 0.058;
+        }
         t = - (now - float(self.initial)) / 6.8;
-        step = -0.058;
-        train(t, dis);
-        t = t + step;
-        train(t, dis);
-        t = t + step;
-        train(t, dis);
-        t = t + step;
-        train(t, dis);
-        t = t + step;
-        train(t, dis);
-        t = t + step;
-        train(t, dis);
+        for (i = 0; i < 6; ++i) {
+            train(t, 182.0);
+            t -= 0.058;
+        }
 
         glutSwapBuffers();
         ${ sweep 1 };
@@ -468,7 +438,7 @@ class Fly
         float diff;
         ${ time now };
         if (self.auto) {
-            float dis = 174.0;
+            float dis = 175.4;
             float initial = self.initial;
             diff = (now - initial - 1.2) / 7.2;
             x = sin(diff) * dis;
