@@ -2116,7 +2116,12 @@ class FloatLiteral : SimpleExpr
     }
     function emit_get(e)
     {
-        return self.getFloatValue();
+        // Make sure that a float constant is handled as such:
+        // if it looks like an integer, add a dcimal part.
+        string aux= self.numval;
+        if (indexof(aux, '.') < 0)
+            aux += '.0';
+        return aux;
     }
 }
 
