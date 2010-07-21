@@ -791,7 +791,7 @@ class PredefFunction
         self.set(name, body, typeresult, type0, type1, type2);
         return self;
     }
-    function expand(e, start, string result, args)
+    function expand(var e, var owner, var start, string result, args)
     {
         string name = self.name;
         string typeresult = self.typeresult;
@@ -809,6 +809,8 @@ class PredefFunction
             else {
                 if (pos == -1)
                     InternalError('non void predef without {res}');
+                if (typeresult != REGnone && (result == null || result == ''))
+                    result = owner.tempreg(typeresult);
                 do {
                     body = substr(body, 0, pos) + result + substr(body, pos + 5);
                 } while ((pos = indexof(body, '{res}')) != -1);
@@ -1750,7 +1752,7 @@ class ExprStatement : Statement
     }
     function emit(e)
     {
-        self.expr.emit_get(e);
+        self.expr.emit(e, '');
     }
 }
 
@@ -2555,9 +2557,10 @@ class OpAssignToExpr : OpBaseAssignExpr
     }
     function emit(e, result)
     {
-        string reg = self.emit_get(e);
         self.annotate(e);
-        e.emitassign(result, reg);
+        string reg = self.emit_get(e);
+        if (result != null && result != '')
+            e.emitassign(result, reg);
     }
     function emit_get(e)
     {
@@ -3488,7 +3491,7 @@ class CallPredefExpr : Expr
                 argreg.push(argr);
             }
         }
-        self.predef.expand(e, self.start, result, argreg);
+        self.predef.expand(e, self, self.start, result, argreg);
     }
 }
 
@@ -3586,7 +3589,7 @@ class CallExpr : Expr
         }
         self.annotate(e);
 
-        if (result != null) {
+        if (result != null && result != '') {
             if (result == '.tailcall')
                 e.print('.tailcall ');
             else
