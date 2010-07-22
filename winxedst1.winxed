@@ -365,12 +365,38 @@ function getnumber(tk, string start, int line)
             s+= c;
             c= tk.getchar();
         } while (isdigit(c));
+        if (c == 'e' || c == 'E') {
+            s += 'E';
+            if ((c = tk.getchar()) == '+' || c == '-') {
+                s += c;
+                c = tk.getchar();
+            }
+            while (isdigit(c)) {
+                s += c;
+                c = tk.getchar();
+            }
+        }
         tk.ungetchar(c);
         return newToken(TypeFloat, s, tk.filename, line);
     }
     else {
-        tk.ungetchar(c);
-        return newToken(TypeInteger, s, tk.filename, line);
+        if (c == 'e' || c == 'E') {
+            s += 'E';
+            if ((c = tk.getchar()) == '+' || c == '-') {
+                s += c;
+                c = tk.getchar();
+            }
+            while (isdigit(c)) {
+                s += c;
+                c = tk.getchar();
+            }
+            tk.ungetchar(c);
+            return newToken(TypeFloat, s, tk.filename, line);
+        }
+	else {
+            tk.ungetchar(c);
+            return newToken(TypeInteger, s, tk.filename, line);
+        }
     }
 }
 
