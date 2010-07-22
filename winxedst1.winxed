@@ -393,7 +393,7 @@ function getnumber(tk, string start, int line)
             tk.ungetchar(c);
             return newToken(TypeFloat, s, tk.filename, line);
         }
-	else {
+        else {
             tk.ungetchar(c);
             return newToken(TypeInteger, s, tk.filename, line);
         }
