@@ -37,7 +37,7 @@ function isident(string c)
 {
     return indexof(
         'abcdefghijklmnopqrstuvwxyz' +
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '_' +
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '_$' +
         '0123456789',
         c) > -1;
 }
@@ -429,6 +429,7 @@ class Tokenizer
         self.filename= filename;
         self.line= 1;
         var select = {
+            '$': { '': getident, '{': getop },
             '"': getquoted,
             "'": getsinglequoted,
             '=': { '=': getop, ':': getop },
@@ -1413,7 +1414,7 @@ function parseStatement(tk, owner)
         return new EmptyStatement();
     if (t.isop('{'))
         return new CompoundStatement().parse(t, tk, owner);
-    if (t.isop('$'))
+    if (t.isop('${'))
         return new PiropStatement().parse(t, tk, owner);
 
     string key = t.checkkeyword();
@@ -1618,9 +1619,6 @@ class PiropStatement : Statement, SimpleArgList
     {
         self.initstatement(start, owner);
         var t = tk.get();
-        if (! t.isop('{'))
-            SyntaxError("Invalid '$' statement", start);
-        t = tk.get();
         string opname = t.getidentifier();
         self.opname = opname;
         t = tk.get();
