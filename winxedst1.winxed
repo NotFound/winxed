@@ -6453,7 +6453,6 @@ function include_parrot(var start, var tk, var ns)
         if (elements(matches) > 0) {
             string name = matches[0];
             string value = matches[1];
-            cry(name, ' - ', value);
             ns.createconst(name, REGint,
                 integerValue(ns,
                     newTokenFrom(TypeInteger, name, start), value),
