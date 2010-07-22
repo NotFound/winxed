@@ -6412,6 +6412,59 @@ class ClassStatement : VarContainer
 //            NamespaceStatement
 //*********************************************
 
+function include_parrot(var start, var tk, var ns)
+{
+    var t = tk.get();
+    if (!t.isstring())
+        SyntaxError('Literal string expected', t);
+    ExpectOp(';', tk);
+    string filename = t.rawstring();
+    var interp = getinterp();
+
+    // Search for the file in the parrot include paths
+    const int IGLOBALS_LIB_PATHS = 9;
+    const int PARROT_LIB_PATH_INCLUDE = 0;
+    var libpaths = interp[IGLOBALS_LIB_PATHS];
+    var paths = libpaths[PARROT_LIB_PATH_INCLUDE];
+    var file = new 'FileHandle';
+    for (string path in paths) {
+        string filepath = path + filename;
+        try {
+            file.open(filepath, 'r');
+            say(': ', filepath);
+            break;
+        }
+        catch () {
+        }
+    }
+    if (file.is_closed())
+        SyntaxError('File not found', t);
+
+    // Use a regular expression to check lines like:
+    // .macro_const CONST_NAME value
+    // Assume only integer values for a now
+    using extern PGE;
+    var regexcomp = compreg('PGE::P5Regex');
+    var rule = regexcomp('^\.macro_const\s+([A-Za-z0-9_]+)\s+(\S+)');
+
+    for (string line = file.readline(); !file.eof(); line = file.readline()) {
+        string matches[];
+        matches = rule(line);
+        if (elements(matches) > 0) {
+            string name = matches[0];
+            string value = matches[1];
+            cry(name, ' - ', value);
+            ns.createconst(name, REGint,
+                integerValue(ns,
+                    newTokenFrom(TypeInteger, name, start), value),
+                    '');
+        }
+    }
+    file.close();
+}
+
+//*********************************************
+
 class NamespaceStatement : VarContainer
 {
     var parent;
@@ -6511,6 +6564,9 @@ class NamespaceStatement : VarContainer
                 self.addlib(reqlib);
                 t = tk.get();
                 RequireOp(';', t);
+            }
+            else if (t.iskeyword('$include_const')) {
+                include_parrot(t, tk, self);
             }
             else if (t.isop('}')) {
                 int n= namespace;
