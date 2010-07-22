@@ -6431,7 +6431,6 @@ function include_parrot(var start, var tk, var ns)
         string filepath = path + filename;
         try {
             file.open(filepath, 'r');
-            say(': ', filepath);
             break;
         }
         catch () {
