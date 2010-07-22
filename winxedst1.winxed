@@ -434,6 +434,7 @@ class Tokenizer
             '=': { '=': getop, ':': getop },
             '+': { '+': getop, '=': getop },
             '-': { '-': getop, '=': getop },
+            '*': { '=': getop },
             '|': { '|': getop },
             '&': { '&': getop },
             '<': {
@@ -443,7 +444,7 @@ class Tokenizer
             '>': { '>': getop, '=': getop },
             '!': { '=': getop },
             '%': { '%': getop },
-            '/': { '/': getlinecomment, '*': getcomment },
+            '/': { '=': getop, '/': getlinecomment, '*': getcomment },
             '#': getlinecomment
         };
         self.select= select;
@@ -2507,6 +2508,13 @@ class OpBaseAssignExpr : Expr
         self.eright = rexpr;
         return self;
     }
+    function checkResult()
+    {
+        if (self.eleft.isidentifier())
+            return self.eleft.checkResult();
+        else
+            InternalError('Unimplemented');
+    }
     function optimize_base()
     {
         self.eleft = self.eleft.optimize();
@@ -2519,15 +2527,10 @@ class OpBaseAssignExpr : Expr
     }
 }
 
+//*********************************************
+
 class OpAssignExpr : OpBaseAssignExpr
 {
-    function checkResult()
-    {
-        if (self.eleft.isidentifier())
-            return self.eleft.checkResult();
-        else
-            InternalError('Unimplemented');
-    }
     function emit(e, result)
     {
         string reg = self.emit_get(e);
@@ -2548,13 +2551,6 @@ class OpAssignExpr : OpBaseAssignExpr
 
 class OpAssignToExpr : OpBaseAssignExpr
 {
-    function checkResult()
-    {
-        if (self.eleft.isidentifier())
-            return self.eleft.checkResult();
-        else
-            InternalError('Unimplemented');
-    }
     function emit(e, result)
     {
         self.annotate(e);
@@ -2576,13 +2572,6 @@ class OpAssignToExpr : OpBaseAssignExpr
 
 class OpAddToExpr : OpBaseAssignExpr
 {
-    function checkResult()
-    {
-        if (self.eleft.isidentifier())
-            return self.eleft.checkResult();
-        else
-            InternalError('Unimplemented');
-    }
     function emit(e, result)
     {
         string reg = self.emit_get(e);
@@ -2614,13 +2603,6 @@ class OpAddToExpr : OpBaseAssignExpr
 
 class OpSubToExpr : OpBaseAssignExpr
 {
-    function checkResult()
-    {
-        if (self.eleft.isidentifier())
-            return self.eleft.checkResult();
-        else
-            InternalError('Unimplemented');
-    }
     function emit(e, result)
     {
         string reg = self.emit_get(e);
@@ -2634,6 +2616,48 @@ class OpSubToExpr : OpBaseAssignExpr
         string reg2 = self.eright.emit_get(e);
         self.annotate(e);
         e.say('sub ', reg, ', ', reg2);
+        return reg;
+    }
+}
+
+//*********************************************
+
+class OpMulToExpr : OpBaseAssignExpr
+{
+    function emit(e, result)
+    {
+        string reg = self.emit_get(e);
+        if (result != '')
+            e.emitset(result, reg);
+    }
+    function emit_get(e)
+    {
+        string type = self.eleft.checkResult();
+        string reg = self.eleft.emit_get(e);
+        string reg2 = self.eright.emit_get(e);
+        self.annotate(e);
+        e.say('mul ', reg, ', ', reg2);
+        return reg;
+    }
+}
+
+//*********************************************
+
+class OpDivToExpr : OpBaseAssignExpr
+{
+    function emit(e, result)
+    {
+        string reg = self.emit_get(e);
+        if (result != '')
+            e.emitset(result, reg);
+    }
+    function emit_get(e)
+    {
+        string type = self.eleft.checkResult();
+        string reg = self.eleft.emit_get(e);
+        string reg2 = self.eright.emit_get(e);
+        self.annotate(e);
+        e.say('div ', reg, ', ', reg2);
         return reg;
     }
 }
@@ -4250,6 +4274,8 @@ const int Code_mul           = 19;
 const int Code_div           = 20;
 const int Code_mod           = 21;
 const int Code_cmod          = 22;
+const int Code_mul_assign    = 23;
+const int Code_div_assign    = 24;
 
 function getOpCode_2(t)
 {
@@ -4301,6 +4327,8 @@ function getOpCode_16(t)
     case '=:': return Code_assign_to;
     case '+=': return Code_add_assign;
     case '-=': return Code_sub_assign;
+    case '*=': return Code_mul_assign;
+    case '/=': return Code_div_assign;
     default:   return Code_none;
     }
 }
@@ -4584,6 +4612,12 @@ function parseExpr_16(tk, owner)
             break;
         case Code_sub_assign:
             expr = new OpSubToExpr();
+            break;
+        case Code_mul_assign:
+            expr = new OpMulToExpr();
+            break;
+        case Code_div_assign:
+            expr = new OpDivToExpr();
             break;
         default:
             InternalError('Unexpected code in parseExpr_16', t);
