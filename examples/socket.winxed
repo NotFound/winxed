@@ -2,11 +2,7 @@
 
 // Example of parrot sockets, query a HTTP server.
 
-// Values from socekt.pasm
-// No way to import yet, just copy here.
-const int PIO_PF_INET     = 2;
-const int PIO_SOCK_STREAM = 1;
-const int PIO_PROTO_TCP   = 6;
+$include_const 'socket.pasm';
 
 // Hardcode values for this test:
 const string USER_AGENT = "Winxed-test";
