@@ -270,7 +270,7 @@ class Fly
         self.w = w;
         self.aspect = 1.0;
 
-        self.auto = true;
+        self.auto = 1;
 
         self.posx =  60.0;
         self.posy =  10.0;
@@ -463,8 +463,10 @@ class Fly
         float now;
         float diff;
         ${ time now };
-        if (self.auto) {
-            float dis = 175.4;
+        float dis;
+        switch (self.auto) {
+          case 1:
+            dis = 175.4;
             diff = (now - 1.2) / 7.2;
             x = sin(diff) * dis;
             z = cos(diff) * dis;
@@ -475,8 +477,21 @@ class Fly
             self.dx =: dx;
             self.dy =: dy;
             self.dz =: dz;
-        }
-        else {
+            break;
+          case 2:
+            dis = 186.0;
+            diff = - (now - 1.0) / 6.8;
+            x = sin(diff) * dis;
+            z = cos(diff) * dis;
+            y = 16.0 + 11.0 * cos(now / 8.5);
+            dx = sin(diff - PI / 2.0);
+            dy = 0;
+            dz = cos(diff - PI / 2.0);
+            self.dx =: dx;
+            self.dy =: dy;
+            self.dz =: dz;
+            break;
+          default:
             x = self.posx;
             y = self.posy;
             z = self.posz;
@@ -504,6 +519,7 @@ class Fly
         float speed;
         switch (key) {
           case ord("\e"):
+            glutTimerFunc(null, 40, 0);
             glutDestroyWindow(self.w);
             break;
           case ord("+"):
@@ -516,12 +532,22 @@ class Fly
             speed = speed * 0.9;
             self.speed = speed;
             break;
+          case ord("\t"):
+            var auto = self.auto;
+            switch (auto) {
+              case 1:
+                auto = 2; break;
+              case 2:
+                auto = 1; break;
+            }
+            self.auto =: auto;
+            break;
         }
     }
     function specialKey(int key, int x, int y)
     {
         if (self.auto)
-            self.auto =: false;
+            self.auto =: 0;
 
         float dx = self.dx;
         float dy = self.dy;
