@@ -262,7 +262,6 @@ class Fly
     var dz;
 
     var speed;
-    var initial;
     var prev;
 
     function create(string title)
@@ -347,7 +346,6 @@ class Fly
         ${ time prev };
         //cry(prev);
         self.prev = prev;
-        self.initial = prev;
 
         d = new Timer(); d.set(self);
         savecb.push(d);
@@ -397,19 +395,57 @@ class Fly
         glEnd();
         glPopMatrix();
 
+        glDisable(GL_CULL_FACE);
+        glColor3f(0.6, 0.6, 0.6);
+
+        const float angle = -67.0 * ToRad;
+        const float rangle = angle + 90.0 * ToRad;
+        const float inix =  189.5;
+        const float iniz =  -81.5;
+        const int nsteps = 7;
+        int steps[nsteps]     = [   3,   3,   3,   4,    3,    3,    3 ];
+        float heights[nsteps] = [ 0.2, 0.4, 0.3, 0.0, -0.3, -0.4, -0.2 ];
+        float stepx = sin(angle)  * 2.0;
+        float stepz = cos(angle)  * 2.0;
+        for (int r = 0; r < 2; ++r) {
+            float xpos1 = inix + sin(rangle) * 5.5 * r;
+            float zpos1 = iniz + cos(rangle) * 5.5 * r;
+            float xpos2 = xpos1 + sin(rangle)  * 4.0;
+            float zpos2 = zpos1 + cos(rangle) * 4.0;
+            float ypos = 0.1;
+
+            glBegin(GL_QUAD_STRIP);
+            glVertex3f(xpos1, ypos, zpos1);
+            glVertex3f(xpos2, ypos, zpos2);
+            for (int s = 0; s < nsteps; ++s) {
+                int ss = steps[s];
+                float sx = stepx * ss;
+                float sz = stepz * ss;
+                float sy = heights[s] * ss;
+                xpos1 += sx;
+                xpos2 += sx;
+                zpos1 += sz;
+                zpos2 += sz;
+                ypos += sy;
+                glVertex3f(xpos1, ypos, zpos1);
+                glVertex3f(xpos2, ypos, zpos2);
+            }
+            glEnd();
+        }
+        glEnable(GL_CULL_FACE);
 
         for (var thing in self.things)
             thing.draw();
 
         float now;
         ${ time now };
-        float t = (now - float(self.initial)) / 7.2;
+        float t = now / 7.2;
         int i;
         for (i = 0; i < 7; ++i) {
             train(t, 180.0);
             t += 0.058;
         }
-        t = - (now - float(self.initial)) / 6.8;
+        t = - now / 6.8;
         for (i = 0; i < 6; ++i) {
             train(t, 182.0);
             t -= 0.058;
@@ -429,11 +465,10 @@ class Fly
         ${ time now };
         if (self.auto) {
             float dis = 175.4;
-            float initial = self.initial;
-            diff = (now - initial - 1.2) / 7.2;
+            diff = (now - 1.2) / 7.2;
             x = sin(diff) * dis;
             z = cos(diff) * dis;
-            y = 16.0 + 11.0 * cos((now - initial) / 8.5);
+            y = 16.0 + 11.0 * cos(now / 8.5);
             dx = sin(diff + PI / 2.0);
             dy = 0;
             dz = cos(diff + PI / 2.0);
