@@ -326,6 +326,13 @@ class Fly
 
         self.things = things;
 
+        float prev;
+        ${ time prev };
+        self.prev = prev;
+        // Inititalize postion for automatic mode, draw can be called
+        // before the first timer pulse.
+        self.timer(0);
+
         var savecb = [];
         self.savecb = savecb;
         var d;
@@ -342,10 +349,6 @@ class Fly
         savecb.push(d);
         glutDisplayFunc(d);
 
-        float prev;
-        ${ time prev };
-        //cry(prev);
-        self.prev = prev;
 
         d = new Timer(); d.set(self);
         savecb.push(d);
