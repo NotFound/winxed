@@ -74,6 +74,14 @@ class Special : OpenGlCallback
     }
 }
 
+class SpecialUp : OpenGlCallback
+{
+    function invoke[vtable](int key, int x, int y)
+    {
+        self.w.specialKeyUp(key, x, y);
+    }
+}
+
 //**********************************************************************
 
 class Thing
@@ -252,6 +260,10 @@ class Fly
     var things;
 
     var auto;
+    var moveup;
+    var movedown;
+    var moveleft;
+    var moveright;
 
     var posx;
     var posy;
@@ -271,6 +283,10 @@ class Fly
         self.aspect = 1.0;
 
         self.auto = 1;
+        self.moveup = false;
+        self.movedown = false;
+        self.moveleft = false;
+        self.moveright = false;
 
         self.posx =  60.0;
         self.posy =  10.0;
@@ -342,6 +358,9 @@ class Fly
         d = new Special(); d.set(self);
         savecb.push(d);
         glutSpecialFunc(d);
+        d = new SpecialUp(); d.set(self);
+        savecb.push(d);
+        glutSpecialUpFunc(d);
         d = new Reshape(); d.set(self);
         savecb.push(d);
         glutReshapeFunc(d);
@@ -463,6 +482,7 @@ class Fly
         float x; float y; float z;
         float dx; float dy; float dz;
         float prev = self.prev;
+        float angle;
         float now;
         float diff;
         ${ time now };
@@ -501,6 +521,30 @@ class Fly
             dx = self.dx;
             dy = self.dy;
             dz = self.dz;
+            if (self.moveup) {
+                angle = asin(dy) - 0.02;
+                dy = sin(angle);
+                self.dy =: dy;
+            }
+            if (self.movedown) {
+                angle = asin(dy) + 0.02;
+                dy = sin(angle);
+                self.dy =: dy;
+            }
+            if (self.moveleft) {
+                angle = atan(dx, dz) + 0.02;
+                dx = sin(angle);
+                dz = cos(angle);
+                self.dx =: dx;
+                self.dz =: dz;
+            }
+            if (self.moveright) {
+                angle = atan(dx, dz) - 0.02;
+                dx = sin(angle);
+                dz = cos(angle);
+                self.dx =: dx;
+                self.dz =: dz;
+            }
 
             float speed = self.speed;
             diff = (now - prev) * speed;
@@ -552,34 +596,39 @@ class Fly
         if (self.auto)
             self.auto =: 0;
 
-        float dx = self.dx;
-        float dy = self.dy;
-        float dz = self.dz;
-        float hang = atan(dx, dz);
         switch (key) {
           case GLUT_KEY_LEFT:
-            hang += 0.02;
-            self.dx =: sin(hang);
-            self.dz =: cos(hang);
+            self.moveleft =: true;
             break;
           case GLUT_KEY_RIGHT:
-            hang -= 0.02;
-            self.dx =: sin(hang);
-            self.dz =: cos(hang);
+            self.moveright =: true;
             break;
           case GLUT_KEY_DOWN:
-            hang = sin(dy);
-            hang += 0.02;
-            self.dy = hang;
+            self.movedown =: true;
             break;
           case GLUT_KEY_UP:
-            hang = sin(dy);
-            hang -= 0.02;
-            self.dy = hang;
+            self.moveup =: true;
             break;
         }
 
         glutPostRedisplay();
+    }
+    function specialKeyUp(int key, int x, int y)
+    {
+        switch (key) {
+          case GLUT_KEY_UP:
+            self.moveup =: false;
+            break;
+          case GLUT_KEY_DOWN:
+            self.movedown =: false;
+            break;
+          case GLUT_KEY_LEFT:
+            self.moveleft =: false;
+            break;
+          case GLUT_KEY_RIGHT:
+            self.moveright =: false;
+            break;
+        }
     }
 }
 
@@ -600,6 +649,7 @@ function main(var argv)
     var f = new Fly();
     f.create('Fly - winxed');
 
+    glutIgnoreKeyRepeat(1);
     glCullFace(GL_BACK);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
