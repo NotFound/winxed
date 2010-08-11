@@ -4125,6 +4125,7 @@ class NewExpr : Expr
                 self.value.isidentifier() ? BYIDENT : -1;
 
         string reginit = '';
+        string regnew = result;
         string constructor;
         switch (numinits) {
           case 0:
@@ -4137,6 +4138,7 @@ class NewExpr : Expr
           default:
             if (type != BYIDENT && type != BYMULTI)
                 SyntaxError('Multiple init arguments not allowed here', self.start);
+            regnew = self.tempreg(REGvar);
         }
 
         switch (type) {
@@ -4148,14 +4150,14 @@ class NewExpr : Expr
                 Warn("Can't locate class " + name + " at compile time", self.value);
 
             // Avoid using root_new here for a now.
-            //e.say('root_new ', result, ", ['parrot'; ", self.value, " ]", reginit);
-            e.say('new ', result, ", [ ", self.value, " ]", reginit);
+            //e.say('root_new ', regnew, ", ['parrot'; ", self.value, " ]", reginit);
+            e.say('new ', regnew, ", [ ", self.value, " ]", reginit);
             if (numinits > 1) {
-                e.say(result, ".'", self.value, "'()");
+                e.say(regnew, ".'", self.value, "'()");
             }
             break;
           case BYMULTI:
-            e.print('new ', result, ", [");
+            e.print('new ', regnew, ", [");
             string sep = '';
             for (string value in self.value) {
                 e.print(sep, "'", value, "'");
@@ -4170,17 +4172,17 @@ class NewExpr : Expr
                 //say('new with no var');
                 var cl = self.owner.checkclass(self.value);
                 if (cl != null) {
-                    e.say('new ', result, ", ", cl.getclasskey(), reginit);
+                    e.say('new ', regnew, ", ", cl.getclasskey(), reginit);
                 }
                 else {
                     Warn('Checking: new unknown type');
-                    e.say('new ', result, ", ['", self.value, "']", reginit);
+                    e.say('new ', regnew, ", ['", self.value, "']", reginit);
                 }
                 constructor = self.value;
             }
             else {
                 //say('new with var');
-                e.say('new ', result, ", ", id['reg'], "", reginit);
+                e.say('new ', regnew, ", ", id['reg'], "", reginit);
             }
             break;
           default:
@@ -4192,9 +4194,10 @@ class NewExpr : Expr
                 string reg = arg.emit_get(e);
                 argregs.push(reg);
             }
-            e.print(result, ".'", constructor, "'(");
+            e.print(regnew, ".'", constructor, "'(");
             e.print(join(", ", argregs));
             e.say(")");
+            e.emitset(result, regnew);
         }
     }
 }

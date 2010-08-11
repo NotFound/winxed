@@ -4121,22 +4121,24 @@ BaseExpr *NewExpr::optimize()
 void NewExpr::emit(Emit &e, const std::string &result)
 {
     std::string reg;
+    std::string regnew = result;
     size_t numinits = init.size();
     switch (numinits)
     {
     case 0:
         break;
     case 1:
-        reg= gentemp(REGvar);
+        reg = gentemp(REGvar);
         init[0]->emit(e, reg);
         break;
     default:
+        regnew = gentemp(REGvar);
         break;
     }
 
     if (! result.empty())
     {
-        e << result << " = " << value;
+        e << regnew << " = " << value;
         if (! reg.empty())
             e << ", " << reg;
         e << '\n';
@@ -4152,10 +4154,11 @@ void NewExpr::emit(Emit &e, const std::string &result)
             init[i]->emit(e, reg);
             regs.push_back(reg);
         }
-        e << result << ".'" << constructor << "'(" << regs[0];
+        e << regnew << ".'" << constructor << "'(" << regs[0];
         for (size_t i= 1; i < numinits; ++i)
             e << ", " << regs[i];
         e << ")\n";
+        e << op_set(result, regnew) << '\n';
     }
 }
 
