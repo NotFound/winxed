@@ -728,15 +728,13 @@ class Emit
 
 function integerValue(var owner, var start, int value)
 {
-    var ival = new IntegerLiteral();
-    return ival.set(owner, start, value);
+    return new IntegerLiteral(owner, start, value);
 }
 
 function floatValue(var owner, var start, float value)
 {
-    var ival = new FloatLiteral();
     var t = newTokenFrom(TypeFloat, value, start);
-    return ival.set(owner, t);
+    return new FloatLiteral(owner, t);
 }
 
 function floatresult(string r1, string r2)
@@ -948,7 +946,7 @@ function predefeval_chr(var owner, var start, var args)
     string s = chr(n);
 
     var t = newTokenFrom(TypeQuoted, s, start);
-    return new StringLiteral().set(owner, t);
+    return new StringLiteral(owner, t);
 }
 
 function getpredefs()
@@ -1435,12 +1433,12 @@ function parseUsing(t, tk, owner)
 {
     var taux = tk.get();
     if (taux.iskeyword('extern'))
-        return new ExternStatement().parse(t, tk, owner);
+        return new ExternStatement(t, tk, owner);
     else if (taux.iskeyword('static'))
-        return new StaticStatement().parse(t, tk, owner);
+        return new StaticStatement(t, tk, owner);
     else {
         tk.unget(taux);
-        return new UsingStatement().parse(t, tk, owner);
+        return new UsingStatement(t, tk, owner);
     }
 }
 
@@ -1450,9 +1448,9 @@ function parseStatement(tk, owner)
     if (t.isop(';'))
         return new EmptyStatement();
     if (t.isop('{'))
-        return new CompoundStatement().parse(t, tk, owner);
+        return new CompoundStatement(t, tk, owner);
     if (t.isop('${'))
-        return new PiropStatement().parse(t, tk, owner);
+        return new PiropStatement(t, tk, owner);
 
     string key = t.checkkeyword();
     var st;
@@ -1516,7 +1514,7 @@ function parseStatement(tk, owner)
             tk.unget(t2);
         }
         tk.unget(t);
-        st = new ExprStatement();
+        return new ExprStatement(t, tk, owner);
     }
     if (st == null)
         InternalError('parseStatement failure');
@@ -1607,20 +1605,19 @@ class EmptyStatement : Statement
 class MultiStatement
 {
     var statements;
-    function init[vtable]()
+
+    function MultiStatement(var st1, var st2)
     {
-        self.statements = [];
-    }
-    function set(var st1, var st2)
-    {
-       self.statements.push(st1);
-       self.statements.push(st2);
-       return self;
+        var statements = [];
+        statements.push(st1);
+        statements.push(st2);
+        self.statements = statements;
+        return self;
     }
     function push(var statement)
     {
-       self.statements.push(statement);
-       return self;
+        self.statements.push(statement);
+        return self;
     }
     function optimize()
     {
@@ -1641,7 +1638,7 @@ function addtomulti(var multi, var newst)
     else if (multi instanceof MultiStatement)
         return multi.push(newst);
     else
-        return new MultiStatement().set(multi, newst);
+        return new MultiStatement(multi, newst);
 }
 
 //*********************************************
@@ -1652,7 +1649,7 @@ class PiropStatement : Statement, SimpleArgList
 {
     var opname;
 
-    function parse(start, tk, owner)
+    function PiropStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         var t = tk.get();
@@ -1693,7 +1690,7 @@ class PiropStatement : Statement, SimpleArgList
 class ExternStatement : Statement
 {
     var path;
-    function parse(start, tk, owner)
+    function ExternStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         string path[];
@@ -1728,7 +1725,7 @@ class ExternStatement : Statement
 class StaticStatement : Statement
 {
     var symbol;
-    function parse(start, tk, owner)
+    function StaticStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         string sym = tk.get();
@@ -1752,7 +1749,7 @@ class StaticStatement : Statement
 class UsingStatement : Statement
 {
     var path;
-    function parse(start, tk, owner)
+    function UsingStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         string path[];
@@ -1798,7 +1795,7 @@ class UsingStatement : Statement
 class ExprStatement : Statement
 {
     var expr;
-    function parse(start, tk, owner)
+    function ExprStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         self.expr = parseExpr(tk, self);
@@ -2032,16 +2029,16 @@ class Condition
 class StringLiteral : SimpleExpr
 {
     var strval;
-    function isliteral() { return 1; }
-    function isstringliteral() { return 1; }
-    function checkResult() { return REGstring; }
-    function hascompilevalue() { return 1; }
-    function set(owner, t)
+    function StringLiteral(owner, t)
     {
         self.initexpr(owner, t);
         self.strval = t;
         return self;
     }
+    function isliteral() { return 1; }
+    function isstringliteral() { return 1; }
+    function checkResult() { return REGstring; }
+    function hascompilevalue() { return 1; }
     function getPirString()
     {
         var strtok = self.strval;
@@ -2111,11 +2108,8 @@ class IntegerLiteral : SimpleExpr
 {
     var pos;
     var numval;
-    function isliteral() { return 1; }
-    function isintegerliteral() { return 1; }
-    function checkResult() { return REGint; }
-    function hascompilevalue() { return 1; }
-    function set(owner, t, value [optional], int has_value [opt_flag])
+    function IntegerLiteral(owner, t,
+            value [optional], int has_value [opt_flag])
     {
         self.initexpr(owner, t);
         self.pos = t;
@@ -2129,6 +2123,10 @@ class IntegerLiteral : SimpleExpr
         self.numval = n;
         return self;
     }
+    function isliteral() { return 1; }
+    function isintegerliteral() { return 1; }
+    function checkResult() { return REGint; }
+    function hascompilevalue() { return 1; }
     function getIntegerValue()
     {
         string aux= self.numval;
@@ -2154,16 +2152,16 @@ class IntegerLiteral : SimpleExpr
 class FloatLiteral : SimpleExpr
 {
     var numval;
-    function isliteral() { return 1; }
-    function isfloatliteral() { return 1; }
-    function checkResult() { return REGfloat; }
-    function hascompilevalue() { return 1; }
-    function set(owner, t)
+    function FloatLiteral(owner, t)
     {
         self.initexpr(owner, t);
         self.numval = t;
         return self;
     }
+    function isliteral() { return 1; }
+    function isfloatliteral() { return 1; }
+    function checkResult() { return REGfloat; }
+    function hascompilevalue() { return 1; }
     function getFloatValue()
     {
         string aux= self.numval;
@@ -3111,7 +3109,7 @@ class OpAddExpr : OpBinaryExpr
                 string es = etok.str;
                 string rs = rtok.str;
                 t = newTokenFrom(newtype, es + rs, etok);
-                return new StringLiteral().set(self.owner, t);
+                return new StringLiteral(self.owner, t);
             }
             if (ltype == REGint && rtype == REGint) {
                 var lval = lexpr.numval;
@@ -3736,7 +3734,6 @@ class MemberExpr : Expr
     var left;
     var right;
 
-    function checkResult() { return REGvar; }
     function parse(tk, owner, start, subexp)
     {
         self.initexpr(owner, start);
@@ -3744,6 +3741,7 @@ class MemberExpr : Expr
         self.right = tk.get();
         return self;
     }
+    function checkResult() { return REGvar; }
     function optimize()
     {
         self.left = self.left.optimize();
@@ -3825,19 +3823,19 @@ class IndexExpr : Expr, SimpleArgList
 {
     var left;
 
-    function checkResult()
-    {
-        if (self.left.checkResult() == REGstring)
-            return REGstring;
-        else
-            return REGvar;
-    }
     function parse(tk, owner, start, subexp)
     {
         self.initexpr(owner, start);
         self.left = subexp;
         self.parseargs(tk, owner, ']');
         return self;
+    }
+    function checkResult()
+    {
+        if (self.left.checkResult() == REGstring)
+            return REGstring;
+        else
+            return REGvar;
     }
     function optimize()
     {
@@ -3900,8 +3898,7 @@ class ArrayExpr : Expr
 {
     var values;
 
-    function checkResult() { return REGvar; }
-    function parse(tk, owner, start)
+    function ArrayExpr(tk, owner, start)
     {
         self.initexpr(owner, start);
         self.values = [];
@@ -3917,6 +3914,7 @@ class ArrayExpr : Expr
         }
         return self;
     }
+    function checkResult() { return REGvar; }
     function optimize()
     {
         optimize_array(self.values);
@@ -3959,8 +3957,7 @@ class HashExpr : Expr
     var keys;
     var values;
 
-    function checkResult() { return REGvar; }
-    function parse(tk, owner, start)
+    function HashExpr(tk, owner, start)
     {
         self.initexpr(owner, start);
         var t = tk.get();
@@ -3990,6 +3987,7 @@ class HashExpr : Expr
         self.values = values;
         return self;
     }
+    function checkResult() { return REGvar; }
     function optimize()
     {
         optimize_array(self.keys);
@@ -4065,8 +4063,7 @@ class NewExpr : Expr
     var value;
     var initializer;
 
-    function checkResult() { return REGvar; }
-    function parse(tk, owner, start)
+    function NewExpr(tk, owner, start)
     {
         self.initexpr(owner, start);
         self.owner = owner;
@@ -4110,6 +4107,7 @@ class NewExpr : Expr
             tk.unget(t);
         return self;
     }
+    function checkResult() { return REGvar; }
     function optimize()
     {
         var value = self.value;
@@ -4404,17 +4402,17 @@ function parseExpr_0(tk, owner)
         return expr;
     }
     if (t.isop('['))
-        return new ArrayExpr().parse(tk, owner, t);
+        return new ArrayExpr(tk, owner, t);
     if (t.isop('{'))
-        return new HashExpr().parse(tk, owner, t);
+        return new HashExpr(tk, owner, t);
     if (t.iskeyword('new'))
-        return new NewExpr().parse(tk, owner, t);
+        return new NewExpr(tk, owner, t);
     if (t.isstring())
-        return new StringLiteral().set(owner, t);
+        return new StringLiteral(owner, t);
     if (t.isint())
-        return new IntegerLiteral().set(owner, t);
+        return new IntegerLiteral(owner, t);
     if (t.isfloat())
-        return new FloatLiteral().set(owner, t);
+        return new FloatLiteral(owner, t);
     if (t.isidentifier())
         return new IdentifierExpr().set(owner, t);
     SyntaxError('Expression expected', t);
@@ -5758,7 +5756,8 @@ class ConstStatement : Statement
     var name;
     var value;
 
-    function set(var start, var owner, string type, var name, var value)
+    function ConstStatement(var start, var owner,
+            string type, var name, var value)
     {
         self.initstatement(start, owner);
         self.type = type;
@@ -5805,7 +5804,7 @@ function parseConst(start, tk, owner)
         ExpectOp('=', tk);
         var value = parseExpr(tk, owner);
         multi = addtomulti(multi,
-                new ConstStatement().set(t, owner, type, name, value));
+                new ConstStatement(t, owner, type, name, value));
     } while ((t = tk.get()).isop(','));
     return multi;
 }
@@ -6009,9 +6008,21 @@ class CompoundStatement : BlockStatement
     var labels;
     //var locals;
 
-    function init [vtable] ()
+    function CompoundStatement(start, tk, owner)
     {
+        self.initstatement(start, owner);
         self.labels = {};
+        self.statements= [];
+        var t;
+        while (! (t= tk.get()).isop('}')) {
+            tk.unget(t);
+            var c = parseStatement(tk, self);
+            if (c == null)
+                throw InternalError('Unexpected null statement');
+            self.statements.push(c);
+        }
+        self.end= t;
+        return self;
     }
     function getlabel(var name)
     {
@@ -6032,21 +6043,6 @@ class CompoundStatement : BlockStatement
         string value= self.genlabel();
         labels[s]= value;
         return value;
-    }
-    function parse(start, tk, owner)
-    {
-        self.initstatement(start, owner);
-        self.statements= [];
-        var t;
-        while (! (t= tk.get()).isop('}')) {
-            tk.unget(t);
-            var c = parseStatement(tk, self);
-            if (c == null)
-                throw InternalError('Unexpected null statement');
-            self.statements.push(c);
-        }
-        self.end= t;
-        return self;
     }
     function getend() { return self.end; }
     function optimize()
@@ -6249,7 +6245,7 @@ class FunctionStatement : BlockStatement
         t= tk.get();
         if (!t.isop('{'))
             Expected('{', t);
-        self.body= new CompoundStatement().parse(t, tk, self);
+        self.body= new CompoundStatement(t, tk, self);
         return self;
     }
     function emit(var e)
@@ -6372,25 +6368,15 @@ class ClassStatement : VarContainer
     var members;
     var classns;
 
-    function init [vtable] ()
+    function ClassStatement(tk, parent)
     {
+        self.parent= parent;
+        self.owner = parent;
         self.functions = [];
         self.members = [];
         self.bases= [];
         self.constants = [];
-    }
-    function checkclass(string name)
-    {
-        return self.parent.checkclass(name);
-    }
-    function use_predef(string name)
-    {
-        return self.owner.use_predef(name);
-    }
-    function parse(tk, parent)
-    {
-        self.parent= parent;
-        self.owner = parent;
+
         var t= tk.get();
         self.name= t;
         t= tk.get();
@@ -6433,6 +6419,14 @@ class ClassStatement : VarContainer
         var classns = self.parent.getpath();
         classns.push(self.name);
         self.classns = classns;
+    }
+    function checkclass(string name)
+    {
+        return self.parent.checkclass(name);
+    }
+    function use_predef(string name)
+    {
+        return self.owner.use_predef(name);
     }
     function optimize()
     {
@@ -6623,8 +6617,7 @@ class NamespaceStatement : VarContainer
                 self.items.push(f);
             }
             else if (t.iskeyword('class')) {
-                var c= new ClassStatement();
-                c.parse(tk, self);
+                var c= new ClassStatement(tk, self);
                 var classes= self.classes;
                 classes.push(c);
                 self.items.push(c);
@@ -6778,7 +6771,7 @@ class WinxedCompiler
         // stage 0 and stage 2 is built with stage 1. Increment
         // the current stage and we are done.
         rootns.createconst('__STAGE__', REGstring,
-                new StringLiteral().set(rootns,
+                new StringLiteral(rootns,
                     newTokenFrom(TypeQuoted, string(int(__STAGE__) + 1), taux)),
                     '');
 
