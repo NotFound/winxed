@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 15-jul-2010
+// Revision 11-aug-2010
 
 // Winxed compiler stage 0.
 
@@ -1104,6 +1104,27 @@ ExternStatement::ExternStatement(Tokenizer &tk)
 
 //**********************************************************************
 
+class StaticStatement : public BaseStatement
+{
+public:
+    StaticStatement(Block &bl, Tokenizer &tk)
+    {
+        Token t = tk.get();
+        n = t.identifier();
+        bl.genlocal(n, REGvar);
+        ExpectOp(';', tk);
+    }
+private:
+    void emit (Emit &e)
+    {
+        e << ".const 'Sub' " << n << " = '" << n << "'\n";
+    }
+
+    std::string n;
+};
+
+//**********************************************************************
+
 class BaseExpr : public InBlock
 {
 public:
@@ -1755,6 +1776,9 @@ BaseStatement *parseUsing(Block &block, Tokenizer &tk)
     if (t.iskeyword("extern"))
     {
         return new ExternStatement(tk);
+    }
+    else if (t.iskeyword("static")) {
+        return new StaticStatement(block, tk);
     }
     else
     {
@@ -5912,6 +5936,10 @@ void Function::emit (Emit &e)
         e << " :load";
     if (has_modifier("init"))
         e << " :init";
+    if (has_modifier("anon"))
+        e << " :anon";
+    if (has_modifier("immediate"))
+        e << " :immediate";
     e << "\n";
 
     emitparams(e);

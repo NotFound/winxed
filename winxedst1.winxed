@@ -1427,6 +1427,8 @@ function parseUsing(t, tk, owner)
     var taux = tk.get();
     if (taux.iskeyword('extern'))
         return new ExternStatement().parse(t, tk, owner);
+    else if (taux.iskeyword('static'))
+        return new StaticStatement().parse(t, tk, owner);
     else {
         tk.unget(taux);
         return new UsingStatement().parse(t, tk, owner);
@@ -1707,6 +1709,30 @@ class ExternStatement : Statement
         }
         self.annotate(e);
         e.say("load_bytecode '", file, ".pbc'");
+    }
+}
+
+//*********************************************
+//            StaticStatement
+//*********************************************
+
+class StaticStatement : Statement
+{
+    var symbol;
+    function parse(start, tk, owner)
+    {
+        self.initstatement(start, owner);
+        string sym = tk.get();
+        RequireOp(';', tk.get());
+        self.symbol = sym;
+        return self;
+    }
+    function optimize() { return self; }
+    function emit(e)
+    {
+        self.annotate(e);
+        e.say(".const 'Sub' ", self.createvar(self.symbol, REGvar),
+                " = '", self.symbol, "'");
     }
 }
 
