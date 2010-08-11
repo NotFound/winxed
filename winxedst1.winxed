@@ -1357,7 +1357,6 @@ class Modifier
         self.name = name;
         if (args != null)
             self.args = args;
-        return self;
     }
     function optimize()
     {
@@ -1603,7 +1602,6 @@ class MultiStatement
         statements.push(st1);
         statements.push(st2);
         self.statements = statements;
-        return self;
     }
     function push(var statement)
     {
@@ -1652,7 +1650,6 @@ class PiropStatement : Statement, SimpleArgList
             self.parseargs(tk, self, '}');
         }
         ExpectOp(';', tk);
-        return self;
     }
     function optimize()
     {
@@ -1722,7 +1719,6 @@ class StaticStatement : Statement
         string sym = tk.get();
         RequireOp(';', tk.get());
         self.symbol = sym;
-        return self;
     }
     function optimize() { return self; }
     function emit(e)
@@ -1751,7 +1747,6 @@ class UsingStatement : Statement
         } while ((t= tk.get()).isop('.'));
         RequireOp(';', t);
         self.path = path;
-        return self;
     }
     function optimize() { return self; }
     function emit(e)
@@ -1791,7 +1786,6 @@ class ExprStatement : Statement
         self.initstatement(start, owner);
         self.expr = parseExpr(tk, self);
         ExpectOp(';', tk);
-        return self;
     }
     function optimize()
     {
@@ -2024,7 +2018,6 @@ class StringLiteral : SimpleExpr
     {
         self.initexpr(owner, t);
         self.strval = t;
-        return self;
     }
     function isliteral() { return 1; }
     function isstringliteral() { return 1; }
@@ -2112,7 +2105,6 @@ class IntegerLiteral : SimpleExpr
             n = aux;
         }
         self.numval = n;
-        return self;
     }
     function isliteral() { return 1; }
     function isintegerliteral() { return 1; }
@@ -2147,7 +2139,6 @@ class FloatLiteral : SimpleExpr
     {
         self.initexpr(owner, t);
         self.numval = t;
-        return self;
     }
     function isliteral() { return 1; }
     function isfloatliteral() { return 1; }
@@ -3485,7 +3476,6 @@ class Argument
     {
         self.arg = arg;
         self.modifiers = modifiers;
-        return self;
     }
     function optimize()
     {
@@ -3518,7 +3508,6 @@ class CallPredefExpr : Expr
         self.initexpr(owner, start);
         self.predef = predef;
         self.args = args;
-        return self;
     }
     function checkResult()
     {
@@ -3903,7 +3892,6 @@ class ArrayExpr : Expr
             if (!t.isop(']'))
                 SyntaxError("Expected ']' or ','", t);
         }
-        return self;
     }
     function checkResult() { return REGvar; }
     function optimize()
@@ -3976,7 +3964,6 @@ class HashExpr : Expr
         }
         self.keys = keys;
         self.values = values;
-        return self;
     }
     function checkResult() { return REGvar; }
     function optimize()
@@ -4096,7 +4083,6 @@ class NewExpr : Expr
         }
         else
             tk.unget(t);
-        return self;
     }
     function checkResult() { return REGvar; }
     function optimize()
@@ -4900,7 +4886,6 @@ class GotoStatement : Statement
         string s= t;
         self.label= t;
         ExpectOp(';', tk);
-        return self;
     }
     function optimize() { return self; }
     function emit(e)
@@ -4946,7 +4931,6 @@ class IfStatement : ConditionalStatement
             self.falsebranch = new EmptyStatement();
             tk.unget(t);
         }
-        return self;
     }
     function optimize()
     {
@@ -5021,7 +5005,6 @@ class WhileStatement : LoopStatement, ConditionalStatement
         self.initstatement(start, owner);
         self.parsecondition(tk);
         self.parsebody(tk);
-        return self;
     }
     function optimize()
     {
@@ -5064,7 +5047,6 @@ class DoStatement : LoopStatement, ConditionalStatement
         self.parsebody(tk);
         ExpectKeyword('while', tk);
         self.parsecondition(tk);
-        return self;
     }
     function optimize()
     {
@@ -5103,7 +5085,6 @@ class ContinueStatement : Statement
     {
         self.initstatement(start, owner);
         ExpectOp(';', tk);
-        return self;
     }
     function optimize() { return self; }
     function emit(e)
@@ -5124,7 +5105,6 @@ class BreakStatement : Statement
     {
         self.initstatement(start, owner);
         ExpectOp(';', tk);
-        return self;
     }
     function optimize() { return self; }
     function emit(e)
@@ -5187,7 +5167,6 @@ class SwitchStatement : Breakable, Statement
                 tk.unget(t);
             }
         }
-        return self;
     }
     function optimize()
     {
@@ -5421,7 +5400,6 @@ class ThrowStatement : Statement
     {
         self.initstatement(start, owner);
         self.excep = parseExpr(tk, self);
-        return self;
     }
     function optimize()
     {
@@ -5474,7 +5452,6 @@ class TryStatement : BlockStatement
                 SyntaxError("Excpected ')' in 'catch'", t);
         }
         self.scatch = parseStatement(tk, self);
-        return self;
     }
     function optimize()
     {
@@ -5755,7 +5732,6 @@ class ConstStatement : Statement
         self.type = type;
         self.name= name;
         self.value = value;
-        return self;
     }
     function optimize()
     {
@@ -6014,7 +5990,6 @@ class CompoundStatement : BlockStatement
             self.statements.push(c);
         }
         self.end= t;
-        return self;
     }
     function getlabel(var name)
     {
