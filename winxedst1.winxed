@@ -1478,34 +1478,25 @@ function parseStatement(tk, owner)
         st = new YieldStatement();
         break;
     case 'goto':
-        st = new GotoStatement();
-        break;
+        return new GotoStatement(t, tk, owner);
     case 'if':
-        st = new IfStatement();
-        break;
+        return new IfStatement(t, tk, owner);
     case 'while':
-        st = new WhileStatement();
-        break;
+        return new WhileStatement(t, tk, owner);
     case 'do':
-        st = new DoStatement();
-        break;
+        return new DoStatement(t, tk, owner);
     case 'continue':
-        st = new ContinueStatement();
-        break;
+        return new ContinueStatement(t, tk, owner);
     case 'break':
-        st = new BreakStatement();
-        break;
+        return new BreakStatement(t, tk, owner);
     case 'switch':
-        st = new SwitchStatement();
-        break;
+        return new SwitchStatement(t, tk, owner);
     case 'for':
         return parseFor(t, tk, owner);
     case 'throw':
-        st = new ThrowStatement();
-        break;
+        return new ThrowStatement(t, tk, owner);
     case 'try':
-        st = new TryStatement();
-        break;
+        return new TryStatement(t, tk, owner);
     default:
         if (t.isidentifier()) {
             var t2= tk.get();
@@ -4899,7 +4890,8 @@ class LabelStatement : Statement
 class GotoStatement : Statement
 {
     var label;
-    function parse(start, tk, owner)
+
+    function GotoStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         var t= tk.get();
@@ -4942,7 +4934,7 @@ class IfStatement : ConditionalStatement
 {
     var truebranch;
     var falsebranch;
-    function parse(start, tk, owner)
+    function IfStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         self.parsecondition(tk);
@@ -5024,7 +5016,7 @@ class LoopStatement : Continuable
 
 class WhileStatement : LoopStatement, ConditionalStatement
 {
-    function parse(start, tk, owner)
+    function WhileStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         self.parsecondition(tk);
@@ -5066,7 +5058,7 @@ class WhileStatement : LoopStatement, ConditionalStatement
 
 class DoStatement : LoopStatement, ConditionalStatement
 {
-    function parse(start, tk, owner)
+    function DoStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         self.parsebody(tk);
@@ -5107,7 +5099,7 @@ class DoStatement : LoopStatement, ConditionalStatement
 
 class ContinueStatement : Statement
 {
-    function parse(start, tk, owner)
+    function ContinueStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         ExpectOp(';', tk);
@@ -5128,7 +5120,7 @@ class ContinueStatement : Statement
 
 class BreakStatement : Statement
 {
-    function parse(start, tk, owner)
+    function BreakStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         ExpectOp(';', tk);
@@ -5154,7 +5146,7 @@ class SwitchStatement : Breakable, Statement
     var case_st;
     var default_st;
 
-    function parse(start, tk, owner)
+    function SwitchStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         var t = tk.get();
@@ -5425,7 +5417,7 @@ class ThrowStatement : Statement
 {
     var excep;
 
-    function parse(start, tk, owner)
+    function ThrowStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         self.excep = parseExpr(tk, self);
@@ -5455,7 +5447,7 @@ class TryStatement : BlockStatement
     var exname;
     var scatch;
 
-    function parse(start, tk, owner)
+    function TryStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         var t = tk.get();
