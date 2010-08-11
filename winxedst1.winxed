@@ -449,6 +449,8 @@ class Tokenizer
     var line;
     function Tokenizer(handle, string filename)
     {
+        using static getop;
+
         self.h= handle;
         self.pending= '';
         self.stacked= [];
@@ -498,6 +500,13 @@ class Tokenizer
     }
     function get_token()
     {
+        using static isspace;
+        using static isidentstart;
+        using static isdigit;
+        using static getop;
+        using static getident;
+        using static getnumber;
+
         if (self.stacked) {
             var t= self.stacked.pop();
             return t;
@@ -4385,6 +4394,8 @@ function getOpCode_16(t)
 
 function parseExpr_0(tk, owner)
 {
+    using static parseExpr;
+
     var t= tk.get();
     var expr;
     if (t.isop('(')) {
@@ -4411,6 +4422,9 @@ function parseExpr_0(tk, owner)
 
 function parseExpr_2(tk, owner)
 {
+    using static parseExpr_0;
+    using static getOpCode_2;
+
     var subexp = parseExpr_0(tk, owner);
     var t;
     int code;
@@ -4435,6 +4449,8 @@ function parseExpr_2(tk, owner)
 
 function parseExpr_3(tk, owner)
 {
+    using static parseExpr_2;
+
     var subexp = parseExpr_2(tk, owner);
     var t = tk.get();
     if (t.isop('++'))
@@ -4450,6 +4466,10 @@ function parseExpr_3(tk, owner)
 
 function parseExpr_4(tk, owner)
 {
+    using static parseExpr_4;
+    using static parseExpr_3;
+    using static getOpCode_4;
+
     var t = tk.get();
     int code = getOpCode_4(t);
     var subexpr;
@@ -4483,6 +4503,9 @@ function parseExpr_4(tk, owner)
 
 function parseExpr_5(tk, owner)
 {
+    using static parseExpr_4;
+    using static getOpCode_5;
+
     var eleft= parseExpr_4(tk, owner);
     var t;
     int code;
@@ -4514,6 +4537,8 @@ function parseExpr_5(tk, owner)
 
 function parseExpr_6(tk, owner)
 {
+    using static parseExpr_5;
+
     var eleft= parseExpr_5(tk, owner);
     var t;
     while ((t= tk.get()).isop('+') || t.isop('-')) {
@@ -4531,6 +4556,8 @@ function parseExpr_6(tk, owner)
 
 function parseExpr_8(tk, owner)
 {
+    using static parseExpr_6;
+
     var eleft = parseExpr_6(tk, owner);
     var t;
     while ((t= tk.get()).isop('==') || t.isop('!=') || t.iskeyword('instanceof')) {
@@ -4552,6 +4579,9 @@ function parseExpr_8(tk, owner)
 
 function parseExpr_9(tk, owner)
 {
+    using static parseExpr_8;
+    using static getOpCode_9;
+
     var eleft = parseExpr_8(tk, owner);
     var t;
     int code;
@@ -4580,6 +4610,8 @@ function parseExpr_9(tk, owner)
 
 function parseExpr_10(tk, owner)
 {
+    using static parseExpr_9;
+
     var eleft = parseExpr_9(tk, owner);
     var t;
     while ((t = tk.get()).isop('&')) {
@@ -4592,6 +4624,8 @@ function parseExpr_10(tk, owner)
 
 function parseExpr_12(tk, owner)
 {
+    using static parseExpr_10;
+
     var eleft = parseExpr_10(tk, owner);
     var t;
     while ((t = tk.get()).isop('|')) {
@@ -4604,6 +4638,8 @@ function parseExpr_12(tk, owner)
 
 function parseExpr_13(tk, owner)
 {
+    using static parseExpr_12;
+
     var eleft = parseExpr_12(tk, owner);
     var t;
     while ((t= tk.get()).isop('&&')) {
@@ -4616,6 +4652,8 @@ function parseExpr_13(tk, owner)
 
 function parseExpr_14(tk, owner)
 {
+    using static parseExpr_13;
+
     var eleft = parseExpr_13(tk, owner);
     var t;
     while ((t= tk.get()).isop('||')) {
@@ -4628,6 +4666,9 @@ function parseExpr_14(tk, owner)
 
 function parseExpr_15(tk, owner)
 {
+    using static parseExpr_16;
+    using static parseExpr_14;
+
     var econd = parseExpr_14(tk, owner);
     var t = tk.get();
     if (t.isop('?')) {
@@ -4644,6 +4685,10 @@ function parseExpr_15(tk, owner)
 
 function parseExpr_16(tk, owner)
 {
+    using static parseExpr_16;
+    using static parseExpr_15;
+    using static getOpCode_16;
+
     var eleft = parseExpr_15(tk, owner);
     var t;
     int code;
@@ -4681,6 +4726,8 @@ function parseExpr_16(tk, owner)
 
 function parseExpr(tk, owner)
 {
+    using static parseExpr_16;
+
     return parseExpr_16(tk, owner);
 }
 
