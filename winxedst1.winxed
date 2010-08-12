@@ -1462,20 +1462,15 @@ function parseStatement(tk, owner)
     case 'var':
         return parseVar(t, tk, owner);
     case 'string':
-        st = new StringStatement();
-        break;
+        return new StringStatement(t, tk, owner);
     case 'int':
-        st = new IntStatement();
-        break;
+        return new IntStatement(t, tk, owner);
     case 'float':
-        st = new FloatStatement();
-        break;
+        return new FloatStatement(t, tk, owner);
     case 'return':
-        st = new ReturnStatement();
-        break;
+        return new ReturnStatement(t, tk, owner);
     case 'yield':
-        st = new YieldStatement();
-        break;
+        return new YieldStatement(t, tk, owner);
     case 'goto':
         return new GotoStatement(t, tk, owner);
     case 'if':
@@ -3563,7 +3558,7 @@ class CallExpr : Expr
     var funref;
     var args;
 
-    function parse(tk, owner, start, subexp)
+    function CallExpr(tk, owner, start, subexp)
     {
         self.initexpr(owner, start);
         self.funref = subexp;
@@ -3590,7 +3585,6 @@ class CallExpr : Expr
             if (! t.isop(')'))
                 SyntaxError("Expected ')' or ','", t);
         }
-        return self;
     }
     function checkResult() { return REGvar; }
     function optimize()
@@ -3714,12 +3708,11 @@ class MemberExpr : Expr
     var left;
     var right;
 
-    function parse(tk, owner, start, subexp)
+    function MemberExpr(tk, owner, start, subexp)
     {
         self.initexpr(owner, start);
         self.left = subexp;
         self.right = tk.get();
-        return self;
     }
     function checkResult() { return REGvar; }
     function optimize()
@@ -3803,12 +3796,11 @@ class IndexExpr : Expr, SimpleArgList
 {
     var left;
 
-    function parse(tk, owner, start, subexp)
+    function IndexExpr(tk, owner, start, subexp)
     {
         self.initexpr(owner, start);
         self.left = subexp;
         self.parseargs(tk, owner, ']');
-        return self;
     }
     function checkResult()
     {
@@ -4209,14 +4201,13 @@ class OpInstanceOfExpr : Expr
     var eleft;
     var checked;
 
-    function checkResult() { return REGint; }
-    function parse(owner, start, eleft, tk)
+    function OpInstanceOfExpr(owner, start, eleft, tk)
     {
         self.initexpr(owner, start);
         self.eleft = eleft;
         self.checked= tk.get();
-        return self;
     }
+    function checkResult() { return REGint; }
     function emit(e, result)
     {
         var checked = self.checked;
@@ -4409,13 +4400,13 @@ function parseExpr_2(tk, owner)
     while ((code = getOpCode_2(t = tk.get())) != Code_none ) {
         switch(code) {
         case Code_paren:
-            subexp = new CallExpr().parse(tk, owner, t, subexp);
+            subexp = new CallExpr(tk, owner, t, subexp);
             break;
         case Code_bracket:
-            subexp = new IndexExpr().parse(tk, owner, t, subexp);
+            subexp = new IndexExpr(tk, owner, t, subexp);
             break;
         case Code_dot:
-            subexp = new MemberExpr().parse(tk, owner, t, subexp);
+            subexp = new MemberExpr(tk, owner, t, subexp);
             break;
         default:
             InternalError('Unexpected code in parseExpr_2');
@@ -4548,7 +4539,7 @@ function parseExpr_8(tk, owner)
             eleft = new OpNotEqualExpr().set(owner, t, eleft, eright);
         }
         else { // instanceof
-            eleft = new OpInstanceOfExpr().parse(owner, t, eleft, tk);
+            eleft = new OpInstanceOfExpr(owner, t, eleft, tk);
         }
     }
     tk.unget(t);
@@ -4783,7 +4774,6 @@ class ReturnYieldStatement : Statement
         }
         RequireOp(';', t);
         self.values = values;
-        return self;
     }
     function optimize()
     {
@@ -4832,6 +4822,10 @@ class ReturnYieldStatement : Statement
 
 class ReturnStatement : ReturnYieldStatement
 {
+    function ReturnStatement(start, tk, owner)
+    {
+        self.parse(start, tk, owner);
+    }
     function emitret(e)
     {
         e.print('.return(');
@@ -4840,6 +4834,10 @@ class ReturnStatement : ReturnYieldStatement
 
 class YieldStatement : ReturnYieldStatement
 {
+    function YieldStatement(start, tk, owner)
+    {
+        self.parse(start, tk, owner);
+    }
     function emitret(e)
     {
         e.print('.yield(');
@@ -5246,7 +5244,7 @@ class ForStatement : LoopStatement, BlockStatement
     var condition;
     var iteration;
 
-    function parse(start, tk, owner)
+    function ForStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         var t = tk.get();
@@ -5267,7 +5265,6 @@ class ForStatement : LoopStatement, BlockStatement
             ExpectOp(')', tk);
         }
         self.parsebody(tk);
-        return self;
     }
     function optimize()
     {
@@ -5322,7 +5319,7 @@ class ForeachStatement : LoopStatement, BlockStatement
     var varname;
     var container;
 
-    function parse(start, tk, owner)
+    function ForeachStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
         var name = tk.get();
@@ -5340,8 +5337,6 @@ class ForeachStatement : LoopStatement, BlockStatement
         if (!aux.isop(')'))
             SyntaxError("Expected ')'", aux);
         self.parsebody(tk);
-
-        return self;
     }
     function optimize()
     {
@@ -5386,9 +5381,9 @@ function parseFor(t, tk, owner)
     tk.unget(in1);
     tk.unget(aux);
     if (in1.iskeyword('in') || in2.iskeyword('in'))
-        return new ForeachStatement().parse(t, tk, owner);
+        return new ForeachStatement(t, tk, owner);
     else
-        return new ForStatement().parse(t, tk, owner);
+        return new ForStatement(t, tk, owner);
 }
 
 //*********************************************
@@ -5628,8 +5623,6 @@ class DeclareStatement : Statement
         }
         if (!t.isop(';'))
             SyntaxError("Expected ';'", t);
-
-        return self;
     }
     function optimize()
     {
@@ -5787,7 +5780,7 @@ function parseConst(start, tk, owner)
 class VarStatement : VarBaseStatement
 {
     var init;
-    function parse(start, tk, owner, name)
+    function VarStatement(start, tk, owner, name)
     {
         self.initvarbase(start, owner, name);
         var t= tk.get();
@@ -5797,7 +5790,6 @@ class VarStatement : VarBaseStatement
         }
         if (!t.isop(';'))
             SyntaxError("Expected ';'", t);
-        return self;
     }
     function optimize_init()
     {
@@ -5843,13 +5835,12 @@ class VarStatement : VarBaseStatement
 
 class ResizableVarStatement : VarStatement
 {
-    function parse(start, tk, owner, name)
+    function ResizableVarStatement(start, tk, owner, name)
     {
         self.initvarbase(start, owner, name);
         var t = tk.get();
         if (!t.isop(';'))
             SyntaxError("Expected ';'", t);
-        return self;
     }
     function emit(var e)
     {
@@ -5865,7 +5856,7 @@ class FixedVarStatement : VarStatement
 {
     var exprsize;
 
-    function parse(start, tk, owner, name)
+    function FixedVarStatement(start, tk, owner, name)
     {
         self.initvarbase(start, owner, name);
         self.exprsize = parseExpr(tk, self);
@@ -5875,7 +5866,6 @@ class FixedVarStatement : VarStatement
         t = tk.get();
         if (!t.isop(';'))
             SyntaxError("Expected ';'", t);
-        return self;
     }
     function optimize()
     {
@@ -5902,15 +5892,15 @@ function parseVar(start, tk, owner)
     if (t.isop('[')) {
         t = tk.get();
         if (t.isop(']'))
-            return new ResizableVarStatement().parse(start, tk, owner, name); 
+            return new ResizableVarStatement(start, tk, owner, name); 
         else {
             tk.unget(t);
-            return new FixedVarStatement().parse(start, tk, owner, name); 
+            return new FixedVarStatement(start, tk, owner, name); 
         }
     }
     else {
         tk.unget(t);
-        return new VarStatement().parse(start, tk, owner, name);
+        return new VarStatement(start, tk, owner, name);
     }
 }
 
@@ -5920,11 +5910,12 @@ function parseVar(start, tk, owner)
 
 class StringStatement : DeclareStatement
 {
-    function init [vtable] ()
+    function StringStatement(t, tk, owner)
     {
         self.t_reg = REGstring;
         self.t_name = 'string';
         self.t_array = 'String';
+        self.parse(t, tk, owner);
     }
     function defaultinit(var e)
     {
@@ -5938,11 +5929,12 @@ class StringStatement : DeclareStatement
 
 class IntStatement : DeclareStatement
 {
-    function init [vtable] ()
+    function IntStatement(t, tk, owner)
     {
         self.t_reg = REGint;
         self.t_name = 'int';
         self.t_array = 'Integer';
+        self.parse(t, tk, owner);
     }
     function defaultinit(var e)
     {
@@ -5956,11 +5948,12 @@ class IntStatement : DeclareStatement
 
 class FloatStatement : DeclareStatement
 {
-    function init [vtable] ()
+    function FloatStatement(t, tk, owner)
     {
         self.t_reg = REGfloat;
         self.t_name = 'float';
         self.t_array = 'Float';
+        self.parse(t, tk, owner);
     }
     function defaultinit(var e)
     {
