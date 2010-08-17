@@ -6515,11 +6515,13 @@ class NamespaceStatement : VarContainer
         self.functions = [];
         self.items = [];
     }
-    function init_child(parent, string name)
+    function init_child(var parent, var start, string name, var modifier)
     {
         self.parent= parent;
         self.owner = parent;
         self.name= name;
+        if (modifier != null)
+            SyntaxError('namespace modifier not supported yet', start);
     }
     function use_predef(string name)
     {
@@ -6557,14 +6559,23 @@ class NamespaceStatement : VarContainer
         {
             if (t.iskeyword('namespace'))
             {
+                var start = t;
                 t= tk.get();
                 string name= t;
                 namespace.push(name);
                 t= tk.get();
+
+                var modifier;
+                if (t.isop('[')) {
+                    modifier = new Modifier();
+                    modifier = modifier.parse(tk, self);
+                    t = tk.get();
+                }
+
                 if (!t.isop('{'))
                     Expected('{', t);
                 var child= new NamespaceStatement();
-                child.init_child(self, name);
+                child.init_child(self, start, name, modifier);
                 self.namespaces.push(child);
                 self.items.push(child);
                 child.parse(tk);
