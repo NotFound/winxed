@@ -6535,6 +6535,10 @@ class NamespaceStatement : VarContainer
         self.owner = parent;
         self.name= name;
         self.modifier = modifier;
+        if (modifier != null) {
+            if (modifier.pick('HLL') != null)
+                self.hll = self.name;
+        }
     }
     function use_predef(string name)
     {
@@ -6543,7 +6547,8 @@ class NamespaceStatement : VarContainer
     function getpath()
     {
         var path=self.parent.getpath();
-        path.push(self.name);
+        if (self.hll == null)
+            path.push(self.name);
         return path;
     }
     function addlib(string libname)
@@ -6644,8 +6649,6 @@ class NamespaceStatement : VarContainer
         if (modifier != null) {
             modifier = modifier.optimize();
             self.modifier = modifier;
-            if (modifier.pick('HLL') != null)
-                self.hll = self.name;
         }
         return self;
     }
