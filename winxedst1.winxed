@@ -1396,6 +1396,18 @@ class ModifierList
             arg.optimize();
     }
     function getlist() { return self.list; }
+    function pick(string name)
+    {
+        var list = self.list;
+        int n = elements(list);
+        for (int i = 0; i < n; ++i) {
+            var mod = list[i];
+            if (mod.getname() == name) {
+                return mod;
+            }
+        }
+        return null;
+    }
 }
 
 //*********************************************
@@ -6503,6 +6515,8 @@ class NamespaceStatement : VarContainer
     var parent;
     var owner;
     var name;
+    var modifier;
+    var hll;
     var namespaces;
     var classes;
     var functions;
@@ -6520,8 +6534,7 @@ class NamespaceStatement : VarContainer
         self.parent= parent;
         self.owner = parent;
         self.name= name;
-        if (modifier != null)
-            SyntaxError('namespace modifier not supported yet', start);
+        self.modifier = modifier;
     }
     function use_predef(string name)
     {
@@ -6567,7 +6580,7 @@ class NamespaceStatement : VarContainer
 
                 var modifier;
                 if (t.isop('[')) {
-                    modifier = new Modifier();
+                    modifier = new ModifierList();
                     modifier = modifier.parse(tk, self);
                     t = tk.get();
                 }
@@ -6627,10 +6640,21 @@ class NamespaceStatement : VarContainer
     function optimize()
     {
         optimize_array(self.items);
+        var modifier = self.modifier;
+        if (modifier != null) {
+            modifier = modifier.optimize();
+            self.modifier = modifier;
+            if (modifier.pick('HLL') != null)
+                self.hll = self.name;
+        }
         return self;
     }
     function emit(var e)
     {
+        var hll = self.hll;
+        if (hll !=  null)
+            e.say(".HLL '", hll, "'");
+
         var path= self.getpath();
         string s= namespacekey(path);
 
