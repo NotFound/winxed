@@ -892,8 +892,8 @@ class Predef_cry
         e.say("getstderr $P0");
         int n = int(args);
         for (int i = 0; i < n; ++i)
-            e.say("$P0.'print'(", args[i], ")");
-        e.say("$P0.'print'(\"\\n\")");
+            e.say("print $P0, ", args[i]);
+        e.say("print $P0, \"\\n\"");
     }
 }
 
