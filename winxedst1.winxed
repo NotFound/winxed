@@ -1368,12 +1368,9 @@ class ModifierList
 {
     var list;
 
-    function init [vtable] ()
+    function ModifierList(var tk, var owner)
     {
-        self.list = [];
-    }
-    function parse(tk, owner)
-    {
+        var list = [];
         var t;
         do {
             t = tk.get();
@@ -1384,11 +1381,10 @@ class ModifierList
                 args.parseargs(tk, owner, ')');
                 t= tk.get();
             }
-            self.list.push(new Modifier(name, args));
+            list.push(new Modifier(name, args));
         } while (t.isop(','));
         RequireOp(']', t);
-
-        return self;
+        self.list = list;
     }
     function optimize()
     {
@@ -3579,13 +3575,13 @@ class CallExpr : Expr
         if (! t.isop(')')) {
             tk.unget(t);
             do {
-                var modifier = new ModifierList();
+                var modifier = null;
                 var expr = parseExpr(tk, owner);
                 t = tk.get();
                 if (t.isop(':')) {
                     t = tk.get();
                     if (t.isop('[')) {
-                        modifier = modifier.parse(tk, owner);
+                        modifier = new ModifierList(tk, owner);
                         t = tk.get();
                     }
                     else {
@@ -3678,23 +3674,26 @@ class CallExpr : Expr
             int isflat = 0;
             int isnamed = 0;
             string setname = '';
-            for (var modif in args[i].modifiers.getlist()) {
-                string name = modif.getname();
-                if (name == 'flat')
-                    isflat = 1;
-                if (name == 'named') {
-                    isnamed = 1;
-                    switch (modif.numargs()) {
-                    case 0: 
-                        break;
-                    case 1:
-                        var argmod = modif.getarg(0);
-                        if (! argmod.isstringliteral())
+            var modifiers = args[i].modifiers;
+            if (modifiers != null) {
+                for (var modif in modifiers.getlist()) {
+                    string name = modif.getname();
+                    if (name == 'flat')
+                        isflat = 1;
+                    if (name == 'named') {
+                        isnamed = 1;
+                        switch (modif.numargs()) {
+                          case 0: 
+                            break;
+                          case 1:
+                            var argmod = modif.getarg(0);
+                            if (! argmod.isstringliteral())
+                                SyntaxError('Invalid modifier', self.start);
+                            setname = argmod.getPirString();
+                            break;
+                          default:
                             SyntaxError('Invalid modifier', self.start);
-                        setname = argmod.getPirString();
-                        break;
-                    default:
-                        SyntaxError('Invalid modifier', self.start);
+                        }
                     }
                 }
             }
@@ -5440,7 +5439,7 @@ class TryStatement : BlockStatement
         self.initstatement(start, owner);
         var t = tk.get();
         if (t.isop('[')) {
-            self.modifiers = new ModifierList().parse(tk, self);
+            self.modifiers = new ModifierList(tk, self);
         }
         else
             tk.unget(t);
@@ -6181,7 +6180,7 @@ class FunctionStatement : BlockStatement
         self.name= t;
         t= tk.get();
         if (t.isop('[')) {
-            var modifiers = new ModifierList().parse(tk, self);
+            var modifiers = new ModifierList(tk, self);
             self.modifiers= modifiers;
             t= tk.get();
         }
@@ -6207,7 +6206,7 @@ class FunctionStatement : BlockStatement
                 arg['name'] = varname;
                 t= tk.get();
                 if (t.isop('[')) {
-                    var modifiers = new ModifierList().parse(tk, self);
+                    var modifiers = new ModifierList(tk, self);
                     arg['modifiers'] = modifiers;
                     t = tk.get();
                 }
@@ -6585,8 +6584,7 @@ class NamespaceStatement : VarContainer
 
                 var modifier;
                 if (t.isop('[')) {
-                    modifier = new ModifierList();
-                    modifier = modifier.parse(tk, self);
+                    modifier = new ModifierList(tk, self);
                     t = tk.get();
                 }
 
