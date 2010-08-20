@@ -6450,7 +6450,7 @@ class ClassStatement : VarContainer
 }
 
 //*********************************************
-//            NamespaceStatement
+//            NamespaceBase
 //*********************************************
 
 function include_parrot(var start, var tk, var ns)
@@ -6509,17 +6509,13 @@ function include_parrot(var start, var tk, var ns)
 
 //*********************************************
 
-class NamespaceStatement : VarContainer
+class NamespaceBase : VarContainer
 {
-    var parent;
-    var owner;
-    var name;
-    var modifier;
-    var hll;
     var namespaces;
     var classes;
     var functions;
     var items;
+    var owner;
 
     function init [vtable] ()
     {
@@ -6528,42 +6524,13 @@ class NamespaceStatement : VarContainer
         self.functions = [];
         self.items = [];
     }
-    function init_child(var parent, var start, string name, var modifier)
-    {
-        self.parent= parent;
-        self.owner = parent;
-        self.name= name;
-        self.modifier = modifier;
-        if (modifier != null) {
-            if (modifier.pick('HLL') != null)
-                self.hll = self.name;
-        }
-    }
-    function use_predef(string name)
-    {
-        self.owner.use_predef(name);
-    }
-    function getpath()
-    {
-        var path=self.parent.getpath();
-        if (self.hll == null)
-            path.push(self.name);
-        return path;
-    }
-    function addlib(string libname)
-    {
-        self.parent.addlib(libname);
-    }
-    function checkclass(string name)
+    function checkclass_base(string name)
     {
         var classes = self.classes;
         for (var cl in classes)
             if (cl.name == name)
                 return cl;
-        if (self.parent != null)
-            return self.parent.checkclass(name);
-        else
-            return null;
+        return null;
     }
     function parse(tk)
     {
@@ -6590,8 +6557,7 @@ class NamespaceStatement : VarContainer
 
                 if (!t.isop('{'))
                     Expected('{', t);
-                var child= new NamespaceStatement();
-                child.init_child(self, start, name, modifier);
+                var child= new NamespaceStatement(self, start, name, modifier);
                 self.namespaces.push(child);
                 self.items.push(child);
                 child.parse(tk);
@@ -6640,22 +6606,12 @@ class NamespaceStatement : VarContainer
                 SyntaxError("Unexpected token", t);
         }
     }
-    function optimize()
+    function optimize_base()
     {
         optimize_array(self.items);
-        var modifier = self.modifier;
-        if (modifier != null) {
-            modifier = modifier.optimize();
-            self.modifier = modifier;
-        }
-        return self;
     }
-    function emit(var e)
+    function emit_base(var e)
     {
-        var hll = self.hll;
-        if (hll !=  null)
-            e.say(".HLL '", hll, "'");
-
         var path= self.getpath();
         string s= namespacekey(path);
 
@@ -6675,10 +6631,79 @@ class NamespaceStatement : VarContainer
 }
 
 //*********************************************
+//            NamespaceStatement
+//*********************************************
+
+class NamespaceStatement : NamespaceBase
+{
+    var parent;
+    var name;
+    var modifier;
+    var hll;
+
+    function NamespaceStatement(var parent, var start,
+            string name, var modifier)
+    {
+        self.parent= parent;
+        self.owner = parent;
+        self.name= name;
+        self.modifier = modifier;
+        if (modifier != null) {
+            if (modifier.pick('HLL') != null)
+                self.hll = self.name;
+        }
+    }
+    function use_predef(string name)
+    {
+        self.owner.use_predef(name);
+    }
+    function getpath()
+    {
+        var path=self.parent.getpath();
+        if (self.hll == null)
+            path.push(self.name);
+        return path;
+    }
+    function addlib(string libname)
+    {
+        self.parent.addlib(libname);
+    }
+    function checkclass(string name)
+    {
+        var cl = self.checkclass_base(name);
+        if (cl == null)
+            return self.parent.checkclass(name);
+        else
+            return cl;
+    }
+    function optimize()
+    {
+        var modifier = self.modifier;
+        if (modifier != null) {
+            modifier = modifier.optimize();
+            self.modifier = modifier;
+        }
+        self.optimize_base();
+        return self;
+    }
+    function emit(var e)
+    {
+        var hll = self.hll;
+        if (hll !=  null)
+            e.say(".HLL '", hll, "'");
+
+        self.emit_base(e);
+
+        if (hll !=  null)
+            e.say(".HLL 'parrot'");
+    }
+}
+
+//*********************************************
 //            RootNamespace
 //*********************************************
 
-class RootNamespace : NamespaceStatement
+class RootNamespace : NamespaceBase
 {
     var predefs_used;
     var libs;
@@ -6712,7 +6737,16 @@ class RootNamespace : NamespaceStatement
         string path[];
         return path;
     }
-    function emitroot(var e)
+    function checkclass(string name)
+    {
+        return self.checkclass_base(name);
+    }
+    function optimize()
+    {
+        self.optimize_base();
+        return self;
+    }
+    function emit(var e)
     {
         var predefs_used = self.predefs_used;
         if (predefs_used['chomp'] != null) {
@@ -6738,7 +6772,7 @@ class RootNamespace : NamespaceStatement
                 e.say('.loadlib ', libname);
         }
         e.comment('end libs');
-        self.emit(e);
+        self.emit_base(e);
     }
 }
 
@@ -6789,7 +6823,7 @@ class WinxedCompiler
         e.comment('Begin generated code');
         e.say('');
 
-        self.rootns.emitroot(e);
+        self.rootns.emit(e);
 
         e.comment('End generated code');
     }
