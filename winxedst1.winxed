@@ -6749,7 +6749,9 @@ class RootNamespace : NamespaceBase
     function emit(var e)
     {
         var predefs_used = self.predefs_used;
+        int somelib = false;
         if (predefs_used['chomp'] != null) {
+            somelib = true;
             e.say(
 ".sub 'initialize' :load :init :anon\n" +
 "  load_bytecode 'String/Utils.pbc'\n" +
@@ -6763,15 +6765,19 @@ class RootNamespace : NamespaceBase
         for (string trfun in trfuncs)
             if (predefs_used[trfun] != null)
                 trans = 1;
-        if (trans)
+        if (trans) {
+            somelib = true;
             e.say(".loadlib 'trans_ops'");
+        }
 
         var libs = self.libs;
         if (libs != null) {
+            somelib = true;
             for (string libname in libs)
                 e.say('.loadlib ', libname);
         }
-        e.comment('end libs');
+        if (somelib)
+            e.comment('end libs');
         self.emit_base(e);
     }
 }
