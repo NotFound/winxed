@@ -4047,7 +4047,6 @@ class NewExpr : Expr
     function NewExpr(tk, owner, start)
     {
         self.initexpr(owner, start);
-        self.owner = owner;
 
         var value = tk.get();
         if (! (value.isstring() || value.isidentifier()))
