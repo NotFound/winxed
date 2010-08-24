@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 10-jul-2010
+// Revision 24-aug-2010
 
 #include "token.h"
 #include "errors.h"
@@ -214,6 +214,8 @@ std::string unquote (const std::string &s)
             r+= "\\f"; break;
         case '\v':
             r+= "\\v"; break;
+        case '\x1B':
+            r+= "\\e"; break;
         default:
             r+= c;
         }
@@ -308,6 +310,9 @@ Token Tokenizer::getquoted()
                 break;
             case 'v':
                 s+= '\v';
+                break;
+            case 'e':
+                s+= '\x1B';
                 break;
             }
         }
