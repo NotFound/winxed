@@ -17,9 +17,10 @@
     "project_uri"  : "http://winxed.org/",
 
     "pbc_pir" : {
-        "winxed.pbc"    : "winxed.pir",
-	"winxedst1.pbc" : "winxedst1.pir",
-	"winxedst2.pbc" : "winxedst2.pir"
+        "winxed.pbc"              : "winxed.pir",
+	"winxedst1.pbc"           : "winxedst1.pir",
+	"winxedst2.pbc"           : "winxedst2.pir",
+        "build/winxed/winxed.pbc" : "winxedst2.pir"
     },
-    "inst_lang" : "winxed.pbc"
+    "inst_lang" : [ "build/winxed/winxed.pbc" ]
 }
