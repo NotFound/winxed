@@ -1,0 +1,62 @@
+#! winxed
+
+// Winxed compiler driver.
+
+function showhelp(string name, options)
+{
+    say('Usage: ', name, ' [options] [program] [args]');
+    say('  Available options:');
+    int l= 0;
+    int i;
+    var o;
+    for (o in options) {
+        i= length(o[0]) + 4;
+        if (i > l) l= i;
+    }
+    for (o in options) {
+        string s= o[0];
+        if (length(s) > 1 && substr(s, 1, 1) != '=')
+            s= '--' + s;
+        else
+            s= '-' + s;
+        i= l - length(s);
+        say('    ', s, ' ' * i, '->  ', o[1]);
+    }
+}
+
+function main [main] (argv)
+{
+    var options = [
+      [ 'help',     'Show this help' ]
+    ];
+
+    using extern Getopt.Obj;
+    var getopts = new Getopt.Obj();
+    getopts.notOptStop(1);
+    for (var o in options)
+        getopts.push_string(o[0]);
+    string name= argv.shift();
+    var opts = getopts.get_options(argv);
+
+    var help        = opts['help'];
+
+    if (help != null) {
+        showhelp(name, options);
+        return;
+    }
+
+    var compiler = load_language('winxed');
+    var code = compiler.compile_from_file(argv[0]);
+
+    // Simplified progrm start: look for a sub called 'main'
+    var sub;
+    for (int i = 0; ; ++i) {
+        sub = code[i];
+        if (sub == null) break;
+        if (string(sub) == 'main') break;
+    }
+    argv.shift();
+    sub(argv);
+}
+
+// End
