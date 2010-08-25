@@ -4037,27 +4037,26 @@ class HashExpr : Expr
     }
 }
 
-//*********************************************
+//**********************************************************************
 
 class NewExpr : Expr
 {
     var value;
     var initializer;
 
-    function NewExpr(tk, owner, start)
+    function NewExpr(var tk, var owner, var start, var firstvalue)
     {
         self.initexpr(owner, start);
 
-        var value = tk.get();
-        if (! (value.isstring() || value.isidentifier()))
-            SyntaxError("Unimplemented", value);
+        if (! (firstvalue.isstring() || firstvalue.isidentifier()))
+            SyntaxError("Unimplemented", firstvalue);
         var t = tk.get();
-        if (value.isidentifier() ) {
+        if (firstvalue.isidentifier() ) {
             if (t.isop('.')) {
                 string values [];
-                values.push(value);
+                values.push(firstvalue);
                 do {
-                    value = tk.get();
+                    var value = tk.get();
                     if (! value.isidentifier() )
                         Expected('identifier', value);
                     values.push(value);
@@ -4065,10 +4064,10 @@ class NewExpr : Expr
                 self.value = values;
             }
             else
-                self.value = value;
+                self.value = firstvalue;
         }
         else
-            self.value = value;
+            self.value = firstvalue;
 
         if (t.isop('(')) {
             t = tk.get();
@@ -4204,7 +4203,66 @@ class NewExpr : Expr
     }
 }
 
-//*********************************************
+//**********************************************************************
+
+class NewIndexedExpr : Expr
+{
+    var hll;
+    var nskey;
+
+    function NewIndexedExpr(var tk, var owner, var start)
+    {
+        var first = tk.get();
+        if (! first.isstring())
+            SyntaxError('Expected string literal', first);
+        var t = tk.get();
+        if (t.isop(':')) {
+            self.hll = first;
+            first = tk.get();
+            if (! first.isstring())
+                SyntaxError('Expected string literal', first);
+            t = tk.get();
+        }
+        var nskey = [];
+        nskey.push(first);
+        while (t.isop(',')) {
+            first = tk.get();
+            if (! first.isstring())
+                SyntaxError('Expected string literal', first);
+            nskey.push(first);
+            t = tk.get();
+        }
+        if (! t.isop(']'))
+            SyntaxError("Expected ']' in keyed new", t);
+        self.nskey = nskey;
+    }
+    function checkResult() { return REGvar; }
+    function emit(e, result)
+    {
+        var hll = self.hll;
+        if (hll != null)
+            e.print("root_new ", result, ", [", hll, "; ");
+        else
+            e.print("new ", result, ", [");
+        var nskey = self.nskey;
+        e.print(join(";", nskey));
+
+        e.say("]");
+    }
+}
+
+//**********************************************************************
+
+function parseNew(var tk, var owner, var start)
+{
+    var t = tk.get();
+    if (t.isop('['))
+        return new NewIndexedExpr(tk, owner, start);
+    else
+        return new NewExpr(tk, owner, start, t);
+}
+
+//**********************************************************************
 
 class OpInstanceOfExpr : Expr
 {
@@ -4387,7 +4445,7 @@ function parseExpr_0(tk, owner)
     if (t.isop('{'))
         return new HashExpr(tk, owner, t);
     if (t.iskeyword('new'))
-        return new NewExpr(tk, owner, t);
+        return parseNew(tk, owner, t);
     if (t.isstring())
         return new StringLiteral(owner, t);
     if (t.isint())
