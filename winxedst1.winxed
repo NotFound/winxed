@@ -6917,7 +6917,28 @@ class WinxedHLL
         emit.close();
         handleout.close();
         string pircode = handleout.read(0);
-        say(pircode);
+        var pircomp = compreg('PIR');
+        var object = pircomp(pircode);
+        return object;
+    }
+    function compile_from_file(string filename)
+    {
+        var handlein = new 'FileHandle';
+        handlein.open(filename, 'r');
+        handlein.encoding('utf8');
+        var tk= new Tokenizer(handlein, filename);
+        var winxed= new WinxedCompiler();
+        winxed.parse(tk);
+        handlein.close();
+        winxed.optimize();
+        var handleout = new 'StringHandle';
+        handleout.open(EVAL_NAME, 'w');
+        var emit= new Emit();
+        emit.initialize(handleout);
+        winxed.emit(emit);
+        emit.close();
+        handleout.close();
+        string pircode = handleout.read(0);
         var pircomp = compreg('PIR');
         var object = pircomp(pircode);
         return object;
