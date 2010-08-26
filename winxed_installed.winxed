@@ -24,9 +24,23 @@ function showhelp(string name, options)
     }
 }
 
+function extname(string filename, string ext)
+{
+    // Strip a possible .winxed extension from filename,
+    // add ext, and return the result.
+    string newname;
+    int l = length(filename);
+    if (l > 7 && substr(filename, -7) == '.winxed')
+        newname = substr(filename, 0, l - 7) + ext;
+    else
+        newname = filename + ext;
+    return newname;
+}
+
 function main [main] (argv)
 {
     var options = [
+      [ 'c',        'Compile only' ],
       [ 'e=s',      'Evaluate' ],
       [ 'help',     'Show this help' ]
     ];
@@ -40,6 +54,7 @@ function main [main] (argv)
     var opts = getopts.get_options(argv);
 
     var help        = opts['help'];
+    var compileonly = opts['c'];
     var eval        = opts['e'];
 
     if (help != null) {
@@ -52,9 +67,27 @@ function main [main] (argv)
         die("winxed: Cannot load language");
 
     var code;
-    if (eval == null)
-        code = compiler.compile_from_file(argv[0]);
+    string srcfile = argv[0];
+
+    if (eval == null) {
+        if (compileonly != null) {
+            var handleout = new 'StringHandle';
+            handleout.open('', 'w');
+            compiler.compile_from_file_to_pir(srcfile, handleout);
+            handleout.close();
+            string pircode = handleout.read(0);
+            string pirfile = extname(srcfile, '.pir');
+            var outfile = open(pirfile, 'w');
+            outfile.print(pircode);
+            outfile.close();
+            return 0;
+        }
+        else
+            code = compiler.compile_from_file(srcfile);
+    }
     else {
+        if (compileonly != null)
+            die('option -c with -e not supported yet');
         string expr = 'function main[main](argv){' + string(eval) + ';}';
         code = compiler.compile(expr);
         argv.unshift('__EVAL__');
