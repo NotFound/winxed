@@ -100,15 +100,35 @@ winxed.pbc: winxed.pir
 winxed.pir: winxed.winxed winxedst0$(EXEEXT)
 	./winxedst0$(EXEEXT) -c winxed.winxed
 
-#-------------------------------
-#      Preinstall
-#-------------------------------
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#                      Install
+#             Testing, handle with care
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-pir: winxed.pir winxedst2.pir setup.pir
+# Preinstall: generate pir files
 
-# setup.winxed need at least stage 1
-setup.pir: setup.winxed winxedst1.pbc
-	parrot winxedst1.pbc -o setup.pir setup.winxed
+preinstall: \
+    setup.pir \
+    pir/winxed_compiler.pir \
+    pir/winxed_installed.pir 
+
+# Installed compiler is stage 1 built with stage 2
+pir/winxed_compiler.pir: winxedst2.pbc
+	parrot winxedst2.pbc -o pir/winxed_compiler.pir winxedst1.winxed
+
+# Installed driver
+pir/winxed_installed.pir: winxed_installed.winxed winxedst2.pbc
+	parrot winxedst2.pbc -o pir/winxed_installed.pir winxed_installed.winxed
+
+# setup.pir for use from plumage
+setup.pir: setup.winxed winxedst2.pbc
+	parrot winxedst2.pbc -o setup.pir setup.winxed
+
+# Install
+
+install: preinstall
+	parrot setup.pir
+	parrot setup.pir install
 
 #-----------------------------------------------------------------------
 
