@@ -55,7 +55,6 @@ function main [main] (argv)
         if (sub == null) break;
         if (string(sub) == 'main') break;
     }
-    argv.shift();
     sub(argv);
 }
 
