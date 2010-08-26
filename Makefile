@@ -11,11 +11,15 @@ EXEEXT =
 
 #-----------------------------------------------------------------------
 
+DRIVER = winxedrun
+
+#-----------------------------------------------------------------------
+
 default: stage0 driver winxedst1.pbc winxedst2.pbc
 
 all: stage2 driver
 
-pbc: winxed.pbc
+pbc: $(DRIVER).pbc
 
 help:
 	@echo "Targets:"
@@ -91,14 +95,14 @@ winxedst2.pir: winxedst1.winxed winxedst1.pbc
 
 driver: winxed$(EXEEXT)
 
-winxed$(EXEEXT): winxed.pbc
-	pbc_to_exe winxed.pbc
+winxed$(EXEEXT): $(DRIVER).pbc
+	pbc_to_exe --output=winxed$(EXEEXT) $(DRIVER).pbc
 
-winxed.pbc: winxed.pir
-	parrot -o winxed.pbc winxed.pir
+$(DRIVER).pbc: $(DRIVER).pir
+	parrot -o $(DRIVER).pbc $(DRIVER).pir
 
-winxed.pir: winxed.winxed winxedst0$(EXEEXT)
-	./winxedst0$(EXEEXT) -c winxed.winxed
+$(DRIVER).pir: winxed.winxed winxedst0$(EXEEXT)
+	./winxedst0$(EXEEXT) -c -o $(DRIVER).pir winxed.winxed
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #                      Install
@@ -137,20 +141,20 @@ install: preinstall
 	./winxedst0$(EXEEXT) -c $<
 
 
-test: winxed.pbc
-	parrot winxed.pbc --stage=0 t/harness --stage=0 -r t/basic t/*.t
+test: $(DRIVER).pbc
+	parrot $(DRIVER).pbc --stage=0 t/harness --stage=0 -r t/basic t/*.t
 
-testv: winxed.pbc
-	parrot winxed.pbc t/harness -rv t/basic t/*.t
+testv: $(DRIVER).pbc
+	parrot $(DRIVER).pbc t/harness -rv t/basic t/*.t
 
 TEST1 = \
 	t/preincdec.t.winxed
 
-test1: winxed$(EXEEXT) winxedst1.pbc
-	parrot winxed.pbc --stage=1 t/harness --stage=1 -r t/basic t/*.t $(TEST1)
+test1: $(DRIVER).pbc winxedst1.pbc
+	parrot $(DRIVER).pbc --stage=1 t/harness --stage=1 -r t/basic t/*.t $(TEST1)
 
-test2: winxed$(EXEEXT) winxedst2.pbc
-	parrot winxed.pbc --stage=2 t/harness --stage=2 -r t/basic t/*.t $(TEST1)
+test2: $(DRIVER).pbc winxedst2.pbc
+	parrot $(DRIVER).pbc --stage=2 t/harness --stage=2 -r t/basic t/*.t $(TEST1)
 
 clean:
 	rm -f winxedst2$(EXEEXT)
@@ -167,8 +171,8 @@ clean:
 	rm -f winxed$(EXEEXT)
 	rm -f winxed$(OBJEXT)
 	rm -f winxed.c
-	rm -f winxed.pbc
-	rm -f winxed.pir
+	rm -f $(DRIVER).pbc
+	rm -f $(DRIVER).pir
 	rm -f *$(OBJEXT)
 
 # Makefile end

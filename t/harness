@@ -13,7 +13,7 @@ function run_test(string filename, int stage)
     var fh;
 
     string strstage = stage;
-    string s= 'parrot winxed.pbc --stage=' + strstage + ' ' + filename;
+    string s= 'parrot winxedrun.pbc --stage=' + strstage + ' ' + filename;
     debugmsg(s);
 
     fh= open(s, 'rp');
