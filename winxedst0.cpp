@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 11-aug-2010
+// Revision 30-aug-2010
 
 // Winxed compiler stage 0.
 
@@ -4164,6 +4164,76 @@ void NewExpr::emit(Emit &e, const std::string &result)
 
 //**********************************************************************
 
+class NewIndexedExpr : public BaseExpr
+{
+public:
+    NewIndexedExpr(BlockBase &block, Tokenizer &tk, Token start) :
+            BaseExpr(block)
+    {
+        Token first = tk.get();
+        if (!first.isliteralstring())
+            throw Expected("string literal", first);
+        Token t = tk.get();
+        if (t.isop(':')) {
+            hll = first.pirliteralstring();
+            first = tk.get();
+            if (!first.isliteralstring())
+                throw Expected("string literal", first);
+            t = tk.get();
+        }
+        nskey.push_back(first.pirliteralstring());
+        while (t.isop(',')) {
+            first = tk.get();
+            if (!first.isliteralstring())
+                throw Expected("string literal", first);
+            nskey.push_back(first.pirliteralstring());
+            t = tk.get();
+        }
+    }
+private:
+    BaseExpr *optimize()
+    {
+        return this;
+    }
+    void emit(Emit &e, const std::string &result)
+    {
+        std::string sep;
+        if (!hll.empty()) {
+            e << "root_new " << result << ", [" << hll;
+            sep = ";";
+        }
+        else {
+            e << "new " << result << ", ";
+            sep = "[";
+        }
+        for (std::vector<std::string>::iterator it = nskey.begin();
+            it != nskey.end(); ++it)
+        {
+            e << sep << *it;
+            sep = ";";
+        }
+        e << "]\n";
+    }
+
+    std::string hll;
+    std::vector<std::string> nskey;
+};
+
+//**********************************************************************
+
+BaseExpr *parseNew(BlockBase &block, Tokenizer &tk, Token start)
+{
+    Token t = tk.get();
+    if (t.isop('['))
+        return new NewIndexedExpr(block, tk, start);
+    else {
+        tk.unget(t);
+        return new NewExpr(block, tk, start);
+    }
+}
+
+//**********************************************************************
+
 class IndexExpr : public BaseExpr
 {
 public:
@@ -4380,7 +4450,7 @@ BaseExpr * parseExpr_0(BlockBase &block, Tokenizer &tk)
         subexpr = new HashExpr(block, tk);
     }
     else if (t.iskeyword("new"))
-            subexpr = new NewExpr(block, tk, t);
+            subexpr = parseNew(block, tk, t);
     else
     {
         Token t2= tk.get();
