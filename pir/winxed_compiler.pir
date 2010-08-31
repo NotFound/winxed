@@ -6419,7 +6419,7 @@ set $S1, $P2
 __label_0:
 .annotate 'line', 2153
 # var n: $P1
-new $P1, [ 'Float' ]
+new $P1, ['Float']
 assign $P1, $S1
 .annotate 'line', 2155
 .return($P1)
@@ -19671,7 +19671,7 @@ $P3 = $P2[9]
 $P4 = $P3[0]
 .annotate 'line', 6527
 # var file: $P5
-new $P5, [ 'FileHandle' ]
+new $P5, ['FileHandle']
 .annotate 'line', 6528
 iter $P10, $P4
 set $P10, 0
@@ -20744,7 +20744,7 @@ addattribute $P0, 'rootns'
 # {
 .annotate 'line', 6901
 # var handlein: $P1
-new $P1, [ 'StringHandle' ]
+new $P1, ['StringHandle']
 .annotate 'line', 6903
 $P1.'open'('__eval__', 'w')
 .annotate 'line', 6904
@@ -20769,7 +20769,7 @@ $P1.'close'()
 $P3.'optimize'()
 .annotate 'line', 6912
 # var handleout: $P4
-new $P4, [ 'StringHandle' ]
+new $P4, ['StringHandle']
 .annotate 'line', 6913
 $P4.'open'('__eval__', 'w')
 .annotate 'line', 6914
@@ -20814,7 +20814,7 @@ $P7 = $P6($S1)
 # {
 .annotate 'line', 6926
 # var handlein: $P1
-new $P1, [ 'FileHandle' ]
+new $P1, ['FileHandle']
 .annotate 'line', 6927
 $P1.'open'(__ARG_1, 'r')
 .annotate 'line', 6928
@@ -20856,7 +20856,7 @@ $P4.'close'()
 # {
 .annotate 'line', 6941
 # var handlein: $P1
-new $P1, [ 'FileHandle' ]
+new $P1, ['FileHandle']
 .annotate 'line', 6942
 $P1.'open'(__ARG_1, 'r')
 .annotate 'line', 6943
@@ -20877,7 +20877,7 @@ $P1.'close'()
 $P3.'optimize'()
 .annotate 'line', 6949
 # var handleout: $P4
-new $P4, [ 'StringHandle' ]
+new $P4, ['StringHandle']
 .annotate 'line', 6950
 $P4.'open'('__eval__', 'w')
 .annotate 'line', 6951
@@ -21061,7 +21061,7 @@ set $S2, $P4
 concat $S4, 'function main[main](argv){', $S2
 concat $S2, $S4, ';}'
 .annotate 'line', 7026
-new $P7, [ 'StringHandle' ]
+new $P7, ['StringHandle']
 .annotate 'line', 7027
 $P7.'open'('__eval__', 'w')
 .annotate 'line', 7028
