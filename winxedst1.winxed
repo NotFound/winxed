@@ -2150,7 +2150,7 @@ class FloatLiteral : SimpleExpr
     function getFloatValue()
     {
         string aux= self.numval;
-        var n= new 'Float';
+        var n= new ['Float'];
         n =: aux;
         return n;
     }
@@ -6524,7 +6524,7 @@ function include_parrot(var start, var tk, var ns)
     const int PARROT_LIB_PATH_INCLUDE = 0;
     var libpaths = interp[IGLOBALS_LIB_PATHS];
     var paths = libpaths[PARROT_LIB_PATH_INCLUDE];
-    var file = new 'FileHandle';
+    var file = new ['FileHandle'];
     for (string path in paths) {
         string filepath = path + filename;
         try {
@@ -6898,7 +6898,7 @@ class WinxedHLL
 {
     function compile(string code)
     {
-        var handlein = new 'StringHandle';
+        var handlein = new ['StringHandle'];
         //handlein.encoding('utf8');
         handlein.open(EVAL_NAME, 'w');
         handlein.puts(code);
@@ -6909,7 +6909,7 @@ class WinxedHLL
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
-        var handleout = new 'StringHandle';
+        var handleout = new ['StringHandle'];
         handleout.open(EVAL_NAME, 'w');
         var emit= new Emit();
         emit.initialize(handleout);
@@ -6923,7 +6923,7 @@ class WinxedHLL
     }
     function compile_from_file_to_pir(string filename, var handleout)
     {
-        var handlein = new 'FileHandle';
+        var handlein = new ['FileHandle'];
         handlein.open(filename, 'r');
         handlein.encoding('utf8');
         var tk= new Tokenizer(handlein, filename);
@@ -6938,7 +6938,7 @@ class WinxedHLL
     }
     function compile_from_file(string filename)
     {
-        var handlein = new 'FileHandle';
+        var handlein = new ['FileHandle'];
         handlein.open(filename, 'r');
         handlein.encoding('utf8');
         var tk= new Tokenizer(handlein, filename);
@@ -6946,7 +6946,7 @@ class WinxedHLL
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
-        var handleout = new 'StringHandle';
+        var handleout = new ['StringHandle'];
         handleout.open(EVAL_NAME, 'w');
         var emit= new Emit();
         emit.initialize(handleout);
@@ -7023,7 +7023,7 @@ function stage1(argv)
     else {
         expr = opt_e;
         expr = 'function main[main](argv){' + expr + ';}';
-        file = new 'StringHandle';
+        file = new ['StringHandle'];
         file.open(EVAL_NAME, 'w');
         file.puts(expr);
         file.close();
