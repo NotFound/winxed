@@ -4258,6 +4258,9 @@ function parseNew(var tk, var owner, var start)
     var t = tk.get();
     if (t.isop('['))
         return new NewIndexedExpr(tk, owner, start);
+    else if (t.isop('('))
+        return new CallExpr(tk, owner, start,
+	        new StringLiteral(owner, start));
     else
         return new NewExpr(tk, owner, start, t);
 }
