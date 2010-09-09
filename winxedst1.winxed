@@ -1645,8 +1645,13 @@ class PiropStatement : Statement, SimpleArgList
     {
         self.initstatement(start, owner);
         var t = tk.get();
+	int dotted = false;
+	if (t.isop('.')) {
+            dotted = true;
+	    t = tk.get();
+	}
         string opname = t.getidentifier();
-        self.opname = opname;
+        self.opname = (dotted ? '.' : '') + opname;
         t = tk.get();
         if (! t.isop('}')) {
             tk.unget(t);
@@ -2075,7 +2080,7 @@ class StringLiteral : SimpleExpr
         string str = strtok.str;
         if (strtok.type == TypeQuoted) {
             var s = str;
-            str = s.unescape('unicode', 'utf8');
+            str = s.unescape('utf8');
         }
         return str;
     }
@@ -6287,19 +6292,34 @@ class FunctionStatement : BlockStatement
         string name = self.name;
         e.say();
         e.print(".sub '", name, "'");
+
+        // Modifiers
         if (self.ismethod())
             e.print(' :method');
         var modifiers= self.modifiers;
         if (modifiers != null) {
             var mlist = modifiers.getlist();
-            for (var m in mlist)
+            for (var m in mlist) {
+                int nargmods = m.numargs();
                 e.print(' :', m.getname());
+                if (nargmods > 0) {
+		    e.print('(');
+                    for (int iargmod = 0; iargmod < nargmods; ++iargmod) {
+		        var argmod = m.getarg(iargmod);
+			if (!argmod.isstringliteral())
+			    SyntaxError('Invalid modifier', argmod.start);
+			e.print(argmod.getPirString());
+		    }
+		    e.print(')');
+		}
+            }
         }
         else {
             if (name == 'main')
                 e.print(' :main');
         }
         e.say();
+
         var args = self.args;
         var arg;
         string argname;
