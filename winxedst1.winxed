@@ -6752,7 +6752,7 @@ class NamespaceStatement : NamespaceBase
         else
             return cl;
     }
-    function uncloses_ns()
+    function unclosed_ns()
     {
        SyntaxError('unclosed namespace', self.start);
     }
