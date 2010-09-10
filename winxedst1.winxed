@@ -1645,11 +1645,11 @@ class PiropStatement : Statement, SimpleArgList
     {
         self.initstatement(start, owner);
         var t = tk.get();
-	int dotted = false;
-	if (t.isop('.')) {
+        int dotted = false;
+        if (t.isop('.')) {
             dotted = true;
-	    t = tk.get();
-	}
+            t = tk.get();
+        }
         string opname = t.getidentifier();
         self.opname = (dotted ? '.' : '') + opname;
         t = tk.get();
@@ -4265,7 +4265,7 @@ function parseNew(var tk, var owner, var start)
         return new NewIndexedExpr(tk, owner, start);
     else if (t.isop('('))
         return new CallExpr(tk, owner, start,
-	        new StringLiteral(owner, start));
+                new StringLiteral(owner, start));
     else
         return new NewExpr(tk, owner, start, t);
 }
@@ -6303,15 +6303,15 @@ class FunctionStatement : BlockStatement
                 int nargmods = m.numargs();
                 e.print(' :', m.getname());
                 if (nargmods > 0) {
-		    e.print('(');
+                    e.print('(');
                     for (int iargmod = 0; iargmod < nargmods; ++iargmod) {
-		        var argmod = m.getarg(iargmod);
-			if (!argmod.isstringliteral())
-			    SyntaxError('Invalid modifier', argmod.start);
-			e.print(argmod.getPirString());
-		    }
-		    e.print(')');
-		}
+                        var argmod = m.getarg(iargmod);
+                        if (!argmod.isstringliteral())
+                            SyntaxError('Invalid modifier', argmod.start);
+                        e.print(argmod.getPirString());
+                    }
+                    e.print(')');
+                }
             }
         }
         else {
