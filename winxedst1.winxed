@@ -1410,30 +1410,20 @@ class ModifierList
 //       Auxiliary classes and functions
 //*********************************************
 
-function getkey(var path)
+function getparrotkey(var path)
 {
-    string s = "[ ";
-    string sep= " '";
-    for (string n in path) {
-        s+= sep;
-        sep=" ; '";
-        s+= n + "'";
-    }
-    s+= " ]";
-    return s;
+    string s = join("'; '", path);
+    return "[ '" + s + "' ]";
 }
 
-function namespacekey(var path)
+function getparrotnamespacekey(var path)
 {
-    string s = '.namespace [';
-    string sep= " '";
-    for (string n in path) {
-        s+= sep;
-        sep=" ; '";
-        s+= n + "'";
+    if (elements(path) == 0)
+        return ".namespace [ ]";
+    else {
+        string s = join("'; '", path);
+        return ".namespace [ '" + s + "' ]";
     }
-    s+= " ]";
-    return s;
 }
 
 function parseUsing(t, tk, owner)
@@ -6461,7 +6451,7 @@ class ClassBaseParrotKey : ClassBase
 
     function emit(e)
     {
-        e.print("[", join(" ; ", self.key), "]\n");
+        e.print(getparrotkey(self.key));
     }
 }
 
@@ -6488,9 +6478,9 @@ class ClassBaseId : ClassBase
         var key = parent.findclasskey(self.key);
         if (key == null) {
             Warn("class " + join(".", self.key) + " not found at compile time");
-            e.print("['", join("' ; '", self.key), "']\n");
+            e.print(getparrotkey(self.key));
         }
-        else e.say(key.getclasskey());
+        else e.print(key.getclasskey());
     }
 }
 
@@ -6589,18 +6579,17 @@ class ClassStatement : VarContainer
     }
     function getclasskey()
     {
-        return getkey(self.classns);
+        return getparrotkey(self.classns);
     }
     function emit(var e)
     {
         var classns= self.classns;
-        e.say(namespacekey(classns));
+        e.say(getparrotnamespacekey(classns));
         for (var f in self.functions)
             f.emit(e);
 
         e.say('.sub Winxed_class_init :anon :load :init');
 
-        //e.say('newclass $P0, ', getkey(classns) );
         e.say('newclass $P0, ', self.getclasskey() );
         int n = 1;
         for (var base in self.bases) {
@@ -6612,7 +6601,7 @@ class ClassStatement : VarContainer
                 break;
               case CLASSBASE_str:
                 string basestr = base.name;
-                e.say(basestr);
+                e.print(basestr);
                 break;
               case CLASSBASE_parrotkey:
                 base.emit(e);
@@ -6620,6 +6609,7 @@ class ClassStatement : VarContainer
               default:
                 InternalError('Invalid class', base.start);
             }
+            e.say();
             e.say('addparent $P0, ', reg);
         }
         for (var member in self.members) {
@@ -6826,7 +6816,7 @@ class NamespaceBase : VarContainer
     function emit_base(var e)
     {
         var path= self.getpath();
-        string s= namespacekey(path);
+        string s= getparrotnamespacekey(path);
 
         int activate= 1;
         for (var item in self.items) {
