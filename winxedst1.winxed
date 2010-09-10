@@ -6614,7 +6614,6 @@ class NamespaceBase : VarContainer
     }
     function parse(tk)
     {
-        string namespace[];
         int balance1= 0;
         int balance2= 0;
         int balance3= 0;
@@ -6626,7 +6625,6 @@ class NamespaceBase : VarContainer
                 var start = t;
                 t= tk.get();
                 string name= t;
-                namespace.push(name);
                 t= tk.get();
 
                 var modifier;
@@ -6674,17 +6672,13 @@ class NamespaceBase : VarContainer
                 include_parrot(t, tk, self);
             }
             else if (t.isop('}')) {
-                int n= namespace;
-                if (n < 1) {
-                    if (self.parent != null) return;
-                    string line= t.line;
-                    SyntaxError('Unclosed namespace', t);
-                }
-                namespace.pop();
+                self.close_ns(t);
+                return;
             }
             else
                 SyntaxError("Unexpected token", t);
         }
+        self.unclosed_ns();
     }
     function optimize_base()
     {
@@ -6717,6 +6711,7 @@ class NamespaceBase : VarContainer
 class NamespaceStatement : NamespaceBase
 {
     var parent;
+    var start;
     var name;
     var modifier;
     var hll;
@@ -6725,6 +6720,7 @@ class NamespaceStatement : NamespaceBase
             string name, var modifier)
     {
         self.parent= parent;
+        self.start = start;
         self.owner = parent;
         self.name= name;
         self.modifier = modifier;
@@ -6755,6 +6751,14 @@ class NamespaceStatement : NamespaceBase
             return self.parent.checkclass(name);
         else
             return cl;
+    }
+    function uncloses_ns()
+    {
+       SyntaxError('unclosed namespace', self.start);
+    }
+    function close_ns(t)
+    {
+        // Do nothing
     }
     function optimize()
     {
@@ -6820,6 +6824,14 @@ class RootNamespace : NamespaceBase
     function checkclass(string name)
     {
         return self.checkclass_base(name);
+    }
+    function unclosed_ns()
+    {
+        // Do nothing
+    }
+    function close_ns(t)
+    {
+         SyntaxError('Cannot close root namespace', t);
     }
     function optimize()
     {
