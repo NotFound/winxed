@@ -6408,6 +6408,105 @@ class MethodStatement : FunctionStatement
 }
 
 //*********************************************
+//            Class bases
+//*********************************************
+
+const int CLASSBASE_invalid   = 0;
+const int CLASSBASE_str       = 1; // Literal name
+const int CLASSBASE_parrotkey = 2; // Parrot key
+const int CLASSBASE_id        = 3; // Identifier, maybe qualified
+
+class ClassBase
+{
+    var owner;
+    var start;
+    function ClassBase(owner, start)
+    {
+        self.owner = owner;
+        self.start = start;
+    }
+    function reftype() { return CLASSBASE_invalid; }
+}
+
+class ClassBaseStr : ClassBase
+{
+    var name;
+    function ClassBaseStr(owner, name)
+    {
+        self.ClassBase(owner, name);
+        self.name = name;
+    }
+    function reftype() { return CLASSBASE_str; }
+}
+
+class ClassBaseParrotKey : ClassBase
+{
+    var key;
+    function ClassBaseParrotKey(tk, owner, start)
+    {
+        self.ClassBase(owner, start);
+        var key = [];
+        var t;
+        do {
+            t = tk.get();
+            if (!t.isstring())
+                SyntaxError('literal string expected', t);
+            key.push(t);
+        } while ((t = tk.get()).isop(','));
+        if (!t.isop(']'))
+            SyntaxError("Expected ']'", t);
+        self.key = key;
+    }
+    function reftype() { return CLASSBASE_parrotkey; }
+
+    function emit(e)
+    {
+        e.print("[", join(" ; ", self.key), "]\n");
+    }
+}
+
+class ClassBaseId : ClassBase
+{
+    var key;
+    function ClassBaseId(tk, owner, id)
+    {
+        self.ClassBase(owner, id);
+        var key = [ string(id) ];
+        var t;
+        while ((t = tk.get()).isop('.')) {
+            t = tk.get();
+            key.push(string(t));
+        }
+        tk.unget(t);
+        self.key = key;
+    }
+    function reftype() { return CLASSBASE_id; }
+
+    function emit(e, derived)
+    {
+        var parent = derived.parent;
+        var key = parent.findclasskey(self.key);
+        if (key == null) {
+            Warn("class " + join(".", self.key) + " not found at compile time");
+            e.print("['", join("' ; '", self.key), "']\n");
+        }
+        else e.say(key.getclasskey());
+    }
+}
+
+function parseClassBase(tk, owner)
+{
+    var t = tk.get();
+    if (t.isstring())
+        return new ClassBaseStr(owner, t);
+    if (t.isop('['))
+        return new ClassBaseParrotKey(tk, owner, t);
+    if (t.isidentifier())
+        return new ClassBaseId(tk, owner, t);
+    SyntaxError('Invalid class', t);
+}
+
+//*********************************************
 //            ClassStatement
 //*********************************************
 
@@ -6437,8 +6536,8 @@ class ClassStatement : VarContainer
         if (t.isop(':')) {
             var bases= self.bases;
             for (;;) {
-                t= tk.get();
-                bases.push(t);
+                var base = parseClassBase(tk, self);
+                bases.push(base);
                 t= tk.get();
                 if (!t.isop(',')) break;
             }
@@ -6507,17 +6606,20 @@ class ClassStatement : VarContainer
         for (var base in self.bases) {
             string reg = "$P" + n++;
             e.print('get_class ', reg, ', ');
-            if (base.isstring())
-                e.say(base);
-            else {
-                string name = base;
-                var cl = self.checkclass(name);
-                if (cl == null)
-                    InternalError('No such class');
-                //e.say("'", name, "'");
-                e.say(cl.getclasskey());
+            switch (base.reftype()) {
+              case CLASSBASE_id:
+                base.emit(e, self);
+                break;
+              case CLASSBASE_str:
+                string basestr = base.name;
+                e.say(basestr);
+                break;
+              case CLASSBASE_parrotkey:
+                base.emit(e);
+                break;
+              default:
+                InternalError('Invalid class', base.start);
             }
-            e.comment(base);
             e.say('addparent $P0, ', reg);
         }
         for (var member in self.members) {
@@ -6612,6 +6714,34 @@ class NamespaceBase : VarContainer
                 return cl;
         return null;
     }
+    function findclasskey_base(classkey)
+    {
+        // Look for a class by its key in this namespace
+        // and its childs.
+        switch (elements(classkey)) {
+          case 0:
+            return null;
+          case 1:
+            // The key contains the name, look by name
+            return self.checkclass_base(classkey[0]);
+          default:
+            // The key is multi: look for a child namespace named
+            // as the first key item, and look into it with the
+            // remaining.
+            var namespaces = self.namespaces;
+            var childkey = clone(classkey);
+            string basename = childkey.shift();
+            for (var ns in namespaces) {
+                if (ns.name == basename) {
+                    //cry(basename, ' : ', childkey[0]);
+                    var found = ns.findclasskey(childkey);
+                    if (found != null)
+                        return found;
+                }
+            }
+        }
+        return null;
+    }
     function parse(tk)
     {
         int balance1= 0;
@@ -6670,6 +6800,15 @@ class NamespaceBase : VarContainer
             }
             else if (t.iskeyword('$include_const')) {
                 include_parrot(t, tk, self);
+            }
+            else if (t.iskeyword('$load')) {
+                t = tk.get();
+                if (! t.isstring())
+                    Expected('string literal', t);
+                string reqload = t;
+                self.addload(reqload);
+                t = tk.get();
+                RequireOp(';', t);
             }
             else if (t.isop('}')) {
                 self.close_ns(t);
@@ -6744,6 +6883,10 @@ class NamespaceStatement : NamespaceBase
     {
         self.parent.addlib(libname);
     }
+    function addlib(string loadname)
+    {
+        self.parent.addload(loadname);
+    }
     function checkclass(string name)
     {
         var cl = self.checkclass_base(name);
@@ -6751,6 +6894,15 @@ class NamespaceStatement : NamespaceBase
             return self.parent.checkclass(name);
         else
             return cl;
+    }
+    function findclasskey(classkey)
+    {
+        // Look for a class bi its key in this namespace and its childs.
+        // If not found, look in the parent namespace.
+        var cl = self.findclasskey_base(classkey);
+        if (cl == null)
+            cl = self.parent.findclasskey(classkey);
+        return cl;
     }
     function unclosed_ns()
     {
@@ -6791,6 +6943,7 @@ class RootNamespace : NamespaceBase
 {
     var predefs_used;
     var libs;
+    var loads;
 
     function init [vtable] ()
     {
@@ -6816,6 +6969,15 @@ class RootNamespace : NamespaceBase
         }
         libs[libname] = 1;
     }
+    function addload(string name)
+    {
+        var loads = self.loads;
+        if (loads == null) {
+            loads = {};
+            self.loads = loads;
+        }
+        loads[name] = 1;
+    }
     function getpath()
     {
         string path[];
@@ -6824,6 +6986,11 @@ class RootNamespace : NamespaceBase
     function checkclass(string name)
     {
         return self.checkclass_base(name);
+    }
+    function findclasskey(classkey)
+    {
+        // Look for a class by its key in the root namespace.
+        return self.findclasskey_base(classkey);
     }
     function unclosed_ns()
     {
@@ -6842,6 +7009,7 @@ class RootNamespace : NamespaceBase
     {
         var predefs_used = self.predefs_used;
         int somelib = false;
+        int someload = false;
         if (predefs_used['chomp'] != null) {
             somelib = true;
             e.say(
@@ -6868,8 +7036,17 @@ class RootNamespace : NamespaceBase
             for (string libname in libs)
                 e.say('.loadlib ', libname);
         }
-        if (somelib)
+        var loads = self.loads;
+        if (loads != null) {
+            someload = true;
+            e.print("\n.sub initial_load_bytecode :anon :load :init\n");
+            for (string name in loads)
+                e.say('    load_bytecode ', name);
+            e.print(".end\n\n");
+        }
+        if (somelib || someload)
             e.comment('end libs');
+
         self.emit_base(e);
     }
 }
