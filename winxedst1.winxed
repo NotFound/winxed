@@ -7008,34 +7008,30 @@ class RootNamespace : NamespaceBase
     function emit(var e)
     {
         var predefs_used = self.predefs_used;
-        int somelib = false;
-        int someload = false;
-        if (predefs_used['chomp'] != null) {
-            somelib = true;
-            e.say(
-".sub 'initialize' :load :init :anon\n" +
-"  load_bytecode 'String/Utils.pbc'\n" +
-".end\n"
-            );
-        }
-        int trans = 0;
+
+        // chomp uses a library function, load the libray if chomp is used
+        if (predefs_used['chomp'] != null)
+            self.addload('String/Utils.pbc');
+
+        // Load trans opcodes if some of its corresponding predefs are used
         string trfuncs[] = [
             'acos', 'asin', 'atan', 'cos', 'exp', 'ln', 'sin', 'tan', 'pow'
         ];
         for (string trfun in trfuncs)
-            if (predefs_used[trfun] != null)
-                trans = 1;
-        if (trans) {
-            somelib = true;
-            e.say(".loadlib 'trans_ops'");
-        }
+            if (predefs_used[trfun] != null) {
+                self.addlib('trans_ops');
+                break;
+            }
 
+        int somelib = false;
         var libs = self.libs;
         if (libs != null) {
             somelib = true;
             for (string libname in libs)
                 e.say('.loadlib ', libname);
         }
+
+        int someload = false;
         var loads = self.loads;
         if (loads != null) {
             someload = true;
