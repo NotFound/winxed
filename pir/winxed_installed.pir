@@ -171,7 +171,7 @@ set $P1, $P14
 load_bytecode 'Getopt/Obj.pbc'
 .annotate 'line', 49
 # var getopts: $P2
-new $P2, ['Getopt';'Obj']
+new $P2, [ 'Getopt'; 'Obj' ]
 .annotate 'line', 50
 $P2.'notOptStop'(1)
 .annotate 'line', 51
@@ -230,145 +230,160 @@ __label_4: # endif
 .annotate 'line', 69
 # var code: $P9
 null $P9
-.annotate 'line', 70
-# string srcfile: $S2
-$S2 = __ARG_1[0]
-.annotate 'line', 72
+.annotate 'line', 71
 isnull $I3, $P7
 unless $I3 goto __label_5
 # {
-.annotate 'line', 73
-isnull $I4, $P6
-not $I4
+.annotate 'line', 72
+# predefined elements
+elements $I5, __ARG_1
+islt $I4, $I5, 1
 unless $I4 goto __label_7
 # {
+# predefined say
+.annotate 'line', 73
+say "ERROR: No program specified"
 .annotate 'line', 74
+'showhelp'($S1, $P1)
+.annotate 'line', 75
+.return(1)
+# }
+__label_7: # endif
+.annotate 'line', 77
+# string srcfile: $S2
+$S2 = __ARG_1[0]
+.annotate 'line', 78
+isnull $I3, $P6
+not $I3
+unless $I3 goto __label_8
+# {
+.annotate 'line', 79
 # var handleout: $P10
 new $P10, [ 'StringHandle' ]
-.annotate 'line', 75
+.annotate 'line', 80
 $P10.'open'('', 'w')
-.annotate 'line', 76
+.annotate 'line', 81
 $P8.'compile_from_file_to_pir'($S2, $P10)
-.annotate 'line', 77
+.annotate 'line', 82
 $P10.'close'()
-.annotate 'line', 78
+.annotate 'line', 83
 # string pircode: $S3
 $P16 = $P10.'read'(0)
 null $S3
-if_null $P16, __label_9
+if_null $P16, __label_10
 set $S3, $P16
-__label_9:
-.annotate 'line', 79
+__label_10:
+.annotate 'line', 84
 # string pirfile: $S4
 $P17 = 'extname'($S2, '.pir')
 null $S4
-if_null $P17, __label_10
+if_null $P17, __label_11
 set $S4, $P17
-__label_10:
-.annotate 'line', 80
+__label_11:
+.annotate 'line', 85
 # var outfile: $P11
 # predefined open
 root_new $P11, ['parrot';'FileHandle']
 $P11.'open'($S4,'w')
-.annotate 'line', 81
+.annotate 'line', 86
 $P11.'print'($S3)
-.annotate 'line', 82
+.annotate 'line', 87
 $P11.'close'()
-.annotate 'line', 83
+.annotate 'line', 88
 .return(0)
 # }
-goto __label_8
-__label_7: # else
-.annotate 'line', 86
+goto __label_9
+__label_8: # else
+.annotate 'line', 91
 $P9 = $P8.'compile_from_file'($S2)
-__label_8: # endif
+__label_9: # endif
 # }
 goto __label_6
 __label_5: # else
 # {
-.annotate 'line', 89
-isnull $I3, $P6
-not $I3
-unless $I3 goto __label_11
+.annotate 'line', 94
+isnull $I4, $P6
+not $I4
+unless $I4 goto __label_12
 # predefined die
-.annotate 'line', 90
+.annotate 'line', 95
 die 'option -c with -e not supported yet'
-__label_11: # endif
-.annotate 'line', 91
+__label_12: # endif
+.annotate 'line', 96
 # string expr: $S5
 # predefined string
 $S8 = $P7
 concat $S7, 'function main[main](argv){', $S8
 concat $S5, $S7, ';}'
-.annotate 'line', 92
+.annotate 'line', 97
 $P9 = $P8.'compile'($S5)
-.annotate 'line', 93
+.annotate 'line', 98
 __ARG_1.'unshift'('__EVAL__')
 # }
 __label_6: # endif
-.annotate 'line', 97
+.annotate 'line', 102
 # var sub: $P12
 null $P12
 # for loop
-.annotate 'line', 98
+.annotate 'line', 103
 # int i: $I1
 null $I1
-goto __label_14
-__label_12: # for iteration
+goto __label_15
+__label_13: # for iteration
 inc $I1
-__label_14: # for condition
+__label_15: # for condition
 # {
-.annotate 'line', 99
+.annotate 'line', 104
 $P12 = $P9[$I1]
-.annotate 'line', 100
-isnull $I4, $P12
-unless $I4 goto __label_15
-goto __label_13 # break
-__label_15: # endif
-.annotate 'line', 101
+.annotate 'line', 105
+isnull $I5, $P12
+unless $I5 goto __label_16
+goto __label_14 # break
+__label_16: # endif
+.annotate 'line', 106
 # predefined string
 $S7 = $P12
-iseq $I5, $S7, 'main'
-unless $I5 goto __label_16
-goto __label_13 # break
-__label_16: # endif
+iseq $I6, $S7, 'main'
+unless $I6 goto __label_17
+goto __label_14 # break
+__label_17: # endif
 # }
-goto __label_12 # for iteration
-__label_13: # for end
-.annotate 'line', 104
+goto __label_13 # for iteration
+__label_14: # for end
+.annotate 'line', 109
 # try: create handler
 new $P18, 'ExceptionHandler'
-set_addr $P18, __label_17
+set_addr $P18, __label_18
 push_eh $P18
 # try: begin
 # {
-.annotate 'line', 105
+.annotate 'line', 110
 $P12(__ARG_1)
 # }
 # try: end
-goto __label_18
-.annotate 'line', 104
+goto __label_19
+.annotate 'line', 109
 # catch
-__label_17:
+__label_18:
 .get_results($P13)
 finalize $P13
 pop_eh
 # {
-.annotate 'line', 108
+.annotate 'line', 113
 # string msg: $S6
 $S6 = $P13['message']
 # predefined cry
-.annotate 'line', 109
+.annotate 'line', 114
 getstderr $P0
 print $P0, $P13
 print $P0, "\n"
-.annotate 'line', 110
+.annotate 'line', 115
 .return(1)
 # }
 # catch end
-__label_18:
+__label_19:
 # }
-.annotate 'line', 112
+.annotate 'line', 117
 
 .end # main
 

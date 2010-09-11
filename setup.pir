@@ -64,7 +64,7 @@ $P3 = $P1.'compile'($S1)
 load_bytecode 'Getopt/Obj.pbc'
 .annotate 'line', 43
 # var getopts: $P1
-new $P1, ['Getopt';'Obj']
+new $P1, [ 'Getopt'; 'Obj' ]
 .annotate 'line', 44
 $P1.'notOptStop'(1)
 .annotate 'line', 45

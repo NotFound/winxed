@@ -67,9 +67,14 @@ function main [main] (argv)
         die("winxed: Cannot load language");
 
     var code;
-    string srcfile = argv[0];
 
     if (eval == null) {
+        if (elements(argv) < 1) {
+            say("ERROR: No program specified");
+            showhelp(name, options);
+            return 1;
+        }
+        string srcfile = argv[0];
         if (compileonly != null) {
             var handleout = new 'StringHandle';
             handleout.open('', 'w');
