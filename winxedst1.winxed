@@ -6991,7 +6991,7 @@ class RootNamespace : NamespaceBase
         ];
         for (string trfun in trfuncs)
             if (predefs_used[trfun] != null) {
-                self.addlib('trans_ops');
+                self.addlib("'trans_ops'");
                 break;
             }
 
