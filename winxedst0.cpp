@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 30-aug-2010
+// Revision 11-sep-2010
 
 // Winxed compiler stage 0.
 
@@ -6128,6 +6128,8 @@ private:
 
 //**********************************************************************
 
+class ClassBase;
+
 class Class : public SubBlock
 {
 public:
@@ -6149,7 +6151,7 @@ private:
     Token start;
     std::string name;
     NamespaceKey ns;
-    std::vector <Token> parents;
+    std::vector <ClassBase *> parents;
     std::vector <Function *> functions;
     std::vector <Token> attrs;
     std::vector <ConstStatement *> constants;
@@ -6193,6 +6195,66 @@ private:
 
 //**********************************************************************
 
+enum ClassBaseType
+{
+    CLASSBASE_invalid,
+    CLASSBASE_str,
+    CLASSBASE_parrotkey,
+    CLASSBASE_id
+};
+
+class ClassBase
+{
+protected:
+    ClassBase(const Token &t) : start(t)
+    { }
+public:
+    virtual ClassBaseType reftype() const { return CLASSBASE_invalid; }
+    virtual ~ClassBase() {}
+    void annotate(Emit &e)
+    {
+        e.annotate(start);
+    }
+    virtual void emit(Emit &e) = 0;
+private:
+    const Token start;
+};
+
+class ClassBaseStr : public ClassBase
+{
+public:
+    ClassBaseStr(const Token &t) :
+        ClassBase(t),
+        name(t.pirliteralstring())
+    {
+    }
+    ClassBaseType reftype() const { return CLASSBASE_str; }
+private:
+    void emit(Emit &e)
+    {
+        e << "[ " << name << " ]";
+    }
+    std::string name;
+};
+
+class ClassBaseId : public ClassBase
+{
+public:
+    ClassBaseId(const Token &t) :
+        ClassBase(t),
+        id(t.identifier())
+    {
+    }
+    ClassBaseType reftype() const { return CLASSBASE_id; }
+private:
+    void emit(Emit &e)
+    {
+        e << "[ '" << id << "' ]";
+    }
+    std::string id;
+};
+
+
 Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
         SubBlock(ns_b),
         subblocks(0)
@@ -6204,9 +6266,14 @@ Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
     {
         do {
             t= tk.get();
-            if (! (t.isidentifier () ||  t.isliteralstring()))
+            if (t.isliteralstring()) {
+                parents.push_back(new ClassBaseStr(t));
+            }
+            else if (t.isidentifier ()) {
+                parents.push_back(new ClassBaseId(t));
+            }
+            else
                 throw Expected("parent class", t);
-            parents.push_back(t);
             t= tk.get();
         } while (t.isop(','));
     }
@@ -6264,18 +6331,13 @@ void Class::emit (Emit &e)
 
     for (size_t i= 0; i < parents.size(); ++i)
     {
-        Token parent= parents[i];
-        e.annotate(parent);
+        ClassBase & parent= *parents[i];
+        parent.annotate(e);
         std::ostringstream oss;
         oss << "$P" << i + 1;
         std::string p= oss.str();
         e << p << " = get_class ";
-
-        if (parent.isliteralstring() )
-            e << parent.pirliteralstring();
-        else 
-            e << "[ '" << parent.identifier() << "' ]";
-
+        parent.emit(e);
         e << "\n"
             "addparent $P0, " << p << "\n";
     }
