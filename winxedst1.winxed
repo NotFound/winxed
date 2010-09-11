@@ -6423,7 +6423,7 @@ class ClassBaseParrotKey : ClassBase
             t = tk.get();
             if (!t.isstring())
                 SyntaxError('literal string expected', t);
-            key.push(t);
+            key.push(t.rawstring());
         } while ((t = tk.get()).isop(','));
         if (!t.isop(']'))
             SyntaxError("Expected ']'", t);
