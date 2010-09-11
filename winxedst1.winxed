@@ -1692,15 +1692,8 @@ class ExternStatement : Statement
     function optimize() { return self; }
     function emit(e)
     {
-        string file;
-        string sep = '';
-        for (string p in self.path) {
-            file += sep;
-            file += p;
-            sep = '/';
-        }
         self.annotate(e);
-        e.say("load_bytecode '", file, ".pbc'");
+        e.say("load_bytecode '", join('/', self.path), ".pbc'");
     }
 }
 
@@ -1761,13 +1754,7 @@ class UsingStatement : Statement
             e.say("'", name, "'");
             break;
         default:
-            e.print('[');
-            string sep = '';
-            for (string p in path) {
-                e.print(sep, "'", p, "'");
-                sep = '; ';
-            }
-            e.say(" ], '", name, "'");
+            e.say(getparrotkey(path), " , '", name, "'");
         }
     }
 }
@@ -4153,14 +4140,9 @@ class NewExpr : Expr
             }
             break;
           case BYMULTI:
-            e.print('new ', regnew, ", [");
-            string sep = '';
-            for (string value in self.value) {
-                e.print(sep, "'", value, "'");
-                sep = ';';
-                constructor = value;
-            }
-            e.say("]", reginit);
+            var multival = self.value;
+            constructor = multival[elements(multival) - 1];
+            e.say('new ', regnew, ", ", getparrotkey(multival), reginit);
             break;
           case BYIDENT:
             var id = self.owner.getvar(self.value);
