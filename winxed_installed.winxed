@@ -2,27 +2,55 @@
 
 // Winxed compiler driver.
 
-function showhelp(string name, options)
+$load 'Getopt/Obj.pbc';
+
+class Options : Getopt.Obj
 {
-    say('Usage: ', name, ' [options] [program] [args]');
-    say('  Available options:');
-    int l= 0;
-    int i;
-    var o;
-    for (o in options) {
-        i= length(o[0]) + 4;
-        if (i > l) l= i;
+    var name;
+    var options;
+    var opts;
+
+    function Options(argv, int unused)
+    {
+        var options = [
+          [ 'c',        'Compile only. Same as --target=pir' ],
+          [ 'e=s',      'Evaluate' ],
+          [ 'help',     'Show this help' ]
+        ];
+        self.options = options;
+        for (var o in options)
+            self.push_string(o[0]);
+        self.notOptStop(1);
+        self.name = argv.shift();
+        self.opts = self.get_options(argv);
     }
-    for (o in options) {
-        string s= o[0];
-        if (length(s) > 1 && substr(s, 1, 1) != '=')
-            s= '--' + s;
-        else
-            s= '-' + s;
-        i= l - length(s);
-        say('    ', s, ' ' * i, '->  ', o[1]);
+    function get()
+    {
+        return self.opts;
+    }
+    function showhelp()
+    {
+        say('Usage: ', self.name, ' [options] [program] [args]');
+        say('  Available options:');
+        int l= 0;
+        int i;
+        var o;
+        for (o in self.options) {
+            i= length(o[0]) + 4;
+            if (i > l) l= i;
+        }
+        for (o in self.options) {
+            string s= o[0];
+            if (length(s) > 1 && substr(s, 1, 1) != '=')
+                s= '--' + s;
+            else
+                s= '-' + s;
+            i= l - length(s);
+            say('    ', s, ' ' * i, '->  ', o[1]);
+        }
     }
 }
+
 
 function extname(string filename, string ext)
 {
@@ -39,26 +67,15 @@ function extname(string filename, string ext)
 
 function main [main] (argv)
 {
-    var options = [
-      [ 'c',        'Compile only' ],
-      [ 'e=s',      'Evaluate' ],
-      [ 'help',     'Show this help' ]
-    ];
+    var optionset = new Options(argv, 0);
+    var options = optionset.get();
 
-    using extern Getopt.Obj;
-    var getopts = new Getopt.Obj();
-    getopts.notOptStop(1);
-    for (var o in options)
-        getopts.push_string(o[0]);
-    string name= argv.shift();
-    var opts = getopts.get_options(argv);
-
-    var help        = opts['help'];
-    var compileonly = opts['c'];
-    var eval        = opts['e'];
+    var help        = options['help'];
+    var compileonly = options['c'];
+    var eval        = options['e'];
 
     if (help != null) {
-        showhelp(name, options);
+        optionset.showhelp();
         return;
     }
 
@@ -71,7 +88,7 @@ function main [main] (argv)
     if (eval == null) {
         if (elements(argv) < 1) {
             say("ERROR: No program specified");
-            showhelp(name, options);
+            optionset.showhelp();
             return 1;
         }
         string srcfile = argv[0];

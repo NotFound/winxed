@@ -4,27 +4,7 @@
 // Parses command line options, calls the compiler backend
 // and eventually runs the generated program.
 
-function showhelp(string name, options)
-{
-    say('Usage: ', name, ' [options] [program] [args]');
-    say('  Available options:');
-    int l= 0;
-    int i;
-    var o;
-    for (o in options) {
-        i= length(o[0]) + 4;
-        if (i > l) l= i;
-    }
-    for (o in options) {
-        string s= o[0];
-        if (length(s) > 1 && substr(s, 1, 1) != '=')
-            s= '--' + s;
-        else
-            s= '-' + s;
-        i= l - length(s);
-        say('    ', s, ' ' * i, '->  ', o[1]);
-    }
-}
+$load 'Getopt/Obj.pbc';
 
 function extname(string filename, string ext)
 {
@@ -52,42 +32,78 @@ function getOS()
         yield os;
 }
 
+class Options : Getopt.Obj
+{
+    var name;
+    var options;
+    var opts;
+
+    function Options(argv, int unused)
+    {
+        var options = [
+          [ 'stage=i',  'Compiler stage to use' ],
+          [ 'c',        'Compile only. Same as --target=pir' ],
+          [ 'e=s',      'Evaluate' ],
+          [ 'o=s',      'Object name' ],
+          [ 'L=s',      'Add to parrot library search path' ],
+          [ 'I=s',      'Add to parrot include search path' ],
+          [ 'noan',     'No code annotations' ],
+          [ 'target=s', 'Set target type: pir, pbc or run. Default is run.' ],
+          [ 'help',     'Show this help' ]
+        ];
+        self.options = options;
+        for (var o in options)
+            self.push_string(o[0]);
+        self.notOptStop(1);
+        self.name = argv.shift();
+        self.opts = self.get_options(argv);
+    }
+    function get()
+    {
+        return self.opts;
+    }
+    function showhelp()
+    {
+        say('Usage: ', self.name, ' [options] [program] [args]');
+        say('  Available options:');
+        int l= 0;
+        int i;
+        var o;
+        for (o in self.options) {
+            i= length(o[0]) + 4;
+            if (i > l) l= i;
+        }
+        for (o in self.options) {
+            string s= o[0];
+            if (length(s) > 1 && substr(s, 1, 1) != '=')
+                s= '--' + s;
+            else
+                s= '-' + s;
+            i= l - length(s);
+            say('    ', s, ' ' * i, '->  ', o[1]);
+        }
+    }
+}
+
 function main [main] (argv)
 {
     const int DEFAULT_STAGE = 2;
 
-    var options = [
-      [ 'stage=i',  'Compiler stage to use' ],
-      [ 'c',        'Compile only. Same as --target=pir' ],
-      [ 'e=s',      'Evaluate' ],
-      [ 'o=s',      'Object name' ],
-      [ 'L=s',      'Add to parrot library search path' ],
-      [ 'I=s',      'Add to parrot include search path' ],
-      [ 'noan',     'No code annotations' ],
-      [ 'target=s', 'Set target type: pir, pbc or run. Default is run.' ],
-      [ 'help',     'Show this help' ]
-    ];
+    var optionset = new Options(argv, 0);
+    var options = optionset.get();
 
-    using extern Getopt.Obj;
-    var getopts = new Getopt.Obj();
-    getopts.notOptStop(1);
-    for (var o in options)
-        getopts.push_string(o[0]);
-    string name= argv.shift();
-    var opts = getopts.get_options(argv);
-
-    var help        = opts['help'];
-    var opt_stage   = opts['stage'];
-    var compileonly = opts['c'];
-    var noan        = opts['noan'];
-    var eval        = opts['e'];
-    var opt_L       = opts['L'];
-    var opt_I       = opts['I'];
-    var opt_o       = opts['o'];
-    var opt_target  = opts['target'];
+    var help        = options['help'];
+    var opt_stage   = options['stage'];
+    var compileonly = options['c'];
+    var noan        = options['noan'];
+    var eval        = options['e'];
+    var opt_L       = options['L'];
+    var opt_I       = options['I'];
+    var opt_o       = options['o'];
+    var opt_target  = options['target'];
 
     if (help != null) {
-        showhelp(name, options);
+        optionset.showhelp();
         return;
     }
 
@@ -148,7 +164,7 @@ function main [main] (argv)
         int argc= argv;
         if (argc < 1) {
             say("ERROR: No program specified");
-            showhelp(name, options);
+            optionset.showhelp();
             return;
         }
         srcfile = argv.shift();
