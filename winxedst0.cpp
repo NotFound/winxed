@@ -1029,6 +1029,36 @@ public:
 
 //**********************************************************************
 
+enum ClassSpecifierType
+{
+    CLASSSPECIFIER_invalid,
+    CLASSSPECIFIER_str,
+    CLASSSPECIFIER_parrotkey,
+    CLASSSPECIFIER_id
+};
+
+class ClassSpecifier
+{
+protected:
+    ClassSpecifier(const Token &t) : start(t)
+    { }
+public:
+    virtual ClassSpecifierType reftype() const
+    { return CLASSSPECIFIER_invalid; }
+    virtual ~ClassSpecifier() {}
+    void annotate(Emit &e)
+    {
+        e.annotate(start);
+    }
+    virtual void emit(Emit &e) = 0;
+private:
+    const Token start;
+};
+
+ClassSpecifier *parseClassSpecifier(const Token &start, Tokenizer &tk);
+
+//**********************************************************************
+
 class SubStatement : public BaseStatement, public InBlock
 {
 public:
@@ -6128,8 +6158,6 @@ private:
 
 //**********************************************************************
 
-class ClassBase;
-
 class Class : public SubBlock
 {
 public:
@@ -6151,7 +6179,7 @@ private:
     Token start;
     std::string name;
     NamespaceKey ns;
-    std::vector <ClassBase *> parents;
+    std::vector <ClassSpecifier *> parents;
     std::vector <Function *> functions;
     std::vector <Token> attrs;
     std::vector <ConstStatement *> constants;
@@ -6195,40 +6223,15 @@ private:
 
 //**********************************************************************
 
-enum ClassBaseType
-{
-    CLASSBASE_invalid,
-    CLASSBASE_str,
-    CLASSBASE_parrotkey,
-    CLASSBASE_id
-};
-
-class ClassBase
-{
-protected:
-    ClassBase(const Token &t) : start(t)
-    { }
-public:
-    virtual ClassBaseType reftype() const { return CLASSBASE_invalid; }
-    virtual ~ClassBase() {}
-    void annotate(Emit &e)
-    {
-        e.annotate(start);
-    }
-    virtual void emit(Emit &e) = 0;
-private:
-    const Token start;
-};
-
-class ClassBaseStr : public ClassBase
+class ClassSpecifierStr : public ClassSpecifier
 {
 public:
-    ClassBaseStr(const Token &t) :
-        ClassBase(t),
+    ClassSpecifierStr(const Token &t) :
+        ClassSpecifier(t),
         name(t.pirliteralstring())
     {
     }
-    ClassBaseType reftype() const { return CLASSBASE_str; }
+    ClassSpecifierType reftype() const { return CLASSSPECIFIER_str; }
 private:
     void emit(Emit &e)
     {
@@ -6237,11 +6240,11 @@ private:
     std::string name;
 };
 
-class ClassBaseId : public ClassBase
+class ClassSpecifierId : public ClassSpecifier
 {
 public:
-    ClassBaseId(const Token &start, Tokenizer &tk) :
-        ClassBase(start)
+    ClassSpecifierId(const Token &start, Tokenizer &tk) :
+        ClassSpecifier(start)
     {
         id.push_back(start.identifier());
         Token t;
@@ -6252,7 +6255,7 @@ public:
         }
         tk.unget(t);
     }
-    ClassBaseType reftype() const { return CLASSBASE_id; }
+    ClassSpecifierType reftype() const { return CLASSSPECIFIER_id; }
 private:
     void emit(Emit &e)
     {
@@ -6265,6 +6268,18 @@ private:
 };
 
 
+ClassSpecifier *parseClassSpecifier(const Token &start, Tokenizer &tk)
+{
+    if (start.isliteralstring())
+        return new ClassSpecifierStr(start);
+    else if (start.isidentifier ())
+        return new ClassSpecifierId(start, tk);
+    else
+        throw Expected("parent class", start);
+}
+
+//**********************************************************************
+
 Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
         SubBlock(ns_b),
         subblocks(0)
@@ -6276,14 +6291,7 @@ Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
     {
         do {
             t= tk.get();
-            if (t.isliteralstring()) {
-                parents.push_back(new ClassBaseStr(t));
-            }
-            else if (t.isidentifier ()) {
-                parents.push_back(new ClassBaseId(t, tk));
-            }
-            else
-                throw Expected("parent class", t);
+            parents.push_back(parseClassSpecifier(t, tk));
             t= tk.get();
         } while (t.isop(','));
     }
@@ -6341,7 +6349,7 @@ void Class::emit (Emit &e)
 
     for (size_t i= 0; i < parents.size(); ++i)
     {
-        ClassBase & parent= *parents[i];
+        ClassSpecifier & parent= *parents[i];
         parent.annotate(e);
         std::ostringstream oss;
         oss << "$P" << i + 1;
