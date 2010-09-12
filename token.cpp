@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 24-aug-2010
+// Revision 12-sep-2010
 
 #include "token.h"
 #include "errors.h"
@@ -182,7 +182,7 @@ bool isidentifierstart(char c)
 
 bool isidentifier(char c)
 {
-    return c == '_' || isalnum((unsigned char) c);
+    return c == '_' || c == '$' || isalnum((unsigned char) c);
 }
 
 std::string unquote (const std::string &s)
@@ -552,6 +552,19 @@ Token Tokenizer::getany ()
         else
             ungetchar(c);
         break;        
+    case '$':
+        c = getchar();
+        if (isidentifier(c))
+        {
+            s+= c;
+            for (c= getchar(); isidentifier(c); c= getchar())
+                s+= c;
+            ungetchar(c);
+            return Token(TokenTIdentifier, s, linenum, name);
+        }
+        else
+            ungetchar(c);
+        break;
     default:
         if (isidentifierstart(c))
         {
