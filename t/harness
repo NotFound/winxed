@@ -2,6 +2,8 @@
 # harness for winxed tests
 # TAP parsing adapted from nqp in plumage harness
 
+$load 'Getopt/Obj.pbc';
+
 function debugmsg(string s)
 {
     if (0)
@@ -109,7 +111,7 @@ function getOS()
     var os;
     try {
         loadlib('os');
-        os = new 'OS';
+        os = new ['OS'];
     }
     catch() { }
     for (;;)
@@ -177,8 +179,7 @@ function build_file_list(var result, var args, int recursive)
 
 function main(var argv)
 {
-    using extern Getopt.Obj;
-    var getopts = new Getopt.Obj();
+    var getopts = new ['Getopt','Obj'];
     getopts.notOptStop(1);
     getopts.push_string('v');
     getopts.push_string('r');
