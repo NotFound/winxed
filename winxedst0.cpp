@@ -557,6 +557,29 @@ private:
 
 //**********************************************************************
 
+class Class;
+
+typedef std::vector<std::string> ClassKey;
+
+std::string dotted(const ClassKey &ck)
+{
+    size_t l = ck.size();
+    if (l == 0)
+        return "(anonimous)";
+    else
+    {
+        std::string r = ck[0];
+        for (size_t i = 1; i < l; ++i)
+        {
+            r+= '.';
+            r+= ck[i];
+        }
+        return r;
+    }
+}
+
+//**********************************************************************
+
 class BlockBase
 {
 public:
@@ -584,6 +607,11 @@ public:
     virtual std::string getcontinuelabel() const
     {
         throw std::runtime_error("No continue allowed");
+    }
+    virtual Class *findclass(const ClassKey &classkey)
+    {
+        std::cerr << "BlockBase::findclass **WRONG CALL**\n";
+        return 0;
     }
     virtual ~BlockBase() { }
 };
@@ -776,6 +804,10 @@ public:
     }
     std::string genlocallabel();
     std::string getnamedlabel(const std::string &name);
+    Class *findclass(const ClassKey &classkey)
+    {
+        return parent.findclass(classkey);
+    }
 private:
     unsigned int blockid();
 
@@ -1056,7 +1088,8 @@ private:
     const Token start;
 };
 
-ClassSpecifier *parseClassSpecifier(const Token &start, Tokenizer &tk);
+ClassSpecifier *parseClassSpecifier(const Token &start, Tokenizer &tk,
+        BlockBase &owner);
 
 //**********************************************************************
 
@@ -4100,7 +4133,7 @@ NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
 
     t= tk.get();
 
-    claspec = parseClassSpecifier(t, tk);
+    claspec = parseClassSpecifier(t, tk, block);
 
     t= tk.get();
 
@@ -6041,15 +6074,25 @@ void Function::emit (Emit &e)
 
 //**********************************************************************
 
+class NamespaceBlock;
+
 class NamespaceBlockBase : public Block
 {
 public:
     NamespaceBlockBase () :
         subblocks(0)
     { }
-    void addconstant(ConstStatement * cst)
+    void addconstant(ConstStatement *cst)
     {
         constants.push_back(cst);
+    }
+    void addnamespace(NamespaceBlock *ns)
+    {
+        namespaces.push_back(ns);
+    }
+    void addclass(Class *cl)
+    {
+        classes.push_back(cl);
     }
     void optimize()
     {
@@ -6063,6 +6106,8 @@ public:
         emit_group(constants, e);
     }
     virtual NamespaceBlockBase *getparent () { return 0; }
+    Class *findclass_base(const ClassKey &classkey);
+    virtual Class *findclass(const ClassKey &classkey) = 0;
 private:
     std::string genlocallabel()
     { throw InternalError("No Namespace labels"); }
@@ -6077,7 +6122,10 @@ private:
     {
         return ++subblocks;
     }
+
     std::vector <ConstStatement *> constants;
+    std::vector <NamespaceBlock *> namespaces;
+    std::vector <Class *> classes;
 };
 
 class RootNamespaceBlock : public NamespaceBlockBase
@@ -6112,16 +6160,19 @@ class RootNamespaceBlock : public NamespaceBlockBase
         }
         else throw InternalError("No such constant");
     }
+    Class *findclass(const ClassKey &classkey);
 };
 
 class NamespaceBlock : public NamespaceBlockBase
 {
 public:
-    NamespaceBlock(NamespaceBlockBase &parentns) :
+    NamespaceBlock(const std::string &name, NamespaceBlockBase &parentns) :
+        nsname(name),
         parentnbb(parentns),
         parent(parentns)
     {
     }
+    const std::string &getname() const { return nsname; }
     char checkconstant(const std::string &name) const
     {
         char c= Block::checkconstant(name);
@@ -6137,7 +6188,9 @@ public:
             return parentnbb.getconstant(name);
     }
     NamespaceBlockBase *getparent () { return &parentnbb; }
+    Class *findclass(const ClassKey &classkey);
 private:
+    const std::string nsname;
     NamespaceBlockBase &parentnbb;
     Block &parent;
 };
@@ -6148,9 +6201,11 @@ class Class : public SubBlock
 {
 public:
     Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a);
+    const std::string &getname() const { return name; }
     void emit (Emit &e);
     std::vector <Token> attributes() const { return attrs; }
     void optimize();
+    const NamespaceKey &getkey() const;
 private:
     unsigned int subblocks;
     unsigned int blockid()
@@ -6170,6 +6225,45 @@ private:
     std::vector <Token> attrs;
     std::vector <ConstStatement *> constants;
 };
+
+//**********************************************************************
+
+Class *NamespaceBlockBase::findclass_base(const ClassKey &classkey)
+{
+    const std::string &name = classkey[0];
+    if (classkey.size() == 1)
+    {
+        for (size_t i = 0; i < classes.size(); ++i)
+            if (classes[i]->getname() == name)
+                return classes[i];
+        return 0;
+    }
+    else
+    {
+        for (size_t i = 0; i < namespaces.size(); ++i)
+            if (namespaces[i]->getname() == name)
+            {
+                std::vector<std::string> localkey(++classkey.begin(), classkey.end());
+                Class *result = namespaces[i]->findclass(localkey);
+                if (result)
+                    return result;
+            }
+        return 0;
+    }
+}
+
+Class *RootNamespaceBlock::findclass(const ClassKey &classkey)
+{
+    return findclass_base(classkey);
+}
+
+Class *NamespaceBlock::findclass(const ClassKey &classkey)
+{
+    Class *cl = findclass_base(classkey);
+    if (! cl)
+        cl = parentnbb.findclass(classkey);
+    return cl;
+}
 
 //**********************************************************************
 
@@ -6230,8 +6324,9 @@ private:
 class ClassSpecifierId : public ClassSpecifier
 {
 public:
-    ClassSpecifierId(const Token &start, Tokenizer &tk) :
-        ClassSpecifier(start)
+    ClassSpecifierId(const Token &start, Tokenizer &tk, BlockBase &owner) :
+        ClassSpecifier(start),
+        bl(owner)
     {
         id.push_back(start.identifier());
         Token t;
@@ -6244,24 +6339,36 @@ public:
     }
     ClassSpecifierType reftype() const { return CLASSSPECIFIER_id; }
 private:
+    BlockBase &bl;
     void emit(Emit &e)
     {
-        e << "[ '" << id[0];
-        for (size_t i = 1; i < id.size(); ++i)
-            e << "'; '" << id [i];
-        e << "' ]";
+        Class *cl = bl.findclass(id);
+        if (cl)
+        {
+            e << cl->getkey().get_key();
+        }
+        else
+        {
+            std::cerr << "WARNING: class " << dotted(id)
+                    <<  " not found at compile time\n";
+            e << "[ '" << id[0];
+            for (size_t i = 1; i < id.size(); ++i)
+                e << "'; '" << id [i];
+            e << "' ]";
+        }
     }
     std::string basename() const { return id.back(); }
-    std::vector<std::string> id;
+    ClassKey id;
 };
 
 
-ClassSpecifier *parseClassSpecifier(const Token &start, Tokenizer &tk)
+ClassSpecifier *parseClassSpecifier(const Token &start, Tokenizer &tk,
+        BlockBase &owner)
 {
     if (start.isliteralstring())
         return new ClassSpecifierStr(start);
     else if (start.isidentifier ())
-        return new ClassSpecifierId(start, tk);
+        return new ClassSpecifierId(start, tk, owner);
     else
         throw Expected("parent class", start);
 }
@@ -6279,7 +6386,7 @@ Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
     {
         do {
             t= tk.get();
-            parents.push_back(parseClassSpecifier(t, tk));
+            parents.push_back(parseClassSpecifier(t, tk, ns_b));
             t= tk.get();
         } while (t.isop(','));
     }
@@ -6315,6 +6422,11 @@ Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
         else
             throw Expected ("'function' or '}'", t);
     }
+}
+
+const NamespaceKey &Class::getkey() const
+{
+    return ns;
 }
 
 void Class::optimize()
@@ -6394,8 +6506,11 @@ void Winxed::parse (Tokenizer &tk)
         if (t.iskeyword("namespace"))
         {
             t = tk.get();
-            cur_namespace= NamespaceKey(cur_namespace, t.identifier());
-            cur_nsblock= new NamespaceBlock(*cur_nsblock);
+            std::string nsname = t.identifier();
+            cur_namespace= NamespaceKey(cur_namespace, nsname);
+            NamespaceBlock *new_ns = new NamespaceBlock(nsname, *cur_nsblock);
+            cur_nsblock->addnamespace(new_ns);
+            cur_nsblock = new_ns;
             namespaces.push_back(cur_nsblock);
             ExpectOp('{', tk);
         }
@@ -6408,6 +6523,7 @@ void Winxed::parse (Tokenizer &tk)
         {
             Class *c = new Class (*cur_nsblock, tk, cur_namespace);
             classes.push_back(c);
+            cur_nsblock->addclass(c);
         }
         else if (t.iskeyword("function"))
         {
