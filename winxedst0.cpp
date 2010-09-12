@@ -1050,6 +1050,7 @@ public:
     {
         e.annotate(start);
     }
+    virtual std::string basename() const = 0;
     virtual void emit(Emit &e) = 0;
 private:
     const Token start;
@@ -4086,8 +4087,7 @@ private:
     BaseExpr *optimize();
     void emit(Emit &e, const std::string &result);
     unsigned int ln;
-    std::string value;
-    std::string constructor;
+    ClassSpecifier *claspec;
     std::vector<BaseExpr *> init;
 };
 
@@ -4097,36 +4097,15 @@ NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
     init(0)
 {
     //std::cerr << "NewExpr::NewExpr\n";
+
     t= tk.get();
-    if (t.issinglequoted())
+
+    claspec = parseClassSpecifier(t, tk);
+
+    t= tk.get();
+
+    if (t.isop('('))
     {
-        value = "root_new ['parrot'; " + t.pirliteralstring() + " ]";
-        if ((t= tk.get()).isop('('))
-        {
-            init.push_back(parseExpr(block, tk));
-            ExpectOp(')', tk);
-        }
-        else
-            tk.unget(t);
-    }
-    else
-    {
-        std::string name = t.identifier();
-        std::vector<std::string> prefix;
-        while ((t= tk.get()).isop('.') )
-        {
-            t= tk.get();
-            prefix.push_back(name);
-            name = t.identifier();
-        }
-        value = " new [";
-        for (size_t i= 0; i < prefix.size(); ++i)
-        {
-            value+= "'" + prefix[i] + "';";
-        }
-        value+= "'" + name + "' ]";
-        constructor = name;
-        RequireOp('(', t);
         t = tk.get();
         if (! t.isop(')') )
         {
@@ -4138,6 +4117,9 @@ NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
             RequireOp(')', t);
         }
     }
+    else
+        tk.unget(t);
+
     //std::cerr << "NewExpr::NewExpr end\n";
 }
 
@@ -4166,15 +4148,19 @@ void NewExpr::emit(Emit &e, const std::string &result)
         break;
     }
 
+    
+    if (! result.empty())
+        e << regnew << " = ";
+
+    e << "new ";
+    claspec->emit(e);
     if (! result.empty())
     {
-        e << regnew << " = " << value;
         if (! reg.empty())
             e << ", " << reg;
-        e << '\n';
     }
-    else
-        e << value;
+    e << '\n';
+
     if (numinits > 1)
     {
         std::vector<std::string> regs;
@@ -4184,7 +4170,7 @@ void NewExpr::emit(Emit &e, const std::string &result)
             init[i]->emit(e, reg);
             regs.push_back(reg);
         }
-        e << regnew << ".'" << constructor << "'(" << regs[0];
+        e << regnew << ".'" << claspec->basename() << "'(" << regs[0];
         for (size_t i= 1; i < numinits; ++i)
             e << ", " << regs[i];
         e << ")\n";
@@ -6237,6 +6223,7 @@ private:
     {
         e << "[ " << name << " ]";
     }
+    std::string basename() const { return name; }
     std::string name;
 };
 
@@ -6264,6 +6251,7 @@ private:
             e << "'; '" << id [i];
         e << "' ]";
     }
+    std::string basename() const { return id.back(); }
     std::vector<std::string> id;
 };
 
