@@ -6398,6 +6398,11 @@ class ClassBase
         self.start = start;
     }
     function reftype() { return CLASSBASE_invalid; }
+
+    function annotate(e)
+    {
+        e.annotate(self.start);
+    }
 }
 
 class ClassBaseStr : ClassBase
@@ -6409,6 +6414,12 @@ class ClassBaseStr : ClassBase
         self.name = name;
     }
     function reftype() { return CLASSBASE_str; }
+
+    function emit(e, ns)
+    {
+        string basestr = self.name;
+        e.print(basestr);
+    }
 }
 
 class ClassBaseParrotKey : ClassBase
@@ -6431,7 +6442,7 @@ class ClassBaseParrotKey : ClassBase
     }
     function reftype() { return CLASSBASE_parrotkey; }
 
-    function emit(e)
+    function emit(e, ns)
     {
         e.print(getparrotkey(self.key));
     }
@@ -6454,10 +6465,9 @@ class ClassBaseId : ClassBase
     }
     function reftype() { return CLASSBASE_id; }
 
-    function emit(e, derived)
+    function emit(e, ns)
     {
-        var parent = derived.parent;
-        var key = parent.findclasskey(self.key);
+        var key = ns.findclasskey(self.key);
         if (key == null) {
             Warn("class " + join(".", self.key) + " not found at compile time");
             e.print(getparrotkey(self.key));
@@ -6575,22 +6585,10 @@ class ClassStatement : VarContainer
         e.say('newclass $P0, ', self.getclasskey() );
         int n = 1;
         for (var base in self.bases) {
+            base.annotate(e);
             string reg = "$P" + n++;
             e.print('get_class ', reg, ', ');
-            switch (base.reftype()) {
-              case CLASSBASE_id:
-                base.emit(e, self);
-                break;
-              case CLASSBASE_str:
-                string basestr = base.name;
-                e.print(basestr);
-                break;
-              case CLASSBASE_parrotkey:
-                base.emit(e);
-                break;
-              default:
-                InternalError('Invalid class', base.start);
-            }
+            base.emit(e, self.parent);
             e.say();
             e.say('addparent $P0, ', reg);
         }
