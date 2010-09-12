@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 12-sep-2010
+// Revision 13-sep-2010
 
 // Winxed compiler stage 0.
 
@@ -6491,6 +6491,7 @@ private:
     std::vector <NamespaceBlockBase *> namespaces;
     std::vector <Class *> classes;
     std::vector <Function *> functions;
+    std::vector <std::string> loads;
 };
 
 void Winxed::parse (Tokenizer &tk)
@@ -6539,7 +6540,7 @@ void Winxed::parse (Tokenizer &tk)
             if (! loadname.isliteralstring() )
                 throw Expected("filename", loadname);
             ExpectOp(';', tk);
-            std::cerr << "WARNING: $load unimplemented in stage 0 - ignored\n";
+            loads.push_back(loadname.str());
         }
         else if (t.isop('}'))
         {
@@ -6579,16 +6580,24 @@ void Winxed::emit (Emit &e)
 
     e.boxedcomment("Begin generated code");
 
-    emit_group(namespaces, e);
-    emit_group(classes, e);
-    emit_group(functions, e);
-
     //TODO: emit only initialization for things used.
+    e << "\n";
     e.comment("Initializations");
     e <<
         ".sub 'initialize' :load :init :anon\n"
-        "  load_bytecode 'String/Utils.pbc'\n"
+        "  load_bytecode 'String/Utils.pbc'\n";
+
+    for (size_t i = 0; i < loads.size(); ++i)
+        e << "  load_bytecode '" << loads[i] << "'\n";
+
+    e <<
         ".end\n";
+    e.comment("End of initializations");
+    e << "\n\n";
+
+    emit_group(namespaces, e);
+    emit_group(classes, e);
+    emit_group(functions, e);
 
     e.boxedcomment("End generated code");
 }
