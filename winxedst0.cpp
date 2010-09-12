@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 11-sep-2010
+// Revision 12-sep-2010
 
 // Winxed compiler stage 0.
 
@@ -6407,9 +6407,17 @@ void Winxed::parse (Tokenizer &tk)
         {
             Token fname = tk.get();
             if (! fname.isidentifier() )
-                throw Expected("funcion name", fname);
+                throw Expected("function name", fname);
             Function *f = new Function (tk, t, *cur_nsblock, cur_namespace, fname.identifier());
             functions.push_back(f);
+        }
+        else if (t.iskeyword("$load"))
+        {
+            Token loadname = tk.get();
+            if (! loadname.isliteralstring() )
+                throw Expected("filename", loadname);
+            ExpectOp(';', tk);
+            std::cerr << "WARNING: $load unimplemented in stage 0 - ignored\n";
         }
         else if (t.isop('}'))
         {
