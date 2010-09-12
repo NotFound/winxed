@@ -6321,6 +6321,35 @@ private:
     std::string name;
 };
 
+
+class ClassSpecifierParrotKey : public ClassSpecifier
+{
+public:
+    ClassSpecifierParrotKey(const Token &start, Tokenizer &tk) :
+        ClassSpecifier(start)
+    {
+        Token t;
+        do {
+            t = tk.get();
+            if (! t.isliteralstring())
+                throw SyntaxError("Literal string expected in class key", t);
+            pkey.push_back(t.pirliteralstring());
+        } while ((t = tk.get()).isop(','));
+    }
+    ClassSpecifierType reftype() const { return CLASSSPECIFIER_parrotkey; }
+private:
+    void emit(Emit &e)
+    {
+        e << "[ " << pkey[0];
+        for (size_t i = 1; i < pkey.size(); ++i)
+            e << "; " << pkey[i];
+        e << " ]";
+    }
+    std::string basename() const { return ""; }
+    ClassKey pkey;
+};
+
+
 class ClassSpecifierId : public ClassSpecifier
 {
 public:
@@ -6369,6 +6398,8 @@ ClassSpecifier *parseClassSpecifier(const Token &start, Tokenizer &tk,
         return new ClassSpecifierStr(start);
     else if (start.isidentifier ())
         return new ClassSpecifierId(start, tk, owner);
+    else if (start.isop('['))
+        return new ClassSpecifierParrotKey(start, tk);
     else
         throw Expected("parent class", start);
 }
