@@ -6240,18 +6240,28 @@ private:
 class ClassBaseId : public ClassBase
 {
 public:
-    ClassBaseId(const Token &t) :
-        ClassBase(t),
-        id(t.identifier())
+    ClassBaseId(const Token &start, Tokenizer &tk) :
+        ClassBase(start)
     {
+        id.push_back(start.identifier());
+        Token t;
+        while ((t = tk.get()).isop('.'))
+        {
+            t = tk.get();
+            id.push_back(t.identifier());
+        }
+        tk.unget(t);
     }
     ClassBaseType reftype() const { return CLASSBASE_id; }
 private:
     void emit(Emit &e)
     {
-        e << "[ '" << id << "' ]";
+        e << "[ '" << id[0];
+        for (size_t i = 1; i < id.size(); ++i)
+            e << "'; '" << id [i];
+        e << "' ]";
     }
-    std::string id;
+    std::vector<std::string> id;
 };
 
 
@@ -6270,7 +6280,7 @@ Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
                 parents.push_back(new ClassBaseStr(t));
             }
             else if (t.isidentifier ()) {
-                parents.push_back(new ClassBaseId(t));
+                parents.push_back(new ClassBaseId(t, tk));
             }
             else
                 throw Expected("parent class", t);
