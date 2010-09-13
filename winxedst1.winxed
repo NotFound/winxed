@@ -4219,47 +4219,22 @@ class NewExpr : Expr
 
 class NewIndexedExpr : Expr
 {
-    var hll;
     var nskey;
 
     function NewIndexedExpr(var tk, var owner, var start)
     {
-        var first = tk.get();
-        if (! first.isstring())
-            SyntaxError('Expected string literal', first);
-        var t = tk.get();
-        if (t.isop(':')) {
-            self.hll = first;
-            first = tk.get();
-            if (! first.isstring())
-                SyntaxError('Expected string literal', first);
-            t = tk.get();
-        }
-        var nskey = [];
-        nskey.push(first);
-        while (t.isop(',')) {
-            first = tk.get();
-            if (! first.isstring())
-                SyntaxError('Expected string literal', first);
-            nskey.push(first);
-            t = tk.get();
-        }
-        if (! t.isop(']'))
-            SyntaxError("Expected ']' in keyed new", t);
+        var nskey = new ClassSpecifierParrotKey(tk, owner, start);
         self.nskey = nskey;
     }
     function checkResult() { return REGvar; }
     function emit(e, result)
     {
-        var hll = self.hll;
-        if (hll != null)
-            e.print("root_new ", result, ", [", hll, "; ");
-        else
-            e.print("new ", result, ", [");
         var nskey = self.nskey;
-        e.print(join(";", nskey));
-
-        e.say("]");
+        if (nskey.hasHLL())
+            e.print("root_");
+        e.print("new ", result, ", ");
+        nskey.emit(e, null);
+        e.say();
     }
 }
 
@@ -6522,22 +6497,41 @@ class ClassSpecifierStr : ClassSpecifier
 class ClassSpecifierParrotKey : ClassSpecifier
 {
     var key;
+    var hll;
     function ClassSpecifierParrotKey(tk, owner, start)
     {
         self.ClassSpecifier(owner, start);
         var key = [];
-        var t;
-        do {
-            t = tk.get();
-            if (!t.isstring())
-                SyntaxError('literal string expected', t);
-            key.push(t.rawstring());
-        } while ((t = tk.get()).isop(','));
-        if (!t.isop(']'))
-            SyntaxError("Expected ']'", t);
+        var t = tk.get();
+        if (!t.isstring())
+            SyntaxError('literal string expected', t);
+        key.push(t.rawstring());
+        t = tk.get();
+        if (! t.isop(']')) {
+            switch (t.checkop()) {
+              case ':':
+                self.hll = true;
+              case ',':
+                break;
+              default:
+                SyntaxError('Unexpected token in class key', t);
+            }
+            do {
+                t = tk.get();
+                if (!t.isstring())
+                    SyntaxError('literal string expected', t);
+                key.push(t.rawstring());
+            } while ((t = tk.get()).isop(','));
+            if (!t.isop(']'))
+                SyntaxError("Expected ']'", t);
+        }
         self.key = key;
     }
     function reftype() { return CLASSSPECIFIER_parrotkey; }
+    function hasHLL()
+    {
+        return int(self.hll != null);
+    }
 
     function emit(e, ns)
     {
