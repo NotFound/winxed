@@ -32,7 +32,7 @@ function getOS()
         yield os;
 }
 
-class Options : Getopt.Obj
+class Options : ['Getopt', 'Obj']
 {
     var name;
     var options;

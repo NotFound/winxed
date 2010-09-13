@@ -4,7 +4,7 @@
 
 $load 'Getopt/Obj.pbc';
 
-class Options : Getopt.Obj
+class Options : [ 'Getopt', 'Obj']
 {
     var name;
     var options;
