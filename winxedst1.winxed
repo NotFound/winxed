@@ -6477,24 +6477,24 @@ class MethodStatement : FunctionStatement
 }
 
 //*********************************************
-//            Class bases
+//            Class specifier
 //*********************************************
 
-const int CLASSBASE_invalid   = 0;
-const int CLASSBASE_str       = 1; // Literal name
-const int CLASSBASE_parrotkey = 2; // Parrot key
-const int CLASSBASE_id        = 3; // Identifier, maybe qualified
+const int CLASSSPECIFIER_invalid   = 0;
+const int CLASSSPECIFIER_str       = 1; // Literal name
+const int CLASSSPECIFIER_parrotkey = 2; // Parrot key
+const int CLASSSPECIFIER_id        = 3; // Identifier, maybe qualified
 
-class ClassBase
+class ClassSpecifier
 {
     var owner;
     var start;
-    function ClassBase(owner, start)
+    function ClassSpecifier(owner, start)
     {
         self.owner = owner;
         self.start = start;
     }
-    function reftype() { return CLASSBASE_invalid; }
+    function reftype() { return CLASSSPECIFIER_invalid; }
 
     function annotate(e)
     {
@@ -6502,15 +6502,15 @@ class ClassBase
     }
 }
 
-class ClassBaseStr : ClassBase
+class ClassSpecifierStr : ClassSpecifier
 {
     var name;
-    function ClassBaseStr(owner, name)
+    function ClassSpecifierStr(owner, name)
     {
-        self.ClassBase(owner, name);
+        self.ClassSpecifier(owner, name);
         self.name = name;
     }
-    function reftype() { return CLASSBASE_str; }
+    function reftype() { return CLASSSPECIFIER_str; }
 
     function emit(e, ns)
     {
@@ -6519,12 +6519,12 @@ class ClassBaseStr : ClassBase
     }
 }
 
-class ClassBaseParrotKey : ClassBase
+class ClassSpecifierParrotKey : ClassSpecifier
 {
     var key;
-    function ClassBaseParrotKey(tk, owner, start)
+    function ClassSpecifierParrotKey(tk, owner, start)
     {
-        self.ClassBase(owner, start);
+        self.ClassSpecifier(owner, start);
         var key = [];
         var t;
         do {
@@ -6537,7 +6537,7 @@ class ClassBaseParrotKey : ClassBase
             SyntaxError("Expected ']'", t);
         self.key = key;
     }
-    function reftype() { return CLASSBASE_parrotkey; }
+    function reftype() { return CLASSSPECIFIER_parrotkey; }
 
     function emit(e, ns)
     {
@@ -6545,12 +6545,12 @@ class ClassBaseParrotKey : ClassBase
     }
 }
 
-class ClassBaseId : ClassBase
+class ClassSpecifierId : ClassSpecifier
 {
     var key;
-    function ClassBaseId(tk, owner, id)
+    function ClassSpecifierId(tk, owner, id)
     {
-        self.ClassBase(owner, id);
+        self.ClassSpecifier(owner, id);
         var key = [ string(id) ];
         var t;
         while ((t = tk.get()).isop('.')) {
@@ -6560,7 +6560,7 @@ class ClassBaseId : ClassBase
         tk.unget(t);
         self.key = key;
     }
-    function reftype() { return CLASSBASE_id; }
+    function reftype() { return CLASSSPECIFIER_id; }
 
     function emit(e, ns)
     {
@@ -6573,15 +6573,15 @@ class ClassBaseId : ClassBase
     }
 }
 
-function parseClassBase(tk, owner)
+function parseClassSpecifier(tk, owner)
 {
     var t = tk.get();
     if (t.isstring())
-        return new ClassBaseStr(owner, t);
+        return new ClassSpecifierStr(owner, t);
     if (t.isop('['))
-        return new ClassBaseParrotKey(tk, owner, t);
+        return new ClassSpecifierParrotKey(tk, owner, t);
     if (t.isidentifier())
-        return new ClassBaseId(tk, owner, t);
+        return new ClassSpecifierId(tk, owner, t);
     SyntaxError('Invalid class', t);
 }
 
@@ -6615,7 +6615,7 @@ class ClassStatement : VarContainer
         if (t.isop(':')) {
             var bases= self.bases;
             for (;;) {
-                var base = parseClassBase(tk, self);
+                var base = parseClassSpecifier(tk, self);
                 bases.push(base);
                 t= tk.get();
                 if (!t.isop(',')) break;
