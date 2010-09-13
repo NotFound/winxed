@@ -7281,7 +7281,7 @@ function initializer [init,load]()
 function stage1(argv)
 {
     using extern Getopt.Obj;
-    var getopts = new Getopt.Obj();
+    var getopts = new ['Getopt','Obj'];
     getopts.notOptStop(1);
     getopts.push_string('o=s');
     getopts.push_string('e=s');
