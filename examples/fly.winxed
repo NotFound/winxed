@@ -479,6 +479,9 @@ class Fly
 
     function timer(int ignored)
     {
+        if (self.w == null)
+            return;
+
         float x; float y; float z;
         float dx; float dy; float dz;
         float prev = self.prev;
@@ -566,8 +569,8 @@ class Fly
         float speed;
         switch (key) {
           case ord("\e"):
-            glutTimerFunc(null, 40, 0);
             glutDestroyWindow(self.w);
+            self.w = null;
             break;
           case ord("+"):
             speed = self.speed;
