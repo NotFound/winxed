@@ -1266,6 +1266,14 @@ class CommonBase
     {
         self.owner.use_predef(name);
     }
+    function createsubid()
+    {
+        return self.owner.createsubid();
+    }
+    function addlocalfunction(fn)
+    {
+        return self.owner.addlocalfunction(fn);
+    }
 }
 
 //*********************************************
@@ -1915,6 +1923,33 @@ class Expr : CommonBase
 class SimpleExpr : Expr
 {
     function issimple() { return 1; }
+}
+
+//**********************************************************************
+
+class FunctionExpr : Expr
+{
+    var fn;
+    function FunctionExpr(tk, owner, start)
+    {
+        self.initexpr(owner, start);
+        var t = tk.get();
+        if (!t.isop('('))
+            SyntaxError('anonymous function expected', t);
+        self.fn = new LocalFunctionStatement(start, tk, owner);
+    }
+    function checkResult() { return REGvar; }
+    function optimize()
+    {
+        self.fn = self.fn.optimize();
+        return self;
+    }
+    function emit(e, result)
+    {
+        var fn = self.fn;
+        string reg = result != '' ? result : self.tempreg(REGvar);
+        e.say(".const 'Sub' ", reg, " = '", fn.getsubid(), "'");
+    }
 }
 
 //*********************************************
@@ -4432,6 +4467,8 @@ function parseExpr_0(tk, owner)
         return new IntegerLiteral(owner, t);
     if (t.isfloat())
         return new FloatLiteral(owner, t);
+    if (t.iskeyword('function'))
+        return new FunctionExpr(tk, owner, t);
     if (t.isidentifier())
         return new IdentifierExpr().set(owner, t);
     SyntaxError('Expression expected', t);
@@ -6136,6 +6173,8 @@ class RegisterStore
 class FunctionStatement : BlockStatement
 {
     var name;
+    var subid;
+    var isanon;
     var modifiers;
     var args;
     var body;
@@ -6144,6 +6183,7 @@ class FunctionStatement : BlockStatement
     var regstS;
     var regstP;
     var nlabel;
+    var localfun;
 
     function init [vtable]()
     {
@@ -6203,6 +6243,14 @@ class FunctionStatement : BlockStatement
         nlabel =: n;
         return s;
     }
+    function addlocalfunction(fn)
+    {
+        var localfun = self.localfun;
+        if (localfun == null)
+            self.localfun = [ fn ];
+        else
+            localfun.push(fn);
+    }
 
     function optimize()
     {
@@ -6210,21 +6258,10 @@ class FunctionStatement : BlockStatement
         return self;
     }
 
-    function parse(start, tk, owner)
+    function parse_parameters(tk)
     {
-        self.initstatement(start, owner);
-        var t= tk.get();
-        self.name= t;
-        t= tk.get();
-        if (t.isop('[')) {
-            var modifiers = new ModifierList(tk, self);
-            self.modifiers= modifiers;
-            t= tk.get();
-        }
-        if (! t.isop('('))
-            Expected('(', t);
         self.args = [];
-        t= tk.get();
+        var t= tk.get();
         if (! t.isop(')')) {
             tk.unget(t);
             int argnum = 0;
@@ -6252,6 +6289,23 @@ class FunctionStatement : BlockStatement
             if (!t.isop(')'))
                 SyntaxError("Expected ')'", t);
         }
+    }
+
+    function parse(start, tk, owner)
+    {
+        self.initstatement(start, owner);
+        var t= tk.get();
+        self.name= t;
+        self.isanon = false;
+        t= tk.get();
+        if (t.isop('[')) {
+            var modifiers = new ModifierList(tk, self);
+            self.modifiers= modifiers;
+            t= tk.get();
+        }
+        if (! t.isop('('))
+            Expected('(', t);
+        self.parse_parameters(tk);
 
         t= tk.get();
         if (!t.isop('{'))
@@ -6263,7 +6317,13 @@ class FunctionStatement : BlockStatement
     {
         string name = self.name;
         e.say();
-        e.print(".sub '", name, "'");
+        e.print(".sub ");
+        if (! self.isanon)
+            e.print ("'", name, "'");
+        else
+            e.print("'' :anon");
+        if (self.subid != null)
+            e.print(" :subid('", self.subid, "')");
 
         // Modifiers
         if (self.ismethod())
@@ -6296,6 +6356,7 @@ class FunctionStatement : BlockStatement
         var arg;
         string argname;
         var a;
+
         for (arg in args) {
             argname = arg['name'];
             a = self.getvar(argname);
@@ -6353,12 +6414,22 @@ class FunctionStatement : BlockStatement
             e.say('');
         }
         e.say();
-        e.annotate(self.name);
+        e.annotate(self.start);
         e.comment('Body');
         self.body.emit(e);
 
         e.annotate(self.body.getend());
         e.say("\n.end # ", name, "\n");
+
+        // Local functions
+        var localfun = self.localfun;
+        if (localfun != null)
+        {
+        for (int ifn = 0; ifn < elements(localfun); ++ifn) {
+            var fn = localfun[ifn];
+            fn.emit(e);
+        }
+        }
     }
     function getbreaklabel(pos)
     {
@@ -6367,6 +6438,32 @@ class FunctionStatement : BlockStatement
     function getcontinuelabel(pos)
     {
         SyntaxError('continue not allowed here', pos);
+    }
+}
+
+//*********************************************
+//            LocalFunctionStatement
+//*********************************************
+
+class LocalFunctionStatement : FunctionStatement
+{
+    function LocalFunctionStatement(start, tk, owner)
+    {
+        self.initstatement(start, owner);
+        string subid = owner.createsubid();
+        self.subid = subid;
+        self.name = subid;
+        self.isanon = true;
+        self.parse_parameters(tk);
+        var t = tk.get();
+        if (!t.isop('{'))
+            Expected('{', t);
+        self.body= new CompoundStatement(t, tk, self);
+        owner.addlocalfunction(self);
+    }
+    function getsubid()
+    {
+        return self.subid;
     }
 }
 
@@ -6914,10 +7011,12 @@ class RootNamespace : NamespaceBase
     var predefs_used;
     var libs;
     var loads;
+    var subidgen;
 
     function init [vtable] ()
     {
         self.predefs_used = {};
+        self.subidgen = 0;
     }
     function use_predef(string name)
     {
@@ -6928,6 +7027,16 @@ class RootNamespace : NamespaceBase
     {
         var predefs_used = self.predefs_used;
         return predefs_used[name] == null ? 0 : 1;
+    }
+
+    function createsubid()
+    {
+        var subidgen = self.subidgen;
+        int idgen = subidgen;
+        ++idgen;
+        subidgen =: idgen;
+        string id = 'WSubId_' + string(idgen);
+        return id;
     }
 
     function addlib(string libname)
