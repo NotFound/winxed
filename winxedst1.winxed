@@ -4056,10 +4056,35 @@ class HashExpr : Expr
 
 //**********************************************************************
 
-class NewExpr : Expr
+class NewBaseExpr : Expr
+{
+    var initializer;
+
+    function checkResult() { return REGvar; }
+    function parseinitializer(tk)
+    {
+        // Called with the tokenizer pointing right after the
+        // opening parenthesis
+        var owner = self.owner;
+        var t = tk.get();
+        if (! t.isop(')')) {
+            tk.unget(t);
+            var initializer = [];
+            do {
+                var auxinit = parseExpr(tk, owner);
+                initializer.push(auxinit);
+            } while ((t = tk.get()).isop(','));
+            self.initializer = initializer;
+            RequireOp(')', t);
+        }
+    }
+}
+
+//**********************************************************************
+
+class NewExpr : NewBaseExpr
 {
     var value;
-    var initializer;
 
     function NewExpr(var tk, var owner, var start, var firstvalue)
     {
@@ -4086,23 +4111,11 @@ class NewExpr : Expr
         else
             self.value = firstvalue;
 
-        if (t.isop('(')) {
-            t = tk.get();
-            if (! t.isop(')')) {
-                tk.unget(t);
-                var initializer = [];
-                do {
-                    var auxinit = parseExpr(tk, owner);
-                    initializer.push(auxinit);
-                } while ((t = tk.get()).isop(','));
-                self.initializer = initializer;
-                RequireOp(')', t);
-            }
-        }
+        if (t.isop('('))
+            self.parseinitializer(tk);
         else
             tk.unget(t);
     }
-    function checkResult() { return REGvar; }
     function optimize()
     {
         var value = self.value;
@@ -4149,9 +4162,13 @@ class NewExpr : Expr
           case 0:
             break;
           case 1:
-            var initval = initializer[0];
-            reginit = initval.emit_get(e);
-            reginit = ', ' + reginit;
+            if (type == BYIDENT)
+                regnew = self.tempreg(REGvar);
+            else {
+                var initval = initializer[0];
+                reginit = initval.emit_get(e);
+                reginit = ', ' + reginit;
+            }
             break;
           default:
             if (type != BYIDENT && type != BYMULTI)
@@ -4201,7 +4218,7 @@ class NewExpr : Expr
           default:
             InternalError('Unexpected type in new');
         }
-        if (numinits > 1) {
+        if (numinits > 1 || (numinits > 0 && type == BYIDENT)) {
             string argregs[];
             for (var arg in initializer) {
                 string reg = arg.emit_get(e);
@@ -4217,23 +4234,44 @@ class NewExpr : Expr
 
 //**********************************************************************
 
-class NewIndexedExpr : Expr
+class NewIndexedExpr : NewBaseExpr
 {
     var nskey;
 
     function NewIndexedExpr(var tk, var owner, var start)
     {
+        self.initexpr(owner, start);
+        self.owner = owner;
         var nskey = new ClassSpecifierParrotKey(tk, owner, start);
         self.nskey = nskey;
+        var t = tk.get();
+        if (t.isop('('))
+            self.parseinitializer(tk);
+        else
+            tk.unget(t);
     }
-    function checkResult() { return REGvar; }
     function emit(e, result)
     {
+        string reginit;
+        var init = self.initializer;
+        int numinits = init == null ? 0 : elements(init);
+        switch (numinits) {
+          case 0:
+            break;
+          case 1:
+            var initval = init[0];
+            reginit = initval.emit_get(e);
+            break;
+          default:
+            SyntaxError('Multiple init arguments not allowed here', self.start);
+        }
         var nskey = self.nskey;
         if (nskey.hasHLL())
             e.print("root_");
         e.print("new ", result, ", ");
         nskey.emit(e, null);
+        if (reginit != null)
+            e.print(', ', reginit);
         e.say();
     }
 }
@@ -4243,13 +4281,20 @@ class NewIndexedExpr : Expr
 function parseNew(var tk, var owner, var start)
 {
     var t = tk.get();
-    if (t.isop('['))
-        return new NewIndexedExpr(tk, owner, start);
-    else if (t.isop('('))
+
+    if (t.isop('(')) {
+        // Not a new operator, but a call to a function called new.
         return new CallExpr(tk, owner, start,
                 new StringLiteral(owner, start));
-    else
+    }
+    else if (t.isop('[')) {
+        // Class specifier is a key
+        return new NewIndexedExpr(tk, owner, start);
+    }
+    else {
+        // Remainig cases
         return new NewExpr(tk, owner, start, t);
+    }
 }
 
 //**********************************************************************

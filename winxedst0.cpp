@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 13-sep-2010
+// Revision 14-sep-2010
 
 // Winxed compiler stage 0.
 
@@ -4173,8 +4173,13 @@ void NewExpr::emit(Emit &e, const std::string &result)
     case 0:
         break;
     case 1:
-        reg = gentemp(REGvar);
-        init[0]->emit(e, reg);
+        if (claspec->reftype() == CLASSSPECIFIER_id)
+            regnew = gentemp(REGvar);
+        else
+        {
+            reg = gentemp(REGvar);
+            init[0]->emit(e, reg);
+        }
         break;
     default:
         regnew = gentemp(REGvar);
@@ -4194,7 +4199,8 @@ void NewExpr::emit(Emit &e, const std::string &result)
     }
     e << '\n';
 
-    if (numinits > 1)
+    if (numinits > 1 ||
+            (numinits > 0 && claspec->reftype() == CLASSSPECIFIER_id))
     {
         std::vector<std::string> regs;
         for (size_t i= 0; i < numinits; ++i)
