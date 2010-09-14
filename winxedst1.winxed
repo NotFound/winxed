@@ -3969,13 +3969,6 @@ class HashExpr : Expr
         if (!t.isop('}')) {
             tk.unget(t);
             do {
-/*
-                t = tk.get();
-                if (!(t.isstring() || t.isidentifier()))
-                    SyntaxError("Expected key", t);
-                string key = t;
-                values[key] = value;
-*/
                 var key = parseExpr(tk, owner);
                 ExpectOp(':', tk);
                 var value = parseExpr(tk, owner);
@@ -4007,9 +4000,9 @@ class HashExpr : Expr
             var key = keys[i];
             string item;
             if (key.isidentifier()) {
-                    string id = key.getName();
-                    item = self.tempreg(REGvar);
-                    e.say('get_hll_global ', item, ", '", id, "'");
+                string id = key.getName();
+                item = self.tempreg(REGvar);
+                e.say('get_hll_global ', item, ", '", id, "'");
             }
             else
                 item = key.emit_get(e);
@@ -4017,38 +4010,23 @@ class HashExpr : Expr
             var value = values[i];
             string itemreg;
             if (value.isidentifier()) {
-                string id = value.getName();
-                if (self.owner.getvar(id) == null) {
-                    itemreg = self.tempreg(REGvar);
-                    e.say('get_hll_global ', itemreg, ", '", id, "'");
-                }
-                else
-                    itemreg = value.emit_get(e);
-            }
-            else
-                itemreg = value.emit_get(e);
-            e.say(result, '[', item, '] = ', itemreg);
-        }
-/*
-        for (string item in values) {
-            var value = values[item];
-            string itemreg;
-            if (value.isidentifier()) {
-                if (value.checkIdentifier() != '')
-                    itemreg = value.emit_get(e);
+                string s = value.checkIdentifier();
+                if (s != null && s != '')
+                    itemreg = s;
                 else {
                     string id = value.getName();
-                    itemreg = self.tempreg(REGvar);
-                    e.say('get_hll_global ', itemreg, ", '", id, "'");
+                    if (self.owner.getvar(id) == null) {
+                        itemreg = self.tempreg(REGvar);
+                        e.say('get_hll_global ', itemreg, ", '", id, "'");
+                    }
+                    else
+                        itemreg = value.emit_get(e);
                 }
             }
             else
                 itemreg = value.emit_get(e);
-            if (result == itemreg)
-                InternalError('Failure in temp register allocation');
             e.say(result, '[', item, '] = ', itemreg);
         }
-*/
     }
     function emit_get(e)
     {
