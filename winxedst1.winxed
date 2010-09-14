@@ -1274,6 +1274,10 @@ class CommonBase
     {
         return self.owner.addlocalfunction(fn);
     }
+    function findclasskey(classkey)
+    {
+        return self.owner.findclasskey(classkey);
+    }
 }
 
 //*********************************************
@@ -4278,6 +4282,53 @@ class NewIndexedExpr : NewBaseExpr
 
 //**********************************************************************
 
+class NewQualifiedExpr : NewBaseExpr
+{
+    var nskey;
+
+    function NewQualifiedExpr(var tk, var owner, var start)
+    {
+        self.initexpr(owner, start);
+        self.owner = owner;
+        var nskey = new ClassSpecifierId(tk, owner, start);
+        self.nskey = nskey;
+        var t = tk.get();
+        if (t.isop('('))
+            self.parseinitializer(tk);
+        else
+            tk.unget(t);
+    }
+    function emit(e, result)
+    {
+        string reginit;
+        var init = self.initializer;
+
+        int numinits = init == null ? 0 : elements(init);
+        string regnew = result;
+        if (numinits > 0)
+            regnew = self.tempreg(REGvar);
+        var nskey = self.nskey;
+        e.print("new ", regnew, ", ");
+        nskey.emit(e, self.owner);
+        e.say();
+
+        if (numinits > 0) {
+            string argregs[];
+            for (var arg in init) {
+                string reg = arg.emit_get(e);
+                argregs.push(reg);
+            }
+            string constructor = nskey.last();
+            e.print(regnew, ".'", constructor, "'(");
+            e.print(join(", ", argregs));
+            e.say(")");
+            e.emitset(result, regnew);
+        }
+    }
+}
+
+//**********************************************************************
+
 function parseNew(var tk, var owner, var start)
 {
     var t = tk.get();
@@ -4290,6 +4341,20 @@ function parseNew(var tk, var owner, var start)
     else if (t.isop('[')) {
         // Class specifier is a key
         return new NewIndexedExpr(tk, owner, start);
+    }
+    else if (t.isidentifier()) {
+        // Special case here. It can be an id, a qualified id or
+        // a const string
+        var t2 = tk.get();
+        tk.unget(t2);
+        if (t2.isop('.')) {
+            // Qualified id
+            return new NewQualifiedExpr(tk, owner, t);
+        }
+        else {
+            // Let the default case handle it
+            return new NewExpr(tk, owner, start, t);
+        }
     }
     else {
         // Remainig cases
@@ -6601,6 +6666,12 @@ class ClassSpecifierId : ClassSpecifier
         self.key = key;
     }
     function reftype() { return CLASSSPECIFIER_id; }
+
+    function last()
+    {
+        var key = self.key;
+        return key[-1];
+    }
 
     function emit(e, ns)
     {
