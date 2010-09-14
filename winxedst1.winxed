@@ -5400,6 +5400,7 @@ class ForeachStatement : LoopStatement, BlockStatement
     }
     function optimize()
     {
+        self.container = self.container.optimize();
         self.body = self.body.optimize();
         return self;
     }
