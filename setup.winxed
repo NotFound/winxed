@@ -17,6 +17,8 @@ Handle with care. See DESCRIPTION.
 =cut
 */
 
+$load 'Getopt/Obj.pbc';
+
 //**********************************************************************
 
 // Json file read.
@@ -39,8 +41,7 @@ function loadData(string filename)
 function main(argv)
 {
     // Parse command line.
-    using extern Getopt.Obj;
-    var getopts = new Getopt.Obj();
+    var getopts = new ['Getopt','Obj'];
     getopts.notOptStop(1);
     getopts.push_string('file=s');
     getopts.push_string('v');
