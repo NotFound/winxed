@@ -6850,6 +6850,10 @@ class ClassStatement : VarContainer
         classns.push(self.name);
         self.classns = classns;
     }
+    function createsubid()
+    {
+        return self.owner.createsubid();
+    }
     function checkclass(string name)
     {
         return self.parent.checkclass(name);
@@ -7132,6 +7136,10 @@ class NamespaceStatement : NamespaceBase
             if (modifier.pick('HLL') != null)
                 self.hll = self.name;
         }
+    }
+    function createsubid()
+    {
+        return self.owner.createsubid();
     }
     function use_predef(string name)
     {
