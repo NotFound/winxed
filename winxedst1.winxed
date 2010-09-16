@@ -1854,6 +1854,7 @@ class VarContainer
         locals[sname] = {
             'type': type,
             'reg': pirname,
+            'scope': self,
             'const': 0 };
     }
     function createconst(var name, string type, var value, string id)
