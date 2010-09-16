@@ -1567,6 +1567,14 @@ class Statement : CommonBase
     {
         return self.owner.checkclass(name);
     }
+
+    function getouter()
+    {
+        // Returns the nearest outer scope. In this base case,
+        // just propagate it. Deriveds that are appropiate
+        // scopes will override.
+        return self.owner.getouter();
+    }
     function getcontinuelabel(pos)
     {
         return self.owner.getcontinuelabel(pos);
@@ -1832,6 +1840,7 @@ class VarContainer
         locals[sname] = {
             'type': type,
             'reg': reg,
+            'scope': self,
             'const': 0 };
         return reg;
     }
@@ -1871,6 +1880,19 @@ class VarContainer
         if (exist == null && self.owner != null)
             exist = self.owner.getvar(name);
         return exist;
+    }
+    function getlocalvar(var name)
+    {
+        var locals= self.locals;
+        string sname= name;
+        var exist= locals[sname];
+        return exist;
+    }
+    function makelexical(vardesc)
+    {
+        var lexowner = self.getouter();
+        string lexname = lexowner.createlex(vardesc['reg']);
+        return lexname;
     }
 }
 
@@ -1951,8 +1973,10 @@ class FunctionExpr : Expr
     function emit(e, result)
     {
         var fn = self.fn;
-        string reg = result != '' ? result : self.tempreg(REGvar);
+        string reg = self.tempreg(REGvar);
         e.say(".const 'Sub' ", reg, " = '", fn.getsubid(), "'");
+        if (result != '')
+            e.say('newclosure ', result, ', ', reg);
     }
 }
 
@@ -6248,6 +6272,9 @@ class FunctionStatement : BlockStatement
     var regstP;
     var nlabel;
     var localfun;
+    var lexicals;
+    var usedlexicals;
+    var outer;
 
     function init [vtable]()
     {
@@ -6257,6 +6284,40 @@ class FunctionStatement : BlockStatement
         self.regstP = new RegisterStore().settype(REGvar);
         self.nlabel= 0;
     }
+
+    function getouter() { return self; }
+    function same_scope_as(other)
+    {
+        // No appropiate winxed operator for a now, use inline pir
+        int r;
+        ${ issame r, self, other };
+        return r;
+    }
+    function setlex(string lexname, string localname)
+    {
+        var lexicals = self.lexicals;
+        if (lexicals == null) {
+            lexicals = {};
+            self.lexicals = lexicals;
+        }
+        lexicals[localname] = lexname;
+    }
+    function setusedlex(string lexname, string localname)
+    {
+        var lexicals = self.usedlexicals;
+        if (lexicals == null) {
+            lexicals = {};
+            self.usedlexicals = lexicals;
+        }
+        lexicals[localname] = lexname;
+    }
+    function createlex(string reg)
+    {
+        string lexname = '__WLEX_' + substr(reg, 1);
+        self.setlex(lexname, reg);
+        return lexname;
+    }
+
     function ismethod() { return 0; }
     function createreg(string type)
     {
@@ -6388,6 +6449,12 @@ class FunctionStatement : BlockStatement
             e.print("'' :anon");
         if (self.subid != null)
             e.print(" :subid('", self.subid, "')");
+        if (self.outer != null) {
+            var outer = self.outer;
+            var outerid = outer.subid;
+            if (outerid != null)
+                e.print(" :outer('", outerid, "')");
+        }
 
         // Modifiers
         if (self.ismethod())
@@ -6479,6 +6546,22 @@ class FunctionStatement : BlockStatement
         }
         e.say();
         e.annotate(self.start);
+
+        // lexicals declared in this function and its inner scopes
+        var lexicals = self.lexicals;
+        if (lexicals != null)
+        {
+            for (string l in lexicals)
+                e.say(".lex '", lexicals[l], "', ", l);
+        }
+        // lexicals from outers used inside
+        lexicals = self.usedlexicals;
+        if (lexicals != null)
+        {
+            for (string l in lexicals)
+                e.say(l, " = find_lex '", lexicals[l], "'");
+        }
+
         e.comment('Body');
         self.body.emit(e);
 
@@ -6514,7 +6597,9 @@ class LocalFunctionStatement : FunctionStatement
     function LocalFunctionStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
+        self.outer = owner.getouter();
         string subid = owner.createsubid();
+        self.outer.subid = owner.createsubid();
         self.subid = subid;
         self.name = subid;
         self.isanon = true;
@@ -6528,6 +6613,30 @@ class LocalFunctionStatement : FunctionStatement
     function getsubid()
     {
         return self.subid;
+    }
+    function getvar(string name)
+    {
+        var r = self.getlocalvar(name);
+        if (r == null) {
+            // Not found in function scope, look for external scopes
+            // and type valid for a lexical.
+            r = self.owner.getvar(name);
+            if (r != null && r['type'] == 'P' && !r['const']) {
+                var scope = r['scope'];
+                var ownerscope = scope.getouter();
+                var outer = self.outer;
+                if (ownerscope instanceof FunctionStatement) {
+                    if (ownerscope.same_scope_as(outer)) {
+                        string lexname = scope.makelexical(r);
+                        var r2 = self.createvar(name, REGvar);
+                        string reg = r2;
+                        self.setusedlex(lexname, reg);
+                        r = r2;
+                    }
+                }
+            }
+        }
+        return r;
     }
 }
 
