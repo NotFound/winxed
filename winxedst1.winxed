@@ -728,7 +728,7 @@ class Emit
 }
 
 //*********************************************
-//         Helper functions
+//         Helper functions and constants
 //*********************************************
 
 function integerValue(var owner, var start, int value)
@@ -752,6 +752,9 @@ function floatresult(string r1, string r2)
            (r2 == REGfloat && (r1 == REGfloat || r1 == REGint));
     return result;
 }
+
+const string NULL = 'null';
+const string SELF = 'self';
 
 //*********************************************
 //         Predefined functions
@@ -1900,6 +1903,13 @@ class VarContainer
         string lexname = lexowner.createlex(vardesc['reg']);
         return lexname;
     }
+    function makelexicalself()
+    {
+        var lexowner = self;
+        const string lexname = '__WLEX_self';
+        self.setlex(lexname, SELF);
+        return lexname;
+    }
 }
 
 //*********************************************
@@ -2235,7 +2245,7 @@ class IdentifierExpr : SimpleExpr
     }
     function isnull()
     {
-        return self.name.iskeyword('null');
+        return self.name.iskeyword(NULL);
     }
     function checkResult()
     {
@@ -2244,8 +2254,8 @@ class IdentifierExpr : SimpleExpr
             return desc['type'];
         else {
             switch (self.name) {
-            case 'self':
-            case 'null':
+            case SELF:
+            case NULL:
                 return REGvar;
             default:
                 return '';
@@ -2267,10 +2277,10 @@ class IdentifierExpr : SimpleExpr
         if (desc == null) {
             string sname = name;
             switch (sname) {
-            case 'self':
-                s = 'self'; break;
-            case 'null':
-                s = 'null'; break;
+            case SELF:
+                s = SELF; break;
+            case NULL:
+                s = NULL; break;
             default:
                 s = '';
             }
@@ -3843,7 +3853,7 @@ class MemberExpr : Expr
         string value;
         if (typeright == REGvar) {
             // Special case temporarily
-            if (rreg == 'null') {
+            if (rreg == NULL) {
                 rreg = self.tempreg(REGvar);
                 e.emitnull(rreg);
             }
@@ -6678,7 +6688,20 @@ class LocalFunctionStatement : FunctionStatement
             // Not found in function scope, look for external scopes
             // and type valid for a lexical.
             r = self.owner.getvar(name);
-            if (r != null && r['type'] == 'P' && !r['const']) {
+            if (r == null) {
+                // Special case for self in methods
+                if (name == SELF) {
+                    var ownerscope = self.outer;
+                    if (self.outer.ismethod()) {
+                        string lexself = ownerscope.makelexicalself();
+                        var r2 = self.createvar(name, REGvar);
+                        string reg = r2;
+                        self.setusedlex(lexself, reg);
+                        r = r2;
+                    }
+                }
+            }
+            else if (r['type'] == 'P' && !r['const']) {
                 var scope = r['scope'];
                 var ownerscope = scope.getouter();
                 var outer = self.outer;
