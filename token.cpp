@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 12-sep-2010
+// Revision 20-sep-2010
 
 #include "token.h"
 #include "errors.h"
@@ -464,8 +464,15 @@ Token Tokenizer::getany ()
     case '=':
         switch ((c= getchar()))
         {
-        case ':': case '=':
+        case ':':
             s+= c;
+            break;
+        case '=':
+            s+= c;
+            if ((c = getchar()) == '=')
+                s+= c;
+            else
+                ungetchar(c);
             break;
         default:
             ungetchar(c);
@@ -539,9 +546,13 @@ Token Tokenizer::getany ()
         }
         break;
     case '!':
-        c= getchar();
-        if (c == '=')
+        if ((c= getchar()) == '=') {
             s+= c;
+            if ((c= getchar()) == '=')
+                s += c;
+            else
+                ungetchar(c);
+        }
         else
             ungetchar(c);
         break;

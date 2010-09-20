@@ -460,7 +460,10 @@ class Tokenizer
             '$': { '': getident, '{': getop },
             '"': getquoted,
             "'": getsinglequoted,
-            '=': { '=': getop, ':': getop },
+            '=': {
+                '=': { '': getop, '=': getop },
+                ':': getop
+            },
             '+': { '+': getop, '=': getop },
             '-': { '-': getop, '=': getop },
             '*': { '=': getop },
@@ -471,7 +474,9 @@ class Tokenizer
                 '=': getop
             },
             '>': { '>': getop, '=': getop },
-            '!': { '=': getop },
+            '!': {
+                '=': { '': getop, '=': getop }
+            },
             '%': { '%': getop },
             '/': { '=': getop, '/': getlinecomment, '*': getcomment },
             '#': getlinecomment
@@ -2924,6 +2929,28 @@ class OpNotEqualExpr : ComparatorBaseExpr
     }
 }
 
+//**********************************************************************
+
+class OpSameExpr : ComparatorBaseExpr
+{
+    var positive;
+    function OpSameExpr(int positiveform, owner, t, eleft, eright)
+    {
+        self.initbinary(owner, t, eleft, eright);
+        self.positive = positiveform;
+    }
+    function emitop(e, string result, string regl, string regr)
+    {
+        int positive = self.positive;
+        string op = positive ? 'issame' : 'isntsame';
+        e.say(op, ' ', result, ', ', regl, ', ', regr);
+    }
+    function emit(e, result)
+    {
+        self.emit_comparator(e, result);
+    }
+}
+
 //*********************************************
 
 class OpLessExpr : ComparatorBaseExpr
@@ -4475,6 +4502,9 @@ const int Code_mod           = 21;
 const int Code_cmod          = 22;
 const int Code_mul_assign    = 23;
 const int Code_div_assign    = 24;
+const int Code_same          = 25;
+const int Code_not_same      = 26;
+const int Code_instanceof    = 27;
 
 function getOpCode_2(t)
 {
@@ -4505,6 +4535,19 @@ function getOpCode_5(t)
     case '%':  return Code_mod;
     case '%%': return Code_cmod;
     default:   return Code_none;
+    }
+}
+
+function getOpCode_8(t)
+{
+    switch (t.checkop()) {
+    case '==':  return Code_equal;
+    case '!=':  return Code_not_equal;
+    case '===':  return Code_same;
+    case '!==':  return Code_not_same;
+    default:
+        if (t.iskeyword('instanceof')) return Code_instanceof;
+        else return Code_none;
     }
 }
 
@@ -4699,20 +4742,35 @@ function parseExpr_6(tk, owner)
 function parseExpr_8(tk, owner)
 {
     using static parseExpr_6;
+    using static getOpCode_8;
 
     var eleft = parseExpr_6(tk, owner);
+    var eright;
     var t;
-    while ((t= tk.get()).isop('==') || t.isop('!=') || t.iskeyword('instanceof')) {
-        if (t.isop('==')) {
-            var eright = parseExpr_6(tk, owner);
+    int code;
+    while ((code = getOpCode_8(t= tk.get())) != Code_none) {
+        switch (code) {
+          case Code_equal:
+            eright = parseExpr_6(tk, owner);
             eleft = new OpEqualExpr().set(owner, t, eleft, eright);
-        }
-        else if (t.isop('!=')) {
-            var eright = parseExpr_6(tk, owner);
+            break;
+          case Code_not_equal:
+            eright = parseExpr_6(tk, owner);
             eleft = new OpNotEqualExpr().set(owner, t, eleft, eright);
-        }
-        else { // instanceof
+            break;
+          case Code_same:
+            eright = parseExpr_6(tk, owner);
+            eleft = new OpSameExpr(true, owner, t, eleft, eright);
+            break;
+          case Code_not_same:
+            eright = parseExpr_6(tk, owner);
+            eleft = new OpSameExpr(false, owner, t, eleft, eright);
+            break;
+          case Code_instanceof:
             eleft = new OpInstanceOfExpr(owner, t, eleft, tk);
+            break;
+          default:
+            InternalError('Invalid code in parseExpr_8', t);
         }
     }
     tk.unget(t);
@@ -6289,9 +6347,7 @@ class FunctionStatement : BlockStatement
     function getouter() { return self; }
     function same_scope_as(other)
     {
-        // No appropiate winxed operator for a now, use inline pir
-        int r;
-        ${ issame r, self, other };
+        int r = self === other;
         return r;
     }
     function setlex(string lexname, string localname)

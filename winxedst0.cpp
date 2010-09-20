@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 14-sep-2010
+// Revision 20-sep-2010
 
 // Winxed compiler stage 0.
 
@@ -2736,6 +2736,44 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
 
 //**********************************************************************
 
+class OpSameExpr : public CompareOpExpr
+{
+public:
+    OpSameExpr(bool positiveform, BlockBase &block,
+            Token t, BaseExpr *first, BaseExpr *second) :
+        CompareOpExpr(block, t, first, second),
+        positive(positiveform)
+    { }
+private:
+    bool isinteger() const { return true; }
+    BaseExpr *optimize()
+    {
+        optimize_operands();
+        return this;
+    }
+    void emit(Emit &e, const std::string &result)
+    {
+        char ltype = efirst->checkresult();
+        char rtype = esecond->checkresult();
+        if (! ((ltype == REGvar && rtype == REGvar) ||
+                (ltype == REGstring && rtype == REGstring)))
+            throw SyntaxError(std::string(positive ? "===" : "!==") +
+                    " operator requires val types", start);
+        std::string op1= gentemp(ltype);
+        std::string op2= gentemp(rtype);
+        efirst->emit(e, op1);
+        esecond->emit(e, op2);
+        std::string res= result.empty() ? gentemp(REGint) : result;
+        e << res << " = " << (positive ? "issame" : "isntsame") <<
+            ' ' << op1 << " , " << op2;
+        if (!result.empty())
+            e << '\n' << result << " = " << res << '\n';
+    }
+    bool positive;
+};
+
+//**********************************************************************
+
 class ComparatorBaseExpr : public CompareOpExpr
 {
 protected:
@@ -4643,6 +4681,16 @@ BaseExpr * parseExpr_8(BlockBase &block, Tokenizer &tk)
     {
         BaseExpr *subexpr2= parseExpr_6(block, tk);
         subexpr= new OpNotEqualExpr(block, t, subexpr, subexpr2);
+    }
+    else if (t.isop("==="))
+    {
+        BaseExpr *subexpr2= parseExpr_6(block, tk);
+        subexpr= new OpSameExpr(true, block, t, subexpr, subexpr2);
+    }
+    else if (t.isop("!=="))
+    {
+        BaseExpr *subexpr2= parseExpr_6(block, tk);
+        subexpr= new OpSameExpr(false, block, t, subexpr, subexpr2);
     }
     else if (t.iskeyword("instanceof"))
     {
