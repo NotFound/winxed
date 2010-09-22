@@ -11,79 +11,6 @@ $include_const 'opengl_defines.pasm';
 
 //**********************************************************************
 
-class OpenGlCallback
-{
-    var w; // The window this callback refers
-
-    function does[vtable](string doname)
-    {
-        return doname == 'invokable';
-    }
-    function set(var w)
-    {
-        self.w = w;
-    }
-}
-
-class Reshape : OpenGlCallback
-{
-    function invoke[vtable](int w, int h)
-    {
-        self.w.reshape(w, h);
-    }
-}
-
-class Draw : OpenGlCallback
-{
-    function invoke[vtable]()
-    {
-        self.w.draw();
-    }
-}
-
-class Idle : OpenGlCallback
-{
-    function invoke[vtable]()
-    {
-        self.w.idle();
-    }
-}
-
-class Timer : OpenGlCallback
-{
-    function invoke[vtable](int value)
-    {
-        self.w.timer(value);
-        glutTimerFunc(self, 40, 0);
-    }
-}
-
-class Keyboard : OpenGlCallback
-{
-    function invoke[vtable](int key, int x, int y)
-    {
-        self.w.keyboard(key, x, y);
-    }
-}
-
-class Special : OpenGlCallback
-{
-    function invoke[vtable](int key, int x, int y)
-    {
-        self.w.specialKey(key, x, y);
-    }
-}
-
-class SpecialUp : OpenGlCallback
-{
-    function invoke[vtable](int key, int x, int y)
-    {
-        self.w.specialKeyUp(key, x, y);
-    }
-}
-
-//**********************************************************************
-
 class Thing
 {
     var r;
@@ -351,27 +278,50 @@ class Fly
 
         var savecb = [];
         self.savecb = savecb;
-        var d;
-        d = new Keyboard(); d.set(self);
-        savecb.push(d);
-        glutKeyboardFunc(d);
-        d = new Special(); d.set(self);
-        savecb.push(d);
-        glutSpecialFunc(d);
-        d = new SpecialUp(); d.set(self);
-        savecb.push(d);
-        glutSpecialUpFunc(d);
-        d = new Reshape(); d.set(self);
-        savecb.push(d);
-        glutReshapeFunc(d);
-        d = new Draw(); d.set(self);
-        savecb.push(d);
-        glutDisplayFunc(d);
+
+        var keyboardfunc = function (int key, int x, int y)
+            {
+                self.keyboard(key, x, y);
+            };
+        savecb.push(keyboardfunc);
+        glutKeyboardFunc(keyboardfunc);
+
+        var specialkeyfunc = function (int key, int x, int y)
+            {
+                self.specialKey(key, x, y);
+            };
+        savecb.push(specialkeyfunc);
+        glutSpecialFunc(specialkeyfunc);
+
+        var specialkeyupfun = function (int key, int x, int y)
+            {
+                self.specialKeyUp(key, x, y);
+            };
+        savecb.push(specialkeyupfun);
+        glutSpecialUpFunc(specialkeyupfun);
+
+        var reshapefunc = function(int width, int height)
+            {
+                self.reshape(width, height);
+            };
+        savecb.push(reshapefunc);
+        glutReshapeFunc(reshapefunc);
+
+        var drawfunc = function()
+            {
+                self.draw();
+            };
+        savecb.push(drawfunc);
+        glutDisplayFunc(drawfunc);
 
 
-        d = new Timer(); d.set(self);
-        savecb.push(d);
-        glutTimerFunc(d, 40, 0);
+        var funtimer = function(int value)
+            {
+                self.timer(value);
+                glutTimerFunc(funtimer, 40, 0);
+            };
+        savecb.push(funtimer);
+        glutTimerFunc(funtimer, 40, 0);
     }
 
     function reshape(int w, int h)
