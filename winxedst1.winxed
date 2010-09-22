@@ -6934,6 +6934,10 @@ class ClassStatement : VarContainer
     {
         return self.owner.createsubid();
     }
+    function findclasskey(classkey)
+    {
+        return self.parent.findclasskey(classkey);
+    }
     function checkclass(string name)
     {
         return self.parent.checkclass(name);
