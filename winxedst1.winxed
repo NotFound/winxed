@@ -1936,6 +1936,7 @@ class Expr : CommonBase
     function isidentifier() { return 0; }
     function isnull() { return 0; }
     function hascompilevalue() { return 0; }
+    function isnegable() { return false; }
     function initexpr(owner, start)
     {
         self.initbase(start, owner);
@@ -2404,6 +2405,10 @@ class OpBinaryExpr : OpExpr
         self.initbinary(owner, t, eleft, eright);
         return self;
     }
+    function setfrom(from)
+    {
+        return self.set(from.owner, from.start, from.lexpr, from.rexpr);
+    }
     function optimizearg()
     {
         self.lexpr = self.lexpr.optimize();
@@ -2458,6 +2463,7 @@ class OpUnaryMinusExpr : OpUnaryExpr
 
 class OpNotExpr : OpUnaryExpr
 {
+    function isnegable() { return true; }
     function checkResult()
     {
         return REGint;
@@ -2470,12 +2476,19 @@ class OpNotExpr : OpUnaryExpr
     function optimize()
     {
         self.optimizearg();
-        if (self.subexpr.isintegerliteral()) {
-            var numval = self.subexpr.numval;
+        var subexpr = self.subexpr;
+        if (subexpr.isintegerliteral()) {
+            var numval = subexpr.numval;
             int n = numval;
-            return integerValue(self.owner, self.subexpr.start, ! n);
+            return integerValue(self.owner, subexpr.start, ! n);
         }
+        if (subexpr.isnegable())
+            return subexpr.negated();
         return self;
+    }
+    function negated()
+    {
+        return self.subexpr;
     }
     function emit(e, result)
     {
@@ -2830,6 +2843,7 @@ class NullCheckerExpr : Expr
     var expr;
 
     function checkResult() { return REGint; }
+    function isnegable() { return true; }
     function set(base, expr)
     {
         self.initexpr(base.owner, base.start);
@@ -2840,6 +2854,13 @@ class NullCheckerExpr : Expr
 
 class OpIsNullExpr : NullCheckerExpr
 {
+    function negated()
+    {
+        var n = new OpNotNullExpr();
+        n.initexpr(self.owner, self.start);
+        n.expr = self.expr;
+        return n;
+    }
     function emit(e, result)
     {
         string reg = self.expr.emit_get(e);
@@ -2850,6 +2871,13 @@ class OpIsNullExpr : NullCheckerExpr
 
 class OpNotNullExpr : NullCheckerExpr
 {
+    function negated()
+    {
+        var n = new OpIsNullExpr();
+        n.initexpr(self.owner, self.start);
+        n.expr = self.expr;
+        return n;
+    }
     function emit(e, result)
     {
         string reg = self.expr.emit_get(e);
@@ -2863,6 +2891,11 @@ class OpNotNullExpr : NullCheckerExpr
 
 class OpEqualExpr : ComparatorBaseExpr
 {
+    function isnegable() { return true; }
+    function negated()
+    {
+        return new OpNotEqualExpr().setfrom(self);
+    }
     function optimize()
     {
         self.optimizearg();
@@ -2903,6 +2936,11 @@ class OpEqualExpr : ComparatorBaseExpr
 
 class OpNotEqualExpr : ComparatorBaseExpr
 {
+    function isnegable() { return true; }
+    function negated()
+    {
+        return new OpEqualExpr().setfrom(self);
+    }
     function optimize()
     {
         self.optimizearg();
@@ -2949,6 +2987,12 @@ class OpSameExpr : ComparatorBaseExpr
         self.initbinary(owner, t, eleft, eright);
         self.positive = positiveform;
     }
+    function isnegable() { return true; }
+    function negated()
+    {
+        int positive = self.positive;
+        return new OpSameExpr(! positive, self.owner, self.start, self.lexpr, self.rexpr);
+    }
     function emitop(e, string result, string regl, string regr)
     {
         int positive = self.positive;
@@ -2965,6 +3009,11 @@ class OpSameExpr : ComparatorBaseExpr
 
 class OpLessExpr : ComparatorBaseExpr
 {
+    function isnegable() { return true; }
+    function negated()
+    {
+        return new OpGreaterEqualExpr().setfrom(self);
+    }
     function emitop(e, string result, string regl, string regr)
     {
         e.say('islt ', result, ', ', regl, ', ', regr);
@@ -2975,6 +3024,11 @@ class OpLessExpr : ComparatorBaseExpr
 
 class OpGreaterExpr : ComparatorBaseExpr
 {
+    function isnegable() { return true; }
+    function negated()
+    {
+        return new OpLessEqualExpr().setfrom(self);
+    }
     function emitop(e, string result, string regl, string regr)
     {
         e.say('isgt ', result, ', ', regl, ', ', regr);
@@ -2985,6 +3039,11 @@ class OpGreaterExpr : ComparatorBaseExpr
 
 class OpLessEqualExpr : ComparatorBaseExpr
 {
+    function isnegable() { return true; }
+    function negated()
+    {
+        return new OpGreaterExpr().setfrom(self);
+    }
     function emitop(e, string result, string regl, string regr)
     {
         e.say('isle ', result, ', ', regl, ', ', regr);
@@ -2995,6 +3054,11 @@ class OpLessEqualExpr : ComparatorBaseExpr
 
 class OpGreaterEqualExpr : ComparatorBaseExpr
 {
+    function isnegable() { return true; }
+    function negated()
+    {
+        return new OpLessExpr().setfrom(self);
+    }
     function emitop(e, string result, string regl, string regr)
     {
         e.say('isge ', result, ', ', regl, ', ', regr);
