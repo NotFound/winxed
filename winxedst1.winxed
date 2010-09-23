@@ -2041,18 +2041,24 @@ class Condition
     function emit_if(e, string labeltrue, string labelfalse)
     {
         var condexpr = self.condexpr;
-        string reg = condexpr.emit_get(e);
-        string type = condexpr.checkResult();
-        switch(type) {
-        case REGstring:
-        case REGvar:
-            e.say('if_null ', reg, ', ', labelfalse);
-        case REGint:
-        case REGfloat:
-            e.say('if ', reg, ' goto ', labeltrue);
-            break;
-        default:
-            InternalError('Invalid if condition');
+
+        if ((condexpr instanceof ComparatorBaseExpr) ||
+                (condexpr instanceof NullCheckerExpr))
+            condexpr.emit_if(e, labeltrue);
+        else {
+            string reg = condexpr.emit_get(e);
+            string type = condexpr.checkResult();
+            switch(type) {
+              case REGstring:
+              case REGvar:
+                e.say('if_null ', reg, ', ', labelfalse);
+              case REGint:
+              case REGfloat:
+                e.say('if ', reg, ' goto ', labeltrue);
+                break;
+              default:
+                InternalError('Invalid if condition');
+            }
         }
     }
     function emit_else(e, string labelfalse)
@@ -2789,7 +2795,7 @@ class OpDivToExpr : OpBaseAssignExpr
 class ComparatorBaseExpr : OpBinaryExpr
 {
     function checkResult() { return REGint; }
-    function emit_comparator(e, result, int doelse[optional])
+    function emit_comparator(e, result, int doifelse[optional])
     {
         string rl = self.lexpr.checkResult();
         string rr = self.rexpr.checkResult();
@@ -2831,18 +2837,29 @@ class ComparatorBaseExpr : OpBinaryExpr
             regr = aux;
         }
 
-        if (doelse)
-            self.emitop_else(e, result, regl, regr);
-        else
+        switch (doifelse) {
+          case 0:
             self.emitop(e, result, regl, regr);
+            break;
+          case 1:
+            self.emitop_if(e, result, regl, regr);
+            break;
+          case 2:
+            self.emitop_else(e, result, regl, regr);
+            break;
+        }
     }
     function emit(e, result)
     {
         self.emit_comparator(e, result);
     }
+    function emit_if(e, string labeltrue)
+    {
+        self.emit_comparator(e, labeltrue, 1);
+    }
     function emit_else(e, string labelfalse)
     {
-        self.emit_comparator(e, labelfalse, true);
+        self.emit_comparator(e, labelfalse, 2);
     }
 }
 
@@ -2955,6 +2972,10 @@ class OpEqualExpr : ComparatorBaseExpr
     {
         self.emit_comparator(e, result);
     }
+    function emitop_if(e, string labeltrue, string regl, string regr)
+    {
+        e.say('eq ', regl, ', ', regr, ', ', labeltrue);
+    }
     function emitop_else(e, string labelelse, string regl, string regr)
     {
         e.say('ne ', regl, ', ', regr, ', ', labelelse);
@@ -3004,6 +3025,10 @@ class OpNotEqualExpr : ComparatorBaseExpr
     {
         self.emit_comparator(e, result);
     }
+    function emitop_if(e, string labeltrue, string regl, string regr)
+    {
+        e.say('ne ', regl, ', ', regr, ', ', labeltrue);
+    }
     function emitop_else(e, string labelelse, string regl, string regr)
     {
         e.say('eq ', regl, ', ', regr, ', ', labelelse);
@@ -3036,6 +3061,12 @@ class OpSameExpr : ComparatorBaseExpr
     {
         self.emit_comparator(e, result);
     }
+    function emitop_if(e, string labeltrue, string regl, string regr)
+    {
+        int positive = self.positive;
+        string op = positive ? 'eq_addr' : 'ne_addr';
+        e.say(op, ' ', regl, ', ', regr, ', ', labeltrue);
+    }
     function emitop_else(e, string labelelse, string regl, string regr)
     {
         int positive = self.positive;
@@ -3057,6 +3088,10 @@ class OpLessExpr : ComparatorBaseExpr
     {
         e.say('islt ', result, ', ', regl, ', ', regr);
     }
+    function emitop_if(e, string labeltrue, string regl, string regr)
+    {
+        e.say('lt ', regl, ', ', regr, ', ', labeltrue);
+    }
     function emitop_else(e, string labelelse, string regl, string regr)
     {
         e.say('ge ', regl, ', ', regr, ', ', labelelse);
@@ -3075,6 +3110,10 @@ class OpGreaterExpr : ComparatorBaseExpr
     function emitop(e, string result, string regl, string regr)
     {
         e.say('isgt ', result, ', ', regl, ', ', regr);
+    }
+    function emitop_if(e, string labeltrue, string regl, string regr)
+    {
+        e.say('gt ', regl, ', ', regr, ', ', labeltrue);
     }
     function emitop_else(e, string labelelse, string regl, string regr)
     {
@@ -3095,6 +3134,10 @@ class OpLessEqualExpr : ComparatorBaseExpr
     {
         e.say('isle ', result, ', ', regl, ', ', regr);
     }
+    function emitop_if(e, string labeltrue, string regl, string regr)
+    {
+        e.say('le ', regl, ', ', regr, ', ', labeltrue);
+    }
     function emitop_else(e, string labelelse, string regl, string regr)
     {
         e.say('gt ', regl, ', ', regr, ', ', labelelse);
@@ -3113,6 +3156,10 @@ class OpGreaterEqualExpr : ComparatorBaseExpr
     function emitop(e, string result, string regl, string regr)
     {
         e.say('isge ', result, ', ', regl, ', ', regr);
+    }
+    function emitop_if(e, string labeltrue, string regl, string regr)
+    {
+        e.say('ge ', regl, ', ', regr, ', ', labeltrue);
     }
     function emitop_else(e, string labelelse, string regl, string regr)
     {
