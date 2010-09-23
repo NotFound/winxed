@@ -2058,18 +2058,24 @@ class Condition
     function emit_else(e, string labelfalse)
     {
         var condexpr = self.condexpr;
-        string reg = condexpr.emit_get(e);
-        string type = condexpr.checkResult();
-        switch(type) {
-        case REGstring:
-        case REGvar:
-            e.say('if_null ', reg, ', ', labelfalse);
-        case REGint:
-        case REGfloat:
-            e.say('unless ', reg, ' goto ', labelfalse);
-            break;
-        default:
-            InternalError('Invalid if condition');
+
+        if ((condexpr instanceof ComparatorBaseExpr) ||
+                (condexpr instanceof NullCheckerExpr))
+            condexpr.emit_else(e, labelfalse);
+        else {
+            string reg = condexpr.emit_get(e);
+            string type = condexpr.checkResult();
+            switch(type) {
+              case REGstring:
+              case REGvar:
+                e.say('if_null ', reg, ', ', labelfalse);
+              case REGint:
+              case REGfloat:
+                e.say('unless ', reg, ' goto ', labelfalse);
+                break;
+              default:
+                InternalError('Invalid if condition');
+            }
         }
     }
 }
@@ -2783,7 +2789,7 @@ class OpDivToExpr : OpBaseAssignExpr
 class ComparatorBaseExpr : OpBinaryExpr
 {
     function checkResult() { return REGint; }
-    function emit_comparator(e, result)
+    function emit_comparator(e, result, int doelse[optional])
     {
         string rl = self.lexpr.checkResult();
         string rr = self.rexpr.checkResult();
@@ -2824,12 +2830,19 @@ class ComparatorBaseExpr : OpBinaryExpr
             e.say(aux, ' = ', regr);
             regr = aux;
         }
- 
-        self.emitop(e, result, regl, regr);
+
+        if (doelse)
+            self.emitop_else(e, result, regl, regr);
+        else
+            self.emitop(e, result, regl, regr);
     }
     function emit(e, result)
     {
         self.emit_comparator(e, result);
+    }
+    function emit_else(e, string labelfalse)
+    {
+        self.emit_comparator(e, labelfalse, true);
     }
 }
 
@@ -2867,6 +2880,12 @@ class OpIsNullExpr : NullCheckerExpr
         self.annotate(e);
         e.say('isnull ', result, ', ', reg);
     }
+    function emit_else(e, string labelelse)
+    {
+        string reg = self.expr.emit_get(e);
+        self.annotate(e);
+        e.say('unless_null ', reg, ', ', labelelse);
+    }
 }
 
 class OpNotNullExpr : NullCheckerExpr
@@ -2884,6 +2903,12 @@ class OpNotNullExpr : NullCheckerExpr
         self.annotate(e);
         e.say('isnull ', result, ', ', reg);
         e.say('not ', result);
+    }
+    function emit_else(e, string labelelse)
+    {
+        string reg = self.expr.emit_get(e);
+        self.annotate(e);
+        e.say('if_null ', reg, ', ', labelelse);
     }
 }
 
@@ -2930,6 +2955,10 @@ class OpEqualExpr : ComparatorBaseExpr
     {
         self.emit_comparator(e, result);
     }
+    function emitop_else(e, string labelelse, string regl, string regr)
+    {
+        e.say('ne ', regl, ', ', regr, ', ', labelelse);
+    }
 }
 
 //*********************************************
@@ -2975,6 +3004,10 @@ class OpNotEqualExpr : ComparatorBaseExpr
     {
         self.emit_comparator(e, result);
     }
+    function emitop_else(e, string labelelse, string regl, string regr)
+    {
+        e.say('eq ', regl, ', ', regr, ', ', labelelse);
+    }
 }
 
 //**********************************************************************
@@ -3003,6 +3036,12 @@ class OpSameExpr : ComparatorBaseExpr
     {
         self.emit_comparator(e, result);
     }
+    function emitop_else(e, string labelelse, string regl, string regr)
+    {
+        int positive = self.positive;
+        string op = positive ? 'ne_addr' : 'eq_addr';
+        e.say(op, ' ', regl, ', ', regr, ', ', labelelse);
+    }
 }
 
 //*********************************************
@@ -3017,6 +3056,10 @@ class OpLessExpr : ComparatorBaseExpr
     function emitop(e, string result, string regl, string regr)
     {
         e.say('islt ', result, ', ', regl, ', ', regr);
+    }
+    function emitop_else(e, string labelelse, string regl, string regr)
+    {
+        e.say('ge ', regl, ', ', regr, ', ', labelelse);
     }
 }
 
@@ -3033,6 +3076,10 @@ class OpGreaterExpr : ComparatorBaseExpr
     {
         e.say('isgt ', result, ', ', regl, ', ', regr);
     }
+    function emitop_else(e, string labelelse, string regl, string regr)
+    {
+        e.say('le ', regl, ', ', regr, ', ', labelelse);
+    }
 }
 
 //*********************************************
@@ -3048,6 +3095,10 @@ class OpLessEqualExpr : ComparatorBaseExpr
     {
         e.say('isle ', result, ', ', regl, ', ', regr);
     }
+    function emitop_else(e, string labelelse, string regl, string regr)
+    {
+        e.say('gt ', regl, ', ', regr, ', ', labelelse);
+    }
 }
 
 //*********************************************
@@ -3062,6 +3113,10 @@ class OpGreaterEqualExpr : ComparatorBaseExpr
     function emitop(e, string result, string regl, string regr)
     {
         e.say('isge ', result, ', ', regl, ', ', regr);
+    }
+    function emitop_else(e, string labelelse, string regl, string regr)
+    {
+        e.say('lt ', regl, ', ', regr, ', ', labelelse);
     }
 }
 
