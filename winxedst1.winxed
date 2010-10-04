@@ -245,7 +245,7 @@ function newTokenFrom(int type, string s, var old)
 
 function getquoted(tk, string start, int line)
 {
-    string s;
+    string s = '';
     string c= tk.getchar();
     while (c != '"') {
         if (c == '' || c == "\n")
@@ -267,7 +267,7 @@ function getquoted(tk, string start, int line)
 
 function getsinglequoted(tk, string start, int line)
 {
-    string s;
+    string s = '';
     string c= tk.getchar();
     while (c != "'") {
         if (c == '' || c == "\n")
