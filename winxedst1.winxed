@@ -1536,7 +1536,7 @@ class Statement : CommonBase
     {
         self.initbase(start, owner);
     }
-    function isempty() { return 0; }
+    function isempty() { return false; }
     function createreg(string type)
     {
         return self.owner.createreg(type);
@@ -1603,7 +1603,7 @@ class Statement : CommonBase
 
 class EmptyStatement : Statement
 {
-    function isempty() { return 1; }
+    function isempty() { return true; }
     function annotate(e)
     {
         InternalError('Attempt to annotate empty statement');
@@ -1930,14 +1930,14 @@ class BlockStatement : VarContainer, Statement
 
 class Expr : CommonBase
 {
-    function issimple() { return 0; }
-    function isliteral() { return 0; }
-    function isintegerliteral() { return 0; }
-    function isfloatliteral() { return 0; }
-    function isstringliteral() { return 0; }
-    function isidentifier() { return 0; }
-    function isnull() { return 0; }
-    function hascompilevalue() { return 0; }
+    function issimple() { return false; }
+    function isliteral() { return false; }
+    function isintegerliteral() { return false; }
+    function isfloatliteral() { return false; }
+    function isstringliteral() { return false; }
+    function isidentifier() { return false; }
+    function isnull() { return false; }
+    function hascompilevalue() { return false; }
     function isnegable() { return false; }
     function initexpr(owner, start)
     {
@@ -1967,7 +1967,7 @@ class Expr : CommonBase
 
 class SimpleExpr : Expr
 {
-    function issimple() { return 1; }
+    function issimple() { return true; }
 }
 
 //**********************************************************************
@@ -2088,7 +2088,15 @@ class Condition
 
 //*********************************************
 
-class StringLiteral : SimpleExpr
+class Literal : SimpleExpr
+{
+    function isliteral() { return true; }
+    function hascompilevalue() { return true; }
+}
+
+//*********************************************
+
+class StringLiteral : Literal
 {
     var strval;
     function StringLiteral(owner, t)
@@ -2096,10 +2104,8 @@ class StringLiteral : SimpleExpr
         self.initexpr(owner, t);
         self.strval = t;
     }
-    function isliteral() { return 1; }
-    function isstringliteral() { return 1; }
+    function isstringliteral() { return true; }
     function checkResult() { return REGstring; }
-    function hascompilevalue() { return 1; }
     function getPirString()
     {
         var strtok = self.strval;
@@ -2165,7 +2171,7 @@ class StringLiteral : SimpleExpr
 
 //*********************************************
 
-class IntegerLiteral : SimpleExpr
+class IntegerLiteral : Literal
 {
     var pos;
     var numval;
@@ -2183,10 +2189,8 @@ class IntegerLiteral : SimpleExpr
         }
         self.numval = n;
     }
-    function isliteral() { return 1; }
-    function isintegerliteral() { return 1; }
+    function isintegerliteral() { return true; }
     function checkResult() { return REGint; }
-    function hascompilevalue() { return 1; }
     function getIntegerValue()
     {
         string aux= self.numval;
@@ -2209,7 +2213,7 @@ class IntegerLiteral : SimpleExpr
 
 //*********************************************
 
-class FloatLiteral : SimpleExpr
+class FloatLiteral : Literal
 {
     var numval;
     function FloatLiteral(owner, t)
@@ -2217,10 +2221,8 @@ class FloatLiteral : SimpleExpr
         self.initexpr(owner, t);
         self.numval = t;
     }
-    function isliteral() { return 1; }
-    function isfloatliteral() { return 1; }
+    function isfloatliteral() { return true; }
     function checkResult() { return REGfloat; }
-    function hascompilevalue() { return 1; }
     function getFloatValue()
     {
         string aux= self.numval;
@@ -2249,7 +2251,7 @@ class FloatLiteral : SimpleExpr
 class IdentifierExpr : SimpleExpr
 {
     var name;
-    function isidentifier() { return 1; }
+    function isidentifier() { return true; }
     function set(owner, t)
     {
         self.initexpr(owner, t);
@@ -6550,7 +6552,7 @@ class FunctionStatement : BlockStatement
         return lexname;
     }
 
-    function ismethod() { return 0; }
+    function ismethod() { return false; }
     function createreg(string type)
     {
         var store;
@@ -6891,7 +6893,7 @@ class LocalFunctionStatement : FunctionStatement
 
 class MethodStatement : FunctionStatement
 {
-    function ismethod() { return 1; }
+    function ismethod() { return true; }
 }
 
 //*********************************************
