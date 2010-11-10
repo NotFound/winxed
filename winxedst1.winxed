@@ -5312,6 +5312,10 @@ class GotoStatement : Statement
 
 class ConditionalStatement : Statement, Condition
 {
+    function parseconditionshort(tk)
+    {
+        self.set(parseExpr(tk, self));
+    }
     function parsecondition(tk)
     {
         ExpectOp('(', tk);
@@ -5646,10 +5650,9 @@ class SwitchStatement : Breakable, Statement
 //            ForStatement
 //*********************************************
 
-class ForStatement : LoopStatement, BlockStatement
+class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
 {
     var initializer;
-    var condition;
     var iteration;
 
     function ForStatement(start, tk, owner)
@@ -5663,7 +5666,7 @@ class ForStatement : LoopStatement, BlockStatement
         t = tk.get();
         if (! t.isop(';')) {
             tk.unget(t);
-            self.condition = parseExpr(tk, self);
+            self.parseconditionshort(tk);
             ExpectOp(';', tk);
         }
         t = tk.get();
@@ -5678,8 +5681,8 @@ class ForStatement : LoopStatement, BlockStatement
     {
         if (self.initializer != null)
             self.initializer = self.initializer.optimize();
-        if (self.condition != null)
-            self.condition = self.condition.optimize();
+        if (self.condexpr != null)
+            self.optimize_condition();
         if (self.iteration != null)
             self.iteration = self.iteration.optimize();
         self.body = self.body.optimize();
@@ -5688,7 +5691,7 @@ class ForStatement : LoopStatement, BlockStatement
     function emit(e)
     {
         if (self.initializer == null &&
-                self.condition == null &&
+                self.condexpr == null &&
                 self.iteration == null) {
             self.emit_infinite(e);
             return;
@@ -5706,10 +5709,8 @@ class ForStatement : LoopStatement, BlockStatement
             string unused = self.iteration.emit_get(e);
 
         e.emitlabel(condlabel, 'for condition');
-        if (self.condition != null) {
-            string regcond = self.condition.emit_get(e);
-            e.say('unless ', regcond, ' goto ', breaklabel, ' # for end');
-        }
+        if (self.condexpr != null)
+            self.emit_else(e, breaklabel);
 
         self.body.emit(e);
         e.emitgoto(continuelabel, 'for iteration');
