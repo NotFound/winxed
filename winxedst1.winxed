@@ -47,9 +47,10 @@ function isident(string c)
 //        Error handling exceptions
 //*********************************************
 
-const int ERRORinternal  = 555;
-const int ERRORtokenizer = 556;
-const int ERRORparser    = 557;
+const int
+    ERRORinternal  = 555,
+    ERRORtokenizer = 556,
+    ERRORparser    = 557;
 
 function Warn(string msg, var pos [optional], int has_pos [opt_flag])
 {
@@ -126,14 +127,15 @@ function ExpectKeyword(string name, var tk)
 //                Token
 //*********************************************
 
-const int TypeEof          = -1;
-const int TypeComment      = 0;
-const int TypeOp           = 1;
-const int TypeQuoted       = 2;
-const int TypeSingleQuoted = 3;
-const int TypeIdentifier   = 4;
-const int TypeInteger      = 5;
-const int TypeFloat        = 6;
+const int
+    TypeEof          = -1,
+    TypeComment      = 0,
+    TypeOp           = 1,
+    TypeQuoted       = 2,
+    TypeSingleQuoted = 3,
+    TypeIdentifier   = 4,
+    TypeInteger      = 5,
+    TypeFloat        = 6;
 
 class Token
 {
@@ -2002,9 +2004,7 @@ class FunctionExpr : Expr
 // Condition class, contains and works with expressions used in
 // conditional operators and statements.
 
-const int CONDisruntime = 0;
-const int CONDistrue = 1;
-const int CONDisfalse = 2;
+const int CONDisruntime = 0, CONDistrue = 1, CONDisfalse = 2;
 
 class Condition
 {
@@ -4358,9 +4358,7 @@ class NewExpr : NewBaseExpr
         var initializer = self.initializer;
         int numinits = initializer == null ? 0 : elements(initializer);
 
-        const int BYNAME = 0;
-        const int BYIDENT = 1;
-        const int BYMULTI = 2;
+        const int BYNAME = 0, BYIDENT = 1, BYMULTI = 2;
         int type = (self.value instanceof 'ResizableStringArray') ? BYMULTI :
                 self.value.isstring() ? BYNAME : 
                 self.value.isidentifier() ? BYIDENT : -1;
@@ -4653,34 +4651,35 @@ class OpConditionalExpr : Expr
 //           Expressions parser
 //*********************************************
 
-const int Code_none          =  0;
-const int Code_paren         =  1;
-const int Code_bracket       =  2;
-const int Code_dot           =  3;
-const int Code_assign        =  4;
-const int Code_assign_to     =  5;
-const int Code_add_assign    =  6;
-const int Code_add           =  7;
-const int Code_minus         =  8;
-const int Code_inc           =  9;
-const int Code_dec           = 10;
-const int Code_not           = 11;
-const int Code_equal         = 12;
-const int Code_not_equal     = 13;
-const int Code_less          = 14;
-const int Code_less_equal    = 15;
-const int Code_greater       = 16;
-const int Code_greater_equal = 17;
-const int Code_sub_assign    = 18;
-const int Code_mul           = 19;
-const int Code_div           = 20;
-const int Code_mod           = 21;
-const int Code_cmod          = 22;
-const int Code_mul_assign    = 23;
-const int Code_div_assign    = 24;
-const int Code_same          = 25;
-const int Code_not_same      = 26;
-const int Code_instanceof    = 27;
+const int
+    Code_none          =  0,
+    Code_paren         =  1,
+    Code_bracket       =  2,
+    Code_dot           =  3,
+    Code_assign        =  4,
+    Code_assign_to     =  5,
+    Code_add_assign    =  6,
+    Code_add           =  7,
+    Code_minus         =  8,
+    Code_inc           =  9,
+    Code_dec           = 10,
+    Code_not           = 11,
+    Code_equal         = 12,
+    Code_not_equal     = 13,
+    Code_less          = 14,
+    Code_less_equal    = 15,
+    Code_greater       = 16,
+    Code_greater_equal = 17,
+    Code_sub_assign    = 18,
+    Code_mul           = 19,
+    Code_div           = 20,
+    Code_mod           = 21,
+    Code_cmod          = 22,
+    Code_mul_assign    = 23,
+    Code_div_assign    = 24,
+    Code_same          = 25,
+    Code_not_same      = 26,
+    Code_instanceof    = 27;
 
 function getOpCode_2(t)
 {
@@ -6899,10 +6898,11 @@ class MethodStatement : FunctionStatement
 //            Class specifier
 //*********************************************
 
-const int CLASSSPECIFIER_invalid   = 0;
-const int CLASSSPECIFIER_str       = 1; // Literal name
-const int CLASSSPECIFIER_parrotkey = 2; // Parrot key
-const int CLASSSPECIFIER_id        = 3; // Identifier, maybe qualified
+const int
+    CLASSSPECIFIER_invalid   = 0,
+    CLASSSPECIFIER_str       = 1, // Literal name
+    CLASSSPECIFIER_parrotkey = 2, // Parrot key
+    CLASSSPECIFIER_id        = 3; // Identifier, maybe qualified
 
 class ClassSpecifier
 {
