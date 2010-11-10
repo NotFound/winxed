@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 20-sep-2010
+// Revision 10-nov-2010
 
 // Winxed compiler stage 0.
 
@@ -1061,6 +1061,35 @@ public:
 
 //**********************************************************************
 
+class MultiStatement : public BaseStatement
+{
+public:
+    MultiStatement(BaseStatement *st1, BaseStatement *st2)
+    {
+        subst.push_back(st1);
+        subst.push_back(st2);
+    }
+    void push(BaseStatement *st)
+    {
+        subst.push_back(st);
+    }
+private:
+    std::vector <BaseStatement *> subst;
+    BaseStatement *optimize()
+    {
+        for (size_t i= 0; i < subst.size(); ++i)
+            subst[i] = subst[i]->optimize();
+        return this;
+    }
+    void emit (Emit &e)
+    {
+        for (size_t i= 0; i < subst.size(); ++i)
+            subst[i]->emit(e);
+    }
+};
+
+//**********************************************************************
+
 enum ClassSpecifierType
 {
     CLASSSPECIFIER_invalid,
@@ -1536,6 +1565,7 @@ class ConstStatement : public ValueStatement
 {
 public:
     ConstStatement(Block & block, const Token &st, Tokenizer &tk);
+    ConstStatement(Block & block, const Token &st, Tokenizer &tk, char typed);
     BaseStatement *optimize();
     void emit (Emit &e);
 private:
@@ -1543,6 +1573,8 @@ private:
     std::string name;
     BaseExpr *value;
 };
+
+BaseStatement * parseConst(Block & block, const Token &st, Tokenizer &tk);
 
 //**********************************************************************
 
@@ -1915,7 +1947,7 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
     default: /* Not a declaration */ ;
     }
     if (t.iskeyword("const"))
-        return new ConstStatement(block, t, tk);
+        return parseConst(block, t, tk);
 
     if (t.iskeyword("return"))
         return new ReturnStatement(block, tk);
@@ -5184,6 +5216,18 @@ ConstStatement::ConstStatement(Block & block, const Token &st, Tokenizer &tk) :
     RequireOp (';', t);
 }
 
+ConstStatement::ConstStatement(Block & block, const Token &st, Tokenizer &tk,
+        char typed) :
+    ValueStatement (block, st),
+    type(typed),
+    value(0)
+{
+    Token t= tk.get();
+    name= t.identifier();
+    ExpectOp('=', tk);
+    value= parseExpr(block, tk);
+}
+
 BaseStatement *ConstStatement::optimize()
 {
     optimize_branch(value);
@@ -5206,6 +5250,39 @@ void ConstStatement::emit (Emit &e)
     e.comment("Constant " + name + " evaluated at compile time");
 
     //std::cerr << "ConstStatement::emit end\n";
+}
+
+BaseStatement * parseConst(Block & block, const Token &st, Tokenizer &tk)
+{
+    Token t= tk.get();
+    const char type = nativetype(t);
+
+    switch (type) {
+    case REGint:
+    case REGstring:
+        break;
+    case REGfloat:
+        throw SyntaxError("const float not allowed in stage 0", t);
+    default:
+        throw SyntaxError("Invalid const type", t);
+    }
+
+    BaseStatement *multi = 0;
+    do {
+        BaseStatement *statement = new ConstStatement(block, st, tk, type);
+        if (multi)
+        {
+            if (MultiStatement *ms = dynamic_cast<MultiStatement *>(multi))
+                ms->push(statement);
+            else
+                multi = new MultiStatement(multi, statement);
+        }
+        else
+            multi = statement;
+        t= tk.get();
+    } while (t.isop(','));
+    RequireOp (';', t);
+    return multi;
 }
 
 //**********************************************************************
@@ -6136,7 +6213,7 @@ public:
     NamespaceBlockBase () :
         subblocks(0)
     { }
-    void addconstant(ConstStatement *cst)
+    void addconstant(BaseStatement *cst)
     {
         constants.push_back(cst);
     }
@@ -6177,7 +6254,7 @@ private:
         return ++subblocks;
     }
 
-    std::vector <ConstStatement *> constants;
+    std::vector <BaseStatement *> constants;
     std::vector <NamespaceBlock *> namespaces;
     std::vector <Class *> classes;
 };
@@ -6277,7 +6354,7 @@ private:
     std::vector <ClassSpecifier *> parents;
     std::vector <Function *> functions;
     std::vector <Token> attrs;
-    std::vector <ConstStatement *> constants;
+    std::vector <BaseStatement *> constants;
 };
 
 //**********************************************************************
@@ -6501,7 +6578,7 @@ Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
         }
         else if (t.iskeyword("const"))
         {
-            ConstStatement *cst= new ConstStatement(*this, t, tk);
+            BaseStatement *cst= parseConst(*this, t, tk);
             constants.push_back(cst);
         }
         else
@@ -6602,7 +6679,7 @@ void Winxed::parse (Tokenizer &tk)
         }
         else if (t.iskeyword("const"))
         {
-            ConstStatement *cst= new ConstStatement(*cur_nsblock, t, tk);
+            BaseStatement *cst= parseConst(*cur_nsblock, t, tk);
             cur_nsblock->addconstant(cst);
         }
         else if (t.iskeyword("class"))
