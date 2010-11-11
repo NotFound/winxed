@@ -5702,18 +5702,16 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
         string condlabel = self.genlabel();
         if (self.initializer != null)
             self.initializer.emit(e);
-        e.emitgoto(condlabel);
-
-        e.emitlabel(continuelabel, 'for iteration');
-        if (self.iteration != null)
-            string unused = self.iteration.emit_get(e);
 
         e.emitlabel(condlabel, 'for condition');
         if (self.condexpr != null)
             self.emit_else(e, breaklabel);
 
         self.body.emit(e);
-        e.emitgoto(continuelabel, 'for iteration');
+        e.emitlabel(continuelabel, 'for iteration');
+        if (self.iteration != null)
+            string unused = self.iteration.emit_get(e);
+        e.emitgoto(condlabel);
 
         e.emitlabel(breaklabel, 'for end');
     }
