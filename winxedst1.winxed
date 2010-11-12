@@ -2873,61 +2873,35 @@ class ComparatorBaseExpr : OpBinaryExpr
 class NullCheckerExpr : Expr
 {
     var expr;
+    var checknull;
 
-    function checkResult() { return REGint; }
-    function isnegable() { return true; }
-    function set(base, expr)
+    function NullCheckerExpr(base, expr, int checknull)
     {
         self.initexpr(base.owner, base.start);
         self.expr = expr;
+        self.checknull = checknull;
+    }
+    function checkResult() { return REGint; }
+    function isnegable() { return true; }
+    function negated()
+    {
+        int checkneg = ! self.checknull;
+        self.checknull = checkneg;
         return self;
     }
-}
-
-class OpIsNullExpr : NullCheckerExpr
-{
-    function negated()
-    {
-        var n = new OpNotNullExpr();
-        n.initexpr(self.owner, self.start);
-        n.expr = self.expr;
-        return n;
-    }
     function emit(e, result)
     {
         string reg = self.expr.emit_get(e);
         self.annotate(e);
         e.say('isnull ', result, ', ', reg);
+        if (! self.checknull)
+            e.say('not ', result);
     }
     function emit_else(e, string labelelse)
     {
         string reg = self.expr.emit_get(e);
         self.annotate(e);
-        e.say('unless_null ', reg, ', ', labelelse);
-    }
-}
-
-class OpNotNullExpr : NullCheckerExpr
-{
-    function negated()
-    {
-        var n = new OpIsNullExpr();
-        n.initexpr(self.owner, self.start);
-        n.expr = self.expr;
-        return n;
-    }
-    function emit(e, result)
-    {
-        string reg = self.expr.emit_get(e);
-        self.annotate(e);
-        e.say('isnull ', result, ', ', reg);
-        e.say('not ', result);
-    }
-    function emit_else(e, string labelelse)
-    {
-        string reg = self.expr.emit_get(e);
-        self.annotate(e);
-        e.say('if_null ', reg, ', ', labelelse);
+        e.say(self.checknull ? 'unless' : 'if', '_null ', reg, ', ', labelelse);
     }
 }
 
@@ -2951,10 +2925,10 @@ class OpEqualExpr : ComparatorBaseExpr
             if (rnull)
                 return integerValue(self.owner, self.start, 1);
             else
-                return new OpIsNullExpr().set(self, self.rexpr);
+                return new NullCheckerExpr(self, self.rexpr, true);
         }
         if (rnull)
-            return new OpIsNullExpr().set(self, self.lexpr);
+            return new NullCheckerExpr(self, self.lexpr, true);
         if (lexpr.isliteral() && rexpr.isliteral()) {
             string ltype = lexpr.checkResult();
             string rtype = rexpr.checkResult();
@@ -3004,10 +2978,10 @@ class OpNotEqualExpr : ComparatorBaseExpr
             if (rnull)
                 return integerValue(self.owner, self.start, 0);
             else
-                return new OpNotNullExpr().set(self, self.rexpr);
+                return new NullCheckerExpr(self, self.rexpr, false);
         }
         if (rnull)
-            return new OpNotNullExpr().set(self, self.lexpr);
+            return new NullCheckerExpr(self, self.lexpr, false);
         if (lexpr.isliteral() && rexpr.isliteral()) {
             string ltype = lexpr.checkResult();
             string rtype = rexpr.checkResult();
