@@ -1525,7 +1525,7 @@ function parseStatement(tk, owner)
         if (t.isidentifier()) {
             var t2= tk.get();
             if (t2.isop(':'))
-                return new LabelStatement().set(t, owner);
+                return new LabelStatement(t, owner);
             tk.unget(t2);
         }
         tk.unget(t);
@@ -1830,10 +1830,9 @@ class ExprStatement : Statement
 class ConstantInternalFail
 {
     var name;
-    function set(var name)
+    function ConstantInternalFail(var name)
     {
         self.name = name;
-        return self;
     }
     function get_string[vtable]()
     {
@@ -1887,7 +1886,7 @@ class VarContainer
         var data = {
             'type': type,
             'value': value,
-            'reg': new ConstantInternalFail().set(name),
+            'reg': new ConstantInternalFail(name),
             'const': 1 };
         if (id != null && id != '')
             data['id'] = id;
@@ -2262,11 +2261,10 @@ class IdentifierExpr : SimpleExpr
 {
     var name;
     function isidentifier() { return true; }
-    function set(owner, t)
+    function IdentifierExpr(owner, t)
     {
         self.initexpr(owner, t);
         self.name = t;
-        return self;
     }
     function isnull()
     {
@@ -4835,7 +4833,7 @@ function parseExpr_0(tk, owner)
     if (t.iskeyword('function'))
         return new FunctionExpr(tk, owner, t);
     if (t.isidentifier())
-        return new IdentifierExpr().set(owner, t);
+        return new IdentifierExpr(owner, t);
     SyntaxError('Expression expected', t);
 }
 
@@ -5317,13 +5315,12 @@ class LabelStatement : Statement
 {
     var name;
     var value;
-    function set(n, owner)
+    function LabelStatement(n, owner)
     {
         self.initstatement(n, owner);
         self.name= n;
         string value= self.owner.createlabel(n);
         self.value= value;
-        return self;
     }
     function optimize() { return self; }
     function emit(e)
