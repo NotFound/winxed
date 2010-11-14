@@ -692,6 +692,11 @@ class Emit
         }
         handle.print("\n");
     }
+    function emitif_null(string value, string label)
+    {
+        string ins = 'if_null ' + value + ', ' + label + "\n";
+        self.handle.print(ins);
+    }
     function emitnull(string dst)
     {
         string ins = "null " + dst + "\n";
@@ -720,6 +725,11 @@ class Emit
     function emitadd(string dst, string src1, string src2)
     {
         string ins = "add " + dst + ", " + src1 + ", " + src2 + "\n";
+        self.handle.print(ins);
+    }
+    function emitconcat1(string dst, string src)
+    {
+        string ins = "concat " + dst + ", " + src + "\n";
         self.handle.print(ins);
     }
     function emitconcat(string dst, string src1, string src2)
@@ -2051,7 +2061,7 @@ class Condition
             switch(type) {
               case REGstring:
               case REGvar:
-                e.say('if_null ', reg, ', ', labelfalse);
+                e.emitif_null(reg, labelfalse);
               case REGint:
               case REGfloat:
                 e.say('if ', reg, ' goto ', labeltrue);
@@ -2074,7 +2084,7 @@ class Condition
             switch(type) {
               case REGstring:
               case REGvar:
-                e.say('if_null ', reg, ', ', labelfalse);
+                e.emitif_null(reg, labelfalse);
               case REGint:
               case REGfloat:
                 e.say('unless ', reg, ' goto ', labelfalse);
@@ -3297,6 +3307,61 @@ class OpBinOrExpr : OpBaseBinExpr
 
 //*********************************************
 
+class ConcatString : Expr
+{
+    var values;
+    function ConcatString(owner, start, lexpr, rexpr)
+    {
+        self.initexpr(owner, start);
+        if (lexpr instanceof ConcatString) {
+            self.values = lexpr.values;
+            if (rexpr instanceof ConcatString)
+                self.values.append(rexpr.values);
+            else
+                self.values.push(rexpr);
+        }
+        else if (rexpr instanceof ConcatString) {
+            self.values = rexpr.values;
+            self.values.unshift(lexpr);
+        }
+        else
+            self.values = [lexpr, rexpr];
+    }
+    function checkResult() { return REGstring; }
+    function emit(e, result)
+    {
+        var values = self.values;
+        int nvalues = elements(values);
+        string regvalues[];
+        int i;
+        for (i = 0; i < nvalues; ++i)
+            regvalues.push(values[i].emit_get(e));
+        string auxreg = '$S0';
+        self.annotate(e);
+        e.emitconcat(auxreg, regvalues[0], regvalues[1]);
+        for (i = 2; i < nvalues; ++i)
+            e.emitconcat1(auxreg, regvalues[i]);
+        e.emitset(result, auxreg);
+    }
+    function emit_get(e)
+    {
+        var values = self.values;
+        int nvalues = elements(values);
+        string regvalues[];
+        int i;
+        for (i = 0; i < nvalues; ++i)
+            regvalues.push(values[i].emit_get(e));
+        string auxreg = self.tempreg(REGstring);
+        self.annotate(e);
+        e.emitconcat(auxreg, regvalues[0], regvalues[1]);
+        for (i = 2; i < nvalues; ++i)
+            e.emitconcat1(auxreg, regvalues[i]);
+        return auxreg;
+    }
+}
+
+//*********************************************
+
 class OpAddExpr : OpBinaryExpr
 {
     function optimize()
@@ -3304,9 +3369,9 @@ class OpAddExpr : OpBinaryExpr
         self.optimizearg();
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
+        string ltype = lexpr.checkResult();
+        string rtype = rexpr.checkResult();
         if (lexpr.isliteral() && rexpr.isliteral()) {
-            string ltype = lexpr.checkResult();
-            string rtype = rexpr.checkResult();
             if (ltype == REGstring && rtype == REGstring) {
                 var etok = lexpr.strval;
                 var rtok = rexpr.strval;
@@ -3337,6 +3402,9 @@ class OpAddExpr : OpBinaryExpr
                     return floatValue(self.owner, self.start, lf + rf);
                 }
             }
+        }
+        if (ltype == REGstring && rtype == REGstring) {
+            return new ConcatString(self.owner, self.start, lexpr, rexpr);
         }
         return self;
     }
@@ -6048,7 +6116,7 @@ class DeclareStatement : Statement
                         if (t_reg == REGstring && itype == REGvar) {
                             string auxlabel = self.genlabel();
                             e.emitnull(reg);
-                            e.say('if_null ', ireg, ', ', auxlabel);
+                            e.emitif_null(ireg, auxlabel);
                             e.emitset(reg, ireg);
                             e.emitlabel(auxlabel);
                         }
