@@ -122,8 +122,7 @@ $S2 = $P1[0]
 length $I3, $S2
 add $I2, $I3, 4
 .annotate 'line', 40
-isgt $I3, $I2, $I1
-unless $I3 goto __label_2
+le $I2, $I1, __label_2
 set $I1, $I2
 __label_2: # endif
 # }
@@ -142,18 +141,20 @@ shift $P1, $P5
 $S1 = $P1[0]
 .annotate 'line', 44
 # predefined length
-length $I5, $S1
-isgt $I4, $I5, 1
-unless $I4 goto __label_7
+length $I4, $S1
+isgt $I3, $I4, 1
+unless $I3 goto __label_7
 # predefined substr
 substr $S2, $S1, 1, 1
-isne $I4, $S2, '='
+isne $I3, $S2, '='
 __label_7:
-unless $I4 goto __label_5
-concat $S1, '--', $S1
+unless $I3 goto __label_5
+concat $S0, '--', $S1
+set $S1, $S0
 goto __label_6
 __label_5: # else
-concat $S1, '-', $S1
+concat $S0, '-', $S1
+set $S1, $S0
 __label_6: # endif
 .annotate 'line', 48
 # predefined length
@@ -216,10 +217,12 @@ unless $I2 goto __label_0
 sub $I3, $I1, 7
 # predefined substr
 substr $S3, __ARG_1, 0, $I3
-concat $S1, $S3, __ARG_2
+concat $S0, $S3, __ARG_2
+set $S1, $S0
 goto __label_1
 __label_0: # else
-concat $S1, __ARG_1, __ARG_2
+concat $S0, __ARG_1, __ARG_2
+set $S1, $S0
 __label_1: # endif
 .annotate 'line', 65
 .return($S1)
@@ -253,9 +256,7 @@ $P4 = $P2['c']
 # var eval: $P5
 $P5 = $P2['e']
 .annotate 'line', 77
-isnull $I2, $P3
-not $I2
-unless $I2 goto __label_0
+if_null $P3, __label_0
 # {
 .annotate 'line', 78
 $P1.'showhelp'()
@@ -269,8 +270,7 @@ __label_0: # endif
 load_language 'winxed'
 compreg $P6, 'winxed'
 .annotate 'line', 83
-isnull $I2, $P6
-unless $I2 goto __label_1
+unless_null $P6, __label_1
 # predefined die
 .annotate 'line', 84
 die "winxed: Cannot load language"
@@ -279,14 +279,12 @@ __label_1: # endif
 # var code: $P7
 null $P7
 .annotate 'line', 88
-isnull $I3, $P5
-unless $I3 goto __label_2
+unless_null $P5, __label_2
 # {
 .annotate 'line', 89
 # predefined elements
-elements $I5, __ARG_1
-islt $I4, $I5, 1
-unless $I4 goto __label_4
+elements $I2, __ARG_1
+ge $I2, 1, __label_4
 # {
 # predefined say
 .annotate 'line', 90
@@ -301,9 +299,7 @@ __label_4: # endif
 # string srcfile: $S1
 $S1 = __ARG_1[0]
 .annotate 'line', 95
-isnull $I3, $P4
-not $I3
-unless $I3 goto __label_5
+if_null $P4, __label_5
 # {
 .annotate 'line', 96
 # var handleout: $P8
@@ -350,9 +346,7 @@ goto __label_3
 __label_2: # else
 # {
 .annotate 'line', 111
-isnull $I4, $P4
-not $I4
-unless $I4 goto __label_9
+if_null $P4, __label_9
 # predefined die
 .annotate 'line', 112
 die 'option -c with -e not supported yet'
@@ -360,9 +354,10 @@ __label_9: # endif
 .annotate 'line', 113
 # string expr: $S4
 # predefined string
-$S7 = $P5
-concat $S6, 'function main[main](argv){', $S7
-concat $S4, $S6, ';}'
+$S6 = $P5
+concat $S0, 'function main[main](argv){', $S6
+concat $S0, ';}'
+set $S4, $S0
 .annotate 'line', 114
 $P7 = $P6.'compile'($S4)
 .annotate 'line', 115
@@ -376,27 +371,25 @@ null $P10
 .annotate 'line', 120
 # int i: $I1
 null $I1
-goto __label_12
-__label_10: # for iteration
-inc $I1
 __label_12: # for condition
 # {
 .annotate 'line', 121
 $P10 = $P7[$I1]
 .annotate 'line', 122
-isnull $I5, $P10
-unless $I5 goto __label_13
+unless_null $P10, __label_13
 goto __label_11 # break
 __label_13: # endif
 .annotate 'line', 123
 # predefined string
 $S6 = $P10
-iseq $I6, $S6, 'main'
-unless $I6 goto __label_14
+ne $S6, 'main', __label_14
 goto __label_11 # break
 __label_14: # endif
 # }
-goto __label_10 # for iteration
+__label_10: # for iteration
+.annotate 'line', 120
+inc $I1
+goto __label_12
 __label_11: # for end
 .annotate 'line', 126
 # try: create handler

@@ -32,8 +32,8 @@ $I1 = $P2.'is_closed'()
 __label_1:
 unless $I1 goto __label_0
 concat $S2, "Can't open ", __ARG_1
-# predefined Error
 .annotate 'line', 31
+# predefined Error
 root_new $P4, ['parrot';'Exception']
 $P4['message'] = $S2
 throw $P4
@@ -97,9 +97,7 @@ $P3 = $P2['file']
 # string filename: $S2
 set $S2, 'setup.json'
 .annotate 'line', 56
-isnull $I2, $P3
-not $I2
-unless $I2 goto __label_1
+if_null $P3, __label_1
 set $S2, $P3
 __label_1: # endif
 .annotate 'line', 58
