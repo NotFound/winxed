@@ -5376,7 +5376,7 @@ class LoopStatement : Continuable
         self.annotate(e);
         e.emitlabel(continuelabel, 'Infinite loop');
         self.body.emit(e);
-        e.say('goto ', continuelabel);
+        e.emitgoto(continuelabel);
         e.emitlabel(breaklabel, 'Infinite loop end');
     }
 }
@@ -5416,7 +5416,7 @@ class WhileStatement : LoopStatement, ConditionalStatement
             e.emitlabel(continuelabel, 'while');
             self.emit_else(e, breaklabel);
             self.body.emit(e);
-            e.say('goto ', continuelabel);
+            e.emitgoto(continuelabel);
             e.emitlabel(breaklabel, 'endwhile');
         }
     }
