@@ -2720,21 +2720,26 @@ class OpAddToExpr : OpBaseAssignExpr
     }
     function emit_get(e)
     {
-        string ltype = self.eleft.checkResult();
-        string rtype = self.eright.checkResult();
-        string reg = self.eleft.emit_get(e);
-        string reg2 = self.eright.emit_get(e);
-        self.annotate(e);
-        if (ltype == REGstring) {
-            if (rtype != REGstring) {
-                string aux = self.tempreg(REGstring);
-                e.say(aux, ' = ', reg2);
-                reg2 = aux;
+        var eleft = self.eleft;
+        var eright = self.eright;
+        string ltype = eleft.checkResult();
+        string reg = eleft.emit_get(e);
+        if (ltype == REGstring && (eright instanceof ConcatString))
+            eright.emit_concat_to(e, reg);
+        else {
+            string reg2 = eright.emit_get(e);
+            self.annotate(e);
+            if (ltype == REGstring) {
+                if (eright.checkResult() != REGstring) {
+                    string aux = self.tempreg(REGstring);
+                    e.say(aux, ' = ', reg2);
+                    reg2 = aux;
+                }
+                e.emitconcat1(reg, reg2);
             }
-            e.emitconcat(reg, reg, reg2);
+            else
+                e.emitaddto(reg, reg2);
         }
-        else
-            e.emitaddto(reg, reg2);
         return reg;
     }
 }
@@ -3328,35 +3333,45 @@ class ConcatString : Expr
             self.values = [lexpr, rexpr];
     }
     function checkResult() { return REGstring; }
-    function emit(e, result)
+    function getregs(e)
     {
         var values = self.values;
         int nvalues = elements(values);
-        string regvalues[];
+        string regvalues[nvalues];
         int i;
         for (i = 0; i < nvalues; ++i)
-            regvalues.push(values[i].emit_get(e));
+            regvalues[i] = string(values[i].emit_get(e));
+        return regvalues;
+    }
+    function emit(e, result)
+    {
+        var regvalues = self.getregs(e);
+        int nvalues = elements(regvalues);
         string auxreg = '$S0';
         self.annotate(e);
         e.emitconcat(auxreg, regvalues[0], regvalues[1]);
-        for (i = 2; i < nvalues; ++i)
+        for (int i = 2; i < nvalues; ++i)
             e.emitconcat1(auxreg, regvalues[i]);
         e.emitset(result, auxreg);
     }
     function emit_get(e)
     {
-        var values = self.values;
-        int nvalues = elements(values);
-        string regvalues[];
-        int i;
-        for (i = 0; i < nvalues; ++i)
-            regvalues.push(values[i].emit_get(e));
+        var regvalues = self.getregs(e);
+        int nvalues = elements(regvalues);
         string auxreg = self.tempreg(REGstring);
         self.annotate(e);
         e.emitconcat(auxreg, regvalues[0], regvalues[1]);
-        for (i = 2; i < nvalues; ++i)
+        for (int i = 2; i < nvalues; ++i)
             e.emitconcat1(auxreg, regvalues[i]);
         return auxreg;
+    }
+    function emit_concat_to(e, result)
+    {
+        var regvalues = self.getregs(e);
+        int nvalues = elements(regvalues);
+        self.annotate(e);
+        for (int i = 0; i < nvalues; ++i)
+            e.emitconcat1(result, regvalues[i]);
     }
 }
 
