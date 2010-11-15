@@ -127,115 +127,181 @@ function ExpectKeyword(string name, var tk)
 //                Token
 //*********************************************
 
-const int
-    TypeEof          = -1,
-    TypeComment      = 0,
-    TypeOp           = 1,
-    TypeQuoted       = 2,
-    TypeSingleQuoted = 3,
-    TypeIdentifier   = 4,
-    TypeInteger      = 5,
-    TypeFloat        = 6;
-
 class Token
 {
-    var type;
-    var str;
     var file;
     var line;
+    function Token(string file, int line)
+    {
+        self.file = file;
+        self.line = line;
+    }
     function get_bool[vtable]()
     {
-        return self.type != TypeEof;
+        return true;
     }
-    function iseof()     { return self.type == TypeEof; }
-    function iscomment() { return self.type == TypeComment; }
-    function isint()     { return self.type == TypeInteger; }
-    function isfloat()   { return self.type == TypeFloat; }
-    function isstring()
-    {
-        return self.type == TypeQuoted || self.type == TypeSingleQuoted;
-    }
-    function isidentifier() { return self.type == TypeIdentifier; }
-    function getidentifier()
-    {
-        if (self.type == TypeIdentifier)
-            return self.str;
-        else
-            Expected('Identifier', self);
-    }
-    function iskeyword(string name)
-    {
-        return self.type == TypeIdentifier && self.str == name;
-    }
-    function checkkeyword()
-    {
-        return self.type == TypeIdentifier ? string(self.str) : '';
-    }
-    function isop(string name)
-    {
-        return self.type == TypeOp && self.str == name;
-    }
-    function checkop()
-    {
-        return self.type == TypeOp ? string(self.str) : '';
-    }
+
+    function iseof()        { return false; }
+    function iscomment()    { return false; }
+    function isidentifier() { return false; }
+    function isint()        { return false; }
+    function isfloat()      { return false; }
+    function isstring()     { return false; }
 
     function rawstring()
     {
-        if (!self.isstring())
-            InternalError('Not a literal string', self);
-        return self.str;
+        InternalError('Not a literal string', self);
     }
-    function get_string[vtable]()
+    function getidentifier()
     {
-        string str= self.str;
-        switch (self.type) {
-        case TypeQuoted:
-            str= '"' + str + '"';
-            break;
-        case TypeSingleQuoted:
-            str= "'" + str + "'";
-            break;
-        }
-        return str;
+        Expected('Identifier', self);
     }
-
+    function iskeyword(string name) { return false; }
+    function checkkeyword()         { return false; }
+    function isop(string name)      { return false; }
+    function checkop() { return ''; }
+    function viewable() { return '(unknown)'; }
     function show()
     {
-        string str = self.str;
-        string r;
-        switch (self.type) {
-        case TypeEof:
-            r = '(End of file)'; break;
-        case TypeOp:
-        case TypeIdentifier:
-        case TypeInteger:
-        case TypeFloat:
-            r = str; break;
-        case TypeQuoted:
-            r = '"' + str + '"'; break;
-        case TypeSingleQuoted:
-            r = "'" + str + "'"; break;
-        default:
-            r = '(unknown)';
-        }
+        string r = self.viewable();
         return r + ' at ' + string(self.file) + ' line ' + string(self.line);
     }
 }
 
-function newToken(int type, string s, string file, int line)
+class TokenEof : Token
 {
-    var t= new Token();
-    t.type= type; t.str= s; t.file= file; t.line= line;
-    return t;
+    function TokenEof(string file)
+    {
+        self.Token(file, 0);
+    }
+    function get_bool[vtable]()
+    {
+        return false;
+    }
+    function iseof() { return true; }
+    function viewable() { return '(End of file)'; }
 }
 
-function newTokenFrom(int type, string s, var old)
+class TokenWithVal : Token
 {
-    var t= new Token();
-    t.type= type; t.str= s; t.file= old.file; t.line= old.line;
-    return t;
+    var str;
+    function TokenWithVal(string file, int line, string str)
+    {
+        self.Token(file, line);
+        self.str = str;
+    }
+    function get_string[vtable]() { return self.str; }
+    function viewable()
+    {
+        return self.str;
+    }
 }
+
+class TokenComment : TokenWithVal
+{
+    function TokenComment(string file, int line, string str)
+    {
+        self.TokenWithVal(file, line, str);
+    }
+    function iscomment() { return true; }
+}
+
+class TokenOp : TokenWithVal
+{
+    function TokenOp(string file, int line, string str)
+    {
+        self.TokenWithVal(file, line, str);
+    }
+    function isop(string name)
+    {
+        return self.str == name;
+    }
+    function checkop()
+    {
+        return string(self.str);
+    }
+}
+
+class TokenIdentifier : TokenWithVal
+{
+    function TokenIdentifier(string file, int line, string str)
+    {
+        self.TokenWithVal(file, line, str);
+    }
+    function isidentifier() { return true; }
+    function getidentifier()
+    {
+        return self.str;
+    }
+    function checkkeyword()
+    {
+        return string(self.str);
+    }
+    function iskeyword(string name)
+    {
+        return self.str == name;
+    }
+}
+
+class TokenString : TokenWithVal
+{
+    function isstring() { return true; }
+    function rawstring()
+    {
+        return self.str;
+    }
+}
+
+class TokenQuoted : TokenString
+{
+    function TokenQuoted(string file, int line, string str)
+    {
+        self.TokenWithVal(file, line, str);
+    }
+    function get_string[vtable]()
+    {
+        return '"' + string(self.str) + '"';
+    }
+    function viewable()
+    {
+        return '"' + string(self.str) + '"';
+    }
+}
+
+class TokenSingleQuoted : TokenString
+{
+    function TokenSingleQuoted(string file, int line, string str)
+    {
+        self.TokenWithVal(file, line, str);
+    }
+    function get_string[vtable]()
+    {
+        return "'" + string(self.str) + "'";
+    }
+    function viewable()
+    {
+        return "'" + string(self.str) + "'";
+    }
+}
+
+class TokenInteger : TokenWithVal
+{
+    function TokenInteger(string file, int line, string str)
+    {
+        self.TokenWithVal(file, line, str);
+    }
+    function isint() { return true; }
+}
+
+class TokenFloat : TokenWithVal
+{
+    function TokenFloat(string file, int line, string str)
+    {
+        self.TokenWithVal(file, line, str);
+    }
+    function isfloat() { return true; }
+}
+
 
 //*********************************************
 //       Tokenizer auxiliar functions
@@ -259,7 +325,7 @@ function getquoted(tk, string start, int line)
             s+= c;
         c= tk.getchar();
     }
-    return newToken(TypeQuoted, s, tk.filename, line);
+    return new TokenQuoted(tk.filename, line, s);
 }
 
 function getsinglequoted(tk, string start, int line)
@@ -272,7 +338,7 @@ function getsinglequoted(tk, string start, int line)
         s+= c;
         c= tk.getchar();
     }
-    return newToken(TypeSingleQuoted, s, tk.filename, line);
+    return new TokenSingleQuoted(tk.filename, line, s);
 }
 
 function getheredoc(tk, string start, int linenum)
@@ -319,7 +385,7 @@ function getheredoc(tk, string start, int linenum)
         if (line != mark)
             content += line + '\n';
     } while (line != mark);
-    return newToken(TypeQuoted, content, tk.filename, linenum);
+    return new TokenQuoted(tk.filename, linenum, content);
 }
 
 function getident(tk, string start, int line)
@@ -331,7 +397,7 @@ function getident(tk, string start, int line)
         c= tk.getchar();
     }
     tk.ungetchar(c);
-    return newToken(TypeIdentifier, s, tk.filename, line);
+    return new TokenIdentifier(tk.filename, line, s);
 }
 
 function getnumber(tk, string start, int line)
@@ -353,7 +419,7 @@ function getnumber(tk, string start, int line)
         }
         tk.ungetchar(c);
         s = hexval;
-        return newToken(TypeInteger, s, tk.filename, line);
+        return new TokenInteger(tk.filename, line, s);
     }
     if (c == '.') {
         do {
@@ -372,7 +438,7 @@ function getnumber(tk, string start, int line)
             }
         }
         tk.ungetchar(c);
-        return newToken(TypeFloat, s, tk.filename, line);
+        return new TokenFloat(tk.filename, line, s);
     }
     else {
         if (c == 'e' || c == 'E') {
@@ -386,11 +452,11 @@ function getnumber(tk, string start, int line)
                 c = tk.getchar();
             }
             tk.ungetchar(c);
-            return newToken(TypeFloat, s, tk.filename, line);
+            return new TokenFloat(tk.filename, line, s);
         }
         else {
             tk.ungetchar(c);
-            return newToken(TypeInteger, s, tk.filename, line);
+            return new TokenInteger(tk.filename, line, s);
         }
     }
 }
@@ -403,7 +469,7 @@ function getlinecomment(tk, string start, int line)
         s+= c;
         c = tk.getchar();
     }
-    return newToken(TypeComment, s, tk.filename, line);
+    return new TokenComment(tk.filename, line, s);
 }
 
 function getcomment(tk, string start, int line)
@@ -421,13 +487,13 @@ function getcomment(tk, string start, int line)
             TokenError("Unclosed comment", tk, line);
     } while (c != '/');
     s+= '/';
-    return newToken(TypeComment, s, tk.filename, line);
+    return new TokenComment(tk.filename, line, s);
 }
 
 function getop(tk, string start, int line)
 {
     string s= start;
-    return newToken(TypeOp, s, tk.filename, line);
+    return new TokenOp(tk.filename, line, s);
 }
 
 //*********************************************
@@ -515,11 +581,8 @@ class Tokenizer
         while (isspace(c))
                 c= self.getchar();
         int line= self.line;
-        if (c == '') {
-            var t= new Token();
-            t.type= TypeEof;
-            return t;
-        }
+        if (c == '')
+            return new TokenEof();
         if (isidentstart(c))
             return getident(self, c, line);
         if (isdigit(c))
@@ -743,7 +806,7 @@ function integerValue(var owner, var start, int value)
 
 function floatValue(var owner, var start, float value)
 {
-    var t = newTokenFrom(TypeFloat, value, start);
+    var t = new TokenFloat(start.file, start.line, value);
     return new FloatLiteral(owner, t);
 }
 
@@ -958,7 +1021,7 @@ function predefeval_chr(var owner, var start, var args)
     int n = arg.numval;
     string s = chr(n);
 
-    var t = newTokenFrom(TypeQuoted, s, start);
+    var t = new TokenQuoted(start.file, start.line, s);
     return new StringLiteral(owner, t);
 }
 
@@ -2112,7 +2175,7 @@ class StringLiteral : Literal
     {
         var strtok = self.strval;
         string str = strtok.str;
-        int type = strtok.type;
+        int typesinglequoted = strtok instanceof TokenSingleQuoted;
         int need_unicode = 0;
         for (int code in str) {
             if (code > 127) {
@@ -2121,8 +2184,8 @@ class StringLiteral : Literal
             }
         }
         if (need_unicode) {
-            if (type == TypeSingleQuoted) {
-                type = TypeQuoted;
+            if (typesinglequoted) {
+                typesinglequoted = false;
                 string saux = str;
                 str = '';
                 for (string c in saux) {
@@ -2145,7 +2208,7 @@ class StringLiteral : Literal
             }
             str = result;
         }
-        string q = (type == TypeSingleQuoted) ? "'" : '"';
+        string q = (typesinglequoted) ? "'" : '"';
         str = q + str + q;
         if (need_unicode)
             str = 'unicode:' + str;
@@ -2155,7 +2218,7 @@ class StringLiteral : Literal
     {
         var strtok = self.strval;
         string str = strtok.str;
-        if (strtok.type == TypeQuoted) {
+        if (strtok instanceof TokenQuoted) {
             var s = str;
             str = s.unescape('utf8');
         }
@@ -3383,13 +3446,12 @@ class OpAddExpr : OpBinaryExpr
                 var rtok = rexpr.strval;
                 var t;
                 int newtype;
-                if (etok.type == TypeSingleQuoted && rtok.type == TypeSingleQuoted)
-                    newtype = TypeSingleQuoted;
-                else
-                    newtype = TypeQuoted;
                 string es = etok.str;
                 string rs = rtok.str;
-                t = newTokenFrom(newtype, es + rs, etok);
+                if ((etok instanceof TypeSingleQuoted) && (rtok instanceof TypeSingleQuoted))
+                    t = new TokenSingleQuoted(etok.file, etok.line, es + rs);
+                else
+                    t = new TokenQuoted(etok.file, etok.line, es + rs);
                 return new StringLiteral(self.owner, t);
             }
             if (ltype == REGint && rtype == REGint) {
@@ -7249,7 +7311,7 @@ function include_parrot(var start, var tk, var ns)
                 ivalue = value;
             ns.createconst(name, REGint,
                 integerValue(ns,
-                    newTokenFrom(TypeInteger, name, start), ivalue),
+                    new TokenInteger(start.file, start.line, name), ivalue),
                     '');
         }
     }
@@ -7644,22 +7706,22 @@ class WinxedCompiler
         var rootns= new RootNamespace();
 
         // Store predefined constants in the root namespace.
-        var taux = newToken(TypeIdentifier, 'predefconst', 0, '__predefconst__');
+        var taux = new TokenIdentifier('__predefconst__', 0, 'predefconst');
 
         rootns.createconst('false', REGint,
                 integerValue(rootns,
-                    newTokenFrom(TypeInteger, 'false', taux), 0),
+                    new TokenInteger(taux.file, taux.line, 'false'), 0),
                     '');
         rootns.createconst('true', REGint,
                 integerValue(rootns,
-                    newTokenFrom(TypeInteger, 'false', taux), 1),
+                    new TokenInteger(taux.file, taux.line, 'false'), 1),
                     '');
         // Tricky way of setting __STAGE__: stage 1 is built with
         // stage 0 and stage 2 is built with stage 1. Increment
         // the current stage and we are done.
         rootns.createconst('__STAGE__', REGstring,
                 new StringLiteral(rootns,
-                    newTokenFrom(TypeQuoted, string(int(__STAGE__) + 1), taux)),
+                    new TokenQuoted(taux.file, taux.line, string(int(__STAGE__) + 1))),
                     '');
 
         self.rootns = rootns;
