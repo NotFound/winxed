@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 10-nov-2010
+// Revision 15-nov-2010
 
 // Winxed compiler stage 0.
 
@@ -2469,21 +2469,21 @@ class BinOpExpr : public OpBaseExpr
 protected:
     BinOpExpr(BlockBase &block, Token t, BaseExpr *first, BaseExpr *second) :
         OpBaseExpr(block, t),
-        efirst(first),
-        esecond(second)
+        lexpr(first),
+        rexpr(second)
     {
     }
     void optimize_operands();
-    BaseExpr *efirst;
-    BaseExpr *esecond;
+    BaseExpr *lexpr;
+    BaseExpr *rexpr;
 private:
     BaseExpr *optimize();
 };
 
 void BinOpExpr::optimize_operands()
 {
-    optimize_branch(efirst);
-    optimize_branch(esecond);
+    optimize_branch(lexpr);
+    optimize_branch(rexpr);
 }
 
 BaseExpr *BinOpExpr::optimize()
@@ -2509,12 +2509,12 @@ protected:
 
 bool CommonBinOpExpr::isstring() const
 {
-    return efirst->isstring() && esecond->isstring();
+    return lexpr->isstring() && rexpr->isstring();
 }
 
 bool CommonBinOpExpr::isinteger() const
 {
-    return efirst->isinteger() && esecond->isinteger();
+    return lexpr->isinteger() && rexpr->isinteger();
 }
 
 //**********************************************************************
@@ -2549,21 +2549,21 @@ private:
 BaseExpr *OpEqualExpr::optimize()
 {
     optimize_operands();
-    if (efirst->issimple() && esecond->issimple())
+    if (lexpr->issimple() && rexpr->issimple())
     {
-        if (efirst->isnull() && esecond->isnull())
+        if (lexpr->isnull() && rexpr->isnull())
         {
             return new IntegerExpr(*this, start, 1);
         }
-        if (efirst->isliteralinteger() && esecond->isliteralinteger())
+        if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
         {
             return new IntegerExpr(*this, start,
-                efirst->getintegervalue() == esecond->getintegervalue());
+                lexpr->getintegervalue() == rexpr->getintegervalue());
         }
-        if (efirst->isliteralstring() && esecond->isliteralstring())
+        if (lexpr->isliteralstring() && rexpr->isliteralstring())
         {
-            std::string s1= efirst->getstringvalue();
-            std::string s2= esecond->getstringvalue();
+            std::string s1= lexpr->getstringvalue();
+            std::string s2= rexpr->getstringvalue();
             return new IntegerExpr(*this, start, s1 == s2);
         }
     }
@@ -2572,21 +2572,21 @@ BaseExpr *OpEqualExpr::optimize()
 
 void OpEqualExpr::emit(Emit &e, const std::string &result)
 {
-    char ltype = efirst->checkresult();
-    char rtype = esecond->checkresult();
+    char ltype = lexpr->checkresult();
+    char rtype = rexpr->checkresult();
     std::string res= gentemp(REGint);
-    if (efirst->isnull() || esecond->isnull())
+    if (lexpr->isnull() || rexpr->isnull())
     {
         std::string op;
-        if (efirst->isnull())
+        if (lexpr->isnull())
         {
             op= gentemp(rtype);
-            esecond->emit(e, op);
+            rexpr->emit(e, op);
         }
         else
         {
             op= gentemp(ltype);
-            efirst->emit(e, op);
+            lexpr->emit(e, op);
         }
         e << op_isnull(res, op);
     }
@@ -2596,8 +2596,8 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
         {
             std::string op1= gentemp(ltype);
             std::string op2= gentemp(rtype);
-            efirst->emit(e, op1);
-            esecond->emit(e, op2);
+            lexpr->emit(e, op1);
+            rexpr->emit(e, op2);
             e << res << " = iseq " << op1 << " , " << op2;
         }
         else if (ltype == REGvar && rtype == REGstring)
@@ -2605,8 +2605,8 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
             std::string op1= gentemp(REGstring);
             std::string op2= gentemp(REGstring);
             std::string aux= gentemp(REGvar);
-            efirst->emit(e, aux);
-            esecond->emit(e, op2);
+            lexpr->emit(e, aux);
+            rexpr->emit(e, op2);
             e << op1 << " = " << aux << '\n';
             e << res << " = iseq " << op1 << " , " << op2;
         }
@@ -2615,8 +2615,8 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
             std::string op1= gentemp(REGstring);
             std::string op2= gentemp(REGstring);
             std::string aux= gentemp(REGvar);
-            efirst->emit(e, op1);
-            esecond->emit(e, aux);
+            lexpr->emit(e, op1);
+            rexpr->emit(e, aux);
             e << op2 << " = " << aux << '\n';
             e << res << " = iseq " << op1 << " , " << op2;
         }
@@ -2624,34 +2624,34 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
         {
             std::string op1= gentemp(REGvar);
             std::string op2= gentemp(REGvar);
-            if (efirst->isinteger() )
+            if (lexpr->isinteger() )
             {
                 std::string aux= gentemp(REGint);
-                efirst->emit(e, aux);
+                lexpr->emit(e, aux);
                 e << op_box(res, aux) << '\n';
             }
-            else if (efirst->isstring() )
+            else if (lexpr->isstring() )
             {
                 std::string aux= gentemp(REGstring);
-                efirst->emit(e, aux);
+                lexpr->emit(e, aux);
                 e << op_box(op1, aux) << '\n';
             }
             else
-                efirst->emit(e, op1);
-            if (esecond->isinteger() )
+                lexpr->emit(e, op1);
+            if (rexpr->isinteger() )
             {
                 std::string aux= gentemp(REGint);
-                esecond->emit(e, aux);
+                rexpr->emit(e, aux);
                 e << op_box(op2, aux) << '\n';
             }
-            else if (esecond->isstring() )
+            else if (rexpr->isstring() )
             {
                 std::string aux= gentemp(REGstring);
-                esecond->emit(e, aux);
+                rexpr->emit(e, aux);
                 e << op_box(op2, aux) << '\n';
             }
             else
-                esecond->emit(e, op2);
+                rexpr->emit(e, op2);
             e << res << " = iseq " << op1 << " , " << op2;
         }
     }
@@ -2676,16 +2676,16 @@ private:
 BaseExpr *OpNotEqualExpr::optimize()
 {
     optimize_operands();
-    if (efirst->issimple() && esecond->issimple())
+    if (lexpr->issimple() && rexpr->issimple())
     {
-        if (efirst->isnull() && esecond->isnull())
+        if (lexpr->isnull() && rexpr->isnull())
             return new IntegerExpr(*this, start, 0);
-        if (efirst->isliteralinteger() && esecond->isliteralinteger())
+        if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
             return new IntegerExpr(*this, start,
-                efirst->getintegervalue() != esecond->getintegervalue());
-        if (efirst->isliteralstring() && esecond->isliteralstring())
+                lexpr->getintegervalue() != rexpr->getintegervalue());
+        if (lexpr->isliteralstring() && rexpr->isliteralstring())
             return new IntegerExpr(*this, start,
-                efirst->getstringvalue() != esecond->getstringvalue());
+                lexpr->getstringvalue() != rexpr->getstringvalue());
     }
     return this;
 }
@@ -2693,73 +2693,73 @@ BaseExpr *OpNotEqualExpr::optimize()
 void OpNotEqualExpr::emit(Emit &e, const std::string &result)
 {
     std::string res= gentemp(REGint);
-    if (efirst->isnull() || esecond->isnull())
+    if (lexpr->isnull() || rexpr->isnull())
     {
         char type;
         std::string op;
-        if (efirst->isnull())
+        if (lexpr->isnull())
         {
-            type= esecond->checkresult();
+            type= rexpr->checkresult();
             op= gentemp(type);
-            esecond->emit(e, op);
+            rexpr->emit(e, op);
         }
         else
         {
-            type= efirst->checkresult();
+            type= lexpr->checkresult();
             op= gentemp(type);
-            efirst->emit(e, op);
+            lexpr->emit(e, op);
         }
         e << op_isnull(res, op) << '\n' <<
             "not " << res;
     }
-    else if (efirst->isinteger() && esecond->isinteger())
+    else if (lexpr->isinteger() && rexpr->isinteger())
     {
         std::string op1= gentemp(REGint);
         std::string op2= gentemp(REGint);
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
         e << res << " = isne " << op1 << " , " << op2;
     }
-    else if (efirst->isstring() && esecond->isstring())
+    else if (lexpr->isstring() && rexpr->isstring())
     {
         std::string op1= gentemp(REGstring);
         std::string op2= gentemp(REGstring);
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
         e << res << " = isne " << op1 << " , " << op2;
     }
     else
     {
         std::string op1= gentemp(REGvar);
         std::string op2= gentemp(REGvar);
-        if (efirst->isinteger() )
+        if (lexpr->isinteger() )
         {
             std::string aux= gentemp(REGint);
-            efirst->emit(e, aux);
+            lexpr->emit(e, aux);
             e << op_box(op1, aux) << '\n';
         }
-        else if (efirst->isstring() )
+        else if (lexpr->isstring() )
         {
             std::string aux= gentemp(REGstring);
-            efirst->emit(e, aux);
+            lexpr->emit(e, aux);
             e << op_box(op1, aux) << '\n';
         }
         else
-            efirst->emit(e, op1);
-        if (esecond->isinteger() )
+            lexpr->emit(e, op1);
+        if (rexpr->isinteger() )
         {
             std::string aux= gentemp(REGint);
-            esecond->emit(e, aux);
+            rexpr->emit(e, aux);
             e << op_box(op2, aux) << '\n';
         }
-        else if (esecond->isstring() )
+        else if (rexpr->isstring() )
         {
             std::string aux= gentemp(REGstring);
-            esecond->emit(e, aux);
+            rexpr->emit(e, aux);
             e << op_box(op2, aux) << '\n';
         }
         else
-            esecond->emit(e, op2);
+            rexpr->emit(e, op2);
         e << res << " = isne " << op1 << " , " << op2;
     }
     if (!result.empty())
@@ -2785,16 +2785,16 @@ private:
     }
     void emit(Emit &e, const std::string &result)
     {
-        char ltype = efirst->checkresult();
-        char rtype = esecond->checkresult();
+        char ltype = lexpr->checkresult();
+        char rtype = rexpr->checkresult();
         if (! ((ltype == REGvar && rtype == REGvar) ||
                 (ltype == REGstring && rtype == REGstring)))
             throw SyntaxError(std::string(positive ? "===" : "!==") +
                     " operator requires val types", start);
         std::string op1= gentemp(ltype);
         std::string op2= gentemp(rtype);
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
         std::string res= result.empty() ? gentemp(REGint) : result;
         e << res << " = " << (positive ? "issame" : "isntsame") <<
             ' ' << op1 << " , " << op2;
@@ -2824,24 +2824,24 @@ private:
 void ComparatorBaseExpr::emit(Emit &e, const std::string &result)
 {
     std::string res= result.empty() ? gentemp(REGint) : result;
-    char type1= efirst->checkresult();
-    char type2= esecond->checkresult();
+    char type1= lexpr->checkresult();
+    char type2= rexpr->checkresult();
     if (type1 == REGint || type2 == REGint)
     {
         std::string op1= gentemp(REGint);
         std::string op2= gentemp(REGint);
         if (type1 == REGint)
-            efirst->emit(e, op1);
+            lexpr->emit(e, op1);
         else {
             std::string aux= gentemp(REGvar);
-            efirst->emit(e, aux);
+            lexpr->emit(e, aux);
             e << op1 << " = " << aux << '\n';
         }
         if (type2 == REGint)
-            esecond->emit(e, op2);
+            rexpr->emit(e, op2);
         else {
             std::string aux= gentemp(REGvar);
-            esecond->emit(e, aux);
+            rexpr->emit(e, aux);
             e << op2 << " = " << aux << '\n';
         }
         emitop(e, res, op1, op2);
@@ -2853,17 +2853,17 @@ void ComparatorBaseExpr::emit(Emit &e, const std::string &result)
         std::string op1= gentemp(REGstring);
         std::string op2= gentemp(REGstring);
         if (type1 == REGstring)
-            efirst->emit(e, op1);
+            lexpr->emit(e, op1);
         else {
             std::string aux= gentemp(REGvar);
-            efirst->emit(e, aux);
+            lexpr->emit(e, aux);
             e << op1 << " = " << aux << '\n';
         }
         if (type2 == REGstring)
-            esecond->emit(e, op2);
+            rexpr->emit(e, op2);
         else {
             std::string aux= gentemp(REGvar);
-            esecond->emit(e, aux);
+            rexpr->emit(e, aux);
             e << op2 << " = " << aux << '\n';
         }
         emitop(e, res, op1, op2);
@@ -2874,8 +2874,8 @@ void ComparatorBaseExpr::emit(Emit &e, const std::string &result)
     {
         std::string op1= gentemp(REGvar);
         std::string op2= gentemp(REGvar);
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
         emitop(e, res, op1, op2);
         if (!result.empty())
             e << '\n';
@@ -2969,17 +2969,17 @@ public:
     {
     }
 private:
-    bool isinteger() const { return esecond->isinteger(); }
-    bool isstring() const { return esecond->isstring(); }
+    bool isinteger() const { return rexpr->isinteger(); }
+    bool isstring() const { return rexpr->isstring(); }
     void emit(Emit &e, const std::string &result)
     {
-        if (efirst->isidentifier())
+        if (lexpr->isidentifier())
         {
-            std::string varname= efirst->getidentifier();
+            std::string varname= lexpr->getidentifier();
             char type= checklocal(varname);
-            if (esecond->isindex())
+            if (rexpr->isindex())
             {
-                esecond->emit(e, varname);
+                rexpr->emit(e, varname);
                 if (! result.empty() )
                     e << result << " = " << varname << '\n';
                 return;
@@ -2987,10 +2987,10 @@ private:
             switch (type)
             {
             case REGint:
-                if (!(esecond->isinteger() || esecond->isstring()))
+                if (!(rexpr->isinteger() || rexpr->isstring()))
                 {
                     std::string r= gentemp(REGvar);
-                    esecond->emit(e, r);
+                    rexpr->emit(e, r);
                     e.annotate(start);
                     e << varname << " = " << r << '\n';
                     if (! result.empty() )
@@ -2998,11 +2998,11 @@ private:
                 }
                 else {
                     if (result.empty() )
-                        esecond->emit(e, varname);
+                        rexpr->emit(e, varname);
                     else
                     {
                         std::string r= gentemp(REGint);
-                        esecond->emit(e, r);
+                        rexpr->emit(e, r);
                         e.annotate(start);
                         e << varname << " = " << r << '\n';
                         e << result << " = " << r << '\n';
@@ -3010,15 +3010,15 @@ private:
                 }
                 break;
             case REGstring:
-                if (esecond->isnull())
+                if (rexpr->isnull())
                 {
                     e.annotate(start);
                     e << op_null(varname) << '\n';
                 }
-                else if (!(esecond->isinteger() || esecond->isstring()))
+                else if (!(rexpr->isinteger() || rexpr->isstring()))
                 {
                     std::string r= gentemp(REGstring);
-                    esecond->emit(e, r);
+                    rexpr->emit(e, r);
                     e.annotate(start);
                     e << varname << " = " << r << '\n';
                     if (! result.empty() )
@@ -3026,11 +3026,11 @@ private:
                 }
                 else {
                     if (result.empty() )
-                        esecond->emit(e, varname);
+                        rexpr->emit(e, varname);
                     else
                     {
                         std::string r= gentemp(REGstring);
-                        esecond->emit(e, r);
+                        rexpr->emit(e, r);
                         e.annotate(start);
                         e << varname << " = " << r << '\n';
                         e << result << " = " << r << '\n';
@@ -3038,23 +3038,23 @@ private:
                 }
                 break;
             default:
-                if (esecond->isnull())
+                if (rexpr->isnull())
                 {
                     e.annotate(start);
                     e << op_null(varname) << '\n';
                 }
-                else if (esecond->isinteger() || esecond->isstring() )
+                else if (rexpr->isinteger() || rexpr->isstring() )
                 {
                     e.annotate(start);
                     e << "box " << varname << ", ";
-                    esecond->emit(e, std::string());
+                    rexpr->emit(e, std::string());
                     e << '\n';
                     if (! result.empty() )
                         e << result << " = " << varname << '\n';
                 }
                 else
                 {
-                    esecond->emit(e, varname);
+                    rexpr->emit(e, varname);
                     if (! result.empty() )
                         e << result << " = " << varname << '\n';
                 }
@@ -3062,12 +3062,12 @@ private:
         }
         else
         {
-            if (!efirst->isleft() )
+            if (!lexpr->isleft() )
                 throw SyntaxError("Not a left-side expression for '='", start);
 
             std::string reg= result.empty() ? std::string() :
-                gentemp(esecond->checkresult());
-            efirst->emitassign(e, *esecond, reg);
+                gentemp(rexpr->checkresult());
+            lexpr->emitassign(e, *rexpr, reg);
             if (! result.empty() )
                 e << result << " = " << reg << '\n';
         }
@@ -3092,28 +3092,28 @@ private:
     }
     void emit(Emit &e, const std::string &/*result*/)
     {
-        if (efirst->isidentifier())
+        if (lexpr->isidentifier())
         {
-            std::string varname= efirst->getidentifier();
+            std::string varname= lexpr->getidentifier();
             char type= checklocal(varname);
             switch(type)
             {
             case REGint:
             case REGstring:
-                if (!(esecond->isinteger() || esecond->isstring()))
+                if (!(rexpr->isinteger() || rexpr->isstring()))
                 {
                     std::string r= gentemp(type == REGstring ? REGstring : REGvar);
-                    esecond->emit(e, r);
+                    rexpr->emit(e, r);
                     e.annotate(start);
                     e << varname << " = " << r << '\n';
                 }
                 else
-                    esecond->emit(e, varname);
+                    rexpr->emit(e, varname);
                 return;
             default:
                 e.annotate(start);
                 e << "assign " << varname << ", ";
-                esecond->emit(e, std::string());
+                rexpr->emit(e, std::string());
                 e << '\n';
                 return;
             }
@@ -3133,8 +3133,8 @@ public:
     {
     }
 private:
-    bool isinteger() const { return efirst->isinteger(); }
-    bool isstring() const { return efirst->isstring(); }
+    bool isinteger() const { return lexpr->isinteger(); }
+    bool isstring() const { return lexpr->isstring(); }
     BaseExpr *optimize()
     {
         optimize_operands();
@@ -3142,24 +3142,24 @@ private:
     }
     void emit(Emit &e, const std::string &result)
     {
-        if (efirst->isidentifier())
+        if (lexpr->isidentifier())
         {
-            if (efirst->isstring())
+            if (lexpr->isstring())
             {
                 std::string reg= gentemp(REGstring);
-                esecond->emit(e, reg);
-                std::string dest = efirst->getidentifier();
+                rexpr->emit(e, reg);
+                std::string dest = lexpr->getidentifier();
                 e << "concat " << dest << ", " << dest << ", " << reg << '\n';
             }
             else
             {
-                e << "add " << efirst->getidentifier() << ", ";
-                esecond->emit(e, "");
+                e << "add " << lexpr->getidentifier() << ", ";
+                rexpr->emit(e, "");
                 e << '\n';
             }
             if (! result.empty())
                 e << "assign " << result << ", " <<
-                    efirst->getidentifier() << '\n';
+                    lexpr->getidentifier() << '\n';
         }
     }
 };
@@ -3183,14 +3183,14 @@ private:
     }
     void emit(Emit &e, const std::string &result)
     {
-        if (efirst->isidentifier())
+        if (lexpr->isidentifier())
         {
-            e << "sub " << efirst->getidentifier() << ", ";
-            esecond->emit(e, "");
+            e << "sub " << lexpr->getidentifier() << ", ";
+            rexpr->emit(e, "");
             e << '\n';
             if (! result.empty())
                 e << "assign " << result << ", " <<
-                    efirst->getidentifier() << '\n';
+                    lexpr->getidentifier() << '\n';
         }
     }
 };
@@ -3208,10 +3208,10 @@ public:
 private:
     bool isstring () const
     {
-        return (efirst->isstring() &&
-            (esecond->isstring() || esecond->isinteger()) ) ||
-            (esecond->isstring() &&
-            (efirst->isstring() || efirst->isinteger()) );
+        return (lexpr->isstring() &&
+            (rexpr->isstring() || rexpr->isinteger()) ) ||
+            (rexpr->isstring() &&
+            (lexpr->isstring() || lexpr->isinteger()) );
     }
     BaseExpr *optimize();
     void emit(Emit &e, const std::string &result);
@@ -3222,18 +3222,18 @@ BaseExpr *OpAddExpr::optimize()
     //std::cerr << "OpAddExpr::optimize\n";
 
     optimize_operands();
-    if (efirst->issimple() && esecond->issimple())
+    if (lexpr->issimple() && rexpr->issimple())
     {
-        if (efirst->isliteralinteger() && esecond->isliteralinteger())
+        if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
         {
             //std::cerr << "OpAddExpr::optimize int\n";
             return new IntegerExpr(*this, start,
-                efirst->getintegervalue() + esecond->getintegervalue());
+                lexpr->getintegervalue() + rexpr->getintegervalue());
         }
-        if (efirst->isliteralstring() && esecond->isliteralstring())
+        if (lexpr->isliteralstring() && rexpr->isliteralstring())
         {
             //std::cerr << "OpAddExpr::optimize string\n";
-            Token newt= Token(TokenTQuoted, efirst->getstringvalue() + esecond->getstringvalue(), efirst->gettoken());
+            Token newt= Token(TokenTQuoted, lexpr->getstringvalue() + rexpr->getstringvalue(), lexpr->gettoken());
             return new StringExpr(*this, newt);
         }
     }
@@ -3242,13 +3242,13 @@ BaseExpr *OpAddExpr::optimize()
 
 void OpAddExpr::emit(Emit &e, const std::string &result)
 {
-    if (efirst->isstring() && esecond->isstring())
+    if (lexpr->isstring() && rexpr->isstring())
     {
         std::string res= result.empty() ? gentemp(REGstring) : result;
         std::string op1= gentemp(REGstring);
         std::string op2= gentemp(REGstring);
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
         e << res << " = concat " << op1 << " , " << op2;
     }
     else if (isinteger())
@@ -3256,29 +3256,29 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
         std::string res= result.empty() ? gentemp(REGint) : result;
         std::string op1= gentemp(REGint);
         std::string op2= gentemp(REGint);
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
         e << op_add(res, op1, op2);
     }
-    else if (efirst->isstring() && esecond->isinteger())
+    else if (lexpr->isstring() && rexpr->isinteger())
     {
         std::string res= result.empty() ? gentemp(REGstring) : result;
         std::string op1= gentemp(REGstring);
         std::string op2= gentemp(REGint);
         std::string op2_s= gentemp(REGstring);
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
         e << op_set(op2_s, op2) << '\n' <<
             res << " = concat " << op1 << " , " << op2_s;
     }
-    else if (efirst->isinteger() && esecond->isstring())
+    else if (lexpr->isinteger() && rexpr->isstring())
     {
         std::string res= result.empty() ? gentemp(REGstring) : result;
         std::string op1= gentemp(REGint);
         std::string op2= gentemp(REGstring);
         std::string op1_s= gentemp(REGstring);
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
         e << op_set(op1_s, op1) << '\n' <<
             res << " = concat " << op1_s << " , " << op2;
     }
@@ -3287,7 +3287,7 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
         std::string res= result.empty() ? gentemp(REGvar) : result;
         std::string op1= gentemp(REGvar);
         std::string op2= gentemp(REGvar);
-        switch (efirst->checkresult() )
+        switch (lexpr->checkresult() )
         {
         case REGint:
             e << op1 << " = new 'Integer'\n";
@@ -3298,7 +3298,7 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
         default:
             e << op_null(op1) << '\n';
         }
-        switch (esecond->checkresult() )
+        switch (rexpr->checkresult() )
         {
         case REGint:
             e << op2 << " = new 'Integer'\n";
@@ -3309,8 +3309,8 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
         default:
             e << op_null(op2) << '\n';
         }
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
         e << op_add(res, op1, op2);
     }
     if (!result.empty())
@@ -3337,13 +3337,13 @@ BaseExpr *OpSubExpr::optimize()
     //std::cerr << "OpSubExpr::optimize\n";
 
     optimize_operands();
-    if (efirst->issimple() && esecond->issimple())
+    if (lexpr->issimple() && rexpr->issimple())
     {
-        if (efirst->isliteralinteger() && esecond->isliteralinteger())
+        if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
         {
             //std::cerr << "OpSubExpr::optimize int\n";
-            int n1= efirst->getintegervalue();
-            int n2= esecond->getintegervalue();
+            int n1= lexpr->getintegervalue();
+            int n2= rexpr->getintegervalue();
             //std::cerr << n1 << " " << n2 << '\n';
             return new IntegerExpr(*this, start, n1 - n2);
         }
@@ -3356,8 +3356,8 @@ void OpSubExpr::emit(Emit &e, const std::string &result)
     std::string res= result.empty() ? gentemp(REGint) : result;
     std::string op1= gentemp(REGint);
     std::string op2= gentemp(REGint);
-    efirst->emit(e, op1);
-    esecond->emit(e, op2);
+    lexpr->emit(e, op1);
+    rexpr->emit(e, op2);
     e << op_sub(res, op1, op2);
     if (!result.empty())
         e << '\n';
@@ -3379,19 +3379,19 @@ private:
         std::string res= result.empty() ? gentemp(REGint) : result;
         std::string op1= gentemp(REGint);
         std::string op2= gentemp(REGint);
-        if (esecond->issimple())
+        if (rexpr->issimple())
         {
-            efirst->emit(e, op1);
-            esecond->emit(e, op2);
+            lexpr->emit(e, op1);
+            rexpr->emit(e, op2);
             e << res << " = or " << op1 << ", " << op2;
         }
         else
         {
             std::string l = genlocallabel();
-            efirst->emit(e, res);
+            lexpr->emit(e, res);
             e.annotate(start);
             e << "if " << res << " goto " << l << '\n';
-            esecond->emit(e, res);
+            rexpr->emit(e, res);
             e << l << ":\n";
         }
         if (!result.empty())
@@ -3416,8 +3416,8 @@ private:
         std::string res= result.empty() ? gentemp(REGint) : result;
         std::string op1= gentemp(REGint);
         std::string op2= gentemp(REGint);
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
         e << res << " = band " << op1 << ", " << op2;
         if (!result.empty())
             e << '\n';
@@ -3441,8 +3441,8 @@ private:
         std::string res= result.empty() ? gentemp(REGint) : result;
         std::string op1= gentemp(REGint);
         std::string op2= gentemp(REGint);
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
         e << res << " = bor " << op1 << ", " << op2;
         if (!result.empty())
             e << '\n';
@@ -3457,15 +3457,15 @@ public:
     OpBoolAndExpr(BlockBase &block,
             Token t, BaseExpr *first, BaseExpr *second) :
         OpBaseExpr(block, t),
-        efirst(first),
-        esecond(second)
+        lexpr(first),
+        rexpr(second)
     { }
 private:
     bool isinteger() const { return true; }
     BaseExpr *optimize()
     {
-        optimize_branch(efirst);
-        optimize_branch(esecond);
+        optimize_branch(lexpr);
+        optimize_branch(rexpr);
         return this;
     }
     void emit(Emit &e, const std::string &result)
@@ -3473,27 +3473,27 @@ private:
         std::string res= result.empty() ? gentemp(REGint) : result;
         std::string op1= gentemp(REGint);
         std::string op2= gentemp(REGint);
-        if (esecond->issimple())
+        if (rexpr->issimple())
         {
-            efirst->emit(e, op1);
-            esecond->emit(e, op2);
+            lexpr->emit(e, op1);
+            rexpr->emit(e, op2);
             e.annotate(start);
             e << res << " = and " << op1 << ", " << op2;
         }
         else
         {
             std::string l = genlocallabel();
-            efirst->emit(e, res);
+            lexpr->emit(e, res);
             e.annotate(start);
             e << "unless " << res << " goto " << l << '\n';
-            esecond->emit(e, res);
+            rexpr->emit(e, res);
             e << l << ":\n";
         }
         if (!result.empty())
             e << '\n';
     }
-    BaseExpr *efirst;
-    BaseExpr *esecond;
+    BaseExpr *lexpr;
+    BaseExpr *rexpr;
 };
 
 //**********************************************************************
@@ -3508,11 +3508,11 @@ public:
 private:
     bool isinteger() const
     {
-        return efirst->isinteger() && esecond->isinteger();
+        return lexpr->isinteger() && rexpr->isinteger();
     }
     bool isstring() const
     {
-        if (efirst->isstring() && esecond->isinteger())
+        if (lexpr->isstring() && rexpr->isinteger())
             return true;
         else
             return false;
@@ -3520,10 +3520,10 @@ private:
     BaseExpr *optimize()
     {
         optimize_operands();
-        if (efirst->isliteralinteger() && esecond->isliteralinteger())
+        if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
         {
             return new IntegerExpr(*this, start,
-                efirst->getintegervalue() * esecond->getintegervalue());
+                lexpr->getintegervalue() * rexpr->getintegervalue());
         }
         return this;
     }
@@ -3534,18 +3534,18 @@ private:
             std::string res= result.empty() ? gentemp(REGstring) : result;
             std::string op1= gentemp(REGstring);
             std::string op2= gentemp(REGint);
-            efirst->emit(e, op1);
-            esecond->emit(e, op2);
+            lexpr->emit(e, op1);
+            rexpr->emit(e, op2);
             e << "repeat " << res << ", " << op1 << ", " << op2;
         }
         else
         {
-            char type= efirst->isinteger() && esecond->isinteger() ? REGint : REGvar;
+            char type= lexpr->isinteger() && rexpr->isinteger() ? REGint : REGvar;
             std::string res= result.empty() ? gentemp(type) : result;
             std::string op1= gentemp(type);
             std::string op2= gentemp(type);
-            efirst->emit(e, op1);
-            esecond->emit(e, op2);
+            lexpr->emit(e, op1);
+            rexpr->emit(e, op2);
             e << op_mul(res, op1, op2);
         }
         if (!result.empty())
@@ -3567,24 +3567,24 @@ public:
 private:
     void emit(Emit &e, const std::string &result)
     {
-        char type= efirst->isinteger() && esecond->isinteger() ? REGint : REGvar;
+        char type= lexpr->isinteger() && rexpr->isinteger() ? REGint : REGvar;
         std::string res= result.empty() ? gentemp(type) : result;
         std::string op1= gentemp(type);
         std::string op2= gentemp(type);
-        if (efirst->isinteger() && type != REGint) {
+        if (lexpr->isinteger() && type != REGint) {
             std::string i1= gentemp(REGint);
-            efirst->emit(e, i1);
+            lexpr->emit(e, i1);
             e << op_box(op1, i1);
         }
         else
-            efirst->emit(e, op1);
-        if (esecond->isinteger() && type != REGint) {
+            lexpr->emit(e, op1);
+        if (rexpr->isinteger() && type != REGint) {
             std::string i2= gentemp(REGint);
-            esecond->emit(e, i2);
+            rexpr->emit(e, i2);
             e << op_box(op2, i2) << '\n';
         }
         else
-            esecond->emit(e, op2);
+            rexpr->emit(e, op2);
         if (result.empty())
             e << "new " << res << ", 'Integer'" << '\n';
         e << op_div(res, op1, op2);
@@ -3606,12 +3606,12 @@ public:
 private:
     void emit(Emit &e, const std::string &result)
     {
-        char type= efirst->isinteger() && esecond->isinteger() ? REGint : REGvar;
+        char type= lexpr->isinteger() && rexpr->isinteger() ? REGint : REGvar;
         std::string res= result.empty() ? gentemp(type) : result;
         std::string op1= gentemp(type);
         std::string op2= gentemp(type);
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
         e << op_mod(res, op1, op2);
         if (!result.empty())
             e << '\n';
@@ -3632,12 +3632,12 @@ public:
 private:
     void emit(Emit &e, const std::string &result)
     {
-        char type= efirst->isinteger() && esecond->isinteger() ? REGint : REGvar;
+        char type= lexpr->isinteger() && rexpr->isinteger() ? REGint : REGvar;
         std::string res= result.empty() ? gentemp(type) : result;
         std::string op1= gentemp(type);
         std::string op2= gentemp(type);
-        efirst->emit(e, op1);
-        esecond->emit(e, op2);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
         e << op_cmod(res, op1, op2);
         if (!result.empty())
             e << '\n';
