@@ -219,11 +219,7 @@ class Token
         default:
             r = '(unknown)';
         }
-        r += ' at ';
-        r += self.file;
-        r += ' line ';
-        r += self.line;
-        return r;
+        return r + ' at ' + string(self.file) + ' line ' + string(self.line);
     }
 }
 
@@ -257,8 +253,7 @@ function getquoted(tk, string start, int line)
             string c2 = tk.getchar();
             if (c2 == '' || c2 == "\n")
                 TokenError('Unterminated string', tk, line);
-            s+= c;
-            s+= c2;
+            s+= c + c2;
         }
         else
             s+= c;
@@ -316,15 +311,13 @@ function getheredoc(tk, string start, int linenum)
                 c = '\\';
                 break;
             }
-            line = line + c;
+            line += c;
             c = tk.getchar();
         }
         if (c == '')
             TokenError('Unterminated heredoc', tk, linenum);
-        if (line != mark) {
-            content += line;
-            content += '\n';
-        }
+        if (line != mark)
+            content += line + '\n';
     } while (line != mark);
     return newToken(TypeQuoted, content, tk.filename, linenum);
 }
