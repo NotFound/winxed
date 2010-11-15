@@ -12,23 +12,19 @@ function debugmsg(string s)
 
 function run_test(string filename, int stage)
 {
-    var fh;
-
-    string strstage = stage;
-    string s= 'parrot winxedrun.pbc --stage=' + strstage + ' ' + filename;
+    string s= 'parrot winxedrun.pbc --stage=' + stage + ' ' + filename;
     debugmsg(s);
 
-    fh= open(s, 'rp');
+    var fh= open(s, 'rp');
     string test_output= fh.readall();
     fh.close();
-    var output= split("\n", test_output);
-    return output;
+    return split("\n", test_output);
 }
 
 function max_length(var args)
 {
     int l= 0;
-    for (var filename in args) {
+    for (string filename in args) {
         int i = length(filename);
         if (i > l)
             l= i;
@@ -42,18 +38,14 @@ function run_test_list(var args, int verbose, int stage)
     int total_failed= 0;
     int total_files= 0;
     int failed_files= 0;
-    int curr_test;
-    int passed;
-    int failed;
 
     int l= max_length(args) + 2;
-    for (var filename in args)
-    {
+    for (string filename in args) {
         print(filename, '.' * (l - length(filename)));
         ++total_files;
-        passed= 0;
-        failed= 0;
-        curr_test= 0;
+        int passed= 0;
+        int failed= 0;
+        int curr_test= 0;
         var output= run_test(filename, stage);
         var plan_parts= split('..', output[0]);
         int num_tests = plan_parts[1];
@@ -121,8 +113,7 @@ function getOS()
 function add_file(var result, string path)
 {
     // Add a file to result list only if it has a .t extension.
-    if (length(path) > 2)
-        if (substr(path, -2) == '.t')
+    if (length(path) > 2 && substr(path, -2) == '.t')
             result.push(path);
 }
 
@@ -139,13 +130,10 @@ function build_from_dir(var result, string path, int recursive)
     var dir = os.readdir(path);
     for (string dirent in dir)
         if ((dirent != '.') && (dirent != '..')) {
-            string newpath;
-            if (path == '.') newpath = dirent;
-            else newpath = path + '/' + dirent;
+            string newpath = (path == '.') ? dirent : path + '/' + dirent;
             var st= os.stat(newpath);
             int mode = st[2];
-            int isdir = (mode & 16384) != 0;
-            if (isdir)
+            if ((mode & 16384) != 0)
                 dirpaths.push(newpath);
             else
                 filepaths.push(newpath);
@@ -168,8 +156,7 @@ function build_file_list(var result, var args, int recursive)
     for (string path in args) {
         var st= os.stat(path);
         int mode = st[2];
-        int isdir = (mode & 16384) != 0;
-        if (isdir && recursive)
+        if ((mode & 16384) && recursive)
             var newlist= build_from_dir(result, path, recursive);
         else
             result.push(path);
@@ -198,7 +185,7 @@ function main(var argv)
     if (argc == 0)
         argv.push('.');
 
-    var args= new 'ResizableStringArray';
+    string args[];
     build_file_list(args, argv, recursive);
 
     run_test_list(args, verbose, stage);
