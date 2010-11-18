@@ -394,7 +394,7 @@ __label_11: # for end
 .annotate 'line', 126
 # try: create handler
 new $P13, 'ExceptionHandler'
-set_addr $P13, __label_15
+set_label $P13, __label_15
 push_eh $P13
 # try: begin
 # {
