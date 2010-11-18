@@ -5993,7 +5993,7 @@ class TryStatement : BlockStatement
         e.comment('try: create handler');
 
         e.say('new ', reghandler, ", 'ExceptionHandler'");
-        e.say('set_addr ', reghandler, ', ', labelhandler);
+        e.say('set_label ', reghandler, ', ', labelhandler);
 
         if (self.modifiers != null) {
             var modiflist = self.modifiers.getlist();

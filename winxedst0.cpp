@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 15-nov-2010
+// Revision 18-nov-2010
 
 // Winxed compiler stage 0.
 
@@ -5633,7 +5633,7 @@ void TryStatement::emit (Emit &e)
 
     std::string reghandler= gentemp(REGvar);
     e << reghandler << " = new 'ExceptionHandler'\n"
-        "set_addr " << reghandler << ", " << handler << '\n';
+        "set_label " << reghandler << ", " << handler << '\n';
     static const char * const ehattrs[] = {
         "min_severity", "max_severity"
     };
