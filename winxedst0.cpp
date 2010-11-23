@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 18-nov-2010
+// Revision 23-nov-2010
 
 // Winxed compiler stage 0.
 
@@ -1088,6 +1088,19 @@ private:
     }
 };
 
+BaseStatement *addtomulti(BaseStatement *oldst, BaseStatement *newst)
+{
+    if (! oldst)
+        return newst;
+    else if (MultiStatement *multi = dynamic_cast<MultiStatement *>(oldst))
+    {
+        multi->push(newst);
+        return multi;
+    }
+    else
+        return new MultiStatement(oldst, newst);
+}
+
 //**********************************************************************
 
 enum ClassSpecifierType
@@ -1550,6 +1563,22 @@ private:
 
 //**********************************************************************
 
+template <class DECST> 
+BaseStatement *parseDeclare(Block & block, const Token &st, Tokenizer &tk)
+{
+    BaseStatement *multi = 0;
+    Token t;
+    do {
+       BaseStatement *item = new DECST(block, st, tk);
+       multi = addtomulti(multi, item);
+       t= tk.get();
+    } while (t.isop(','));
+    RequireOp (';', t);
+    return multi;
+}
+
+//**********************************************************************
+
 class VarStatement : public ValueStatement
 {
 public:
@@ -1937,11 +1966,11 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
     switch(nativetype(t))
     {
     case REGint:
-        return new IntStatement(block, t, tk);
+        return parseDeclare<IntStatement>(block, t, tk);
     case REGfloat:
-        return new FloatStatement(block, t, tk);
+        return parseDeclare<FloatStatement>(block, t, tk);
     case REGstring:
-        return new StringStatement(block, t, tk);
+        return parseDeclare<StringStatement>(block, t, tk);
     case REGvar:
         return new VarStatement(block, t, tk);
     default: /* Not a declaration */ ;
@@ -5069,7 +5098,7 @@ IntStatement::IntStatement(Block &block,  const Token &st, Tokenizer &tk) :
             t= tk.get();
         }
     }
-    RequireOp (';', t);
+    tk.unget(t);
 }
 
 void IntStatement::emit (Emit &e)
@@ -5101,7 +5130,7 @@ FloatStatement::FloatStatement(Block &block,  const Token &st, Tokenizer &tk) :
             t= tk.get();
         }
     }
-    RequireOp (';', t);
+    tk.unget(t);
 }
 
 void FloatStatement::emit (Emit &e)
@@ -5133,7 +5162,7 @@ StringStatement::StringStatement(Block & block, const Token &st, Tokenizer &tk) 
             t= tk.get();
         }
     }
-    RequireOp (';', t);
+    tk.unget(t);
 }
 
 void StringStatement::emit (Emit &e)
@@ -5270,15 +5299,7 @@ BaseStatement * parseConst(Block & block, const Token &st, Tokenizer &tk)
     BaseStatement *multi = 0;
     do {
         BaseStatement *statement = new ConstStatement(block, st, tk, type);
-        if (multi)
-        {
-            if (MultiStatement *ms = dynamic_cast<MultiStatement *>(multi))
-                ms->push(statement);
-            else
-                multi = new MultiStatement(multi, statement);
-        }
-        else
-            multi = statement;
+        multi = addtomulti(multi, statement);
         t= tk.get();
     } while (t.isop(','));
     RequireOp (';', t);

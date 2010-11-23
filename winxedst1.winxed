@@ -409,8 +409,7 @@ function getnumber(tk, string start, int line)
         c= tk.getchar();
     } while (isdigit(c));
     if (s == '0' && (c == 'x' || c == 'X')) {
-        int hexval = 0;
-        int h;
+        int hexval = 0, h;
         c = tk.getchar();
         while ((h= hexdigit(c)) >= 0) {
             hexval = hexval * 16 + h;
@@ -622,14 +621,15 @@ class Tokenizer
 //*********************************************
 
 // Register types
-const string REGint =     'I';
-const string REGfloat =   'N';
-const string REGstring =  'S';
-const string REGvar =     'P';
+const string
+    REGint =     'I',
+    REGfloat =   'N',
+    REGstring =  'S',
+    REGvar =     'P',
 // Pseudotypes for predefined functions
-const string REGarglist = '*';
-const string REGany     = '?';
-const string REGnone    = 'v'; // void return
+    REGarglist = '*',
+    REGany     = '?',
+    REGnone    = 'v'; // void return
 
 function typetoregcheck(string type)
 {
@@ -826,8 +826,7 @@ function floatresult(string r1, string r2)
     return result;
 }
 
-const string NULL = 'null';
-const string SELF = 'self';
+const string NULL = 'null', SELF = 'self';
 
 //*********************************************
 //         Predefined functions
@@ -1553,11 +1552,11 @@ function parseStatement(tk, owner)
     case 'var':
         return parseVar(t, tk, owner);
     case 'string':
-        return new StringStatement(t, tk, owner);
+        return parseString(t, tk, owner);
     case 'int':
-        return new IntStatement(t, tk, owner);
+        return parseInt(t, tk, owner);
     case 'float':
-        return new FloatStatement(t, tk, owner);
+        return parseFloat(t, tk, owner);
     case 'return':
         return new ReturnStatement(t, tk, owner);
     case 'yield':
@@ -3450,7 +3449,6 @@ class OpAddExpr : OpBinaryExpr
                 var etok = lexpr.strval;
                 var rtok = rexpr.strval;
                 var t;
-                int newtype;
                 string es = etok.str;
                 string rs = rtok.str;
                 if ((etok instanceof TypeSingleQuoted) && (rtok instanceof TypeSingleQuoted))
@@ -3632,8 +3630,7 @@ class OpMulExpr : OpBinaryExpr
         var rexpr = self.rexpr;
         string ltype = lexpr.checkResult();
         string rtype = rexpr.checkResult();
-        string lreg;
-        string rreg;
+        string lreg, rreg;
         if (ltype == REGstring) {
             lreg = lexpr.emit_get(e);
             rreg = rexpr.emit_get(e);
@@ -3681,8 +3678,7 @@ class OpMulExpr : OpBinaryExpr
             return;
         }
 
-        int nleft;
-        int nright;
+        int nleft, nright;
         if ((!lexpr.issimple()) || lexpr.isidentifier()) {
             lreg= self.tempreg(self.checkResult());
             lexpr.emit(e, lreg);
@@ -4043,8 +4039,7 @@ class CallExpr : Expr
         for (int i = 0; i < n; ++i) {
             string a = argreg[i];
             e.print(sep, a);
-            int isflat = 0;
-            int isnamed = 0;
+            int isflat = 0, isnamed = 0;
             string setname = '';
             var modifiers = args[i].modifiers;
             if (modifiers != null) {
@@ -6149,8 +6144,7 @@ class DeclareStatement : Statement
             }
             t = tk.get();
         }
-        if (!t.isop(';'))
-            SyntaxError("Expected ';'", t);
+        tk.unget(t);
     }
     function optimize()
     {
@@ -6237,6 +6231,20 @@ class DeclareStatement : Statement
     {
         InternalError('DeclareStatement.defaultinit must be overriden');
     }
+}
+
+function parseDeclareHelper(fun, start, tk, owner)
+{
+    var next;
+    var r = null;
+    do {
+        var item = fun(start, tk, owner);
+        r = addtomulti(r, item);
+        next = tk.get();
+    } while (next.isop(','));
+    if (!next.isop(';'))
+        SyntaxError("Expected ';'", next);
+    return r;
 }
 
 //*********************************************
@@ -6451,6 +6459,17 @@ class StringStatement : DeclareStatement
     }
 }
 
+function newStringSt(start, tk, owner)
+{
+    return new StringStatement(start, tk, owner);
+}
+
+function parseString(start, tk, owner)
+{
+    using static newStringSt;
+    return parseDeclareHelper(newStringSt, start, tk, owner);
+}
+
 //*********************************************
 //            IntStatement
 //*********************************************
@@ -6470,6 +6489,17 @@ class IntStatement : DeclareStatement
     }
 }
 
+function newIntSt(start, tk, owner)
+{
+    return new IntStatement(start, tk, owner);
+}
+
+function parseInt(start, tk, owner)
+{
+    using static newIntSt;
+    return parseDeclareHelper(newIntSt, start, tk, owner);
+}
+
 //*********************************************
 //            FloatStatement
 //*********************************************
@@ -6479,6 +6509,7 @@ class FloatStatement : DeclareStatement
     function FloatStatement(t, tk, owner)
     {
         self.t_reg = REGfloat;
+ 
         self.t_name = 'float';
         self.t_array = 'Float';
         self.parse(t, tk, owner);
@@ -6487,6 +6518,17 @@ class FloatStatement : DeclareStatement
     {
         e.emitnull(self.reg);
     }
+}
+
+function newFloatSt(start, tk, owner)
+{
+    return new FloatStatement(start, tk, owner);
+}
+
+function parseFloat(start, tk, owner)
+{
+    using static newFloatSt;
+    return parseDeclareHelper(newFloatSt, start, tk, owner);
 }
 
 //*********************************************
@@ -7384,9 +7426,7 @@ class NamespaceBase : VarContainer
     }
     function parse(tk)
     {
-        int balance1= 0;
-        int balance2= 0;
-        int balance3= 0;
+        int balance1= 0, balance2= 0, balance3= 0;
         var t;
         while (t= tk.get())
         {
