@@ -3625,12 +3625,15 @@ class OpMulExpr : OpBinaryExpr
     {
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
-        var ltype = lexpr.checkResult();
+        string ltype = lexpr.checkResult();
+        string rtype = rexpr.checkResult();
+        string lreg;
+        string rreg;
         if (ltype == REGstring) {
-            string lreg = lexpr.emit_get(e);
-            string rreg = rexpr.emit_get(e);
+            lreg = lexpr.emit_get(e);
+            rreg = rexpr.emit_get(e);
             string rval;
-            switch (rexpr.checkResult()) {
+            switch (rtype) {
             case REGint:
                 rval = rreg;
                 break;
@@ -3642,14 +3645,20 @@ class OpMulExpr : OpBinaryExpr
             e.say('repeat ', result, ', ', lreg, ', ', rval);
             return;
         }
+        if (ltype == rtype && (ltype == REGint || ltype == REGfloat || ltype == REGvar)) {
+            lreg = lexpr.emit_get(e);
+            rreg = rexpr.emit_get(e);
+            e.say('mul ', result, ', ', lreg, ', ', rreg);
+            return;
+        }
 
         // Quick fix for some float mul
         // TODO: rewrite this mess
         if (ltype == REGfloat) {
-            string lreg = lexpr.emit_get(e);
-            string rreg = rexpr.emit_get(e);
+            lreg = lexpr.emit_get(e);
+            rreg = rexpr.emit_get(e);
             string rval;
-            switch (rexpr.checkResult()) {
+            switch (rtype) {
             case REGint:
                 rval = self.tempreg(REGfloat);
                 e.emitset(rval, rreg);
@@ -3667,38 +3676,35 @@ class OpMulExpr : OpBinaryExpr
             return;
         }
 
-        string rleft;
-        string rright;
         int nleft;
         int nright;
         if ((!lexpr.issimple()) || lexpr.isidentifier()) {
-            rleft= self.tempreg(self.checkResult());
-            lexpr.emit(e, rleft);
+            lreg= self.tempreg(self.checkResult());
+            lexpr.emit(e, lreg);
         }
         else {
             nleft= lexpr.getIntegerValue();
-            rleft= nleft;
+            lreg= nleft;
         }
         if ((!rexpr.issimple()) || rexpr.isidentifier()) {
-            rright= self.tempreg(self.checkResult());
-            rexpr.emit(e, rright);
+            rreg= self.tempreg(self.checkResult());
+            rexpr.emit(e, rreg);
         }
         else {
-            string type = rexpr.checkResult();
-            switch(type) {
+            switch(rtype) {
             case REGstring:
-                rright= self.tempreg(self.checkResult());
-                rexpr.emit(e, rright);
+                rreg= self.tempreg(self.checkResult());
+                rexpr.emit(e, rreg);
                 break;
             case REGint:
             default:
                 nright= rexpr.getIntegerValue();
-                rright= nright;
+                rreg= nright;
                 break;
             }
         }
         self.annotate(e);
-        e.say('mul ', result, ', ', rleft, ', ', rright);
+        e.say('mul ', result, ', ', lreg, ', ', rreg);
     }
 }
 
