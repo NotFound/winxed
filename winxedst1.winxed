@@ -783,6 +783,11 @@ class Emit
         string ins = "add " + dst + ", " + src1 + ", " + src2 + "\n";
         self.handle.print(ins);
     }
+    function emitmul(string dst, string src1, string src2)
+    {
+        string ins = "mul " + dst + ", " + src1 + ", " + src2 + "\n";
+        self.handle.print(ins);
+    }
     function emitconcat1(string dst, string src)
     {
         string ins = "concat " + dst + ", " + src + "\n";
@@ -3648,7 +3653,7 @@ class OpMulExpr : OpBinaryExpr
         if (ltype == rtype && (ltype == REGint || ltype == REGfloat || ltype == REGvar)) {
             lreg = lexpr.emit_get(e);
             rreg = rexpr.emit_get(e);
-            e.say('mul ', result, ', ', lreg, ', ', rreg);
+            e.emitmul(result, lreg, rreg);
             return;
         }
 
@@ -3672,7 +3677,7 @@ class OpMulExpr : OpBinaryExpr
                 e.emitset(rval, rreg);
             }
             self.annotate(e);
-            e.say('mul ', result, ', ', lreg, ', ', rval);
+            e.emitmul(result, lreg, rval);
             return;
         }
 
@@ -3704,7 +3709,7 @@ class OpMulExpr : OpBinaryExpr
             }
         }
         self.annotate(e);
-        e.say('mul ', result, ', ', lreg, ', ', rreg);
+        e.emitmul(result, lreg, rreg);
     }
 }
 
