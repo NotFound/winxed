@@ -13,102 +13,118 @@
 .param int __ARG_2
 
 .annotate 'file', 'winxed_installed.winxed'
-.annotate 'line', 13
+.annotate 'line', 15
 # Body
 # {
-.annotate 'line', 15
+.annotate 'line', 17
 # var options: $P1
 root_new $P3, ['parrot';'ResizablePMCArray']
-.annotate 'line', 16
+.annotate 'line', 18
 root_new $P5, ['parrot';'ResizablePMCArray']
 box $P6, 'c'
 $P5.'push'($P6)
 box $P6, 'Compile only. Same as --target=pir'
 $P5.'push'($P6)
-.annotate 'line', 15
-$P3.'push'($P5)
 .annotate 'line', 17
+$P3.'push'($P5)
+.annotate 'line', 19
 root_new $P7, ['parrot';'ResizablePMCArray']
 box $P8, 'e=s'
 $P7.'push'($P8)
 box $P8, 'Evaluate'
 $P7.'push'($P8)
-.annotate 'line', 15
+.annotate 'line', 17
 $P3.'push'($P7)
-.annotate 'line', 18
-root_new $P9, ['parrot';'ResizablePMCArray']
-box $P10, 'help'
-$P9.'push'($P10)
-box $P10, 'Show this help'
-$P9.'push'($P10)
-.annotate 'line', 15
-$P3.'push'($P9)
-set $P1, $P3
 .annotate 'line', 20
-setattribute self, 'options', $P1
+root_new $P9, ['parrot';'ResizablePMCArray']
+box $P10, 'L=s'
+$P9.'push'($P10)
+box $P10, 'Add to parrot library search path'
+$P9.'push'($P10)
+.annotate 'line', 17
+$P3.'push'($P9)
 .annotate 'line', 21
-iter $P11, $P1
-set $P11, 0
-__label_0: # for iteration
-unless $P11 goto __label_1
-shift $P2, $P11
-$P4 = $P2[0]
+root_new $P11, ['parrot';'ResizablePMCArray']
+box $P12, 'I=s'
+$P11.'push'($P12)
+box $P12, 'Add to parrot include search path'
+$P11.'push'($P12)
+.annotate 'line', 17
+$P3.'push'($P11)
 .annotate 'line', 22
+root_new $P13, ['parrot';'ResizablePMCArray']
+box $P14, 'help'
+$P13.'push'($P14)
+box $P14, 'Show this help'
+$P13.'push'($P14)
+.annotate 'line', 17
+$P3.'push'($P13)
+set $P1, $P3
+.annotate 'line', 24
+setattribute self, 'options', $P1
+.annotate 'line', 25
+iter $P15, $P1
+set $P15, 0
+__label_0: # for iteration
+unless $P15 goto __label_1
+shift $P2, $P15
+$P4 = $P2[0]
+.annotate 'line', 26
 self.'push_string'($P4)
 goto __label_0
 __label_1: # endfor
-.annotate 'line', 23
+.annotate 'line', 27
 self.'notOptStop'(1)
-.annotate 'line', 24
+.annotate 'line', 28
 $P6 = __ARG_1.'shift'()
 setattribute self, 'name', $P6
-.annotate 'line', 25
+.annotate 'line', 29
 $P8 = self.'get_options'(__ARG_1)
 setattribute self, 'opts', $P8
 # }
-.annotate 'line', 26
+.annotate 'line', 30
 
 .end # Options
 
 
 .sub 'get' :method
 
-.annotate 'line', 27
+.annotate 'line', 31
 # Body
 # {
-.annotate 'line', 29
+.annotate 'line', 33
 getattribute $P1, self, 'opts'
 .return($P1)
 # }
-.annotate 'line', 30
+.annotate 'line', 34
 
 .end # get
 
 
 .sub 'showhelp' :method
 
-.annotate 'line', 31
+.annotate 'line', 35
 # Body
 # {
-.annotate 'line', 33
+.annotate 'line', 37
 getattribute $P2, self, 'name'
 # predefined say
 print 'Usage: '
 print $P2
 say ' [options] [program] [args]'
 # predefined say
-.annotate 'line', 34
+.annotate 'line', 38
 say '  Available options:'
-.annotate 'line', 35
+.annotate 'line', 39
 # int l: $I1
 null $I1
-.annotate 'line', 36
+.annotate 'line', 40
 # int i: $I2
 null $I2
-.annotate 'line', 37
+.annotate 'line', 41
 # var o: $P1
 null $P1
-.annotate 'line', 38
+.annotate 'line', 42
 getattribute $P2, self, 'options'
 iter $P3, $P2
 set $P3, 0
@@ -116,19 +132,19 @@ __label_0: # for iteration
 unless $P3 goto __label_1
 shift $P1, $P3
 # {
-.annotate 'line', 39
+.annotate 'line', 43
 $S2 = $P1[0]
 # predefined length
 length $I3, $S2
 add $I2, $I3, 4
-.annotate 'line', 40
+.annotate 'line', 44
 le $I2, $I1, __label_2
 set $I1, $I2
 __label_2: # endif
 # }
 goto __label_0
 __label_1: # endfor
-.annotate 'line', 42
+.annotate 'line', 46
 getattribute $P4, self, 'options'
 iter $P5, $P4
 set $P5, 0
@@ -136,10 +152,10 @@ __label_3: # for iteration
 unless $P5 goto __label_4
 shift $P1, $P5
 # {
-.annotate 'line', 43
+.annotate 'line', 47
 # string s: $S1
 $S1 = $P1[0]
-.annotate 'line', 44
+.annotate 'line', 48
 # predefined length
 length $I4, $S1
 isgt $I3, $I4, 1
@@ -156,11 +172,11 @@ __label_5: # else
 concat $S0, '-', $S1
 set $S1, $S0
 __label_6: # endif
-.annotate 'line', 48
+.annotate 'line', 52
 # predefined length
 length $I4, $S1
 sub $I2, $I1, $I4
-.annotate 'line', 49
+.annotate 'line', 53
 repeat $S3, ' ', $I2
 $P4 = $P1[1]
 # predefined say
@@ -173,20 +189,20 @@ say $P4
 goto __label_3
 __label_4: # endfor
 # }
-.annotate 'line', 51
+.annotate 'line', 55
 
 .end # showhelp
 
 .sub Winxed_class_init :anon :load :init
 newclass $P0, [ 'Options' ]
-.annotate 'line', 7
+.annotate 'line', 9
 get_class $P1, [ 'Getopt'; 'Obj' ]
 addparent $P0, $P1
-.annotate 'line', 9
-addattribute $P0, 'name'
-.annotate 'line', 10
-addattribute $P0, 'options'
 .annotate 'line', 11
+addattribute $P0, 'name'
+.annotate 'line', 12
+addattribute $P0, 'options'
+.annotate 'line', 13
 addattribute $P0, 'opts'
 .end
 .namespace [ ]
@@ -195,17 +211,17 @@ addattribute $P0, 'opts'
 .param string __ARG_1
 .param string __ARG_2
 
-.annotate 'line', 55
+.annotate 'line', 59
 # Body
 # {
-.annotate 'line', 59
+.annotate 'line', 63
 # string newname: $S1
 null $S1
-.annotate 'line', 60
+.annotate 'line', 64
 # int l: $I1
 # predefined length
 length $I1, __ARG_1
-.annotate 'line', 61
+.annotate 'line', 65
 isgt $I2, $I1, 7
 unless $I2 goto __label_2
 # predefined substr
@@ -213,7 +229,7 @@ substr $S2, __ARG_1, -7
 iseq $I2, $S2, '.winxed'
 __label_2:
 unless $I2 goto __label_0
-.annotate 'line', 62
+.annotate 'line', 66
 sub $I3, $I1, 7
 # predefined substr
 substr $S3, __ARG_1, 0, $I3
@@ -224,10 +240,10 @@ __label_0: # else
 concat $S0, __ARG_1, __ARG_2
 set $S1, $S0
 __label_1: # endif
-.annotate 'line', 65
+.annotate 'line', 69
 .return($S1)
 # }
-.annotate 'line', 66
+.annotate 'line', 70
 
 .end # extname
 
@@ -235,196 +251,244 @@ __label_1: # endif
 .sub 'main' :main
 .param pmc __ARG_1
 
-.annotate 'line', 68
+.annotate 'line', 72
 # Body
 # {
-.annotate 'line', 70
+.annotate 'line', 74
 # var optionset: $P1
-new $P12, [ 'Options' ]
-$P12.'Options'(__ARG_1, 0)
-set $P1, $P12
-.annotate 'line', 71
+new $P20, [ 'Options' ]
+$P20.'Options'(__ARG_1, 0)
+set $P1, $P20
+.annotate 'line', 75
 # var options: $P2
 $P2 = $P1.'get'()
-.annotate 'line', 73
+.annotate 'line', 77
 # var help: $P3
 $P3 = $P2['help']
-.annotate 'line', 74
+.annotate 'line', 78
 # var compileonly: $P4
 $P4 = $P2['c']
-.annotate 'line', 75
+.annotate 'line', 79
 # var eval: $P5
 $P5 = $P2['e']
-.annotate 'line', 77
+.annotate 'line', 80
+# var opt_L: $P6
+$P6 = $P2['L']
+.annotate 'line', 81
+# var opt_I: $P7
+$P7 = $P2['I']
+.annotate 'line', 83
 if_null $P3, __label_0
 # {
-.annotate 'line', 78
+.annotate 'line', 84
 $P1.'showhelp'()
-.annotate 'line', 79
+.annotate 'line', 85
 .return()
 # }
 __label_0: # endif
-.annotate 'line', 82
-# var compiler: $P6
+.annotate 'line', 88
+# var compiler: $P8
 # predefined load_language
 load_language 'winxed'
-compreg $P6, 'winxed'
-.annotate 'line', 83
-unless_null $P6, __label_1
+compreg $P8, 'winxed'
+.annotate 'line', 89
+unless_null $P8, __label_1
 # predefined die
-.annotate 'line', 84
+.annotate 'line', 90
 die "winxed: Cannot load language"
 __label_1: # endif
-.annotate 'line', 86
-# var code: $P7
-null $P7
-.annotate 'line', 88
-unless_null $P5, __label_2
-# {
-.annotate 'line', 89
-# predefined elements
-elements $I2, __ARG_1
-ge $I2, 1, __label_4
-# {
-# predefined say
-.annotate 'line', 90
-say "ERROR: No program specified"
-.annotate 'line', 91
-$P1.'showhelp'()
 .annotate 'line', 92
-.return(1)
-# }
-__label_4: # endif
+if_null $P6, __label_2
+# {
+.annotate 'line', 93
+# var interp: $P9
+null $P9
 .annotate 'line', 94
-# string srcfile: $S1
-$S1 = __ARG_1[0]
+# pirop getinterp
+getinterp $P9
 .annotate 'line', 95
-if_null $P4, __label_5
-# {
+# var lpaths: $P10
+$P10 = $P9[9]
 .annotate 'line', 96
-# var handleout: $P8
-new $P8, [ 'StringHandle' ]
-.annotate 'line', 97
-$P8.'open'('', 'w')
-.annotate 'line', 98
-$P6.'compile_from_file_to_pir'($S1, $P8)
-.annotate 'line', 99
-$P8.'close'()
-.annotate 'line', 100
-# string pircode: $S2
-$P12 = $P8.'read'(0)
-null $S2
-if_null $P12, __label_7
-set $S2, $P12
-__label_7:
-.annotate 'line', 101
-# string pirfile: $S3
-$P13 = 'extname'($S1, '.pir')
-null $S3
-if_null $P13, __label_8
-set $S3, $P13
-__label_8:
-.annotate 'line', 102
-# var outfile: $P9
-# predefined open
-root_new $P9, ['parrot';'FileHandle']
-$P9.'open'($S3,'w')
-.annotate 'line', 103
-$P9.'print'($S2)
-.annotate 'line', 104
-$P9.'close'()
-.annotate 'line', 105
-.return(0)
-# }
-goto __label_6
-__label_5: # else
-.annotate 'line', 108
-$P7 = $P6.'compile_from_file'($S1)
-__label_6: # endif
-# }
-goto __label_3
-__label_2: # else
-# {
-.annotate 'line', 111
-if_null $P4, __label_9
-# predefined die
-.annotate 'line', 112
-die 'option -c with -e not supported yet'
-__label_9: # endif
-.annotate 'line', 113
-# string expr: $S4
+# var pathlib: $P11
+$P11 = $P10[1]
 # predefined string
-$S6 = $P5
-concat $S0, 'function main[main](argv){', $S6
-concat $S0, ';}'
-set $S4, $S0
-.annotate 'line', 114
-$P7 = $P6.'compile'($S4)
-.annotate 'line', 115
-__ARG_1.'unshift'('__EVAL__')
+.annotate 'line', 97
+$S6 = $P6
+$P11.'push'($S6)
+# }
+__label_2: # endif
+.annotate 'line', 99
+if_null $P7, __label_3
+# {
+.annotate 'line', 100
+# var interp: $P12
+null $P12
+.annotate 'line', 101
+# pirop getinterp
+getinterp $P12
+.annotate 'line', 102
+# var lpaths: $P13
+$P13 = $P12[9]
+.annotate 'line', 103
+# var pathlib: $P14
+$P14 = $P13[0]
+# predefined string
+.annotate 'line', 104
+$S6 = $P7
+$P14.'push'($S6)
 # }
 __label_3: # endif
+.annotate 'line', 107
+# var code: $P15
+null $P15
+.annotate 'line', 109
+unless_null $P5, __label_4
+# {
+.annotate 'line', 110
+# predefined elements
+elements $I2, __ARG_1
+ge $I2, 1, __label_6
+# {
+# predefined say
+.annotate 'line', 111
+say "ERROR: No program specified"
+.annotate 'line', 112
+$P1.'showhelp'()
+.annotate 'line', 113
+.return(1)
+# }
+__label_6: # endif
+.annotate 'line', 115
+# string srcfile: $S1
+$S1 = __ARG_1[0]
+.annotate 'line', 116
+if_null $P4, __label_7
+# {
+.annotate 'line', 117
+# var handleout: $P16
+new $P16, [ 'StringHandle' ]
+.annotate 'line', 118
+$P16.'open'('', 'w')
 .annotate 'line', 119
-# var sub: $P10
-null $P10
-# for loop
+$P8.'compile_from_file_to_pir'($S1, $P16)
 .annotate 'line', 120
+$P16.'close'()
+.annotate 'line', 121
+# string pircode: $S2
+$P20 = $P16.'read'(0)
+null $S2
+if_null $P20, __label_9
+set $S2, $P20
+__label_9:
+.annotate 'line', 122
+# string pirfile: $S3
+$P21 = 'extname'($S1, '.pir')
+null $S3
+if_null $P21, __label_10
+set $S3, $P21
+__label_10:
+.annotate 'line', 123
+# var outfile: $P17
+# predefined open
+root_new $P17, ['parrot';'FileHandle']
+$P17.'open'($S3,'w')
+.annotate 'line', 124
+$P17.'print'($S2)
+.annotate 'line', 125
+$P17.'close'()
+.annotate 'line', 126
+.return(0)
+# }
+goto __label_8
+__label_7: # else
+.annotate 'line', 129
+$P15 = $P8.'compile_from_file'($S1)
+__label_8: # endif
+# }
+goto __label_5
+__label_4: # else
+# {
+.annotate 'line', 132
+if_null $P4, __label_11
+# predefined die
+.annotate 'line', 133
+die 'option -c with -e not supported yet'
+__label_11: # endif
+.annotate 'line', 134
+# string expr: $S4
+# predefined string
+$S7 = $P5
+concat $S0, 'function main[main](argv){', $S7
+concat $S0, ';}'
+set $S4, $S0
+.annotate 'line', 135
+$P15 = $P8.'compile'($S4)
+.annotate 'line', 136
+__ARG_1.'unshift'('__EVAL__')
+# }
+__label_5: # endif
+.annotate 'line', 140
+# var sub: $P18
+null $P18
+# for loop
+.annotate 'line', 141
 # int i: $I1
 null $I1
-__label_12: # for condition
+__label_14: # for condition
 # {
-.annotate 'line', 121
-$P10 = $P7[$I1]
-.annotate 'line', 122
-unless_null $P10, __label_13
-goto __label_11 # break
-__label_13: # endif
-.annotate 'line', 123
+.annotate 'line', 142
+$P18 = $P15[$I1]
+.annotate 'line', 143
+unless_null $P18, __label_15
+goto __label_13 # break
+__label_15: # endif
+.annotate 'line', 144
 # predefined string
-$S6 = $P10
-ne $S6, 'main', __label_14
-goto __label_11 # break
-__label_14: # endif
+$S7 = $P18
+ne $S7, 'main', __label_16
+goto __label_13 # break
+__label_16: # endif
 # }
-__label_10: # for iteration
-.annotate 'line', 120
+__label_12: # for iteration
+.annotate 'line', 141
 inc $I1
-goto __label_12
-__label_11: # for end
-.annotate 'line', 126
+goto __label_14
+__label_13: # for end
+.annotate 'line', 147
 # try: create handler
-new $P13, 'ExceptionHandler'
-set_label $P13, __label_15
-push_eh $P13
+new $P21, 'ExceptionHandler'
+set_label $P21, __label_17
+push_eh $P21
 # try: begin
 # {
-.annotate 'line', 127
-$P10(__ARG_1)
+.annotate 'line', 148
+$P18(__ARG_1)
 # }
 # try: end
-goto __label_16
-.annotate 'line', 126
+goto __label_18
+.annotate 'line', 147
 # catch
-__label_15:
-.get_results($P11)
-finalize $P11
+__label_17:
+.get_results($P19)
+finalize $P19
 pop_eh
 # {
-.annotate 'line', 130
+.annotate 'line', 151
 # string msg: $S5
-$S5 = $P11['message']
+$S5 = $P19['message']
 # predefined cry
-.annotate 'line', 131
+.annotate 'line', 152
 getstderr $P0
-print $P0, $P11
+print $P0, $P19
 print $P0, "\n"
-.annotate 'line', 132
+.annotate 'line', 153
 .return(1)
 # }
 # catch end
-__label_16:
+__label_18:
 # }
-.annotate 'line', 134
+.annotate 'line', 155
 
 .end # main
 
