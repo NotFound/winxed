@@ -2,6 +2,8 @@
 
 // Winxed compiler driver.
 
+$include_const 'iglobals.pasm';
+$include_const 'libpaths.pasm';
 $load 'Getopt/Obj.pbc';
 
 class Options : [ 'Getopt', 'Obj']
@@ -15,6 +17,8 @@ class Options : [ 'Getopt', 'Obj']
         var options = [
           [ 'c',        'Compile only. Same as --target=pir' ],
           [ 'e=s',      'Evaluate' ],
+          [ 'L=s',      'Add to parrot library search path' ],
+          [ 'I=s',      'Add to parrot include search path' ],
           [ 'help',     'Show this help' ]
         ];
         self.options = options;
@@ -73,6 +77,8 @@ function main [main] (argv)
     var help        = options['help'];
     var compileonly = options['c'];
     var eval        = options['e'];
+    var opt_L       = options['L'];
+    var opt_I       = options['I'];
 
     if (help != null) {
         optionset.showhelp();
@@ -82,6 +88,21 @@ function main [main] (argv)
     var compiler = load_language('winxed');
     if (compiler == null)
         die("winxed: Cannot load language");
+
+    if (opt_L != null) {
+        var interp;
+        ${ getinterp interp };
+        var lpaths = interp[IGLOBALS_LIB_PATHS];
+        var pathlib = lpaths[PARROT_LIB_PATH_LIBRARY];
+        pathlib.push(string(opt_L));
+    }
+    if (opt_I != null) {
+        var interp;
+        ${ getinterp interp };
+        var lpaths = interp[IGLOBALS_LIB_PATHS];
+        var pathlib = lpaths[PARROT_LIB_PATH_INCLUDE];
+        pathlib.push(string(opt_I));
+    }
 
     var code;
 
