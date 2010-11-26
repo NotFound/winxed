@@ -71,7 +71,7 @@ function save(string filename, var listline)
     handle.close();
 }
 
-function xlibtest [main] (args)
+function main [main] (args)
 {
     string filename = args[1];
 
