@@ -629,6 +629,7 @@ const string
 // Pseudotypes for predefined functions
     REGarglist = '*',
     REGany     = '?',
+    REGraw1    = '!', // raw mode one arg
     REGnone    = 'v'; // void return
 
 function typetoregcheck(string type)
@@ -773,6 +774,11 @@ class Emit
         string ins = "box " + dst + ", " + src + "\n";
         self.handle.print(ins);
     }
+    function emitunbox(string dst, string src)
+    {
+        string ins = "unbox " + dst + ", " + src + "\n";
+        self.handle.print(ins);
+    }
     function emitaddto(string dst, string src)
     {
         string ins = "add " + dst + ", " + src + "\n";
@@ -832,6 +838,8 @@ const string NULL = 'null', SELF = 'self';
 //         Predefined functions
 //*********************************************
 
+const int PREDEF_arglist = -1, PREDEF_raw1 = -2;
+
 class PredefFunction
 {
     var name;
@@ -877,9 +885,14 @@ class PredefFunction
         int n = 0;
         if (type0 != null) {
             self.type0 = type0;
-            if (type0 == REGarglist)
-                n = -1;
-            else {
+            switch (type0) {
+              case REGarglist:
+                n = PREDEF_arglist;
+                break;
+              case REGraw1:
+                n = PREDEF_raw1;
+                break;
+              default:
                 n = 1;
                 if (type1 != null) {
                     self.type1 = type1;
@@ -912,6 +925,11 @@ class PredefFunction
         string typeresult = self.typeresult;
         e.comment('predefined ' + name);
 
+        if (self.nparams == PREDEF_raw1) {
+            var fun = self.body;
+            fun(e, start, result, args);
+            return;
+        }
         if (self.body instanceof 'String') {
             string body = self.body;
             int pos = indexof(body, '{res}');
@@ -944,6 +962,28 @@ class PredefFunction
         else {
             var fun = self.body;
             fun(e, start, result, args);
+        }
+    }
+}
+
+class Predef_typecast
+{
+    var type;
+    function Predef_typecast(string type)
+    {
+        self.type = type;
+    }
+    function invoke [vtable](e, start, result, args)
+    {
+        string type = self.type;
+        var rawarg = args[0];
+        string argtype = rawarg.checkResult();
+        if (argtype == type || (rawarg instanceof IndexExpr))
+            rawarg.emit(e, result);
+        else {
+            string arg = rawarg.emit_get(e);
+            e.annotate(start);
+            e.emitset(result, arg);
         }
     }
 }
@@ -1031,10 +1071,6 @@ function predefeval_chr(var owner, var start, var args)
 
 function getpredefs()
 {
-    var predef_say = new Predef_say();
-    var predef_cry = new Predef_cry();
-    var predef_print = new Predef_print();
-
     using predefeval_length;
     using predefeval_bytelength;
     using predefeval_chr;
@@ -1043,16 +1079,16 @@ function getpredefs()
 
     var predefs = [
         new PredefFunction().set('int',
-            '{res} = {arg0}',
-            REGint, REGany
+            new Predef_typecast(REGint),
+            REGint, REGraw1
         ),
         new PredefFunction().set('float',
-            '{res} = {arg0}',
-            REGfloat, REGany
+            new Predef_typecast(REGfloat),
+            REGfloat, REGraw1
         ),
         new PredefFunction().set('string',
-            '{res} = {arg0}',
-            REGstring, REGany
+            new Predef_typecast(REGstring),
+            REGstring, REGraw1
         ),
         new PredefFunction().set('die',
             'die {arg0}',
@@ -1286,15 +1322,15 @@ function getpredefs()
             REGvar, REGvar, REGvar
         ),
         new PredefFunction().set('print',
-            predef_print,
+            new Predef_print(),
             REGvar, REGarglist
         ),
         new PredefFunction().set('say',
-            predef_say,
+            new Predef_say(),
             REGvar, REGarglist
         ),
         new PredefFunction().set('cry',
-            predef_cry,
+            new Predef_cry(),
             REGvar, REGarglist
         )
     ];
@@ -1307,7 +1343,9 @@ function findpredef(string name, int nargs)
     for (var p in getpredefs())
         if (p.name == name) {
             int pargs = p.nparams;
-            if (pargs == -1 || pargs == nargs)
+            if (pargs == nargs ||
+                    pargs == PREDEF_arglist ||
+                    (pargs == PREDEF_raw1 && nargs == 1))
                 return p;
         }
     return null;
@@ -3891,13 +3929,20 @@ class CallPredefExpr : Expr
         string argreg[];
         var arg;
         int np = predef.params();
-        if (np == -1) {
+        switch (np) {
+          case PREDEF_arglist:
             for (arg in args) {
                 string reg = arg.arg.emit_get(e);
                 argreg.push(reg);
             }
-        }
-        else {
+            break;
+          case PREDEF_raw1:
+            var rawargs = [];
+            for (arg in args)
+                rawargs.push(arg.arg);
+            self.predef.expand(e, self, self.start, result, rawargs);
+            return;
+          default:
             int n = self.args;
             for (int i = 0; i < n; ++i) {
                 arg = args[i].arg;
