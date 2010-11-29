@@ -977,7 +977,7 @@ class Predef_typecast
     {
         string type = self.type;
         var rawarg = args[0];
-        string argtype = rawarg.checkResult();
+        string argtype = rawarg.checkresult();
         if (argtype == type || (rawarg instanceof IndexExpr))
             rawarg.emit(e, result);
         else {
@@ -2061,7 +2061,7 @@ class Expr : CommonBase
     }
     function emit_get(e)
     {
-        string type = self.checkResult();
+        string type = self.checkresult();
         string reg = type == REGnone ? '' : self.tempreg(type);
         self.emit(e, reg);
         return reg;
@@ -2090,7 +2090,7 @@ class FunctionExpr : Expr
             SyntaxError('anonymous function expected', t);
         self.fn = new LocalFunctionStatement(start, tk, owner);
     }
-    function checkResult() { return REGvar; }
+    function checkresult() { return REGvar; }
     function optimize()
     {
         self.fn = self.fn.optimize();
@@ -2134,7 +2134,7 @@ class Condition
     {
         var condexpr = self.condexpr;
         if (condexpr.isliteral()) {
-            switch (condexpr.checkResult()) {
+            switch (condexpr.checkresult()) {
             case REGint:
                int n = condexpr.getIntegerValue();
                 if (n == 0)
@@ -2154,7 +2154,7 @@ class Condition
             condexpr.emit_if(e, labeltrue);
         else {
             string reg = condexpr.emit_get(e);
-            string type = condexpr.checkResult();
+            string type = condexpr.checkresult();
             switch(type) {
               case REGstring:
               case REGvar:
@@ -2177,7 +2177,7 @@ class Condition
             condexpr.emit_else(e, labelfalse);
         else {
             string reg = condexpr.emit_get(e);
-            string type = condexpr.checkResult();
+            string type = condexpr.checkresult();
             switch(type) {
               case REGstring:
               case REGvar:
@@ -2212,7 +2212,7 @@ class StringLiteral : Literal
         self.strval = t;
     }
     function isstringliteral() { return true; }
-    function checkResult() { return REGstring; }
+    function checkresult() { return REGstring; }
     function getPirString()
     {
         var strtok = self.strval;
@@ -2297,7 +2297,7 @@ class IntegerLiteral : Literal
         self.numval = n;
     }
     function isintegerliteral() { return true; }
-    function checkResult() { return REGint; }
+    function checkresult() { return REGint; }
     function getIntegerValue()
     {
         string aux= self.numval;
@@ -2329,7 +2329,7 @@ class FloatLiteral : Literal
         self.numval = t;
     }
     function isfloatliteral() { return true; }
-    function checkResult() { return REGfloat; }
+    function checkresult() { return REGfloat; }
     function getFloatValue()
     {
         string aux= self.numval;
@@ -2368,7 +2368,7 @@ class IdentifierExpr : SimpleExpr
     {
         return self.name.iskeyword(NULL);
     }
-    function checkResult()
+    function checkresult()
     {
         var desc = self.owner.getvar(self.name);
         if (desc != null)
@@ -2445,7 +2445,7 @@ class IdentifierExpr : SimpleExpr
     function emit_assign_get(e, expr)
     {
         self.annotate(e);
-        string typeleft = self.checkResult();
+        string typeleft = self.checkresult();
         string lreg = self.getIdentifier();
         if (expr.isnull()) {
             switch(typeleft) {
@@ -2460,7 +2460,7 @@ class IdentifierExpr : SimpleExpr
         else if (expr instanceof IndexExpr)
             expr.emit(e, lreg);
         else {
-            string typeright = expr.checkResult();
+            string typeright = expr.checkresult();
             if (typeleft == typeright) {
                 expr.emit(e, lreg);
             }
@@ -2545,9 +2545,9 @@ class OpBinaryExpr : OpExpr
 
 class OpUnaryMinusExpr : OpUnaryExpr
 {
-    function checkResult()
+    function checkresult()
     {
-        return self.subexpr.checkResult();
+        return self.subexpr.checkresult();
     }
     function set(owner, t, subexpr)
     {
@@ -2584,7 +2584,7 @@ class OpUnaryMinusExpr : OpUnaryExpr
 class OpNotExpr : OpUnaryExpr
 {
     function isnegable() { return true; }
-    function checkResult()
+    function checkresult()
     {
         return REGint;
     }
@@ -2614,7 +2614,7 @@ class OpNotExpr : OpUnaryExpr
     {
         string reg = self.subexpr.emit_get(e);
         self.annotate(e);
-        string type = self.subexpr.checkResult();
+        string type = self.subexpr.checkresult();
         switch (type) {
         case REGint:
             e.say('not ', result, ', ', reg);
@@ -2632,9 +2632,9 @@ class OpNotExpr : OpUnaryExpr
 
 class OpPreIncExpr : OpUnaryExpr
 {
-    function checkResult()
+    function checkresult()
     {
-        return self.subexpr.checkResult();
+        return self.subexpr.checkresult();
     }
     function set(owner, t, subexpr)
     {
@@ -2666,9 +2666,9 @@ class OpPostIncExpr : OpUnaryExpr
         self.initunary(owner, t, subexpr);
         return self;
     }
-    function checkResult()
+    function checkresult()
     {
-        return self.subexpr.checkResult();
+        return self.subexpr.checkresult();
     }
     function emit(e, result)
     {
@@ -2684,9 +2684,9 @@ class OpPostIncExpr : OpUnaryExpr
 
 class OpPreDecExpr : OpUnaryExpr
 {
-    function checkResult()
+    function checkresult()
     {
-        return self.subexpr.checkResult();
+        return self.subexpr.checkresult();
     }
     function set(owner, t, subexpr)
     {
@@ -2717,9 +2717,9 @@ class OpPostDecExpr : OpUnaryExpr
         self.initunary(owner, t, subexpr);
         return self;
     }
-    function checkResult()
+    function checkresult()
     {
-        return self.subexpr.checkResult();
+        return self.subexpr.checkresult();
     }
     function emit(e, result)
     {
@@ -2744,10 +2744,10 @@ class OpBaseAssignExpr : Expr
         self.rexpr = rexpr;
         return self;
     }
-    function checkResult()
+    function checkresult()
     {
         if (self.lexpr.isidentifier())
-            return self.lexpr.checkResult();
+            return self.lexpr.checkresult();
         else
             InternalError('Unimplemented');
     }
@@ -2818,7 +2818,7 @@ class OpAddToExpr : OpBaseAssignExpr
     {
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
-        string ltype = lexpr.checkResult();
+        string ltype = lexpr.checkresult();
         string reg = lexpr.emit_get(e);
         if (ltype == REGstring && (rexpr instanceof ConcatString))
             rexpr.emit_concat_to(e, reg);
@@ -2826,7 +2826,7 @@ class OpAddToExpr : OpBaseAssignExpr
             string reg2 = rexpr.emit_get(e);
             self.annotate(e);
             if (ltype == REGstring) {
-                if (rexpr.checkResult() != REGstring) {
+                if (rexpr.checkresult() != REGstring) {
                     string aux = self.tempreg(REGstring);
                     e.say(aux, ' = ', reg2);
                     reg2 = aux;
@@ -2852,7 +2852,7 @@ class OpSubToExpr : OpBaseAssignExpr
     }
     function emit_get(e)
     {
-        string type = self.lexpr.checkResult();
+        string type = self.lexpr.checkresult();
         string reg = self.lexpr.emit_get(e);
         string reg2 = self.rexpr.emit_get(e);
         self.annotate(e);
@@ -2873,7 +2873,7 @@ class OpMulToExpr : OpBaseAssignExpr
     }
     function emit_get(e)
     {
-        string type = self.lexpr.checkResult();
+        string type = self.lexpr.checkresult();
         string reg = self.lexpr.emit_get(e);
         string reg2 = self.rexpr.emit_get(e);
         self.annotate(e);
@@ -2894,7 +2894,7 @@ class OpDivToExpr : OpBaseAssignExpr
     }
     function emit_get(e)
     {
-        string type = self.lexpr.checkResult();
+        string type = self.lexpr.checkresult();
         string reg = self.lexpr.emit_get(e);
         string reg2 = self.rexpr.emit_get(e);
         self.annotate(e);
@@ -2907,11 +2907,11 @@ class OpDivToExpr : OpBaseAssignExpr
 
 class ComparatorBaseExpr : OpBinaryExpr
 {
-    function checkResult() { return REGint; }
+    function checkresult() { return REGint; }
     function emit_comparator(e, result, int doifelse[optional])
     {
-        string rl = self.lexpr.checkResult();
-        string rr = self.rexpr.checkResult();
+        string rl = self.lexpr.checkresult();
+        string rr = self.rexpr.checkresult();
         string regl = self.lexpr.emit_get(e);
         string regr = self.rexpr.emit_get(e);
         self.annotate(e);
@@ -2992,7 +2992,7 @@ class NullCheckerExpr : Expr
         self.expr = expr;
         self.checknull = checknull;
     }
-    function checkResult() { return REGint; }
+    function checkresult() { return REGint; }
     function isnegable() { return true; }
     function negated()
     {
@@ -3041,8 +3041,8 @@ class OpEqualExpr : ComparatorBaseExpr
         if (rnull)
             return new NullCheckerExpr(self, self.lexpr, true);
         if (lexpr.isliteral() && rexpr.isliteral()) {
-            string ltype = lexpr.checkResult();
-            string rtype = rexpr.checkResult();
+            string ltype = lexpr.checkresult();
+            string rtype = rexpr.checkresult();
             if (ltype == REGstring && rtype == REGstring) {
                 string ls = (lexpr.strval).str;
                 string rs = (rexpr.strval).str;
@@ -3094,8 +3094,8 @@ class OpNotEqualExpr : ComparatorBaseExpr
         if (rnull)
             return new NullCheckerExpr(self, self.lexpr, false);
         if (lexpr.isliteral() && rexpr.isliteral()) {
-            string ltype = lexpr.checkResult();
-            string rtype = rexpr.checkResult();
+            string ltype = lexpr.checkresult();
+            string rtype = rexpr.checkresult();
             if (ltype == REGstring && rtype == REGstring) {
                 string ls = (lexpr.strval).str;
                 string rs = (rexpr.strval).str;
@@ -3258,7 +3258,7 @@ class OpGreaterEqualExpr : ComparatorBaseExpr
 
 class OpBaseBoolExpr : OpBinaryExpr
 {
-    function checkResult()
+    function checkresult()
     {
         return REGint;
     }
@@ -3346,7 +3346,7 @@ class OpBoolOrExpr : OpBaseBoolExpr
 
 class OpBaseBinExpr : OpBinaryExpr
 {
-    function checkResult()
+    function checkresult()
     {
         return REGint;
     }
@@ -3428,7 +3428,7 @@ class ConcatString : Expr
         else
             self.values = [lexpr, rexpr];
     }
-    function checkResult() { return REGstring; }
+    function checkresult() { return REGstring; }
     function getregs(e)
     {
         var values = self.values;
@@ -3480,8 +3480,8 @@ class OpAddExpr : OpBinaryExpr
         self.optimizearg();
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
-        string ltype = lexpr.checkResult();
-        string rtype = rexpr.checkResult();
+        string ltype = lexpr.checkresult();
+        string rtype = rexpr.checkresult();
         if (lexpr.isliteral() && rexpr.isliteral()) {
             if (ltype == REGstring && rtype == REGstring) {
                 var etok = lexpr.strval;
@@ -3517,10 +3517,10 @@ class OpAddExpr : OpBinaryExpr
         }
         return self;
     }
-    function checkResult()
+    function checkresult()
     {
-        string rl = self.lexpr.checkResult();
-        string rr = self.rexpr.checkResult();
+        string rl = self.lexpr.checkresult();
+        string rr = self.rexpr.checkresult();
         if (rl == rr)
             return rl;
         if (rl == REGint && rr == REGstring)
@@ -3535,9 +3535,9 @@ class OpAddExpr : OpBinaryExpr
     {
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
-        string restype = self.checkResult();
-        string ltype = lexpr.checkResult();
-        string rtype = rexpr.checkResult();
+        string restype = self.checkresult();
+        string ltype = lexpr.checkresult();
+        string rtype = rexpr.checkresult();
 
         string rleft = lexpr.emit_get(e);
         string rright = rexpr.emit_get(e);
@@ -3587,8 +3587,8 @@ class OpSubExpr : OpBinaryExpr
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
         if (lexpr.isliteral() && rexpr.isliteral()) {
-            string ltype = lexpr.checkResult();
-            string rtype = rexpr.checkResult();
+            string ltype = lexpr.checkresult();
+            string rtype = rexpr.checkresult();
             if (ltype == REGint && rtype == REGint) {
                 var lval = lexpr.numval;
                 int ln = lval;
@@ -3599,10 +3599,10 @@ class OpSubExpr : OpBinaryExpr
         }
         return self;
     }
-    function checkResult()
+    function checkresult()
     {
-        string rl = self.lexpr.checkResult();
-        string rr = self.rexpr.checkResult();
+        string rl = self.lexpr.checkresult();
+        string rr = self.rexpr.checkresult();
         if (rl == rr)
             return rl;
         if (rl == REGint && rr == REGfloat)
@@ -3629,8 +3629,8 @@ class OpMulExpr : OpBinaryExpr
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
         if (lexpr.isliteral() && rexpr.isliteral()) {
-            string ltype = lexpr.checkResult();
-            string rtype = rexpr.checkResult();
+            string ltype = lexpr.checkresult();
+            string rtype = rexpr.checkresult();
             if (ltype == REGint && rtype == REGint) {
                 var lval = lexpr.numval;
                 int ln = lval;
@@ -3650,11 +3650,11 @@ class OpMulExpr : OpBinaryExpr
         }
         return self;
     }
-    function checkResult()
+    function checkresult()
     {
         var lexpr = self.lexpr;
-        string rl = self.lexpr.checkResult();
-        string rr = self.rexpr.checkResult();
+        string rl = self.lexpr.checkresult();
+        string rr = self.rexpr.checkresult();
         if (rl == rr)
             return rl;
         if (rl == REGstring)
@@ -3666,8 +3666,8 @@ class OpMulExpr : OpBinaryExpr
     {
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
-        string ltype = lexpr.checkResult();
-        string rtype = rexpr.checkResult();
+        string ltype = lexpr.checkresult();
+        string rtype = rexpr.checkresult();
         string lreg, rreg;
         if (ltype == REGstring) {
             lreg = lexpr.emit_get(e);
@@ -3718,7 +3718,7 @@ class OpMulExpr : OpBinaryExpr
 
         int nleft, nright;
         if ((!lexpr.issimple()) || lexpr.isidentifier()) {
-            lreg= self.tempreg(self.checkResult());
+            lreg= self.tempreg(self.checkresult());
             lexpr.emit(e, lreg);
         }
         else {
@@ -3726,13 +3726,13 @@ class OpMulExpr : OpBinaryExpr
             lreg= nleft;
         }
         if ((!rexpr.issimple()) || rexpr.isidentifier()) {
-            rreg= self.tempreg(self.checkResult());
+            rreg= self.tempreg(self.checkresult());
             rexpr.emit(e, rreg);
         }
         else {
             switch(rtype) {
             case REGstring:
-                rreg= self.tempreg(self.checkResult());
+                rreg= self.tempreg(self.checkresult());
                 rexpr.emit(e, rreg);
                 break;
             case REGint:
@@ -3757,8 +3757,8 @@ class OpDivExpr : OpBinaryExpr
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
         if (lexpr.isliteral() && rexpr.isliteral()) {
-            string ltype = lexpr.checkResult();
-            string rtype = rexpr.checkResult();
+            string ltype = lexpr.checkresult();
+            string rtype = rexpr.checkresult();
             var lval;
             var rval;
             if (ltype == REGint && rtype == REGint) {
@@ -3782,7 +3782,7 @@ class OpDivExpr : OpBinaryExpr
         }
         return self;
     }
-    function checkResult()
+    function checkresult()
     {
         return REGfloat;
     }
@@ -3790,7 +3790,7 @@ class OpDivExpr : OpBinaryExpr
     {
         var lexpr = self.lexpr;
         var lreg;
-        if (lexpr.checkResult() == REGfloat)
+        if (lexpr.checkresult() == REGfloat)
             lreg = lexpr.emit_get(e);
         else {
             lreg = self.tempreg(REGfloat);
@@ -3798,7 +3798,7 @@ class OpDivExpr : OpBinaryExpr
         }
         var rexpr = self.rexpr;
         var rreg;
-        if (rexpr.checkResult() == REGfloat)
+        if (rexpr.checkresult() == REGfloat)
             rreg = rexpr.emit_get(e);
         else {
             rreg = self.tempreg(REGfloat);
@@ -3813,7 +3813,7 @@ class OpDivExpr : OpBinaryExpr
 
 class OpModExpr : OpBinaryExpr
 {
-    function checkResult()
+    function checkresult()
     {
         return REGint;
     }
@@ -3821,7 +3821,7 @@ class OpModExpr : OpBinaryExpr
     {
         var lexpr = self.lexpr;
         var lreg;
-        if (lexpr.checkResult() == REGint)
+        if (lexpr.checkresult() == REGint)
             lreg = lexpr.emit_get(e);
         else {
             lreg = self.tempreg(REGint);
@@ -3829,7 +3829,7 @@ class OpModExpr : OpBinaryExpr
         }
         var rexpr = self.rexpr;
         var rreg;
-        if (rexpr.checkResult() == REGint)
+        if (rexpr.checkresult() == REGint)
             rreg = rexpr.emit_get(e);
         else {
             rreg = self.tempreg(REGint);
@@ -3844,7 +3844,7 @@ class OpModExpr : OpBinaryExpr
 
 class OpCModExpr : OpBinaryExpr
 {
-    function checkResult()
+    function checkresult()
     {
         return REGint;
     }
@@ -3852,7 +3852,7 @@ class OpCModExpr : OpBinaryExpr
     {
         var lexpr = self.lexpr;
         var lreg;
-        if (lexpr.checkResult() == REGint)
+        if (lexpr.checkresult() == REGint)
             lreg = lexpr.emit_get(e);
         else {
             lreg = self.tempreg(REGint);
@@ -3860,7 +3860,7 @@ class OpCModExpr : OpBinaryExpr
         }
         var rexpr = self.rexpr;
         var rreg;
-        if (rexpr.checkResult() == REGint)
+        if (rexpr.checkresult() == REGint)
             rreg = rexpr.emit_get(e);
         else {
             rreg = self.tempreg(REGint);
@@ -3918,7 +3918,7 @@ class CallPredefExpr : Expr
         self.predef = predef;
         self.args = args;
     }
-    function checkResult()
+    function checkresult()
     {
         return self.predef.result();
     }
@@ -3946,7 +3946,7 @@ class CallPredefExpr : Expr
             int n = self.args;
             for (int i = 0; i < n; ++i) {
                 arg = args[i].arg;
-                string argtype = arg.checkResult();
+                string argtype = arg.checkresult();
                 string paramtype = predef.paramtype(i);
                 string argr;
                 if (argtype == paramtype || paramtype == REGany)
@@ -4007,7 +4007,7 @@ class CallExpr : Expr
                 SyntaxError("Expected ')' or ','", t);
         }
     }
-    function checkResult() { return REGvar; }
+    function checkresult() { return REGvar; }
     function optimize()
     {
         self.funref = self.funref.optimize();
@@ -4137,7 +4137,7 @@ class MemberExpr : Expr
         self.left = subexp;
         self.right = tk.get();
     }
-    function checkResult() { return REGvar; }
+    function checkresult() { return REGvar; }
     function optimize()
     {
         self.left = self.left.optimize();
@@ -4150,7 +4150,7 @@ class MemberExpr : Expr
     function emit_left_get(e)
     {
         var left = self.left;
-        string type = left.checkResult();
+        string type = left.checkresult();
         string reg = left.emit_get(e);
         if (type != REGvar) {
             string auxreg = reg;
@@ -4203,7 +4203,7 @@ class MemberExpr : Expr
             e.emitnull(value);
         else {
             string rreg = expr.emit_get(e);
-            if (expr.checkResult() != REGvar)
+            if (expr.checkresult() != REGvar)
                 e.emitbox(value, rreg);
             else
                 value = rreg;
@@ -4225,9 +4225,9 @@ class IndexExpr : Expr, SimpleArgList
         self.left = subexp;
         self.parseargs(tk, owner, ']');
     }
-    function checkResult()
+    function checkresult()
     {
-        if (self.left.checkResult() == REGstring)
+        if (self.left.checkresult() == REGstring)
             return REGstring;
         else
             return REGvar;
@@ -4247,7 +4247,7 @@ class IndexExpr : Expr, SimpleArgList
             regleft = self.left.emit_get(e);
         int nargs = self.numargs();
         var argregs = self.getargvalues(e);
-        string type = self.checkResult();
+        string type = self.checkresult();
         if (type == REGstring) {
             if (nargs != 1)
                SyntaxError('Bad string index', self.start);
@@ -4308,7 +4308,7 @@ class ArrayExpr : Expr
                 SyntaxError("Expected ']' or ','", t);
         }
     }
-    function checkResult() { return REGvar; }
+    function checkresult() { return REGvar; }
     function optimize()
     {
         optimize_array(self.values);
@@ -4327,7 +4327,7 @@ class ArrayExpr : Expr
         string it_p = self.tempreg(REGvar);
         string itemreg;
         for (var item in self.values) {
-            string type = item.checkResult();
+            string type = item.checkresult();
             switch (type) {
             case REGint: case REGfloat: case REGstring:
                 string aux = item.emit_get(e);
@@ -4373,7 +4373,7 @@ class HashExpr : Expr
         self.keys = keys;
         self.values = values;
     }
-    function checkResult() { return REGvar; }
+    function checkresult() { return REGvar; }
     function optimize()
     {
         optimize_array(self.keys);
@@ -4433,7 +4433,7 @@ class NewBaseExpr : Expr
 {
     var initializer;
 
-    function checkResult() { return REGvar; }
+    function checkresult() { return REGvar; }
     function parseinitializer(tk)
     {
         // Called with the tokenizer pointing right after the
@@ -4742,7 +4742,7 @@ class OpInstanceOfExpr : Expr
         self.lexpr = lexpr;
         self.checked= tk.get();
     }
-    function checkResult() { return REGint; }
+    function checkresult() { return REGint; }
     function emit(e, result)
     {
         var checked = self.checked;
@@ -4793,9 +4793,9 @@ class OpConditionalExpr : Expr
             return self;
         }
     }
-    function checkResult()
+    function checkresult()
     { 
-        return self.etrue.checkResult();
+        return self.etrue.checkresult();
     }
     function emit(e, result)
     {
@@ -5755,7 +5755,7 @@ class SwitchStatement : Breakable, Statement
         // Get case common type
         string type = '';
         for (var value in self.case_value) {
-            string t = value.checkResult();
+            string t = value.checkresult();
             if (t == REGfloat)
                 SyntaxError("Invalid type in case", self.start);
             if (type == '')
@@ -5765,7 +5765,7 @@ class SwitchStatement : Breakable, Statement
         }
         // Evaluate condition
         string reg = self.tempreg(type);
-        if (self.condition.checkResult() == type)
+        if (self.condition.checkresult() == type)
             self.condition.emit(e, reg);
         else {
             string regcond = self.condition.emit_get(e);
@@ -5915,7 +5915,7 @@ class ForeachStatement : LoopStatement, BlockStatement
     {
         self.annotate(e);
         string regcont;
-        if (self.container.checkResult() == REGstring) {
+        if (self.container.checkresult() == REGstring) {
             string value = self.container.emit_get(e);
             regcont = self.tempreg(REGvar);
             e.emitbox(regcont, value);
@@ -6218,7 +6218,7 @@ class DeclareStatement : Statement
             if (init == null || init.isnull())
                 self.defaultinit(e);
             else {
-                string itype = init.checkResult();
+                string itype = init.checkresult();
                 if (itype == t_reg) {
                     init.emit(e, reg);
                 }
@@ -6324,7 +6324,7 @@ class ConstStatement : Statement
         self.value = value;
         return self;
     }
-    function checkResult()
+    function checkresult()
     {
         InternalError('Direct use of const', self.start);
     }
@@ -6393,7 +6393,7 @@ class VarStatement : VarBaseStatement
             if (init.isnull())
                 init = null;
         if (init != null) {
-            string type = init.checkResult();
+            string type = init.checkresult();
             switch (type) {
             case REGvar:
                 init.emit(e, reg);
