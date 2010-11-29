@@ -313,8 +313,8 @@ $P10 = $P9[9]
 # var pathlib: $P11
 $P11 = $P10[1]
 # predefined string
+set $S6, $P6
 .annotate 'line', 97
-$S6 = $P6
 $P11.'push'($S6)
 # }
 __label_2: # endif
@@ -334,8 +334,8 @@ $P13 = $P12[9]
 # var pathlib: $P14
 $P14 = $P13[0]
 # predefined string
+set $S6, $P7
 .annotate 'line', 104
-$S6 = $P7
 $P14.'push'($S6)
 # }
 __label_3: # endif
@@ -418,7 +418,7 @@ __label_11: # endif
 .annotate 'line', 134
 # string expr: $S4
 # predefined string
-$S7 = $P5
+set $S7, $P5
 concat $S0, 'function main[main](argv){', $S7
 concat $S0, ';}'
 set $S4, $S0
@@ -445,7 +445,7 @@ goto __label_13 # break
 __label_15: # endif
 .annotate 'line', 144
 # predefined string
-$S7 = $P18
+set $S7, $P18
 ne $S7, 'main', __label_16
 goto __label_13 # break
 __label_16: # endif
