@@ -891,6 +891,8 @@ class PredefFunction
                 break;
               case REGraw1:
                 n = PREDEF_raw1;
+                if (type1 != null)
+                    InternalError("Invalid predef '" + name + '"');
                 break;
               default:
                 n = 1;
@@ -976,6 +978,8 @@ class Predef_typecast
     function invoke [vtable](e, start, result, args)
     {
         string type = self.type;
+        if (elements(args) != 1)
+            InternalError("Invalid Predef_typecast.invoke call");
         var rawarg = args[0];
         string argtype = rawarg.checkresult();
         if (argtype == type || (rawarg instanceof IndexExpr))
