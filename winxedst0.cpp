@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 23-nov-2010
+// Revision 1-dec-2010
 
 // Winxed compiler stage 0.
 
@@ -83,6 +83,12 @@ inline
 std::string op_set(const std::string &res, const std::string &op1)
 {
     return op("set", res, op1);
+}
+
+inline
+std::string op_assign(const std::string &res, const std::string &op1)
+{
+    return op("assign", res, op1);
 }
 
 inline
@@ -1241,6 +1247,11 @@ public:
     }
     virtual bool isleft() const { return false; }
     virtual void emitleft(Emit &)
+    {
+        std::cerr << typeid(*this).name() << '\n';
+        throw InternalError("Not a left-side expression");
+    }
+    virtual void emitleft(Emit &, const std::string &)
     {
         std::cerr << typeid(*this).name() << '\n';
         throw InternalError("Not a left-side expression");
@@ -3138,16 +3149,21 @@ private:
                 }
                 else
                     rexpr->emit(e, varname);
-                return;
+                break;
             default:
                 e.annotate(start);
                 e << "assign " << varname << ", ";
                 rexpr->emit(e, std::string());
                 e << '\n';
-                return;
             }
         }
-        throw Unsupported("Only simple assignments for a now", start);
+        else {
+            std::string lreg = gentemp(REGvar);
+            std::string rreg = gentemp(rexpr->checkresult());
+            lexpr->emit(e, lreg);
+            rexpr->emit(e, rreg);
+            e << op_assign(lreg, rreg) << '\n';
+        }
     }
 };
 
