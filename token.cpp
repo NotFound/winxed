@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 20-sep-2010
+// Revision 1-dec-2010
 
 #include "token.h"
 #include "errors.h"
@@ -220,7 +220,7 @@ std::string unquote (const std::string &s)
             r+= c;
         }
     }
-    return (nonascii ? "utf8:unicode:\"" : "\"") + r + "\"";
+    return (nonascii ? "utf8:\"" : "\"") + r + "\"";
 }
 
 static std::string unsinglequote (const std::string &s)
