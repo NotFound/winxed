@@ -511,10 +511,10 @@ class Tokenizer
     {
         using static getop;
 
-        self.h= handle;
-        self.pending= '';
-        self.stacked= [];
-        self.filename= filename;
+        self.h = handle;
+        self.pending = '';
+        self.stacked = [];
+        self.filename = filename;
         self.line= 1;
         var select = {
             '$': { '': getident, '{': getop },
@@ -541,27 +541,28 @@ class Tokenizer
             '/': { '=': getop, '/': getlinecomment, '*': getcomment },
             '#': getlinecomment
         };
-        self.select= select;
+        self.select = select;
     }
     function getchar()
     {
-        string pending= self.pending;
-        if (pending != '') {
-            self.pending= '';
-            return pending;
-        }
-        var h= self.h;
-        string c= h.read(1);
-        if (c == "\n") {
-                int l=self.line;
+        var pending = self.pending;
+        string c = pending;
+        if (c != '')
+            pending =: '';
+        else {
+            var h = self.h;
+            c = h.read(1);
+            if (c == "\n") {
+                int l = self.line;
                 ++l;
                 self.line= l;
+            }
         }
         return c;
     }
     function ungetchar(string c)
     {
-        self.pending= c;
+        self.pending =: c;
     }
     function get_token()
     {
@@ -573,13 +574,13 @@ class Tokenizer
         using static getnumber;
 
         if (self.stacked) {
-            var t= self.stacked.pop();
+            var t = self.stacked.pop();
             return t;
         }
-        string c= self.getchar();
+        string c = self.getchar();
         while (isspace(c))
-                c= self.getchar();
-        int line= self.line;
+                c = self.getchar();
+        int line = self.line;
         if (c == '')
             return new TokenEof();
         if (isidentstart(c))
@@ -594,7 +595,7 @@ class Tokenizer
         while (current != null && (current instanceof 'Hash')) {
             c = self.getchar();
             select = current;
-            current= select[c];
+            current = select[c];
             if (current == null) {
                 self.ungetchar(c);
                 current = select[''];
@@ -608,12 +609,15 @@ class Tokenizer
     }
     function get(int withcomments [optional])
     {
-        var t= self.get_token();
-        while (!t.iseof() && ! withcomments && t.iscomment() )
-           t= self.get_token();
+        var t = self.get_token();
+        while (!t.iseof() && !withcomments && t.iscomment())
+           t = self.get_token();
         return t;
     }
-    function unget(t) { self.stacked.push(t); }
+    function unget(t)
+    {
+        self.stacked.push(t);
+    }
 }
 
 //*********************************************
@@ -668,11 +672,11 @@ class Emit
 
     function initialize(var handle)
     {
-        self.handle= handle;
-        self.file= '';
-        self.line= 0;
-        self.pendingf= 0;
-        self.pendingl= 0;
+        self.handle = handle;
+        self.file = '';
+        self.line = 0;
+        self.pendingf = false;
+        self.pendingl = false;
     }
     function close()
     {
@@ -685,13 +689,13 @@ class Emit
             self.handle.print(self.file);
             self.handle.print("'");
             self.handle.print("\n");
-            self.pendingf= 0;
+            self.pendingf =: false;
         }
         if (self.pendingl) {
             self.handle.print(".annotate 'line', ");
             self.handle.print(self.line);
             self.handle.print("\n");
-            self.pendingl= 0;
+            self.pendingl =: false;
         }
     }
     function vprint(var args)
@@ -712,14 +716,18 @@ class Emit
     }
     function annotate(var t)
     {
-        if (self.file != t.file) {
-            self.file= t.file;
-            self.pendingf= 1;
-            self.line= 0;
+        var file = self.file;
+        var line = self.line;
+        string tfile = t.file;
+        int tline = t.line;
+        if (file != tfile) {
+            file =: tfile;
+            self.pendingf =: true;
+            line =: 0;
         }
-        if (self.line != t.line) {
-            self.line= t.line;
-            self.pendingl= 1;
+        if (line != tline) {
+            line =: tline;
+            self.pendingl =: true;
         }
     }
     function comment(string s)
