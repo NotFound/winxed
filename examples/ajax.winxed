@@ -95,27 +95,6 @@ class XMLHttpRequest
 
 // main function for testing.
 
-class StChange
-{
-    var req;
-
-    function invoke[vtable]()
-    {
-        var req = self.req;
-        say('Status changed to ', req.readyState);
-        if (req.readyState == 4) {
-            say('Status: ', req.status);
-            self.showresp();
-        }
-    }
-
-    function showresp()
-    {
-        var req = self.req;
-        say("Response:\n", req.responseText);
-    }
-}
-
 function main(var argv)
 {
     const string optAsync  = 'async';
@@ -143,16 +122,21 @@ function main(var argv)
         Error('No URL');
 
     var req = new XMLHttpRequest();
-    var stchange = new StChange();
-    stchange.req = req;
 
-    if (use_async)
-        req.onreadystatechange = stchange;
-
+    if (use_async) {
+        req.onreadystatechange = function()
+        {
+            say('Status changed to ', req.readyState);
+            if (req.readyState == 4) {
+                say('Status: ', req.status);
+                say("Response:\n", req.responseText);
+            }
+        };
+    }
     req.open(method, argv[0], use_async);
     req.send(null);
     if (! use_async)
-        stchange.showresp();
+        say("Response:\n", req.responseText);
 }
 
 // End
