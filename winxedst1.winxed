@@ -6719,6 +6719,7 @@ class FunctionStatement : BlockStatement
     var isanon;
     var modifiers;
     var args;
+    var paramnum;
     var body;
     var regstI;
     var regstN;
@@ -6737,9 +6738,18 @@ class FunctionStatement : BlockStatement
         self.regstS = new RegisterStore().settype(REGstring);
         self.regstP = new RegisterStore().settype(REGvar);
         self.nlabel= 0;
+        self.paramnum = 0;
     }
 
     function getouter() { return self; }
+    function getparamnum()
+    {
+        // Get a number to assign unique internal names to params.
+        var paramnum = self.paramnum;
+        int n = paramnum + 1;
+        paramnum =: n;
+        return n;
+    }
     function same_scope_as(other)
     {
         int r = self === other;
@@ -6841,7 +6851,6 @@ class FunctionStatement : BlockStatement
         var t= tk.get();
         if (! t.isop(')')) {
             tk.unget(t);
-            int argnum = 0;
             do {
                 t= tk.get();
                 string type = typetoregcheck(t.checkkeyword());
@@ -6849,7 +6858,7 @@ class FunctionStatement : BlockStatement
                     t= tk.get();
                 else
                     type = REGvar;
-                string argname = '__ARG_' + string(++argnum);
+                string argname = '__ARG_' + string(self.getparamnum());
                 self.createvarnamed(t, type, argname);
 
                 string varname = t;
@@ -7065,6 +7074,11 @@ class LocalFunctionStatement : FunctionStatement
     function getsubid()
     {
         return self.subid;
+    }
+    function getparamnum()
+    {
+        // Forward to the outer to avoid duplicate names.
+        return self.outer.getparamnum();
     }
     function getvar(string name)
     {
