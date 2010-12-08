@@ -1865,8 +1865,8 @@ class StaticStatement : Statement
     function emit(e)
     {
         self.annotate(e);
-        e.say(".const 'Sub' ", self.createvar(self.symbol, REGvar),
-                " = '", self.symbol, "'");
+        var v = self.createvar(self.symbol, REGvar);
+        e.say(".const 'Sub' ", v.getreg(), " = '", self.symbol, "'");
     }
 }
 
@@ -1896,7 +1896,8 @@ class UsingStatement : Statement
         string name = path.pop();
         self.annotate(e);
  
-        e.print('get_hll_global ', self.createvar(name, REGvar), ', ');
+        var vdata = self.createvar(name, REGvar);
+        e.print('get_hll_global ', vdata.getreg(), ', ');
 
         int n = path;
         switch (n) {
@@ -1937,6 +1938,33 @@ class ExprStatement : Statement
 //            VarContainer
 //*********************************************
 
+class VarData
+{
+    var type;
+    var reg;
+    var scope;
+    var value;
+    var id;
+
+    function VarData(type, reg, scope, value [optional])
+    {
+        self.type = type;
+        self.reg = reg;
+        self.scope = scope;
+        self.value = value;
+    }
+    function setid(string id)
+    {
+        self.id = id;
+    }
+    function gettype() { return self.type; }
+    function getreg() { return self.reg; }
+    function getscope() { return self.scope; }
+    function getvalue() { return self.value; }
+    function isconst() { return self.value != null; }
+    function getid() { return self.id; }
+}
+
 class ConstantInternalFail
 {
     var name;
@@ -1966,12 +1994,9 @@ class VarContainer
         if (exist != null)
             SyntaxError("Redeclared '" + sname + "'", name);
         string reg= self.createreg(type);
-        locals[sname] = {
-            'type': type,
-            'reg': reg,
-            'scope': self,
-            'const': 0 };
-        return reg;
+        var data = new VarData(type, reg, self);
+        locals[sname] = data;
+        return data;
     }
     function createvarnamed(var name, string type, string pirname)
     {
@@ -1980,11 +2005,7 @@ class VarContainer
         var exist= locals[sname];
         if (exist != null)
             SyntaxError("Redeclared '" + sname + "'", name);
-        locals[sname] = {
-            'type': type,
-            'reg': pirname,
-            'scope': self,
-            'const': 0 };
+        locals[sname] = new VarData(type, pirname, self);
     }
     function createconst(var name, string type, var value, string id)
     {
@@ -1993,13 +2014,9 @@ class VarContainer
         var exist= locals[sname];
         if (exist != null)
             SyntaxError("Redeclared '" + sname + "'", name);
-        var data = {
-            'type': type,
-            'value': value,
-            'reg': new ConstantInternalFail(name),
-            'const': 1 };
+        var data = new VarData(type, new ConstantInternalFail(name), self, value);
         if (id != null && id != '')
-            data['id'] = id;
+            data.setid(id);
         locals[sname] = data;
     }
     function getvar(var name)
@@ -2009,6 +2026,8 @@ class VarContainer
         var exist= locals[sname];
         if (exist == null && self.owner != null)
             exist = self.owner.getvar(name);
+        if (exist != null && ! (exist instanceof VarData))
+            InternalError('Incorrect data for Variable', name);
         return exist;
     }
     function getlocalvar(var name)
@@ -2021,7 +2040,7 @@ class VarContainer
     function makelexical(vardesc)
     {
         var lexowner = self.getouter();
-        string lexname = lexowner.createlex(vardesc['reg']);
+        string lexname = lexowner.createlex(vardesc.getreg());
         return lexname;
     }
     function makelexicalself()
@@ -2384,7 +2403,7 @@ class IdentifierExpr : SimpleExpr
     {
         var desc = self.owner.getvar(self.name);
         if (desc != null)
-            return desc['type'];
+            return desc.gettype();
         else {
             switch (self.name) {
             case SELF:
@@ -2419,10 +2438,10 @@ class IdentifierExpr : SimpleExpr
             }
         }
         else {
-            if (desc['id'] != null)
-                return desc['id'];
+            if (desc.getid() != null)
+                return desc.getid();
             else
-                s= desc['reg'];
+                s= desc.getreg();
         }
         return s;
     }
@@ -2440,8 +2459,8 @@ class IdentifierExpr : SimpleExpr
         var name = self.name;
         var desc = self.owner.getvar(name);
         if (desc != null) {
-            if (desc['const'] && desc['id'] == null)
-                    return desc['value'];
+            if (desc.isconst() && desc.getid() == null)
+                    return desc.getvalue();
         }
         return self;
     }
@@ -5942,7 +5961,7 @@ class ForeachStatement : LoopStatement, BlockStatement
         e.emitset(iterator, '0');
         e.emitlabel(continuelabel, 'for iteration');
         e.say('unless ', iterator, " goto ", breaklabel);
-        e.say('shift ', itvar['reg'], ', ', iterator);
+        e.say('shift ', itvar.getreg(), ', ', iterator);
         self.body.emit(e);
         e.emitgoto(continuelabel);
         e.emitlabel(breaklabel, 'endfor');
@@ -6047,7 +6066,7 @@ class TryStatement : BlockStatement
         string exreg;
         if (self.exname != null) {
             var exname = self.getvar(self.exname);
-            exreg = exname['reg'];
+            exreg = exname.getreg();
         }
         else
             exreg = self.tempreg(REGvar);
@@ -6124,8 +6143,8 @@ class VarBaseStatement : Statement
     {
         self.initstatement(start, owner);
         self.name = name;
-        string reg= self.createvar(name, REGvar);
-        self.reg= reg;
+        var vdata = self.createvar(name, REGvar);
+        self.reg = vdata.getreg();
     }
 }
 
@@ -6150,14 +6169,16 @@ class DeclareStatement : Statement
         if (!t.isidentifier())
             SyntaxError('Identifier expected', t);
         self.name= t;
+        var vdata;
         string reg;
 
         t= tk.get();
         if (t.isop('[')) {
             // Array
             self.typearray = 1;
-            reg= self.createvar(self.name, REGvar);
-            t= tk.get();
+            vdata = self.createvar(self.name, REGvar);
+            reg = vdata.getreg();
+            t = tk.get();
             if (t.isop(']')) {
                 // Variable length
                 t= tk.get();
@@ -6174,7 +6195,8 @@ class DeclareStatement : Statement
         else {
             // Simple
             self.typearray = 0;
-            reg= self.createvar(self.name, self.t_reg);
+            vdata = self.createvar(self.name, self.t_reg);
+            reg = vdata.getreg();
             if (t.isop('=')) {
                 // Simple initializer
                 self.init = parseExpr(tk, self);
@@ -6952,8 +6974,8 @@ class FunctionStatement : BlockStatement
         for (arg in args) {
             argname = arg['name'];
             a = self.getvar(argname);
-            string ptype = typetopirname(a['type']);
-            e.print('.param ', ptype, ' ', a['reg']);
+            string ptype = typetopirname(a.gettype());
+            e.print('.param ', ptype, ' ', a.getreg());
             var modarg = arg['modifiers'];
             if (modarg != null) {
                 var named = null;
@@ -7093,28 +7115,28 @@ class LocalFunctionStatement : FunctionStatement
                     var ownerscope = self.outer;
                     if (self.outer.ismethod()) {
                         string lexself = ownerscope.makelexicalself();
-                        var r2 = self.createvar(name, REGvar);
-                        string reg = r2;
+                        r = self.createvar(name, REGvar);
+                        string reg = r.getreg();
                         self.setusedlex(lexself, reg);
-                        r = r2;
                     }
                 }
             }
-            else if (r['type'] == 'P' && !r['const']) {
-                var scope = r['scope'];
+            else if (r.gettype() == 'P' && !r.isconst()) {
+                var scope = r.getscope();
                 var ownerscope = scope.getouter();
                 var outer = self.outer;
                 if (ownerscope instanceof FunctionStatement) {
                     if (ownerscope.same_scope_as(outer)) {
                         string lexname = scope.makelexical(r);
-                        var r2 = self.createvar(name, REGvar);
-                        string reg = r2;
+                        r = self.createvar(name, REGvar);
+                        string reg = r.getreg();
                         self.setusedlex(lexname, reg);
-                        r = r2;
                     }
                 }
             }
         }
+        if (r != null && !(r instanceof VarData))
+            InternalError('Incorrect data for variable in LocalFunction');
         return r;
     }
 }
