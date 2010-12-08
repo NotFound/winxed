@@ -1945,6 +1945,7 @@ class VarData
     var scope;
     var value;
     var id;
+    var lexname;
 
     function VarData(type, reg, scope, value [optional])
     {
@@ -1957,12 +1958,17 @@ class VarData
     {
         self.id = id;
     }
+    function setlex(string name)
+    {
+        self.lexname = name;
+    }
     function gettype() { return self.type; }
     function getreg() { return self.reg; }
     function getscope() { return self.scope; }
     function getvalue() { return self.value; }
     function isconst() { return self.value != null; }
     function getid() { return self.id; }
+    function getlex() { return self.lexname; }
 }
 
 class ConstantInternalFail
@@ -2040,7 +2046,7 @@ class VarContainer
     function makelexical(vardesc)
     {
         var lexowner = self.getouter();
-        string lexname = lexowner.createlex(vardesc.getreg());
+        string lexname = lexowner.createlex(vardesc);
         return lexname;
     }
     function makelexicalself()
@@ -2131,6 +2137,7 @@ class FunctionExpr : Expr
     {
         var fn = self.fn;
         string reg = self.tempreg(REGvar);
+        self.annotate(e);
         e.say(".const 'Sub' ", reg, " = '", fn.getsubid(), "'");
         if (result != '')
             e.say('newclosure ', result, ', ', reg);
@@ -6742,6 +6749,7 @@ class FunctionStatement : BlockStatement
     var modifiers;
     var args;
     var paramnum;
+    var lexnum;
     var body;
     var regstI;
     var regstN;
@@ -6761,6 +6769,7 @@ class FunctionStatement : BlockStatement
         self.regstP = new RegisterStore().settype(REGvar);
         self.nlabel= 0;
         self.paramnum = 0;
+        self.lexnum = 0;
     }
 
     function getouter() { return self; }
@@ -6770,6 +6779,14 @@ class FunctionStatement : BlockStatement
         var paramnum = self.paramnum;
         int n = paramnum + 1;
         paramnum =: n;
+        return n;
+    }
+    function getlexnum()
+    {
+        // Get a number to assign unique internal names to lexicals.
+        var lexnum = self.lexnum;
+        int n = lexnum + 1;
+        lexnum =: n;
         return n;
     }
     function same_scope_as(other)
@@ -6795,10 +6812,21 @@ class FunctionStatement : BlockStatement
         }
         lexicals[localname] = lexname;
     }
-    function createlex(string reg)
+    function createlex(vardata)
     {
-        string lexname = '__WLEX_' + substr(reg, 1);
-        self.setlex(lexname, reg);
+        // Get the lexname for a variable, creating it on the fly
+        // when needed.
+        var lex = vardata.getlex();
+        string lexname;
+        if (lex != null)
+            lexname = lex;
+        else {
+            string reg = vardata.getreg();
+            int lexnum = self.getlexnum();
+            lexname = '__WLEX_' + string(lexnum);
+            self.setlex(lexname, reg);
+            vardata.setlex(lexname);
+        }
         return lexname;
     }
 
@@ -7101,6 +7129,11 @@ class LocalFunctionStatement : FunctionStatement
     {
         // Forward to the outer to avoid duplicate names.
         return self.outer.getparamnum();
+    }
+    function getlexnum()
+    {
+        // Forward to the outer to avoid duplicate names.
+        return self.outer.getlexnum();
     }
     function getvar(string name)
     {
