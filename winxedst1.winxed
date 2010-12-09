@@ -1396,9 +1396,9 @@ class CommonBase
     {
         self.owner.use_predef(name);
     }
-    function createsubid()
+    function generatesubid()
     {
-        return self.owner.createsubid();
+        return self.owner.generatesubid();
     }
     function addlocalfunction(fn)
     {
@@ -6738,18 +6738,15 @@ class RegisterStore
 }
 
 //*********************************************
-//            FunctionStatement
+//            FunctionBase
 //*********************************************
 
-class FunctionStatement : BlockStatement
+class FunctionBase : BlockStatement
 {
     var name;
     var subid;
-    var isanon;
     var modifiers;
-    var args;
-    var paramnum;
-    var lexnum;
+    var params;
     var body;
     var regstI;
     var regstN;
@@ -6761,38 +6758,89 @@ class FunctionStatement : BlockStatement
     var usedlexicals;
     var outer;
 
-    function init [vtable]()
+    function FunctionBase(start, owner)
     {
+        self.initstatement(start, owner);
+        self.params = [];
+        self.nlabel= 0;
         self.regstI = new RegisterStore().settype(REGint);
         self.regstN = new RegisterStore().settype(REGfloat);
         self.regstS = new RegisterStore().settype(REGstring);
         self.regstP = new RegisterStore().settype(REGvar);
-        self.nlabel= 0;
-        self.paramnum = 0;
-        self.lexnum = 0;
     }
 
     function getouter() { return self; }
-    function getparamnum()
+    function makesubid()
     {
-        // Get a number to assign unique internal names to params.
-        var paramnum = self.paramnum;
-        int n = paramnum + 1;
-        paramnum =: n;
-        return n;
+        // Return the subid for this function, creating if it doesn't have one
+        var subid = self.subid;
+        if (subid == null) {
+            subid = self.generatesubid();
+            self.subid = subid;
+        }
+        return subid;
     }
-    function getlexnum()
-    {
-        // Get a number to assign unique internal names to lexicals.
-        var lexnum = self.lexnum;
-        int n = lexnum + 1;
-        lexnum =: n;
-        return n;
-    }
+
     function same_scope_as(other)
     {
         int r = self === other;
         return r;
+    }
+    function parse_parameters(tk)
+    {
+        var params = self.params;
+        var t= tk.get();
+        if (! t.isop(')')) {
+            tk.unget(t);
+            do {
+                t= tk.get();
+                string type = typetoregcheck(t.checkkeyword());
+                if (type != '')
+                    t= tk.get();
+                else
+                    type = REGvar;
+                string argname = '__ARG_' + string(self.getparamnum());
+                self.createvarnamed(t, type, argname);
+
+                string varname = t;
+                var arg = { };
+                arg['name'] = varname;
+                t= tk.get();
+                if (t.isop('[')) {
+                    var modifiers = new ModifierList(tk, self);
+                    arg['modifiers'] = modifiers;
+                    t = tk.get();
+                }
+                params.push(arg);
+            } while (t.isop(','));
+            if (!t.isop(')'))
+                SyntaxError("Expected ')'", t);
+        }
+    }
+
+    function addlocalfunction(fn)
+    {
+        var localfun = self.localfun;
+        if (localfun == null)
+            self.localfun = [ fn ];
+        else
+            localfun.push(fn);
+    }
+
+    function optimize()
+    {
+        self.body = self.body.optimize();
+        return self;
+    }
+
+    function setusedlex(string lexname, string localname)
+    {
+        var lexicals = self.usedlexicals;
+        if (lexicals == null) {
+            lexicals = {};
+            self.usedlexicals = lexicals;
+        }
+        lexicals[localname] = lexname;
     }
     function setlex(string lexname, string localname)
     {
@@ -6800,15 +6848,6 @@ class FunctionStatement : BlockStatement
         if (lexicals == null) {
             lexicals = {};
             self.lexicals = lexicals;
-        }
-        lexicals[localname] = lexname;
-    }
-    function setusedlex(string lexname, string localname)
-    {
-        var lexicals = self.usedlexicals;
-        if (lexicals == null) {
-            lexicals = {};
-            self.usedlexicals = lexicals;
         }
         lexicals[localname] = lexname;
     }
@@ -6830,7 +6869,6 @@ class FunctionStatement : BlockStatement
         return lexname;
     }
 
-    function ismethod() { return false; }
     function createreg(string type)
     {
         var store;
@@ -6880,84 +6918,24 @@ class FunctionStatement : BlockStatement
         nlabel =: n;
         return s;
     }
-    function addlocalfunction(fn)
+    function getbreaklabel(pos)
     {
-        var localfun = self.localfun;
-        if (localfun == null)
-            self.localfun = [ fn ];
-        else
-            localfun.push(fn);
+        SyntaxError('break not allowed here', pos);
+    }
+    function getcontinuelabel(pos)
+    {
+        SyntaxError('continue not allowed here', pos);
     }
 
-    function optimize()
-    {
-        self.body = self.body.optimize();
-        return self;
-    }
-
-    function parse_parameters(tk)
-    {
-        self.args = [];
-        var t= tk.get();
-        if (! t.isop(')')) {
-            tk.unget(t);
-            do {
-                t= tk.get();
-                string type = typetoregcheck(t.checkkeyword());
-                if (type != '')
-                    t= tk.get();
-                else
-                    type = REGvar;
-                string argname = '__ARG_' + string(self.getparamnum());
-                self.createvarnamed(t, type, argname);
-
-                string varname = t;
-                var arg = { };
-                arg['name'] = varname;
-                t= tk.get();
-                if (t.isop('[')) {
-                    var modifiers = new ModifierList(tk, self);
-                    arg['modifiers'] = modifiers;
-                    t = tk.get();
-                }
-                self.args.push(arg);
-            } while (t.isop(','));
-            if (!t.isop(')'))
-                SyntaxError("Expected ')'", t);
-        }
-    }
-
-    function parse(start, tk, owner)
-    {
-        self.initstatement(start, owner);
-        var t= tk.get();
-        self.name= t;
-        self.isanon = false;
-        t= tk.get();
-        if (t.isop('[')) {
-            var modifiers = new ModifierList(tk, self);
-            self.modifiers= modifiers;
-            t= tk.get();
-        }
-        if (! t.isop('('))
-            Expected('(', t);
-        self.parse_parameters(tk);
-
-        t= tk.get();
-        if (!t.isop('{'))
-            Expected('{', t);
-        self.body= new CompoundStatement(t, tk, self);
-        return self;
-    }
     function emit(var e)
     {
         string name = self.name;
         e.say();
         e.print(".sub ");
-        if (! self.isanon)
-            e.print ("'", name, "'");
-        else
+        if (self.isanonymous())
             e.print("'' :anon");
+        else
+            e.print ("'", name, "'");
         if (self.subid != null)
             e.print(" :subid('", self.subid, "')");
         if (self.outer != null) {
@@ -6994,17 +6972,17 @@ class FunctionStatement : BlockStatement
         }
         e.say();
 
-        var args = self.args;
-        var arg;
-        string argname;
+        var params = self.params;
+        var param;
+        string paramname;
         var a;
 
-        for (arg in args) {
-            argname = arg['name'];
-            a = self.getvar(argname);
+        for (param in params) {
+            paramname = param['name'];
+            a = self.getvar(paramname);
             string ptype = typetopirname(a.gettype());
             e.print('.param ', ptype, ' ', a.getreg());
-            var modarg = arg['modifiers'];
+            var modarg = param['modifiers'];
             if (modarg != null) {
                 var named = null;
                 var slurpy = null;
@@ -7035,7 +7013,7 @@ class FunctionStatement : BlockStatement
                         int nargs = named.numargs();
                         switch (nargs) {
                         case 0:
-                            setname = "'" + argname + "'";
+                            setname = "'" + paramname + "'";
                             break;
                         case 1:
                             var argmod = named.getarg(0);
@@ -7089,13 +7067,63 @@ class FunctionStatement : BlockStatement
         }
         }
     }
-    function getbreaklabel(pos)
+}
+
+//*********************************************
+//            FunctionStatement
+//*********************************************
+
+class FunctionStatement : FunctionBase
+{
+    var paramnum;
+    var lexnum;
+
+    function FunctionStatement(start, tk, owner)
     {
-        SyntaxError('break not allowed here', pos);
+        self.FunctionBase(start, owner);
+        self.paramnum = 0;
+        self.lexnum = 0;
+        self.parse(tk);
     }
-    function getcontinuelabel(pos)
+
+    function isanonymous() { return false; }
+    function getparamnum()
     {
-        SyntaxError('continue not allowed here', pos);
+        // Get a number to assign unique internal names to params.
+        var paramnum = self.paramnum;
+        int n = paramnum + 1;
+        paramnum =: n;
+        return n;
+    }
+    function getlexnum()
+    {
+        // Get a number to assign unique internal names to lexicals.
+        var lexnum = self.lexnum;
+        int n = lexnum + 1;
+        lexnum =: n;
+        return n;
+    }
+    function ismethod() { return false; }
+
+    function parse(tk)
+    {
+        var t= tk.get();
+        self.name= t;
+        t= tk.get();
+        if (t.isop('[')) {
+            var modifiers = new ModifierList(tk, self);
+            self.modifiers= modifiers;
+            t= tk.get();
+        }
+        if (! t.isop('('))
+            Expected('(', t);
+        self.parse_parameters(tk);
+
+        t= tk.get();
+        if (!t.isop('{'))
+            Expected('{', t);
+        self.body= new CompoundStatement(t, tk, self);
+        return self;
     }
 }
 
@@ -7103,17 +7131,15 @@ class FunctionStatement : BlockStatement
 //            LocalFunctionStatement
 //*********************************************
 
-class LocalFunctionStatement : FunctionStatement
+class LocalFunctionStatement : FunctionBase
 {
     function LocalFunctionStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.FunctionBase(start, owner);
         self.outer = owner.getouter();
-        string subid = owner.createsubid();
-        self.outer.subid = owner.createsubid();
-        self.subid = subid;
+        self.outer.makesubid();
+        var subid = self.makesubid();
         self.name = subid;
-        self.isanon = true;
         self.parse_parameters(tk);
         var t = tk.get();
         if (!t.isop('{'))
@@ -7121,6 +7147,8 @@ class LocalFunctionStatement : FunctionStatement
         self.body= new CompoundStatement(t, tk, self);
         owner.addlocalfunction(self);
     }
+    function isanonymous() { return true; }
+    function ismethod() { return false; }
     function getsubid()
     {
         return self.subid;
@@ -7158,7 +7186,7 @@ class LocalFunctionStatement : FunctionStatement
                 var scope = r.getscope();
                 var ownerscope = scope.getouter();
                 var outer = self.outer;
-                if (ownerscope instanceof FunctionStatement) {
+                if (ownerscope instanceof FunctionBase) {
                     if (ownerscope.same_scope_as(outer)) {
                         string lexname = scope.makelexical(r);
                         r = self.createvar(name, REGvar);
@@ -7180,6 +7208,10 @@ class LocalFunctionStatement : FunctionStatement
 
 class MethodStatement : FunctionStatement
 {
+    function MethodStatement(t, tk, owner)
+    {
+        self.FunctionStatement(t, tk, owner);
+    }
     function ismethod() { return true; }
 }
 
@@ -7359,7 +7391,7 @@ class ClassStatement : VarContainer
         t= tk.get();
         while (!t.isop('}')) {
             if (t.iskeyword('function')) {
-                var f= new MethodStatement().parse(t, tk, self);
+                var f= new MethodStatement(t, tk, self);
                 var functions= self.functions;
                 functions.push(f);
             }
@@ -7385,9 +7417,9 @@ class ClassStatement : VarContainer
         classns.push(self.name);
         self.classns = classns;
     }
-    function createsubid()
+    function generatesubid()
     {
-        return self.owner.createsubid();
+        return self.owner.generatesubid();
     }
     function findclasskey(classkey)
     {
@@ -7581,7 +7613,7 @@ class NamespaceBase : VarContainer
                 self.items.push(cst);
             }
             else if (t.iskeyword('function')) {
-                var f= new FunctionStatement().parse(t, tk, self);
+                var f= new FunctionStatement(t, tk, self);
                 var functions= self.functions;
                 functions.push(f);
                 self.items.push(f);
@@ -7674,9 +7706,9 @@ class NamespaceStatement : NamespaceBase
                 self.hll = self.name;
         }
     }
-    function createsubid()
+    function generatesubid()
     {
-        return self.owner.createsubid();
+        return self.owner.generatesubid();
     }
     function use_predef(string name)
     {
@@ -7772,7 +7804,7 @@ class RootNamespace : NamespaceBase
         return predefs_used[name] == null ? 0 : 1;
     }
 
-    function createsubid()
+    function generatesubid()
     {
         var subidgen = self.subidgen;
         int idgen = subidgen;
