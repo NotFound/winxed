@@ -67,7 +67,7 @@ class XMLHttpRequest
         if (self.async)
             self.changeState(OPENED);
 
-        self.ua = new LWP.UserAgent();
+        self.ua = new ['LWP', 'UserAgent'];
         var nargs = {
             'Connection' : 'close'
         };
@@ -138,7 +138,7 @@ function main(var argv)
     const string optMethod = 'method';
 
     using extern Getopt.Obj;
-    var getopts = new Getopt.Obj();
+    var getopts = new ['Getopt', 'Obj'];
     getopts.notOptStop(1);
     getopts.push_string(optAsync);
     getopts.push_string(optMethod + '=s');
