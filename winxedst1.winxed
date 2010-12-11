@@ -3507,6 +3507,15 @@ class ConcatString : Expr
         for (int i = 0; i < nvalues; ++i)
             e.emitconcat1(result, regvalues[i]);
     }
+    function emit_concat_set(e, result)
+    {
+        var regvalues = self.getregs(e);
+        int nvalues = elements(regvalues);
+        self.annotate(e);
+        e.emitconcat(result, regvalues[0], regvalues[1]);
+        for (int i = 2; i < nvalues; ++i)
+            e.emitconcat1(result, regvalues[i]);
+    }
 }
 
 //*********************************************
@@ -6261,7 +6270,10 @@ class DeclareStatement : Statement
             else {
                 string itype = init.checkresult();
                 if (itype == t_reg) {
-                    init.emit(e, reg);
+                    if (itype == REGstring && (init instanceof ConcatString))
+                        init.emit_concat_set(e, reg);
+                    else
+                        init.emit(e, reg);
                 }
                 else {
                     if (init instanceof IndexExpr) {
