@@ -1980,7 +1980,7 @@ class ConstantInternalFail
     }
     function get_string[vtable]()
     {
-        throw Error('Attempt to use unexpanded constant!!!');
+        InternalError('Attempt to use unexpanded constant!!!');
     }
 }
 
@@ -6668,7 +6668,7 @@ class CompoundStatement : BlockStatement
             tk.unget(t);
             var c = parseStatement(tk, self);
             if (c == null)
-                throw InternalError('Unexpected null statement');
+                InternalError('Unexpected null statement');
             self.statements.push(c);
         }
         self.end= t;
