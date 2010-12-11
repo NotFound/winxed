@@ -757,6 +757,16 @@ class Emit
         }
         handle.print("\n");
     }
+    function emitif(string value, string label)
+    {
+        string ins = 'if ' + value + ' goto ' + label + "\n";
+        self.handle.print(ins);
+    }
+    function emitunless(string value, string label)
+    {
+        string ins = 'unless ' + value + ' goto ' + label + "\n";
+        self.handle.print(ins);
+    }
     function emitif_null(string value, string label)
     {
         string ins = 'if_null ' + value + ', ' + label + "\n";
@@ -2199,7 +2209,7 @@ class Condition
                 e.emitif_null(reg, labelfalse);
               case REGint:
               case REGfloat:
-                e.say('if ', reg, ' goto ', labeltrue);
+                e.emitif(reg, labeltrue);
                 break;
               default:
                 InternalError('Invalid if condition');
@@ -2222,7 +2232,7 @@ class Condition
                 e.emitif_null(reg, labelfalse);
               case REGint:
               case REGfloat:
-                e.say('unless ', reg, ' goto ', labelfalse);
+                e.emitunless(reg, labelfalse);
                 break;
               default:
                 InternalError('Invalid if condition');
@@ -2866,7 +2876,7 @@ class OpAddToExpr : OpBaseAssignExpr
             if (ltype == REGstring) {
                 if (rexpr.checkresult() != REGstring) {
                     string aux = self.tempreg(REGstring);
-                    e.say(aux, ' = ', reg2);
+                    e.emitset(aux, reg2);
                     reg2 = aux;
                 }
                 e.emitconcat1(reg, reg2);
@@ -2979,12 +2989,12 @@ class ComparatorBaseExpr : OpBinaryExpr
         }
         else if (rr == REGstring && rl == REGvar) {
             aux = self.tempreg(REGstring);
-            e.say(aux, ' = ', regl);
+            e.emitset(aux, regl);
             regl = aux;
         }
         else if (rr == REGvar && rl == REGstring) {
             aux = self.tempreg(REGstring);
-            e.say(aux, ' = ', regr);
+            e.emitset(aux, regr);
             regr = aux;
         }
 
@@ -3332,7 +3342,7 @@ class OpBoolAndExpr : OpBaseBoolExpr
         else {
             string l = self.owner.genlabel();
             self.lexpr.emit(e, res);
-            e.say('unless ', res, ' goto ', l);
+            e.emitunless(res, l);
             self.rexpr.emit(e, res);
             e.emitlabel(l);
         }
@@ -3373,7 +3383,7 @@ class OpBoolOrExpr : OpBaseBoolExpr
         else {
             string l = self.owner.genlabel();
             self.lexpr.emit(e, res);
-            e.say('if ', res, ' goto ', l);
+            e.emitif(res, l);
             self.rexpr.emit(e, res);
             e.emitlabel(l);
         }
@@ -3592,11 +3602,11 @@ class OpAddExpr : OpBinaryExpr
             if (ltype != REGstring || rtype != REGstring) {
                 string aux = self.tempreg(REGstring);
                 if (ltype != REGstring) {
-                    e.say(aux, ' = ', rleft);
+                    e.emitset(aux, rleft);
                     rleft = aux;
                 }
                 else {
-                    e.say(aux, ' = ', rright);
+                    e.emitset(aux, rright);
                     rright = aux;
                 }
             }
@@ -5992,7 +6002,7 @@ class ForeachStatement : LoopStatement, BlockStatement
         e.say('iter ', iterator, ', ', regcont);
         e.emitset(iterator, '0');
         e.emitlabel(continuelabel, 'for iteration');
-        e.say('unless ', iterator, " goto ", breaklabel);
+        e.emitunless(iterator, breaklabel);
         e.say('shift ', itvar.getreg(), ', ', iterator);
         self.body.emit(e);
         e.emitgoto(continuelabel);
