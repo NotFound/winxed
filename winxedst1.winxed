@@ -4222,6 +4222,10 @@ class MemberExpr : Expr
         self.annotate(e);
         e.say('getattribute ', result, ', ', obj, ", '", ident, "'");
     }
+    function emit_init(e, result)
+    {
+        self.emit(e, result);
+    }
     function emit_assign(e, string typeright, string rreg)
     {
         string obj = self.left.emit_get(e);
@@ -4368,8 +4372,13 @@ class ArrayExpr : Expr
     }
     function emit_get(e)
     {
-        self.annotate(e);
         string container = self.tempreg(REGvar);
+        self.emit_init(e, container);
+        return container;
+    }
+    function emit_init(e, string container)
+    {
+        self.annotate(e);
         e.say('root_new ', container, ", ['parrot';'ResizablePMCArray']");
         string it_p = self.tempreg(REGvar);
         string itemreg;
@@ -4387,7 +4396,6 @@ class ArrayExpr : Expr
             self.annotate(e);
             e.say(container, ".'push'(", itemreg, ")");
         }
-        return container;
     }
 }
 
@@ -4561,7 +4569,7 @@ class NewExpr : NewBaseExpr
             optimize_array(self.initializer);
         return self;
     }
-    function emit(e, result)
+    function emit(e, result, int is_init[optional])
     {
         self.annotate(e);
 
@@ -4580,8 +4588,10 @@ class NewExpr : NewBaseExpr
           case 0:
             break;
           case 1:
-            if (type == BYIDENT)
-                regnew = self.tempreg(REGvar);
+            if (type == BYIDENT) {
+                if (! is_init)
+                    regnew = self.tempreg(REGvar);
+            }
             else {
                 var initval = initializer[0];
                 reginit = initval.emit_get(e);
@@ -4591,7 +4601,8 @@ class NewExpr : NewBaseExpr
           default:
             if (type != BYIDENT && type != BYMULTI)
                 SyntaxError('Multiple init arguments not allowed here', self.start);
-            regnew = self.tempreg(REGvar);
+            if (! is_init)
+                regnew = self.tempreg(REGvar);
         }
 
         switch (type) {
@@ -4645,8 +4656,13 @@ class NewExpr : NewBaseExpr
             e.print(regnew, ".'", constructor, "'(");
             e.print(join(", ", argregs));
             e.say(")");
-            e.emitset(result, regnew);
+            if (! is_init)
+                e.emitset(result, regnew);
         }
+    }
+    function emit_init(e, result)
+    {
+        return self.emit(e, result, true);
     }
 }
 
@@ -6449,7 +6465,10 @@ class VarStatement : VarBaseStatement
             string type = init.checkresult();
             switch (type) {
             case REGvar:
-                init.emit(e, reg);
+                if ((init instanceof MemberExpr) || (init instanceof ArrayExpr) || (init instanceof NewExpr))
+                    init.emit_init(e, reg);
+                else
+                    init.emit(e, reg);
                 break;
             case REGstring:
             case REGint:
