@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 1-dec-2010
+// Revision 11-dec-2010
 
 // Winxed compiler stage 0.
 
@@ -563,7 +563,7 @@ private:
 
 //**********************************************************************
 
-class Class;
+class ClassStatement;
 
 typedef std::vector<std::string> ClassKey;
 
@@ -614,7 +614,7 @@ public:
     {
         throw std::runtime_error("No continue allowed");
     }
-    virtual Class *findclass(const ClassKey &classkey)
+    virtual ClassStatement *findclass(const ClassKey &classkey)
     {
         std::cerr << "BlockBase::findclass **WRONG CALL**\n";
         return 0;
@@ -810,7 +810,7 @@ public:
     }
     std::string genlocallabel();
     std::string getnamedlabel(const std::string &name);
-    Class *findclass(const ClassKey &classkey)
+    ClassStatement *findclass(const ClassKey &classkey)
     {
         return parent.findclass(classkey);
     }
@@ -1049,7 +1049,7 @@ std::string FunctionBlock::getnamedlabel(const std::string &name)
 
 //**********************************************************************
 
-class Function;
+class FunctionStatement;
 class BaseExpr;
 
 //**********************************************************************
@@ -1864,10 +1864,10 @@ private:
 
 //**********************************************************************
 
-class Function : protected FunctionModifiers, public FunctionBlock
+class FunctionStatement : protected FunctionModifiers, public FunctionBlock
 {
 public:
-    Function(Tokenizer &tk, const Token &st,
+    FunctionStatement(Tokenizer &tk, const Token &st,
         Block &parent,
         const NamespaceKey & ns_a, const std::string &funcname);
     std::string getname() const { return name; }
@@ -1878,7 +1878,7 @@ public:
     bool islocal(std::string name) const;
     virtual void emitparams (Emit &e);
     virtual void emitbody (Emit &e);
-    virtual ~Function() {}
+    virtual ~FunctionStatement() {}
 private:
     const Token start;
     const NamespaceKey ns;
@@ -3935,10 +3935,10 @@ private:
 
 //**********************************************************************
 
-class FunctionCallExpr : public BaseExpr
+class FunctionExpr : public BaseExpr
 {
 public:
-    FunctionCallExpr(BlockBase &block,
+    FunctionExpr(BlockBase &block,
         Tokenizer &tk, const Token & st, BaseExpr *function);
     BaseExpr *optimize();
     bool isinteger() const;
@@ -3950,13 +3950,13 @@ private:
     std::vector <BaseExpr *> args;
 };
 
-FunctionCallExpr::FunctionCallExpr(BlockBase &block,
+FunctionExpr::FunctionExpr(BlockBase &block,
         Tokenizer &tk, const Token & st, BaseExpr *function) :
     BaseExpr(block),
     start(st),
     called(function)
 {
-    //std::cerr << "FunctionCallExpr::FunctionCallExpr\n";
+    //std::cerr << "FunctionExpr::FunctionExpr\n";
 
     Token t= tk.get();
     if (! t.isop (')') )
@@ -3970,19 +3970,19 @@ FunctionCallExpr::FunctionCallExpr(BlockBase &block,
         RequireOp (')', t);
     }
 
-    //std::cerr << "FunctionCallExpr::FunctionCallExpr end\n";
+    //std::cerr << "FunctionExpr::FunctionExpr end\n";
 }
 
-BaseExpr *FunctionCallExpr::optimize()
+BaseExpr *FunctionExpr::optimize()
 {
-    //std::cerr << "FunctionCallExpr::optimize\n";
+    //std::cerr << "FunctionExpr::optimize\n";
     for (size_t i= 0; i < args.size(); ++i)
         optimize_branch(args[i]);
-    //std::cerr << "FunctionCallExpr::optimize end\n";
+    //std::cerr << "FunctionExpr::optimize end\n";
     return this;
 }
 
-bool FunctionCallExpr::isinteger() const
+bool FunctionExpr::isinteger() const
 {
     if (called->isidentifier())
     {
@@ -3996,7 +3996,7 @@ bool FunctionCallExpr::isinteger() const
     return false;
 }
 
-bool FunctionCallExpr::isstring() const
+bool FunctionExpr::isstring() const
 {
     if (called->isidentifier())
     {
@@ -4010,9 +4010,9 @@ bool FunctionCallExpr::isstring() const
     return false;
 }
 
-void FunctionCallExpr::emit(Emit &e, const std::string &result)
+void FunctionExpr::emit(Emit &e, const std::string &result)
 {
-    //std::cerr << "FunctionCallExpr::emit\n";
+    //std::cerr << "FunctionExpr::emit\n";
 
     if (called->isidentifier())
     {
@@ -4656,7 +4656,7 @@ BaseExpr *parseExpr_2(BlockBase &block, Tokenizer &tk)
             subexpr= new MemberExpr(block, tk, t, subexpr);
         else
         {
-            subexpr = new FunctionCallExpr(block, tk, t, subexpr);
+            subexpr = new FunctionExpr(block, tk, t, subexpr);
         }
     }
     tk.unget(t);
@@ -6125,7 +6125,7 @@ void DoStatement::emit(Emit &e)
 
 //**********************************************************************
 
-Function::Function(Tokenizer &tk, const Token &st,
+FunctionStatement::FunctionStatement(Tokenizer &tk, const Token &st,
         Block &parent,
         const NamespaceKey & ns_a, const std::string &funcname) :
     FunctionModifiers(parent, tk, ns_a),
@@ -6172,24 +6172,24 @@ Function::Function(Tokenizer &tk, const Token &st,
     body= cbody;
 }
 
-void Function::local(std::string name)
+void FunctionStatement::local(std::string name)
 {
     loc.push_back(name);
 }
 
-bool Function::islocal(std::string name) const
+bool FunctionStatement::islocal(std::string name) const
 {
     return std::find(loc.begin(), loc.end(), name) != loc.end() ||
         checklocal(name) ||
         std::find(params.begin(), params.end(), name) != params.end();
 }
 
-void Function::optimize()
+void FunctionStatement::optimize()
 {
     body= body->optimize();
 }
 
-void Function::emitparams (Emit &e)
+void FunctionStatement::emitparams (Emit &e)
 {
     for (size_t i= 0; i < params.size(); ++i)
     {
@@ -6208,14 +6208,14 @@ void Function::emitparams (Emit &e)
     e << '\n';
 }
 
-void Function::emitbody (Emit &e)
+void FunctionStatement::emitbody (Emit &e)
 {
     e.annotate(start);
     body->emit(e);
     e.annotate(tend);
 }
 
-void Function::emit (Emit &e)
+void FunctionStatement::emit (Emit &e)
 {
     getnamespace().emit (e);
 
@@ -6258,7 +6258,7 @@ public:
     {
         namespaces.push_back(ns);
     }
-    void addclass(Class *cl)
+    void addclass(ClassStatement *cl)
     {
         classes.push_back(cl);
     }
@@ -6274,8 +6274,8 @@ public:
         emit_group(constants, e);
     }
     virtual NamespaceBlockBase *getparent () { return 0; }
-    Class *findclass_base(const ClassKey &classkey);
-    virtual Class *findclass(const ClassKey &classkey) = 0;
+    ClassStatement *findclass_base(const ClassKey &classkey);
+    virtual ClassStatement *findclass(const ClassKey &classkey) = 0;
 private:
     std::string genlocallabel()
     { throw InternalError("No Namespace labels"); }
@@ -6293,7 +6293,7 @@ private:
 
     std::vector <BaseStatement *> constants;
     std::vector <NamespaceBlock *> namespaces;
-    std::vector <Class *> classes;
+    std::vector <ClassStatement *> classes;
 };
 
 class RootNamespaceBlock : public NamespaceBlockBase
@@ -6328,7 +6328,7 @@ class RootNamespaceBlock : public NamespaceBlockBase
         }
         else throw InternalError("No such constant");
     }
-    Class *findclass(const ClassKey &classkey);
+    ClassStatement *findclass(const ClassKey &classkey);
 };
 
 class NamespaceBlock : public NamespaceBlockBase
@@ -6356,7 +6356,7 @@ public:
             return parentnbb.getconstant(name);
     }
     NamespaceBlockBase *getparent () { return &parentnbb; }
-    Class *findclass(const ClassKey &classkey);
+    ClassStatement *findclass(const ClassKey &classkey);
 private:
     const std::string nsname;
     NamespaceBlockBase &parentnbb;
@@ -6365,10 +6365,10 @@ private:
 
 //**********************************************************************
 
-class Class : public SubBlock
+class ClassStatement : public SubBlock
 {
 public:
-    Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a);
+    ClassStatement(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a);
     const std::string &getname() const { return name; }
     void emit (Emit &e);
     std::vector <Token> attributes() const { return attrs; }
@@ -6389,14 +6389,14 @@ private:
     std::string name;
     NamespaceKey ns;
     std::vector <ClassSpecifier *> parents;
-    std::vector <Function *> functions;
+    std::vector <FunctionStatement *> functions;
     std::vector <Token> attrs;
     std::vector <BaseStatement *> constants;
 };
 
 //**********************************************************************
 
-Class *NamespaceBlockBase::findclass_base(const ClassKey &classkey)
+ClassStatement *NamespaceBlockBase::findclass_base(const ClassKey &classkey)
 {
     const std::string &name = classkey[0];
     if (classkey.size() == 1)
@@ -6412,7 +6412,7 @@ Class *NamespaceBlockBase::findclass_base(const ClassKey &classkey)
             if (namespaces[i]->getname() == name)
             {
                 std::vector<std::string> localkey(++classkey.begin(), classkey.end());
-                Class *result = namespaces[i]->findclass(localkey);
+                ClassStatement *result = namespaces[i]->findclass(localkey);
                 if (result)
                     return result;
             }
@@ -6420,14 +6420,14 @@ Class *NamespaceBlockBase::findclass_base(const ClassKey &classkey)
     }
 }
 
-Class *RootNamespaceBlock::findclass(const ClassKey &classkey)
+ClassStatement *RootNamespaceBlock::findclass(const ClassKey &classkey)
 {
     return findclass_base(classkey);
 }
 
-Class *NamespaceBlock::findclass(const ClassKey &classkey)
+ClassStatement *NamespaceBlock::findclass(const ClassKey &classkey)
 {
-    Class *cl = findclass_base(classkey);
+    ClassStatement *cl = findclass_base(classkey);
     if (! cl)
         cl = parentnbb.findclass(classkey);
     return cl;
@@ -6435,15 +6435,15 @@ Class *NamespaceBlock::findclass(const ClassKey &classkey)
 
 //**********************************************************************
 
-class Method : public Function
+class MethodStatement : public FunctionStatement
 {
 public:
-    Method(Tokenizer &tk, const Token &st,
+    MethodStatement(Tokenizer &tk, const Token &st,
             Block &parent,
             const NamespaceKey & ns_a,
-            Class &cl,
+            ClassStatement &cl,
             const std::string &name) :
-        Function(tk, st, parent, ns_a, name),
+        FunctionStatement(tk, st, parent, ns_a, name),
         myclass(cl)
     {
         genlocal("self", REGvar);
@@ -6466,7 +6466,7 @@ public:
         e << "\n.end # " << getname() << "\n\n";
     }
 private:
-    const Class &myclass;
+    const ClassStatement &myclass;
 };
 
 //**********************************************************************
@@ -6539,7 +6539,7 @@ private:
     BlockBase &bl;
     void emit(Emit &e)
     {
-        Class *cl = bl.findclass(id);
+        ClassStatement *cl = bl.findclass(id);
         if (cl)
         {
             e << cl->getkey().get_key();
@@ -6574,7 +6574,8 @@ ClassSpecifier *parseClassSpecifier(const Token &start, Tokenizer &tk,
 
 //**********************************************************************
 
-Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
+ClassStatement::ClassStatement
+    (NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
         SubBlock(ns_b),
         subblocks(0)
 {
@@ -6599,7 +6600,8 @@ Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
             Token name= tk.get();
             if (! name.isidentifier() )
                 throw Expected("method name", name);
-            Function *f = new Method (tk, t, *this, ns, *this, name.identifier());
+            FunctionStatement *f = new MethodStatement
+                    (tk, t, *this, ns, *this, name.identifier());
             functions.push_back(f);
         }
         else if (t.iskeyword("var"))
@@ -6623,12 +6625,12 @@ Class::Class(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
     }
 }
 
-const NamespaceKey &Class::getkey() const
+const NamespaceKey &ClassStatement::getkey() const
 {
     return ns;
 }
 
-void Class::optimize()
+void ClassStatement::optimize()
 {
     for (size_t i= 0; i < constants.size(); ++i)
         constants[i]->optimize();
@@ -6636,7 +6638,7 @@ void Class::optimize()
         functions[i]->optimize();
 }
 
-void Class::emit (Emit &e)
+void ClassStatement::emit (Emit &e)
 {
     ns.emit (e);
 
@@ -6688,8 +6690,8 @@ private:
     NamespaceBlockBase *cur_nsblock;
     NamespaceKey cur_namespace;
     std::vector <NamespaceBlockBase *> namespaces;
-    std::vector <Class *> classes;
-    std::vector <Function *> functions;
+    std::vector <ClassStatement *> classes;
+    std::vector <FunctionStatement *> functions;
     std::vector <std::string> loads;
 };
 
@@ -6721,7 +6723,8 @@ void Winxed::parse (Tokenizer &tk)
         }
         else if (t.iskeyword("class"))
         {
-            Class *c = new Class (*cur_nsblock, tk, cur_namespace);
+            ClassStatement *c =
+                new ClassStatement (*cur_nsblock, tk, cur_namespace);
             classes.push_back(c);
             cur_nsblock->addclass(c);
         }
@@ -6730,7 +6733,8 @@ void Winxed::parse (Tokenizer &tk)
             Token fname = tk.get();
             if (! fname.isidentifier() )
                 throw Expected("function name", fname);
-            Function *f = new Function (tk, t, *cur_nsblock, cur_namespace, fname.identifier());
+            FunctionStatement *f = new FunctionStatement
+                    (tk, t, *cur_nsblock, cur_namespace, fname.identifier());
             functions.push_back(f);
         }
         else if (t.iskeyword("$load"))
