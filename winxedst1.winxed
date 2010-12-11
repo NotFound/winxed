@@ -6454,8 +6454,7 @@ class VarStatement : VarBaseStatement
             case REGstring:
             case REGint:
             case REGfloat:
-                string value = self.tempreg(type);
-                init.emit(e, value);
+                string value = init.emit_get(e);
                 e.emitbox(reg, value);
                 break;
             default:
