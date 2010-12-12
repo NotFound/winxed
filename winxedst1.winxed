@@ -7905,7 +7905,7 @@ class RootNamespace : NamespaceBase
 
         // chomp uses a library function, load the libray if chomp is used
         if (predefs_used['chomp'] != null)
-            self.addload('String/Utils.pbc');
+            self.addload('"String/Utils.pbc"');
 
         // Load trans opcodes if some of its corresponding predefs are used
         string trfuncs[] = [
