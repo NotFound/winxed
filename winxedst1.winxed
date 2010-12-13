@@ -2722,7 +2722,8 @@ class OpPostIncExpr : OpUnaryExpr
     {
         string reg = self.subexpr.emit_get(e);
         self.annotate(e);
-        e.emitset(result, reg);
+        if (result != '')
+            e.emitset(result, reg);
         e.say('inc ', reg);
         return reg;
     }
@@ -2773,7 +2774,8 @@ class OpPostDecExpr : OpUnaryExpr
     {
         string reg = self.subexpr.emit_get(e);
         self.annotate(e);
-        e.emitset(result, reg);
+        if (result != '')
+            e.emitset(result, reg);
         e.say('dec ', reg);
         return reg;
     }
