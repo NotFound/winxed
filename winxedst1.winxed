@@ -2500,6 +2500,8 @@ class IdentifierExpr : SimpleExpr
     function emit_assign_get(e, expr)
     {
         self.annotate(e);
+        if (self.isnull())
+            die("NO");
         string typeleft = self.checkresult();
         string lreg = self.getIdentifier();
         if (expr.isnull()) {
@@ -4423,7 +4425,14 @@ class ArrayExpr : Expr
                 }
                 break;
             default:
-                itemreg = item.emit_get(e);
+                if (item.isnull()) {
+                    if (container != '') {
+                        itemreg = self.tempreg(REGvar);
+                        e.emitnull(itemreg);
+                    }
+                }
+                else
+                    itemreg = item.emit_get(e);
             }
             if (container != '') {
                 self.annotate(e);
@@ -4495,7 +4504,13 @@ class HashExpr : Expr
 
             var value = values[i];
             string itemreg;
-            if (value.isidentifier()) {
+            if (value.isnull()) {
+                if (result != '') {
+                    itemreg = self.tempreg(REGvar);
+                    e.emitnull(itemreg);
+                }
+            }
+            else if (value.isidentifier()) {
                 string s = value.checkIdentifier();
                 if (s != null && s != '')
                     itemreg = s;
