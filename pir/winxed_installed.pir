@@ -18,56 +18,55 @@
 # {
 .annotate 'line', 17
 # var options: $P1
-root_new $P3, ['parrot';'ResizablePMCArray']
+root_new $P1, ['parrot';'ResizablePMCArray']
 .annotate 'line', 18
-root_new $P5, ['parrot';'ResizablePMCArray']
-box $P6, 'c'
-$P5.'push'($P6)
-box $P6, 'Compile only. Same as --target=pir'
-$P5.'push'($P6)
+root_new $P4, ['parrot';'ResizablePMCArray']
+box $P5, 'c'
+$P4.'push'($P5)
+box $P5, 'Compile only. Same as --target=pir'
+$P4.'push'($P5)
 .annotate 'line', 17
-$P3.'push'($P5)
+$P1.'push'($P4)
 .annotate 'line', 19
-root_new $P7, ['parrot';'ResizablePMCArray']
-box $P8, 'e=s'
-$P7.'push'($P8)
-box $P8, 'Evaluate'
-$P7.'push'($P8)
+root_new $P6, ['parrot';'ResizablePMCArray']
+box $P7, 'e=s'
+$P6.'push'($P7)
+box $P7, 'Evaluate'
+$P6.'push'($P7)
 .annotate 'line', 17
-$P3.'push'($P7)
+$P1.'push'($P6)
 .annotate 'line', 20
-root_new $P9, ['parrot';'ResizablePMCArray']
-box $P10, 'L=s'
-$P9.'push'($P10)
-box $P10, 'Add to parrot library search path'
-$P9.'push'($P10)
+root_new $P8, ['parrot';'ResizablePMCArray']
+box $P9, 'L=s'
+$P8.'push'($P9)
+box $P9, 'Add to parrot library search path'
+$P8.'push'($P9)
 .annotate 'line', 17
-$P3.'push'($P9)
+$P1.'push'($P8)
 .annotate 'line', 21
-root_new $P11, ['parrot';'ResizablePMCArray']
-box $P12, 'I=s'
-$P11.'push'($P12)
-box $P12, 'Add to parrot include search path'
-$P11.'push'($P12)
+root_new $P10, ['parrot';'ResizablePMCArray']
+box $P11, 'I=s'
+$P10.'push'($P11)
+box $P11, 'Add to parrot include search path'
+$P10.'push'($P11)
 .annotate 'line', 17
-$P3.'push'($P11)
+$P1.'push'($P10)
 .annotate 'line', 22
-root_new $P13, ['parrot';'ResizablePMCArray']
-box $P14, 'help'
-$P13.'push'($P14)
-box $P14, 'Show this help'
-$P13.'push'($P14)
+root_new $P12, ['parrot';'ResizablePMCArray']
+box $P13, 'help'
+$P12.'push'($P13)
+box $P13, 'Show this help'
+$P12.'push'($P13)
 .annotate 'line', 17
-$P3.'push'($P13)
-set $P1, $P3
+$P1.'push'($P12)
 .annotate 'line', 24
 setattribute self, 'options', $P1
 .annotate 'line', 25
-iter $P15, $P1
-set $P15, 0
+iter $P14, $P1
+set $P14, 0
 __label_0: # for iteration
-unless $P15 goto __label_1
-shift $P2, $P15
+unless $P14 goto __label_1
+shift $P2, $P14
 $P4 = $P2[0]
 .annotate 'line', 26
 self.'push_string'($P4)
@@ -256,9 +255,8 @@ __label_1: # endif
 # {
 .annotate 'line', 74
 # var optionset: $P1
-new $P20, [ 'Options' ]
-$P20.'Options'(__ARG_1, 0)
-set $P1, $P20
+new $P1, [ 'Options' ]
+$P1.'Options'(__ARG_1, 0)
 .annotate 'line', 75
 # var options: $P2
 $P2 = $P1.'get'()
@@ -383,10 +381,10 @@ set $S2, $P20
 __label_9:
 .annotate 'line', 122
 # string pirfile: $S3
-$P21 = 'extname'($S1, '.pir')
+$P20 = 'extname'($S1, '.pir')
 null $S3
-if_null $P21, __label_10
-set $S3, $P21
+if_null $P20, __label_10
+set $S3, $P20
 __label_10:
 .annotate 'line', 123
 # var outfile: $P17
@@ -419,9 +417,8 @@ __label_11: # endif
 # string expr: $S4
 # predefined string
 set $S7, $P5
-concat $S0, 'function main[main](argv){', $S7
-concat $S0, ';}'
-set $S4, $S0
+concat $S4, 'function main[main](argv){', $S7
+concat $S4, ';}'
 .annotate 'line', 135
 $P15 = $P8.'compile'($S4)
 .annotate 'line', 136

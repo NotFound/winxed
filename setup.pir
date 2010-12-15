@@ -103,8 +103,8 @@ __label_1: # endif
 .annotate 'line', 58
 # var data: $P4
 $P4 = 'loadData'($S2)
-.annotate 'line', 60
 unless $I1 goto __label_2
+.annotate 'line', 60
 # {
 .annotate 'line', 61
 # string description: $S3
