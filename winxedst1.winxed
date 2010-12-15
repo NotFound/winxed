@@ -2316,7 +2316,8 @@ class StringLiteral : Literal
     }
     function emit(e, result)
     {
-        e.emitset(result, self.getPirString());
+        if (result != '')
+            e.emitset(result, self.getPirString());
     }
     function emit_get(e)
     {
@@ -2354,11 +2355,13 @@ class IntegerLiteral : Literal
     }
     function emit(e, result)
     {
-        int value = self.getIntegerValue();
-        if (value == 0)
-            e.emitnull(result);
-        else
-            e.emitset(result, value);
+        if (result != '') {
+            int value = self.getIntegerValue();
+            if (value == 0)
+                e.emitnull(result);
+            else
+                e.emitset(result, value);
+        }
     }
     function emit_get(e)
     {
@@ -2387,8 +2390,10 @@ class FloatLiteral : Literal
     }
     function emit(e, result)
     {
-        var n= self.getFloatValue();
-        e.emitset(result, n);
+        if (result != '') {
+            var n= self.getFloatValue();
+            e.emitset(result, n);
+        }
     }
     function emit_get(e)
     {
@@ -2483,8 +2488,10 @@ class IdentifierExpr : SimpleExpr
     }
     function emit(e, result)
     {
-        self.annotate(e);
-        e.emitset(result, self.getIdentifier());
+        if (result != '') {
+            self.annotate(e);
+            e.emitset(result, self.getIdentifier());
+        }
     }
     function emit_get(e)
     {
@@ -4379,8 +4386,16 @@ class ArrayExpr : Expr
     }
     function emit(e, result)
     {
-        string value = self.emit_get(e);
-        e.emitset(result, value);
+        if (result != '') {
+            string value = self.emit_get(e);
+            e.emitset(result, value);
+        }
+        else {
+            // No need to create the container, but the
+            // initializers may have secondary effects,
+            // so they should be evaluated.
+            self.emit_init(e, '');
+        }
     }
     function emit_get(e)
     {
@@ -4391,22 +4406,29 @@ class ArrayExpr : Expr
     function emit_init(e, string container)
     {
         self.annotate(e);
-        e.say('root_new ', container, ", ['parrot';'ResizablePMCArray']");
-        string it_p = self.tempreg(REGvar);
         string itemreg;
+        string it_p;
+        if (container != '') {
+            e.say('root_new ', container, ", ['parrot';'ResizablePMCArray']");
+            it_p = self.tempreg(REGvar);
+        }
         for (var item in self.values) {
             string type = item.checkresult();
             switch (type) {
             case REGint: case REGfloat: case REGstring:
                 string aux = item.emit_get(e);
-                e.emitbox(it_p, aux);
-                itemreg = it_p;
+                if (container != '') {
+                    e.emitbox(it_p, aux);
+                    itemreg = it_p;
+                }
                 break;
             default:
                 itemreg = item.emit_get(e);
             }
-            self.annotate(e);
-            e.say(container, ".'push'(", itemreg, ")");
+            if (container != '') {
+                self.annotate(e);
+                e.say(container, ".'push'(", itemreg, ")");
+            }
         }
     }
 }
@@ -4450,7 +4472,13 @@ class HashExpr : Expr
     function emit(e, result)
     {
         self.annotate(e);
-        e.say('root_new ', result, ", ['parrot';'Hash']");
+
+        // In void context there is no need to create the container,
+        // but the keys and values may have secondary effects,
+        // so they should ve evaluated.
+        if (result != '')
+            e.say('root_new ', result, ", ['parrot';'Hash']");
+
         var keys = self.keys;
         var values = self.values;
         int n = keys;
@@ -4483,7 +4511,8 @@ class HashExpr : Expr
             }
             else
                 itemreg = value.emit_get(e);
-            e.say(result, '[', item, '] = ', itemreg);
+            if (result != '')
+                e.say(result, '[', item, '] = ', itemreg);
         }
     }
     function emit_get(e)
