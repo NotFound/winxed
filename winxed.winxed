@@ -210,16 +210,28 @@ function main [main] (argv)
         cmd.push(winxedbin);
     }
     else {
-        // Simple heuristic: if the compiler is in the current
+        // First look in WINXED_PATH.
+        // If not, simple heuristic: if the compiler is in the current
         // directory and has no extension, use it.
         // If not, assume it's in the PATH or we are on Windows.
         var check = null;
-        if (os != null)
-            check = os.stat(winxedbin);
-        if (check != null)
-            cmd.push('./' + winxedbin);
-        else
-            cmd.push(winxedbin);
+        if (winxedpath != null && winxedpath != '' &&os != null) {
+            string checkbin = winxedpath + '/' + winxedbin;
+            check = os.stat(checkbin);
+            if (check == null) {
+                checkbin = winxedpath + "\\" + winxedbin + ".exe";
+                check = os.stat(checkbin);
+            }
+            if (check != null)
+                winxedbin = checkbin;
+        }
+        if (check == null) {
+            if (os != null)
+                check = os.stat(winxedbin);
+            if (check != null)
+                winxedbin = './' + winxedbin;
+        }
+        cmd.push(winxedbin);
     }
 
     cmd.push('-c');
