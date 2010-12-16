@@ -6203,6 +6203,7 @@ class TryStatement : BlockStatement
         e.comment('try: begin');
         self.stry.emit(e);
         e.comment('try: end');
+        e.say('pop_eh');
 
         self.annotate(e);
         e.emitgoto(labelpasthandler);
