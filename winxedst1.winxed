@@ -852,6 +852,9 @@ function floatresult(string r1, string r2)
 
 const string NULL = 'null', SELF = 'self';
 
+// Var flags
+const int VAR_is_volatile = 1;
+
 //*********************************************
 //         Predefined functions
 //*********************************************
@@ -1609,6 +1612,9 @@ function parseStatement(tk, owner)
     case 'const':
         return parseConst(t, tk, owner);
         break;
+    case 'volatile':
+        return parseVolatile(t, tk, owner);
+        break;
     case 'var':
         return parseVar(t, tk, owner);
     case 'string':
@@ -1695,9 +1701,9 @@ class Statement : CommonBase
     {
         return self.owner.createconst(name, type, value, id);
     }
-    function createvar(name, string type)
+    function createvar(name, string type, int flags[optional])
     {
-        return self.owner.createvar(name, type);
+        return self.owner.createvar(name, type, flags);
     }
     function getvar(name)
     {
@@ -1953,15 +1959,17 @@ class VarData
     var type;
     var reg;
     var scope;
+    var flags;
     var value;
     var id;
     var lexname;
 
-    function VarData(type, reg, scope, value [optional])
+    function VarData(type, reg, scope, int flags, value [optional])
     {
         self.type = type;
         self.reg = reg;
         self.scope = scope;
+        self.flags = flags;
         self.value = value;
     }
     function setid(string id)
@@ -1979,6 +1987,7 @@ class VarData
     function isconst() { return self.value != null; }
     function getid() { return self.id; }
     function getlex() { return self.lexname; }
+    function isvolatile() { return int(self.flags) & VAR_is_volatile; }
 }
 
 class ConstantInternalFail
@@ -2002,7 +2011,7 @@ class VarContainer
     {
         self.locals = {};
     }
-    function createvar(var name, string type)
+    function createvar(var name, string type, int flags[optional])
     {
         var locals= self.locals;
         string sname= name;
@@ -2010,7 +2019,7 @@ class VarContainer
         if (exist != null)
             SyntaxError("Redeclared '" + sname + "'", name);
         string reg= self.createreg(type);
-        var data = new VarData(type, reg, self);
+        var data = new VarData(type, reg, self, flags);
         locals[sname] = data;
         return data;
     }
@@ -2021,7 +2030,7 @@ class VarContainer
         var exist= locals[sname];
         if (exist != null)
             SyntaxError("Redeclared '" + sname + "'", name);
-        locals[sname] = new VarData(type, pirname, self);
+        locals[sname] = new VarData(type, pirname, self, 0);
     }
     function createconst(var name, string type, var value, string id)
     {
@@ -2030,7 +2039,7 @@ class VarContainer
         var exist= locals[sname];
         if (exist != null)
             SyntaxError("Redeclared '" + sname + "'", name);
-        var data = new VarData(type, new ConstantInternalFail(name), self, value);
+        var data = new VarData(type, new ConstantInternalFail(name), self, 0, value);
         if (id != null && id != '')
             data.setid(id);
         locals[sname] = data;
@@ -2486,16 +2495,30 @@ class IdentifierExpr : SimpleExpr
         }
         return self;
     }
+    function emit_getid(e)
+    {
+        string id = self.getIdentifier();
+        var desc = self.owner.getvar(self.name);
+        if (desc != null && desc.isvolatile()) {
+            string lexname = desc.getlex();
+            if (lexname != null && lexname != '')
+                e.say("find_lex ", id, ", '", lexname, "'");
+        }
+        return id;
+    }
     function emit(e, result)
     {
         if (result != '') {
             self.annotate(e);
-            e.emitset(result, self.getIdentifier());
+            string id = self.emit_getid(e);
+            e.emitset(result, id);
         }
     }
     function emit_get(e)
     {
-        return self.getIdentifier();
+        self.annotate(e);
+        string id = self.emit_getid(e);
+        return id;
     }
     function emit_assign_get(e, expr)
     {
@@ -2529,6 +2552,12 @@ class IdentifierExpr : SimpleExpr
                 else
                     e.emitset(lreg, rreg);
             }
+        }
+        var desc = self.owner.getvar(self.name);
+        if (desc.isvolatile()) {
+            string lexname = desc.getlex();
+            if (lexname != null && lexname != '')
+                e.say("store_lex '", lexname, "', ", lreg);
         }
         return lreg;
     }
@@ -6228,11 +6257,11 @@ class VarBaseStatement : Statement
 {
     var name;
     var reg;
-    function initvarbase(start, owner, name)
+    function initvarbase(start, owner, name, int flags[optional])
     {
         self.initstatement(start, owner);
         self.name = name;
-        var vdata = self.createvar(name, REGvar);
+        var vdata = self.createvar(name, REGvar, flags);
         self.reg = vdata.getreg();
     }
 }
@@ -6487,9 +6516,9 @@ function parseConst(start, tk, owner)
 class VarStatement : VarBaseStatement
 {
     var init;
-    function VarStatement(start, tk, owner, name)
+    function VarStatement(start, tk, owner, name, int flags)
     {
-        self.initvarbase(start, owner, name);
+        self.initvarbase(start, owner, name, flags);
         var t= tk.get();
         if (t.isop('=')) {
             self.init = parseExpr(tk, self);
@@ -6592,7 +6621,7 @@ class FixedVarStatement : VarStatement
     }
 }
 
-function parseVar(start, tk, owner)
+function parseVar(start, tk, owner, int flags[optional])
 {
     var name = tk.get();
     if (!name.isidentifier())
@@ -6609,8 +6638,16 @@ function parseVar(start, tk, owner)
     }
     else {
         tk.unget(t);
-        return new VarStatement(start, tk, owner, name);
+        return new VarStatement(start, tk, owner, name, flags);
     }
+}
+
+function parseVolatile(start, tk, owner)
+{
+    var t = tk.get();
+    if (!t.iskeyword('var'))
+        SyntaxError("invalid volatile type", t);
+    return parseVar(start, tk, owner, VAR_is_volatile);
 }
 
 //*********************************************
@@ -7276,7 +7313,9 @@ class LocalFunctionStatement : FunctionBase
                 if (ownerscope instanceof FunctionBase) {
                     if (ownerscope.same_scope_as(outer)) {
                         string lexname = scope.makelexical(r);
-                        r = self.createvar(name, REGvar);
+                        int flags = r.isvolatile() ? VAR_is_volatile : 0;
+                        r = self.createvar(name, REGvar, flags);
+                        r.lexname = lexname;
                         string reg = r.getreg();
                         self.setusedlex(lexname, reg);
                     }
