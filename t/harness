@@ -174,8 +174,10 @@ function main(var argv)
 
     argv.shift();
     var opts = getopts.get_options(argv);
-    var verbose = opts['v'];
-    var recursive = opts['r'];
+    var optverbose = opts['v'];
+    var optrecursive = opts['r'];
+    int verbose = optverbose == null ? 0 : int(optverbose);
+    int recursive = optrecursive == null ? 0 : int(optrecursive);
     var opt_stage = opts['stage'];
     int stage = 0;
     if (opt_stage != null)

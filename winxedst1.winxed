@@ -814,7 +814,7 @@ class Emit
     }
     function emitconcat1(string dst, string src)
     {
-        string ins = "concat " + dst + ", " + src + "\n";
+        string ins = "concat " + dst + ", " + dst + ", " + src + "\n";
         self.handle.print(ins);
     }
     function emitconcat(string dst, string src1, string src2)
