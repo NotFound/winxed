@@ -4352,7 +4352,7 @@ class IndexExpr : Expr, SimpleArgList
         if (type == REGstring) {
             if (nargs != 1)
                SyntaxError('Bad string index', self.start);
-            e.say('substr ', result, ', ', regleft, ', ', self.getarg(0), ', ', 1);
+            e.say('substr ', result, ', ', regleft, ', ', argregs[0], ', ', 1);
         }
         else {
             e.print(result, ' = ', regleft, '[');
