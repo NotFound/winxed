@@ -109,8 +109,8 @@ unless $I1 goto __label_2
 .annotate 'line', 61
 # string description: $S3
 $S3 = $P4['description']
-# predefined say
 .annotate 'line', 62
+# predefined say
 print "\tFile: "
 say $S2
 $P6 = $P4['name']
@@ -118,8 +118,8 @@ $P6 = $P4['name']
 .annotate 'line', 63
 print "\tName: "
 say $P6
-# predefined say
 .annotate 'line', 64
+# predefined say
 print "\tDescription: "
 say $S3
 $P6 = $P4['copyright_holder']

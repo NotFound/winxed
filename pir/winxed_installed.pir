@@ -67,8 +67,8 @@ set $P14, 0
 __label_0: # for iteration
 unless $P14 goto __label_1
 shift $P2, $P14
-$P4 = $P2[0]
 .annotate 'line', 26
+$P4 = $P2[0]
 self.'push_string'($P4)
 goto __label_0
 __label_1: # endfor
@@ -310,9 +310,9 @@ $P10 = $P9[9]
 .annotate 'line', 96
 # var pathlib: $P11
 $P11 = $P10[1]
+.annotate 'line', 97
 # predefined string
 set $S6, $P6
-.annotate 'line', 97
 $P11.'push'($S6)
 # }
 __label_2: # endif
@@ -331,9 +331,9 @@ $P13 = $P12[9]
 .annotate 'line', 103
 # var pathlib: $P14
 $P14 = $P13[0]
+.annotate 'line', 104
 # predefined string
 set $S6, $P7
-.annotate 'line', 104
 $P14.'push'($S6)
 # }
 __label_3: # endif
@@ -418,7 +418,7 @@ __label_11: # endif
 # predefined string
 set $S7, $P5
 concat $S4, 'function main[main](argv){', $S7
-concat $S4, ';}'
+concat $S4, $S4, ';}'
 .annotate 'line', 135
 $P15 = $P8.'compile'($S4)
 .annotate 'line', 136
@@ -463,6 +463,7 @@ push_eh $P21
 $P18(__ARG_1)
 # }
 # try: end
+pop_eh
 goto __label_18
 .annotate 'line', 147
 # catch
@@ -474,8 +475,8 @@ pop_eh
 .annotate 'line', 151
 # string msg: $S5
 $S5 = $P19['message']
-# predefined cry
 .annotate 'line', 152
+# predefined cry
 getstderr $P0
 print $P0, $P19
 print $P0, "\n"
