@@ -4335,8 +4335,22 @@ class IndexExpr : Expr, SimpleArgList
     }
     function optimize()
     {
-        self.left = self.left.optimize();
+        var left = self.left.optimize();
+        self.left = left;
         self.optimizeargs();
+
+        // Optimize case of string constant indexed with int constant
+        // evaluating it at compile time.
+        if (left.isstringliteral() && self.numargs() == 1) {
+            var arg = self.getarg(0);
+            if (arg.isintegerliteral()) {
+                int ival = arg.getIntegerValue();
+                string sval = left.get_value();
+                var t = new TokenQuoted(self.start.file, self.start.line,
+                        substr(sval, ival, 1));
+                return new StringLiteral(self.owner, t);
+            }
+        }
         return self;
     }
     function emit(e, result)
