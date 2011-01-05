@@ -72,6 +72,7 @@ class XMLHttpRequest
             'Connection' : 'close'
         };
         var resp;
+	cry(url);
         switch (self.method) {
           case 'GET':
             resp = self.ua.get(url, nargs:[named,flat]);
@@ -88,39 +89,6 @@ class XMLHttpRequest
         self.status =: resp.code();
 
         string rt = resp.content();
-
-        // Temporary measure for chunked transfer encoding while LWP
-        // does not handle it. If the data does not start with a
-        // chunk length, assume that the problem is fixed and let
-        // the data unchanged.
-        var h = resp.headers();
-        string s = h['Transfer-Encoding'];
-        if (s == 'chunked') {
-            int pos = indexof(rt, "\r\n");
-            if (pos > 0) {
-                string check = substr(rt, 0, pos);
-                for (string c in check)
-                    if (indexof('01234567890abcdefABCDEF', c) < 0)
-                        pos = -1;
-                if (pos > 0)  {
-                    string more = rt;
-                    rt = '';
-                    // Each chunk header is the chunk length followed by
-                    // CRLF end of line
-                    while ((pos = indexof(more, "\r\n")) > 0) {
-                        int chlen = pos + 2;
-                        string sl = substr(more, 0, pos);
-                        int l = sl.to_int(16);
-                        // A chunk of length 0 signals the end
-                        if (l == 0)
-                            break;
-                        rt += substr(more, chlen, l);
-                        more = substr(more, chlen + l);
-                    }
-                    // Optional trailing HTTP headers ignored in this version
-                }
-            }
-        }
 
         self.responseText = rt;
 
