@@ -1118,6 +1118,26 @@ function predefeval_substr_l(var owner, var start, var args)
     return new StringLiteral(owner, t);
 }
 
+function predefeval_indexof(var owner, var start, var args)
+{
+    var argstrfrom = args[0].arg;
+    var argstrsearch = args[1].arg;
+    string strfrom = argstrfrom.get_value();
+    string strsearch = argstrsearch.get_value();
+    return integerValue(owner, start, indexof(strfrom, strsearch));
+}
+
+function predefeval_indexof_pos(var owner, var start, var args)
+{
+    var argstrfrom = args[0].arg;
+    var argstrsearch = args[1].arg;
+    var argpos = args[2].arg;
+    string strfrom = argstrfrom.get_value();
+    string strsearch = argstrsearch.get_value();
+    int pos = argpos.numval;
+    return integerValue(owner, start, indexof(strfrom, strsearch, pos));
+}
+
 function getpredefs()
 {
     using predefeval_length;
@@ -1127,6 +1147,8 @@ function getpredefs()
     using predefeval_ord_n;
     using predefeval_substr;
     using predefeval_substr_l;
+    using predefeval_indexof;
+    using predefeval_indexof_pos;
 
     var predefs = [
         new PredefFunction().set('int',
@@ -1230,11 +1252,13 @@ function getpredefs()
             'substr {res}, {arg0}, {arg1}, {arg2}',
             REGstring, REGstring, REGint, REGint
         ),
-        new PredefFunction().set('indexof',
+        new PredefFunction().set_eval('indexof',
+            predefeval_indexof,
             'index {res}, {arg0}, {arg1}',
             REGint, REGstring, REGstring
         ),
-        new PredefFunction().set('indexof',
+        new PredefFunction().set_eval('indexof',
+            predefeval_indexof_pos,
             'index {res}, {arg0}, {arg1}, {arg2}',
             REGint, REGstring, REGstring, REGint
         ),
