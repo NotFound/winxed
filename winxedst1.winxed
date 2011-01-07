@@ -1094,6 +1094,30 @@ function predefeval_chr(var owner, var start, var args)
     return new StringLiteral(owner, t);
 }
 
+function predefeval_substr(var owner, var start, var args)
+{
+    var argstr = args[0].arg;
+    var argpos = args[1].arg;
+    string str = argstr.get_value();
+    int pos = argpos.numval;
+
+    var t = new TokenQuoted(start.file, start.line, substr(str, pos));
+    return new StringLiteral(owner, t);
+}
+
+function predefeval_substr_l(var owner, var start, var args)
+{
+    var argstr = args[0].arg;
+    var argpos = args[1].arg;
+    var arglen = args[2].arg;
+    string str = argstr.get_value();
+    int pos = argpos.numval;
+    int len = arglen.numval;
+
+    var t = new TokenQuoted(start.file, start.line, substr(str, pos, len));
+    return new StringLiteral(owner, t);
+}
+
 function getpredefs()
 {
     using predefeval_length;
@@ -1101,6 +1125,8 @@ function getpredefs()
     using predefeval_chr;
     using predefeval_ord;
     using predefeval_ord_n;
+    using predefeval_substr;
+    using predefeval_substr_l;
 
     var predefs = [
         new PredefFunction().set('int',
@@ -1194,11 +1220,13 @@ function getpredefs()
             'ord {res}, {arg0}, {arg1}',
             REGint, REGstring, REGint
         ),
-        new PredefFunction().set('substr',
+        new PredefFunction().set_eval('substr',
+            predefeval_substr,
             'substr {res}, {arg0}, {arg1}',
             REGstring, REGstring, REGint
         ),
-        new PredefFunction().set('substr',
+        new PredefFunction().set_eval('substr',
+            predefeval_substr_l,
             'substr {res}, {arg0}, {arg1}, {arg2}',
             REGstring, REGstring, REGint, REGint
         ),
