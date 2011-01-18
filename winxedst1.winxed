@@ -8150,8 +8150,10 @@ class WinxedCompiler
 
 class WinxedHLL
 {
-    function compile(string code)
+    function compile(string code, string target[named,optional])
     {
+        if (target == null)
+            target = '';
         var handlein = new ['StringHandle'];
         //handlein.encoding('utf8');
         handlein.open(EVAL_NAME, 'w');
@@ -8171,8 +8173,20 @@ class WinxedHLL
         emit.close();
         handleout.close();
         string pircode = handleout.read(0);
-        var pircomp = compreg('PIR');
-        var object = pircomp(pircode);
+        var object;
+        switch (target) {
+          case 'pir':
+            object = new ['String'];
+            object =: pircode;
+            break;
+          case 'pbc':
+          case '':
+            var pircomp = compreg('PIR');
+            object = pircomp(pircode);
+            break;
+          default:
+            die('Invalid target');
+        }
         return object;
     }
     function compile_from_file_to_pir(string filename, var handleout)
