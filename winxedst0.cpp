@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 11-dec-2010
+// Revision 18-jan-2011
 
 // Winxed compiler stage 0.
 
@@ -6197,8 +6197,19 @@ void FunctionStatement::emitparams (Emit &e)
         const ParamInfo &info= paraminfo[param];
         e << ".param " << nameoftype(info.type()) << ' ' <<
                 param;
-        if (info.has_modifier("slurpy"))
+        bool isslurpy = info.has_modifier("slurpy");
+        bool isnamed = info.has_modifier("named");
+        if (isslurpy) {
             e << " :slurpy";
+            // Special case for named slurpy
+            if (isnamed)
+                e << " :named";
+        }
+        else {
+            // Unfinished
+            if (isnamed)
+                e << " :named";
+        }
         if (info.has_modifier("optional"))
             e << " :optional";
         if (info.has_modifier("opt_flag"))
