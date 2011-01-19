@@ -861,6 +861,50 @@ const int VAR_is_volatile = 1;
 
 const int PREDEF_arglist = -1, PREDEF_raw1 = -2;
 
+// Invokable object generated from a string body
+class Predef_frombody
+{
+    var body;
+    var typeresult;
+    function Predef_frombody(string typeresult, string bodystr)
+    {
+        int pos = indexof(bodystr, '{res}');
+        if (typeresult == REGnone && pos != -1)
+            InternalError('void predef with {res}');
+        if (typeresult != REGnone && pos == -1)
+            InternalError('non void predef without {res}');
+        self.body = bodystr;
+        self.typeresult = typeresult;
+    }
+    function invoke [vtable](e, start, string result, args)
+    {
+        string body = self.body;
+        string typeresult = self.typeresult;
+
+        int pos;
+        if (typeresult == REGnone) {
+            if (result != null && result != '')
+                SyntaxError('using return value from void predef');
+        }
+        else {
+            if (result == null || result == '')
+                InternalError('Bad result in non void predef');
+            while ((pos = indexof(body, '{res}')) != -1)
+                body = substr(body, 0, pos) + result + substr(body, pos + 5);
+        }
+
+        int n = args;
+        for (int i = 0; i < n; ++i) {
+            string argmark = '{arg' + i + '}';
+            string arg = args[i];
+            while ((pos = indexof(body, argmark)) != -1)
+                body = substr(body, 0, pos) + arg + substr(body, pos + 6);
+        }
+        e.annotate(start);
+        e.say(body);
+    }
+}
+
 class PredefFunction
 {
     var name;
@@ -901,7 +945,10 @@ class PredefFunction
         string type2[optional])
     {
         self.name = name;
-        self.body = body;
+        if (body instanceof 'String')
+            self.body = new Predef_frombody(typeresult, body);
+        else
+            self.body = body;
         self.typeresult = typeresult;
         int n = 0;
         if (type0 != null) {
@@ -944,48 +991,12 @@ class PredefFunction
     }
     function expand(var e, var owner, var start, string result, args)
     {
-        string name = self.name;
+        e.comment('predefined ' + string(self.name));
         string typeresult = self.typeresult;
-        e.comment('predefined ' + name);
-
-        if (self.nparams == PREDEF_raw1) {
-            var fun = self.body;
-            fun(e, start, result, args);
-            return;
-        }
-        if (self.body instanceof 'String') {
-            string body = self.body;
-            int pos = indexof(body, '{res}');
-            if (typeresult == REGnone) {
-                if (result != null && result != '')
-                    SyntaxError('using return value from void predef');
-                if (pos != -1)
-                    InternalError('void predef with {res}');
-            }
-            else {
-                if (pos == -1)
-                    InternalError('non void predef without {res}');
-                if (typeresult != REGnone && (result == null || result == ''))
-                    result = owner.tempreg(typeresult);
-                do {
-                    body = substr(body, 0, pos) + result + substr(body, pos + 5);
-                } while ((pos = indexof(body, '{res}')) != -1);
-            }
-
-            int n = args;
-            for (int i = 0; i < n; ++i) {
-                string argmark = '{arg' + i + '}';
-                string arg = args[i];
-                while ((pos = indexof(body, argmark)) != -1)
-                    body = substr(body, 0, pos) + arg + substr(body, pos + 6);
-            }
-            e.annotate(start);
-            e.say(body);
-        }
-        else {
-            var fun = self.body;
-            fun(e, start, result, args);
-        }
+        if (typeresult != REGnone && result == '')
+            result = owner.tempreg(typeresult);
+        var fun = self.body;
+        fun(e, start, result, args);
     }
 }
 
@@ -1400,15 +1411,15 @@ function getpredefs()
         ),
         new PredefFunction().set('print',
             new Predef_print(),
-            REGvar, REGarglist
+            REGnone, REGarglist
         ),
         new PredefFunction().set('say',
             new Predef_say(),
-            REGvar, REGarglist
+            REGnone, REGarglist
         ),
         new PredefFunction().set('cry',
             new Predef_cry(),
-            REGvar, REGarglist
+            REGnone, REGarglist
         )
     ];
     for (;;)
@@ -2593,6 +2604,8 @@ class IdentifierExpr : SimpleExpr
             expr.emit(e, lreg);
         else {
             string typeright = expr.checkresult();
+            if (typeright == REGnone)
+                SyntaxError("Can't assign from void expression", self.start);
             if (typeleft == typeright) {
                 expr.emit(e, lreg);
             }
@@ -6628,6 +6641,8 @@ class VarStatement : VarBaseStatement
                 string value = init.emit_get(e);
                 e.emitbox(reg, value);
                 break;
+            case REGnone:
+                SyntaxError("Can't use void function as initializer", self.name);
             default:
                 SyntaxError("Invalid var initializer", self.name);
             }
