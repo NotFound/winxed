@@ -5588,7 +5588,9 @@ class ReturnYieldStatement : Statement
             // Generate a tailcall in simple function calls and in method calls.
             if (func instanceof CallExpr) {
                 var funref = func.funref;
-                if (funref.isidentifier() || (funref instanceof MemberExpr)) {
+                if (funref.isidentifier() ||
+                        (funref instanceof MemberExpr) ||
+                        (funref instanceof FunctionExpr)) {
                     self.annotate(e);
                     return func.emit(e, '.tailcall');
                 }
