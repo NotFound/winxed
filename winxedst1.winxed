@@ -6403,7 +6403,6 @@ class DeclareStatement : Statement
 
         self.reg= reg;
         if (t.isop('=')) {
-            //say('Initializer');
             t = tk.get();
             if (! t.isop('['))
                 SyntaxError("Array initializer expected", t);
@@ -6831,7 +6830,6 @@ class CompoundStatement : BlockStatement
     var statements;
     var end;
     var labels;
-    //var locals;
 
     function CompoundStatement(start, tk, owner)
     {
@@ -7780,7 +7778,6 @@ class NamespaceBase : VarContainer
             string basename = childkey.shift();
             for (var ns in namespaces) {
                 if (ns.name == basename) {
-                    //cry(basename, ' : ', childkey[0]);
                     var found = ns.findclasskey(childkey);
                     if (found != null)
                         return found;
@@ -8170,7 +8167,6 @@ class WinxedHLL
         if (target == null)
             target = '';
         var handlein = new ['StringHandle'];
-        //handlein.encoding('utf8');
         handlein.open(EVAL_NAME, 'w');
         handlein.puts(code);
         handlein.close();
