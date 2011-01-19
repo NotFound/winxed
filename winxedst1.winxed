@@ -8323,6 +8323,7 @@ function stage1(argv)
 
 function main(argv)
 {
+    int retval = 0;
     try
             [
                 min_severity(2),
@@ -8351,7 +8352,9 @@ function main(argv)
                 say(' ' * (2 * i++), "at ", subname, " in '", file, "' line ", line);
             }
         }
+	retval = 1;
     }
+    exit(retval);
 }
 
 // End

@@ -198,6 +198,8 @@ function main [main] (argv)
     default:
         die('Invalid stage ' + stage + '. Must be 0, 1 or 2 (2 is for testing development only).');
     }
+
+    int retval = 0;
     string cmd[]; // Command to execute
 
     int use_pbc = stage > 0;
@@ -245,7 +247,10 @@ function main [main] (argv)
     cmd.push(pirfile);
     if (eval == null)
         cmd.push(srcfile);
-    spawnw(cmd);
+    retval = spawnw(cmd);
+    retval = (retval & 0xFF00) / 256;
+    if (retval)
+        exit(retval);
 
     string runit[] = [ 'parrot' ];
 
@@ -263,7 +268,7 @@ function main [main] (argv)
         runit.push(pirfile);
         for (string a in argv)
             runit.push(a);
-        spawnw(runit);
+        retval = spawnw(runit);
         // Delete the generated pir file.
         try {
             os.rm(pirfile);
@@ -283,7 +288,7 @@ function main [main] (argv)
         runit.push('-o');
         runit.push(objfile);
         runit.push(pirfile);
-        spawnw(runit);
+        retval = spawnw(runit);
         // Delete the generated pir file.
         try {
             os.rm(pirfile);
@@ -296,4 +301,6 @@ function main [main] (argv)
     default:
         ; // Otherwise, nothing to do.
     }
+    retval = (retval & 0xFF00) / 256;
+    exit(retval);
 }
