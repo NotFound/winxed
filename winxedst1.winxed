@@ -1945,7 +1945,7 @@ class StaticStatement : Statement
     {
         self.initstatement(start, owner);
         string sym = tk.get();
-        RequireOp(';', tk.get());
+        ExpectOp(';', tk);
         self.symbol = sym;
     }
     function optimize() { return self; }
@@ -6123,23 +6123,15 @@ class ForeachStatement : LoopStatement, BlockStatement
     var varname;
     var container;
 
-    function ForeachStatement(start, tk, owner)
+    function ForeachStatement(start, tk, owner, name, string type)
     {
         self.initstatement(start, owner);
-        var name = tk.get();
         string sname = name;
-        string type = typetoregcheck(sname);
-        if (type != '') {
-            name = tk.get();
-            sname = name;
-            self.createvar(sname, type);
-        }
-        var aux= tk.get();
+        if (type != '')
+            self.createvar(sname, typetoregcheck(type));
         self.varname = name;
         self.container = parseExpr(tk, self);
-        aux = tk.get();
-        if (!aux.isop(')'))
-            SyntaxError("Expected ')'", aux);
+        ExpectOp(')', tk);
         self.parsebody(tk);
     }
     function optimize()
@@ -6181,14 +6173,17 @@ function parseFor(t, tk, owner)
     ExpectOp('(', tk);
     var aux = tk.get();
     var in1 = tk.get();
-    var in2 = tk.get();
-    tk.unget(in2);
-    tk.unget(in1);
-    tk.unget(aux);
-    if (in1.iskeyword('in') || in2.iskeyword('in'))
-        return new ForeachStatement(t, tk, owner);
-    else
-        return new ForStatement(t, tk, owner);
+    if (in1.iskeyword('in'))
+        return new ForeachStatement(t, tk, owner, aux, '');
+    else {
+        var in2 = tk.get();
+        if (in2.iskeyword('in'))
+            return new ForeachStatement(t, tk, owner, in1, aux);
+        tk.unget(in2);
+        tk.unget(in1);
+        tk.unget(aux);
+    }
+    return new ForStatement(t, tk, owner);
 }
 
 //*********************************************
@@ -6241,10 +6236,10 @@ class TryStatement : BlockStatement
         self.stry = parseStatement(tk, self);
         t = tk.get();
         if (! t.iskeyword('catch'))
-            SyntaxError("Expected 'catch'", t);
+            Expected('catch', t);
         t = tk.get();
         if (! t.isop('('))
-            SyntaxError("Excpected '(' after 'catch'", t);
+            SyntaxError("Expected '(' after 'catch'", t);
         t = tk.get();
         if (! t.isop(')')) {
             string exname = t.getidentifier();
@@ -6252,7 +6247,7 @@ class TryStatement : BlockStatement
             self.createvar(exname, REGvar);
             t = tk.get();
             if (! t.isop(')'))
-                SyntaxError("Excpected ')' in 'catch'", t);
+                SyntaxError("Expected ')' in 'catch'", t);
         }
         self.scatch = parseStatement(tk, self);
     }
@@ -6394,9 +6389,7 @@ class DeclareStatement : Statement
             else {
                 tk.unget(t);
                 self.size = parseExpr(tk, self);
-                t= tk.get();
-                if (! t.isop(']'))
-                    SyntaxError("Expected ']'", t);
+                ExpectOp(']', tk);
                 t= tk.get();
             }
         }
@@ -6531,8 +6524,7 @@ function parseDeclareHelper(fun, start, tk, owner)
         r = addtomulti(r, item);
         next = tk.get();
     } while (next.isop(','));
-    if (!next.isop(';'))
-        SyntaxError("Expected ';'", next);
+    RequireOp(';', next);
     return r;
 }
 
@@ -6613,8 +6605,7 @@ class VarStatement : VarBaseStatement
             self.init = parseExpr(tk, self);
             t= tk.get();
         }
-        if (!t.isop(';'))
-            SyntaxError("Expected ';'", t);
+        RequireOp(';', t);
     }
     function optimize_init()
     {
@@ -6667,9 +6658,7 @@ class ResizableVarStatement : VarStatement
     function ResizableVarStatement(start, tk, owner, name)
     {
         self.initvarbase(start, owner, name);
-        var t = tk.get();
-        if (!t.isop(';'))
-            SyntaxError("Expected ';'", t);
+        ExpectOp(';', tk);
     }
     function emit(var e)
     {
@@ -6689,12 +6678,8 @@ class FixedVarStatement : VarStatement
     {
         self.initvarbase(start, owner, name);
         self.exprsize = parseExpr(tk, self);
-        var t = tk.get();
-        if (!t.isop(']'))
-            SyntaxError("Expected ']'", t);
-        t = tk.get();
-        if (!t.isop(';'))
-            SyntaxError("Expected ';'", t);
+        ExpectOp(']', tk);
+        ExpectOp(';', tk);
     }
     function optimize()
     {
@@ -7096,7 +7081,7 @@ class FunctionBase : BlockStatement
         case REGvar:
             store = self.regstP; break;
         default:
-            InternalError('Invalid type in createreg');
+            InternalError('Invalid type in createreg: ' + type);
         }
         string reg = store.createreg();
         return reg;
@@ -7329,8 +7314,7 @@ class FunctionStatement : FunctionBase
             self.modifiers= modifiers;
             t= tk.get();
         }
-        if (! t.isop('('))
-            Expected('(', t);
+        RequireOp('(', t);
         self.parse_parameters(tk);
 
         t= tk.get();
@@ -7356,8 +7340,7 @@ class LocalFunctionStatement : FunctionBase
         self.name = subid;
         self.parse_parameters(tk);
         var t = tk.get();
-        if (!t.isop('{'))
-            Expected('{', t);
+        RequireOp('{', t);
         self.body= new CompoundStatement(t, tk, self);
         owner.addlocalfunction(self);
     }
@@ -7503,8 +7486,7 @@ class ClassSpecifierParrotKey : ClassSpecifier
                     SyntaxError('literal string expected', t);
                 key.push(t.rawstring());
             } while ((t = tk.get()).isop(','));
-            if (!t.isop(']'))
-                SyntaxError("Expected ']'", t);
+            RequireOp(']', t);
         }
         self.key = key;
     }
@@ -7849,8 +7831,7 @@ class NamespaceBase : VarContainer
                     Expected('string literal', t);
                 string reqlib = t;
                 self.addlib(reqlib);
-                t = tk.get();
-                RequireOp(';', t);
+                ExpectOp(';', tk);
                 break;
               case '$include_const':
                 include_parrot(t, tk, self);
@@ -7861,8 +7842,7 @@ class NamespaceBase : VarContainer
                     Expected('string literal', t);
                 string reqload = t;
                 self.addload(reqload);
-                t = tk.get();
-                RequireOp(';', t);
+                ExpectOp(';', tk);
                 break;
               default:
                 SyntaxError("Unexpected token", t);
