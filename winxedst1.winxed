@@ -785,6 +785,14 @@ class Emit
         string ins = "null " + dst + "\n";
         self.handle.print(ins);
     }
+    function emitinc(string arg)
+    {
+        self.handle.print('inc ' + arg + "\n");
+    }
+    function emitdec(string arg)
+    {
+        self.handle.print('dec ' + arg + "\n");
+    }
     function emitset(string dst, string src)
     {
         string ins = "set " + dst + ", " + src + "\n";
@@ -829,6 +837,14 @@ class Emit
     {
         string ins = "concat " + dst + ", " + src1 + ", " + src2 + "\n";
         self.handle.print(ins);
+    }
+    function emitprint(string arg)
+    {
+        self.handle.print('print ' + arg + "\n");
+    }
+    function emitsay(string arg)
+    {
+        self.handle.print('say ' + arg + "\n");
     }
 }
 
@@ -1040,11 +1056,11 @@ class Predef_say
         int n = int(args) - 1;
         if (n >= 0) {
             for (int i = 0; i < n; ++i)
-                e.say('print ', args[i]);
-            e.say('say ', args[n]);
+                e.emitprint(args[i]);
+            e.emitsay(args[n]);
         }
         else
-            e.say(" say ''");
+            e.emitsay("''");
     }
 }
 
@@ -1068,7 +1084,7 @@ class Predef_print
         e.annotate(start);
         int n = args;
         for (int i = 0; i < n; ++i)
-            e.say('print ', args[i]);
+            e.emitprint(args[i]);
     }
 }
 
@@ -2811,7 +2827,7 @@ class OpPreIncExpr : OpUnaryExpr
     {
         string reg = self.subexpr.emit_get(e);
         self.annotate(e);
-        e.say('inc ', reg);
+        e.emitinc(reg);
         return reg;
     }
 }
@@ -2835,7 +2851,7 @@ class OpPostIncExpr : OpUnaryExpr
         self.annotate(e);
         if (result != '')
             e.emitset(result, reg);
-        e.say('inc ', reg);
+        e.emitinc(reg);
         return reg;
     }
 }
@@ -2863,7 +2879,7 @@ class OpPreDecExpr : OpUnaryExpr
     {
         string reg = self.subexpr.emit_get(e);
         self.annotate(e);
-        e.say('dec ', reg);
+        e.emitdec(reg);
         return reg;
     }
 }
@@ -2887,7 +2903,7 @@ class OpPostDecExpr : OpUnaryExpr
         self.annotate(e);
         if (result != '')
             e.emitset(result, reg);
-        e.say('dec ', reg);
+        e.emitdec(reg);
         return reg;
     }
 }
