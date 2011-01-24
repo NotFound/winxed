@@ -7585,10 +7585,13 @@ class ClassStatement : VarContainer
     {
         self.parent= parent;
         self.owner = parent;
-        self.functions = [];
-        self.members = [];
+        var functions = [];
+        self.functions = functions;
+        var members = [];
+        self.members = members;
         self.bases= [];
-        self.constants = [];
+        var constants = [];
+        self.constants = constants;
 
         var t= tk.get();
         self.name= t;
@@ -7602,32 +7605,30 @@ class ClassStatement : VarContainer
                 if (!t.isop(',')) break;
             }
         }
-        if (!t.isop('{'))
-            Expected('{', t);
-        t= tk.get();
-        while (!t.isop('}')) {
-            if (t.iskeyword('function')) {
+        RequireOp('{', t);
+        for (t = tk.get(); !t.isop('}'); t = tk.get()) {
+            string key = t.checkkeyword();
+            switch (key) {
+              case 'function':
                 var f= new MethodStatement(t, tk, self);
-                var functions= self.functions;
                 functions.push(f);
-            }
-            else if (t.iskeyword('var')) {
+                break;
+              case 'var':
                 var name = tk.get();
                 if (! name.isidentifier())
                     SyntaxError("Expected member identifier", name);
-                self.members.push(name);
+                members.push(name);
                 t = tk.get();
                 if (! t.isop(';'))
                     SyntaxError("Expected ';' in member declaration", t);
-            }
-            else if (t.iskeyword('const')) {
+                break;
+              case 'const':
                 var cst = parseConst(t, tk, self);
-                var constants = self.constants;
                 constants.push(cst);
-            }
-            else
+                break;
+              default:
                 SyntaxError("Unexpected item in class", t);
-            t= tk.get();
+            }
         }
         var classns = self.parent.getpath();
         classns.push(self.name);
@@ -7869,7 +7870,7 @@ class NamespaceBase : VarContainer
         }
         if (t)
             self.close_ns(t);
-	else
+        else
             self.unclosed_ns();
     }
     function optimize_base()
