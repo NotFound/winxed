@@ -140,6 +140,10 @@ class Token
     {
         return true;
     }
+    function get_integer[vtable]()
+    {
+        return 1;
+    }
 
     function iseof()        { return false; }
     function iscomment()    { return false; }
@@ -177,6 +181,10 @@ class TokenEof : Token
     function get_bool[vtable]()
     {
         return false;
+    }
+    function get_integer[vtable]()
+    {
+        return 0;
     }
     function iseof() { return true; }
     function viewable() { return '(End of file)'; }
@@ -7793,10 +7801,11 @@ class NamespaceBase : VarContainer
     {
         int balance1= 0, balance2= 0, balance3= 0;
         var t;
-        while (t= tk.get())
+        for (t = tk.get(); t && !t.isop('}'); t = tk.get())
         {
-            if (t.iskeyword('namespace'))
-            {
+            string key = t.checkkeyword();
+            switch (key) {
+              case 'namespace':
                 var start = t;
                 t= tk.get();
                 string name= t;
@@ -7808,30 +7817,29 @@ class NamespaceBase : VarContainer
                     t = tk.get();
                 }
 
-                if (!t.isop('{'))
-                    Expected('{', t);
+                RequireOp('{', t);
                 var child= new NamespaceStatement(self, start, name, modifier);
                 self.namespaces.push(child);
                 self.items.push(child);
                 child.parse(tk);
-            }
-            else if (t.iskeyword('const')) {
+                break;
+              case 'const':
                 var cst = parseConst(t, tk, self);
                 self.items.push(cst);
-            }
-            else if (t.iskeyword('function')) {
+                break;
+              case 'function':
                 var f= new FunctionStatement(t, tk, self);
                 var functions= self.functions;
                 functions.push(f);
                 self.items.push(f);
-            }
-            else if (t.iskeyword('class')) {
+                break;
+              case 'class':
                 var c= new ClassStatement(tk, self);
                 var classes= self.classes;
                 classes.push(c);
                 self.items.push(c);
-            }
-            else if (t.iskeyword('using')) {
+                break;
+              case 'using':
                 t = tk.get();
                 if (! t.iskeyword('extern'))
                     SyntaxError('Unsupported at nmaespace level', t);
@@ -7842,11 +7850,11 @@ class NamespaceBase : VarContainer
                 self.addlib(reqlib);
                 t = tk.get();
                 RequireOp(';', t);
-            }
-            else if (t.iskeyword('$include_const')) {
+                break;
+              case '$include_const':
                 include_parrot(t, tk, self);
-            }
-            else if (t.iskeyword('$load')) {
+                break;
+              case '$load':
                 t = tk.get();
                 if (! t.isstring())
                     Expected('string literal', t);
@@ -7854,15 +7862,15 @@ class NamespaceBase : VarContainer
                 self.addload(reqload);
                 t = tk.get();
                 RequireOp(';', t);
-            }
-            else if (t.isop('}')) {
-                self.close_ns(t);
-                return;
-            }
-            else
+                break;
+              default:
                 SyntaxError("Unexpected token", t);
+            }
         }
-        self.unclosed_ns();
+        if (t)
+            self.close_ns(t);
+	else
+            self.unclosed_ns();
     }
     function optimize_base()
     {
