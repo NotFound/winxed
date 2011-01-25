@@ -7802,47 +7802,50 @@ class NamespaceBase : VarContainer
         }
         return null;
     }
+    function parsenamespace(start, tk)
+    {
+        var t= tk.get();
+        string name= t;
+        t= tk.get();
+
+        var modifier;
+        if (t.isop('[')) {
+            modifier = new ModifierList(tk, self);
+            t = tk.get();
+        }
+
+        RequireOp('{', t);
+        var child= new NamespaceStatement(self, start, name, modifier);
+        self.namespaces.push(child);
+        self.items.push(child);
+        child.parse(tk);
+    }
     function parse(tk)
     {
-        int balance1= 0, balance2= 0, balance3= 0;
+        var items = self.items;
+        var functions = self.functions;
+        var classes = self.classes;
         var t;
         for (t = tk.get(); t && !t.isop('}'); t = tk.get())
         {
             string key = t.checkkeyword();
             switch (key) {
               case 'namespace':
-                var start = t;
-                t= tk.get();
-                string name= t;
-                t= tk.get();
-
-                var modifier;
-                if (t.isop('[')) {
-                    modifier = new ModifierList(tk, self);
-                    t = tk.get();
-                }
-
-                RequireOp('{', t);
-                var child= new NamespaceStatement(self, start, name, modifier);
-                self.namespaces.push(child);
-                self.items.push(child);
-                child.parse(tk);
+                self.parsenamespace(t, tk);
                 break;
               case 'const':
                 var cst = parseConst(t, tk, self);
-                self.items.push(cst);
+                items.push(cst);
                 break;
               case 'function':
                 var f= new FunctionStatement(t, tk, self);
-                var functions= self.functions;
                 functions.push(f);
-                self.items.push(f);
+                items.push(f);
                 break;
               case 'class':
                 var c= new ClassStatement(tk, self);
-                var classes= self.classes;
                 classes.push(c);
-                self.items.push(c);
+                items.push(c);
                 break;
               case 'using':
                 t = tk.get();
