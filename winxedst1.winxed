@@ -88,7 +88,7 @@ function SyntaxError(string msg, var pos)
 {
     string sline= pos.line;
     string file= pos.file;
-    string desc = pos.show();
+    string desc = pos.viewable();
     string m= msg + ' in '+ file + ' line ' + sline + ' near ' + desc;
     var ex= Error(m, 2, ERRORparser);
     throw ex;
@@ -96,19 +96,30 @@ function SyntaxError(string msg, var pos)
 
 function Expected(string msg, var t)
 {
+    SyntaxError("Expected " + msg, t);
+}
+
+function ExpectedOp(string msg, var t)
+{
     SyntaxError("Expected '" + msg + "'", t);
 }
 
 function RequireOp(string name, var t)
 {
     if (! t.isop(name))
-        Expected(name, t);
+        ExpectedOp(name, t);
 }
 
 function RequireKeyword(string name, var t)
 {
     if (! t.iskeyword(name))
-        Expected(name, t);
+        ExpectedOp(name, t);
+}
+
+function RequireIdentifier(var t)
+{
+    if (! t.isidentifier())
+        Expected('identifier', t);
 }
 
 function ExpectOp(string name, var tk)
@@ -158,7 +169,7 @@ class Token
     }
     function getidentifier()
     {
-        Expected('Identifier', self);
+        Expected('identifier', self);
     }
     function iskeyword(string name) { return false; }
     function checkkeyword()         { return false; }
@@ -590,7 +601,7 @@ class Tokenizer
                 c = self.getchar();
         int line = self.line;
         if (c == '')
-            return new TokenEof();
+            return new TokenEof(self.filename);
         if (isidentstart(c))
             return getident(self, c, line);
         if (isdigit(c))
@@ -4190,7 +4201,7 @@ class CallExpr : Expr
                 self.args.push(new Argument(expr, modifier));
             } while (t.isop(','));
             if (! t.isop(')'))
-                SyntaxError("Expected ')' or ','", t);
+                Expected("')' or ','", t);
         }
     }
     function checkresult() { return REGvar; }
@@ -4509,7 +4520,7 @@ class ArrayExpr : Expr
                 self.values.push(item);
             } while ((t= tk.get()).isop(','));
             if (!t.isop(']'))
-                SyntaxError("Expected ']' or ','", t);
+                Expected("']' or ','", t);
         }
     }
     function checkresult() { return REGvar; }
@@ -4598,7 +4609,7 @@ class HashExpr : Expr
 
             } while ((t = tk.get()).isop(','));
             if (! t.isop('}'))
-                SyntaxError("Expected ',' or '}'", t);
+                Expected("',' or '}'", t);
         }
         self.keys = keys;
         self.values = values;
@@ -4715,8 +4726,7 @@ class NewExpr : NewBaseExpr
                 values.push(firstvalue);
                 do {
                     var value = tk.get();
-                    if (! value.isidentifier() )
-                        Expected('identifier', value);
+                    RequireIdentifier(value);
                     values.push(value);
                 } while ((t= tk.get()).isop('.'));
                 self.value = values;
@@ -5702,11 +5712,9 @@ class GotoStatement : Statement
     function GotoStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
-        var t= tk.get();
-        if (!t.isidentifier())
-            SyntaxError('Identifier expected', t);
-        string s= t;
-        self.label= t;
+        var t = tk.get();
+        RequireIdentifier(t);
+        self.label = t;
         ExpectOp(';', tk);
     }
     function optimize() { return self; }
@@ -5714,7 +5722,7 @@ class GotoStatement : Statement
     {
         self.annotate(e);
         string label = self.label;
-        string value= self.getlabel(label);
+        string value = self.getlabel(label);
         e.emitgoto(value, 'goto ' + label);
     }
 }
@@ -5957,14 +5965,14 @@ class SwitchStatement : Breakable, Statement
         self.initstatement(start, owner);
         var t = tk.get();
         if (! t.isop('('))
-            SyntaxError("Expected '(' in switch", t);
+            Expected("'(' in switch", t);
         self.condition = parseExpr(tk, self);
         t = tk.get();
         if (! t.isop(')'))
-            SyntaxError("Expected ')' in switch", t);
+            Expected("')' in switch", t);
         t = tk.get();
         if (! t.isop('{'))
-            SyntaxError("Expected '{' in switch", t);
+            Expected("'{' in switch", t);
         self.case_value = [];
         self.case_st = [];
         self.default_st = [];
@@ -5973,7 +5981,7 @@ class SwitchStatement : Breakable, Statement
                 self.case_value.push(parseExpr(tk, self));
                 t = tk.get();
                 if (! t.isop(':'))
-                    SyntaxError("Expected ':' in case", t);
+                    Expected("':' in case", t);
                 var st = [];
                 while (! ((t = tk.get()).isop('}') || t.iskeyword('case') || t.iskeyword('default'))) {
                     tk.unget(t);
@@ -5985,7 +5993,7 @@ class SwitchStatement : Breakable, Statement
             else {
                 t = tk.get();
                 if (! t.isop(':'))
-                    SyntaxError("Expected ':' in default", t);
+                    Expected("':' in default", t);
                 while (! ((t = tk.get()).isop('}') || t.iskeyword('case') || t.iskeyword('default'))) {
                     tk.unget(t);
                     self.default_st.push(parseStatement(tk, self));
@@ -6252,10 +6260,10 @@ class TryStatement : BlockStatement
         self.stry = parseStatement(tk, self);
         t = tk.get();
         if (! t.iskeyword('catch'))
-            Expected('catch', t);
+            ExpectedOp('catch', t);
         t = tk.get();
         if (! t.isop('('))
-            SyntaxError("Expected '(' after 'catch'", t);
+            Expected("'(' after 'catch'", t);
         t = tk.get();
         if (! t.isop(')')) {
             string exname = t.getidentifier();
@@ -6263,7 +6271,7 @@ class TryStatement : BlockStatement
             self.createvar(exname, REGvar);
             t = tk.get();
             if (! t.isop(')'))
-                SyntaxError("Expected ')' in 'catch'", t);
+                Expected("')' in 'catch'", t);
         }
         self.scatch = parseStatement(tk, self);
     }
@@ -6385,8 +6393,7 @@ class DeclareStatement : Statement
     {
         self.initstatement(start, owner);
         var t= tk.get();
-        if (!t.isidentifier())
-            SyntaxError('Identifier expected', t);
+        RequireIdentifier(t);
         self.name= t;
         var vdata;
         string reg;
@@ -6425,7 +6432,7 @@ class DeclareStatement : Statement
         if (t.isop('=')) {
             t = tk.get();
             if (! t.isop('['))
-                SyntaxError("Array initializer expected", t);
+                Expected("array initializer", t);
             self.init = [];
             t = tk.get();
             if (! t.isop(']')) {
@@ -6435,7 +6442,7 @@ class DeclareStatement : Statement
                     self.init.push(item);
                 } while ((t = tk.get()).isop(','));
                 if (! t.isop(']'))
-                    SyntaxError("Expected ',' or ']'", t);
+                    Expected("',' or ']'", t);
             }
             t = tk.get();
         }
@@ -6716,8 +6723,7 @@ class FixedVarStatement : VarStatement
 function parseVar(start, tk, owner, int flags[optional])
 {
     var name = tk.get();
-    if (!name.isidentifier())
-        SyntaxError('Identifier expected', name);
+    RequireIdentifier(name);
     var t = tk.get();
     if (t.isop('[')) {
         t = tk.get();
@@ -7029,7 +7035,7 @@ class FunctionBase : BlockStatement
                 params.push(arg);
             } while (t.isop(','));
             if (!t.isop(')'))
-                SyntaxError("Expected ')'", t);
+                Expected("')' or ','", t);
         }
     }
 
@@ -7335,7 +7341,7 @@ class FunctionStatement : FunctionBase
 
         t= tk.get();
         if (!t.isop('{'))
-            Expected('{', t);
+            ExpectedOp('{', t);
         self.body= new CompoundStatement(t, tk, self);
         return self;
     }
@@ -7484,7 +7490,7 @@ class ClassSpecifierParrotKey : ClassSpecifier
         var key = [];
         var t = tk.get();
         if (!t.isstring())
-            SyntaxError('literal string expected', t);
+            Expected('literal string', t);
         key.push(t.rawstring());
         t = tk.get();
         if (! t.isop(']')) {
@@ -7499,7 +7505,7 @@ class ClassSpecifierParrotKey : ClassSpecifier
             do {
                 t = tk.get();
                 if (!t.isstring())
-                    SyntaxError('literal string expected', t);
+                    Expected('literal string', t);
                 key.push(t.rawstring());
             } while ((t = tk.get()).isop(','));
             RequireOp(']', t);
@@ -7614,11 +7620,11 @@ class ClassStatement : VarContainer
               case 'var':
                 var name = tk.get();
                 if (! name.isidentifier())
-                    SyntaxError("Expected member identifier", name);
+                   Expected("member identifier", name);
                 members.push(name);
                 t = tk.get();
                 if (! t.isop(';'))
-                    SyntaxError("Expected ';' in member declaration", t);
+                    Expected("';' in member declaration", t);
                 break;
               case 'const':
                 var cst = parseConst(t, tk, self);
@@ -7694,7 +7700,7 @@ function include_parrot(var start, var tk, var ns)
 {
     var t = tk.get();
     if (!t.isstring())
-        SyntaxError('Literal string expected', t);
+        Expected('literal string', t);
     ExpectOp(';', tk);
     string filename = t.rawstring();
     var interp = getinterp();
@@ -8315,6 +8321,7 @@ function stage1(argv)
         file.puts(expr);
         file.close();
         file.open(EVAL_NAME);
+        filename = EVAL_NAME;
     }
 
     var t= new Tokenizer(file, filename);
@@ -8325,6 +8332,26 @@ function stage1(argv)
     winxed_parser(t, outputfile);
 
     file.close();
+}
+
+function show_backtrace(bt)
+{
+    int i= 1;
+    for (var t in bt) {
+        var sub= t['sub'];
+        string subname;
+        if (sub != null) {
+            subname= sub;
+            string ns= sub.get_namespace();
+            if (ns != '' && ns != 'parrot') subname= ns + '.' + subname;
+        }
+        var ann= t['annotations'];
+        string file= ann['file'];
+        if (file != '') {
+            int line= ann['line'];
+            cry(' ' * (2 * i++), "at ", subname, " in '", file, "' line ", line);
+        }
+    }
 }
 
 function main(argv)
@@ -8340,25 +8367,18 @@ function main(argv)
     catch (e)
     {
         string msg= e['message'];
-        say('Error: ', msg);
-        var bt= e.backtrace();
-        int i= 1;
-        for (var t in bt) {
-            var sub= t['sub'];
-            string subname;
-            if (sub != null) {
-                subname= sub;
-                string ns= sub.get_namespace();
-                if (ns != '' && ns != 'parrot') subname= ns + '.' + subname;
-            }
-            var ann= t['annotations'];
-            string file= ann['file'];
-            if (file != '') {
-                int line= ann['line'];
-                say(' ' * (2 * i++), "at ", subname, " in '", file, "' line ", line);
-            }
+        int type = e['type'];
+        switch (type) {
+          case ERRORtokenizer:
+          case ERRORparser:
+            cry('Error: ', msg);
+            retval = 1;
+            break;
+          default:
+            cry('INTERNAL ERROR: ', msg);
+            show_backtrace(e.backtrace());
+            retval = 2;
         }
-        retval = 1;
     }
     exit(retval);
 }
