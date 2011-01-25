@@ -429,6 +429,7 @@ class Fly
 
     function timer(int ignored)
     {
+        const float down = 0.2;
         if (self.w == null)
             return;
 
@@ -447,9 +448,10 @@ class Fly
             x = sin(diff) * dis;
             z = cos(diff) * dis;
             y = 16.0 + 11.0 * cos(now / 8.5);
-            dx = sin(diff + PI / 2.0);
-            dy = 0;
-            dz = cos(diff + PI / 2.0);
+            diff += 0.2;
+            dx = sin(diff + PI / 2.0) * cos(down);
+            dy = -sin(down);
+            dz = cos(diff + PI / 2.0) * cos(down);
             self.dx =: dx;
             self.dy =: dy;
             self.dz =: dz;
@@ -460,9 +462,10 @@ class Fly
             x = sin(diff) * dis;
             z = cos(diff) * dis;
             y = 16.0 + 11.0 * cos(now / 8.5);
-            dx = sin(diff - PI / 2.0);
-            dy = 0;
-            dz = cos(diff - PI / 2.0);
+            diff -= 0.3;
+            dx = sin(diff - PI / 2.0) * cos(down);
+            dy = -sin(down);
+            dz = cos(diff - PI / 2.0) * cos(down);
             self.dx =: dx;
             self.dy =: dy;
             self.dz =: dz;
