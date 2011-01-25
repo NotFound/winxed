@@ -103,68 +103,83 @@ function train(float angle, float dis)
     glPushMatrix();
 
     float dismod = dis + 3.0 * sin(angle * 4.0) + 7.0 * sin(angle * 8.0);
+    // Central position
     float xt = sin(angle) * dismod;
     float zt = cos(angle) * dismod;
     glTranslatef(xt, 0.0, zt);
 
-    float angle1 = angle + 0.0001;
+    // Approximate the tangent
+    const float delta = 0.0001;
+    float angle1 = angle + delta;
     float dismod1 = dis + 3.0 * sin(angle1 * 4.0) + 7.0 * sin(angle1 * 8.0);
     float xt1 = sin(angle1) * dismod1;
     float zt1 = cos(angle1) * dismod1;
-
-    float angle2 = angle - 0.0001;
+    float angle2 = angle - delta;
     float dismod2 = dis + 3.0 * sin(angle2 * 4.0) + 7.0 * sin(angle2 * 8.0);
     float xt2 = sin(angle2) * dismod2;
     float zt2 = cos(angle2) * dismod2;
-
     glRotatef((atan(xt1 - xt2, zt1 - zt2)) / ToRad + 90.0, 0.0, 1.0, 0.0);
 
-    const float len = 5.0;
+    // Cheat a bit: change the wagon length instead of adjusting its
+    // angular position
+    const float halfangle = 0.0278;
+    float anglea = angle + halfangle;
+    float dismoda = dis + 3.0 * sin(anglea * 4.0) + 7.0 * sin(anglea * 8.0);
+    float xa = sin(anglea) * dismoda;
+    float za = cos(anglea) * dismoda;
+    float lena = sqrt((xt-xa)*(xt-xa) + (zt-za)*(zt-za));
+
+    float angleb = angle - halfangle;
+    float dismodb = dis + 3.0 * sin(angleb * 4.0) + 7.0 * sin(angleb * 8.0);
+    float xb = sin(angleb) * dismoda;
+    float zb = cos(angleb) * dismoda;
+    float lenb = - sqrt((xt-xb)*(xt-xb) + (zt-zb)*(zt-zb));
+
     const float height = 1.2;
     const float width = 0.8;
     glColor3f(1.0, 1.0, 0.0);
     glBegin(GL_QUAD_STRIP);
-    glVertex3f( len, height, -width / 2);
-    glVertex3f(-len, height, -width / 2);
-    glVertex3f( len, height,  width / 2);
-    glVertex3f(-len, height,  width / 2);
+    glVertex3f(lena, height, -width / 2);
+    glVertex3f(lenb, height, -width / 2);
+    glVertex3f(lena, height,  width / 2);
+    glVertex3f(lenb, height,  width / 2);
     glEnd();
 
     glColor3f(0.7, 0.7, 0.0);
     glBegin(GL_QUAD_STRIP);
-    glVertex3f( len, height,  width / 2);
-    glVertex3f(-len, height,  width / 2);
-    glVertex3f( len, 0.0,     width / 2);
-    glVertex3f(-len, 0.0,     width / 2);
+    glVertex3f(lena, height,  width / 2);
+    glVertex3f(lenb, height,  width / 2);
+    glVertex3f(lena, 0.0,     width / 2);
+    glVertex3f(lenb, 0.0,     width / 2);
     glEnd();
 
     glBegin(GL_QUAD_STRIP);
-    glVertex3f( len, 0.0,  width / 2);
-    glVertex3f(-len, 0.0,  width / 2);
-    glVertex3f( len, 0.0, -width / 2);
-    glVertex3f(-len, 0.0, -width / 2);
+    glVertex3f(lena, 0.0,  width / 2);
+    glVertex3f(lenb, 0.0,  width / 2);
+    glVertex3f(lena, 0.0, -width / 2);
+    glVertex3f(lenb, 0.0, -width / 2);
     glEnd();
 
     glColor3f(0.8, 0.8, 0.0);
     glBegin(GL_QUAD_STRIP);
-    glVertex3f( len, 0.0,    -width / 2);
-    glVertex3f(-len, 0.0,    -width / 2);
-    glVertex3f( len, height, -width / 2);
-    glVertex3f(-len, height, -width / 2);
+    glVertex3f(lena, 0.0,    -width / 2);
+    glVertex3f(lenb, 0.0,    -width / 2);
+    glVertex3f(lena, height, -width / 2);
+    glVertex3f(lenb, height, -width / 2);
     glEnd();
 
     glColor3f(0.6, 0.6, 0.0);
     glBegin(GL_QUADS);
-    glVertex3f( len, height, -width / 2);
-    glVertex3f( len, height,  width / 2);
-    glVertex3f( len, 0.0,     width / 2);
-    glVertex3f( len, 0.0,     -width / 2);
+    glVertex3f(lena, height, -width / 2);
+    glVertex3f(lena, height,  width / 2);
+    glVertex3f(lena, 0.0,     width / 2);
+    glVertex3f(lena, 0.0,     -width / 2);
 
     glColor3f(0.5, 0.5, 0.0);
-    glVertex3f(-len, 0.0,    -width / 2);
-    glVertex3f(-len, 0.0,     width / 2);
-    glVertex3f(-len, height,  width / 2);
-    glVertex3f(-len, height, -width / 2);
+    glVertex3f(lenb, 0.0,    -width / 2);
+    glVertex3f(lenb, 0.0,     width / 2);
+    glVertex3f(lenb, height,  width / 2);
+    glVertex3f(lenb, height, -width / 2);
 
     glEnd();
 
@@ -413,12 +428,12 @@ class Fly
         ${ time now };
         float t = now / 7.2;
         int i;
-        for (i = 0; i < 7; ++i) {
+        for (i = 0; i < 11; ++i) {
             train(t, 180.0);
             t += 0.058;
         }
         t = - now / 6.8;
-        for (i = 0; i < 6; ++i) {
+        for (i = 0; i < 7; ++i) {
             train(t, 182.0);
             t -= 0.058;
         }
