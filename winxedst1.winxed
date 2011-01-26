@@ -2213,6 +2213,7 @@ class Expr : CommonBase
         // By default return same expression unchanged
         return self;
     }
+    function cantailcall() { return false; }
     function emit_get(e)
     {
         string type = self.checkresult();
@@ -4232,6 +4233,10 @@ class CallExpr : Expr
 
         return self;
     }
+    function cantailcall()
+    {
+        return true;
+    }
     function emit(e, result)
     {
         var funref = self.funref;
@@ -5619,15 +5624,9 @@ class ReturnYieldStatement : Statement
         // Experimental tailcall optimization
         if (n == 1 && (self instanceof ReturnStatement)) {
             var func = values[0];
-            // Generate a tailcall in simple function calls and in method calls.
-            if (func instanceof CallExpr) {
-                var funref = func.funref;
-                if (funref.isidentifier() ||
-                        (funref instanceof MemberExpr) ||
-                        (funref instanceof FunctionExpr)) {
-                    self.annotate(e);
-                    return func.emit(e, '.tailcall');
-                }
+            if (func.cantailcall()) {
+                self.annotate(e);
+                return func.emit(e, '.tailcall');
             }
         }
         for (int i= 0; i < n; ++i) {
