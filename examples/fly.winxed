@@ -4,6 +4,47 @@
 
 //**********************************************************************
 
+// Operating systems access via NCI, used by the detach option
+// Fail cleanly if the platform lacks support.
+
+function fork()
+{
+    var lib = null;
+    var dl_fork = dlfunc(lib, 'fork', 'i');
+    int r;
+    if (dl_fork == null || ! dl_fork)
+        r = -1;
+    else
+        r = dl_fork();
+    return r;
+}
+
+function setsid()
+{
+    var lib = null;
+    var dl_setsid = dlfunc(lib, 'setsid', 'i');
+    int r;
+    if (dl_setsid == null || ! dl_setsid)
+        r = -1;
+    else
+        r = dl_setsid();
+    return r;
+}
+
+function close(int handle)
+{
+    var lib = null;
+    var dl_close = dlfunc(lib, 'close', 'ii');
+    int r;
+    if (dl_close == null || ! dl_close)
+        r = -1;
+    else
+        r = dl_close(handle);
+    return r;
+}
+
+//**********************************************************************
+
 const float PI = 3.1415926;
 const float ToRad = PI / 180.0;
 
@@ -607,6 +648,22 @@ class Fly
 
 function main(var argv)
 {
+    if (argv[1] == '--detach') {
+        // Detach from the controlling terminal, where available
+        switch (fork()) {
+          case -1: // fork failed
+            ; // Do nothing, continue as foreground process
+          case 0: // child
+            close(0);
+            close(1);
+            close(2);
+            setsid();
+            break;
+          default: // parent
+            return; // Finished, the children will take care
+        }
+    }
+
     using extern OpenGL;
     using OpenGL._export_all_functions;
     _export_all_functions();

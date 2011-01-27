@@ -8127,7 +8127,7 @@ class RootNamespace : NamespaceBase
 
 const string EVAL_NAME = '__eval__';
 
-class WinxedCompiler
+class WinxedCompileUnit
 {
     var rootns;
     function init [vtable] ()
@@ -8188,7 +8188,7 @@ class WinxedHLL
         handlein.close();
         handlein.open(EVAL_NAME, 'r');
         var tk= new Tokenizer(handlein, EVAL_NAME);
-        var winxed= new WinxedCompiler();
+        var winxed= new WinxedCompileUnit();
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
@@ -8222,7 +8222,7 @@ class WinxedHLL
         handlein.open(filename, 'r');
         handlein.encoding('utf8');
         var tk= new Tokenizer(handlein, filename);
-        var winxed= new WinxedCompiler();
+        var winxed= new WinxedCompileUnit();
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
@@ -8237,7 +8237,7 @@ class WinxedHLL
         handlein.open(filename, 'r');
         handlein.encoding('utf8');
         var tk= new Tokenizer(handlein, filename);
-        var winxed= new WinxedCompiler();
+        var winxed= new WinxedCompileUnit();
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
@@ -8259,7 +8259,7 @@ class WinxedHLL
 
 function winxed_parser(tk, string outputfile)
 {
-    var winxed= new WinxedCompiler();
+    var winxed= new WinxedCompileUnit();
     winxed.parse(tk);
 
     winxed.optimize();
