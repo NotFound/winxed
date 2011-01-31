@@ -824,6 +824,11 @@ class Emit
         string ins = "unbox " + dst + ", " + src + "\n";
         self.handle.print(ins);
     }
+    function emitbinop(string op, string res, string dst, string src)
+    {
+        string ins = op + " " + res + ", " + dst + ", " + src + "\n";
+        self.handle.print(ins);
+    }
     function emitaddto(string dst, string src)
     {
         string ins = "add " + dst + ", " + src + "\n";
@@ -2221,6 +2226,17 @@ class Expr : CommonBase
         self.emit(e, reg);
         return reg;
     }
+    function emit_getint(e)
+    {
+        string reg;
+        if (self.checkresult() == REGint)
+            reg = self.emit_get(e);
+        else {
+            reg = self.tempreg(REGint);
+            self.emit(e, reg);
+        }
+        return reg;
+    }
     function emit_assign_get(e, expr)
     {
         SyntaxError('Not a left-side expression', self.start);
@@ -2725,6 +2741,16 @@ class OpBinaryExpr : OpExpr
     {
         self.optimizearg();
         return self;
+    }
+    function emit_intleft(e)
+    {
+        string reg = self.lexpr.emit_getint(e);
+        return reg;
+    }
+    function emit_intright(e)
+    {
+        string reg = self.rexpr.emit_getint(e);
+        return reg;
     }
 }
 
@@ -3560,11 +3586,10 @@ class OpBinAndExpr : OpBaseBinExpr
     function emit(e, result)
     {
         string res = result != null ? result : self.tempreg(REGint);
-        string op1 = self.tempreg(REGint);
-        string op2 = self.tempreg(REGint);
-        self.lexpr.emit(e, op1);
-        self.rexpr.emit(e, op2);
-        e.say('band ', res, ', ', op1, ', ', op2);
+        string lreg = self.emit_intleft(e);
+        string rreg = self.emit_intright(e);
+        self.annotate(e);
+        e.emitbinop('band', res, lreg, rreg);
     }
 }
 
@@ -3587,11 +3612,10 @@ class OpBinOrExpr : OpBaseBinExpr
     function emit(e, result)
     {
         string res = result != null ? result : self.tempreg(REGint);
-        string op1 = self.tempreg(REGint);
-        string op2 = self.tempreg(REGint);
-        self.lexpr.emit(e, op1);
-        self.rexpr.emit(e, op2);
-        e.say('bor ', res, ', ', op1, ', ', op2);
+        string lreg = self.emit_intleft(e);
+        string rreg = self.emit_intright(e);
+        self.annotate(e);
+        e.emitbinop('bor', res, lreg, rreg);
     }
 }
 
@@ -4017,24 +4041,10 @@ class OpModExpr : OpBinaryExpr
     }
     function emit(e, result)
     {
-        var lexpr = self.lexpr;
-        var lreg;
-        if (lexpr.checkresult() == REGint)
-            lreg = lexpr.emit_get(e);
-        else {
-            lreg = self.tempreg(REGint);
-            lexpr.emit(e, lreg);
-        }
-        var rexpr = self.rexpr;
-        var rreg;
-        if (rexpr.checkresult() == REGint)
-            rreg = rexpr.emit_get(e);
-        else {
-            rreg = self.tempreg(REGint);
-            rexpr.emit(e, rreg);
-        }
+        string lreg = self.emit_intleft(e);
+        string rreg = self.emit_intright(e);
         self.annotate(e);
-        e.say('mod ', result, ', ', lreg, ', ', rreg);
+        e.emitbinop('mod', result, lreg, rreg);
     }
 }
 
@@ -4048,28 +4058,14 @@ class OpCModExpr : OpBinaryExpr
     }
     function emit(e, result)
     {
-        var lexpr = self.lexpr;
-        var lreg;
-        if (lexpr.checkresult() == REGint)
-            lreg = lexpr.emit_get(e);
-        else {
-            lreg = self.tempreg(REGint);
-            lexpr.emit(e, lreg);
-        }
-        var rexpr = self.rexpr;
-        var rreg;
-        if (rexpr.checkresult() == REGint)
-            rreg = rexpr.emit_get(e);
-        else {
-            rreg = self.tempreg(REGint);
-            rexpr.emit(e, rreg);
-        }
+        string lreg = self.emit_intleft(e);
+        string rreg = self.emit_intright(e);
         self.annotate(e);
 
         // WORKAROUND:
         // e.say('cmod ', result, ', ', lreg, ', ', rreg);
         // cmod is now a dynop. Silly workaround, use mod instead.
-        e.say('mod ', result, ', ', lreg, ', ', rreg);
+        e.emitbinop('mod', result, lreg, rreg);
     }
 }
 
@@ -4083,24 +4079,11 @@ class OpShiftleftExpr : OpBinaryExpr
     }
     function emit(e, result)
     {
-        var lexpr = self.lexpr;
-        var rexpr = self.rexpr;
         string res = result != null ? result : self.tempreg(REGint);
-        string op1;
-        if (lexpr.checkresult() == REGint)
-            op1 = lexpr.emit_get(e);
-        else {
-            op1 = self.tempreg(REGint);
-            lexpr.emit(e, op1);
-        }
-        string op2;
-        if (rexpr.checkresult() == REGint)
-            op2 = rexpr.emit_get(e);
-        else {
-            op2 = self.tempreg(REGint);
-            rexpr.emit(e, op1);
-        }
-        e.say('shl ', res, ', ', op1, ', ', op2);
+        string lreg = self.emit_intleft(e);
+        string rreg = self.emit_intright(e);
+        self.annotate(e);
+        e.emitbinop('shl', res, lreg, rreg);
     }
 }
 
@@ -4114,24 +4097,11 @@ class OpShiftrightExpr : OpBinaryExpr
     }
     function emit(e, result)
     {
-        var lexpr = self.lexpr;
-        var rexpr = self.rexpr;
         string res = result != null ? result : self.tempreg(REGint);
-        string op1;
-        if (lexpr.checkresult() == REGint)
-            op1 = lexpr.emit_get(e);
-        else {
-            op1 = self.tempreg(REGint);
-            lexpr.emit(e, op1);
-        }
-        string op2;
-        if (rexpr.checkresult() == REGint)
-            op2 = rexpr.emit_get(e);
-        else {
-            op2 = self.tempreg(REGint);
-            rexpr.emit(e, op1);
-        }
-        e.say('shr ', res, ', ', op1, ', ', op2);
+        string lreg = self.emit_intleft(e);
+        string rreg = self.emit_intright(e);
+        self.annotate(e);
+        e.emitbinop('shr', res, lreg, rreg);
     }
 }
 
