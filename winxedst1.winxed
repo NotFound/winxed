@@ -1900,9 +1900,10 @@ function addtomulti(var multi, var newst)
 //           PiropStatement
 //*********************************************
 
-class PiropStatement : Statement, SimpleArgList
+class PiropStatement : Statement
 {
     var opname;
+    var args;
 
     function PiropStatement(start, tk, owner)
     {
@@ -1918,13 +1919,31 @@ class PiropStatement : Statement, SimpleArgList
         t = tk.get();
         if (! t.isop('}')) {
             tk.unget(t);
-            self.parseargs(tk, self, '}');
+            var args = [];
+            do {
+                var arg;
+                t = tk.get();
+                if (t.isop(':')) {
+                    t = tk.get();
+                    string label = t.getidentifier();
+                    arg = new Reflabel(owner, label);
+                }
+                else {
+                    tk.unget(t);
+                    arg = parseExpr(tk, owner);
+                }
+                args.push(arg);
+            } while ((t = tk.get()).isop(','));
+            RequireOp('}', t);
+            self.args = args;
         }
         ExpectOp(';', tk);
     }
     function optimize()
     {
-        self.optimizeargs();
+        var args = self.args;
+        if (args != null)
+            optimize_array(args);
         return self;
     }
     function emit(e)
@@ -1932,12 +1951,19 @@ class PiropStatement : Statement, SimpleArgList
         string opname = self.opname;
         self.annotate(e);
         e.comment('pirop ' + opname);
-        if (self.numargs() == 0)
+        var args = self.args;
+        if (args == null)
             e.say(opname);
         else {
             e.print(opname, ' ');
-            self.emitargs(e);
-            e.say();
+            var argreg = [];
+            int nargs = elements(args);
+            for (int i= 0; i < nargs; ++i) {
+                var a = args[i];
+                string reg = a.emit_get(e);
+                argreg.push(reg);
+            }
+            e.say(join(', ', argreg));
         }
     }
 }
@@ -5769,6 +5795,29 @@ class LabelStatement : Statement
         string name = self.name;
         string comment = 'label ' + name;
         e.emitlabel(self.value, comment);
+    }
+}
+
+//*********************************************
+//            Reflabel
+//*********************************************
+
+class Reflabel
+{
+    var owner;
+    var label;
+
+    function Reflabel(owner, string label)
+    {
+        self.owner = owner;
+        self.label = label;
+    }
+    function optimize() { return self; }
+    function emit_get(e)
+    {
+        string label = self.label;
+        string value = self.owner.getlabel(label);
+        return value;
     }
 }
 
