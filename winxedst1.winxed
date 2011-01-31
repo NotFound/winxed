@@ -1847,10 +1847,30 @@ class EmptyStatement : Statement
     }
 }
 
-class MultiStatement
+class MultiStatementBase
 {
     var statements;
 
+    function optimize()
+    {
+        var statements = self.statements;
+        int n = elements(statements);
+        int empty = true;
+        for (int i = 0; i < n; ++i) {
+            var st = statements[i].optimize();
+            if (empty && ! st.isempty())
+                empty = false;
+            statements[i] = st;
+        }
+        if (empty)
+            return new EmptyStatement();
+        else
+            return self;
+    }
+}
+
+class MultiStatement : MultiStatementBase
+{
     function MultiStatement(var st1, var st2)
     {
         var statements = [];
@@ -1858,14 +1878,10 @@ class MultiStatement
         statements.push(st2);
         self.statements = statements;
     }
+    function isempty() { return false; }
     function push(var statement)
     {
         self.statements.push(statement);
-        return self;
-    }
-    function optimize()
-    {
-        optimize_array(self.statements);
         return self;
     }
     function emit(e)
@@ -5962,7 +5978,7 @@ class WhileStatement : LoopStatement, ConditionalStatement
             self.emit_infinite(e);
             break;
         case CONDisfalse:
-             e.comment('while(false) optimized out');
+            e.comment('while(false) optimized out');
             break;
         default:
             string breaklabel = self.genbreaklabel();
@@ -5994,11 +6010,15 @@ class DoStatement : LoopStatement, ConditionalStatement
     function optimize()
     {
         self.optimize_condition();
-        self.body = self.body.optimize();
+        var body = self.body.optimize();
+        if (body.isempty() && self.getvalue() == CONDisfalse)
+            return new EmptyStatement();
+        self.body = body;
         return self;
     }
     function emit(e)
     {
+        var body = self.body;
         int condvalue = self.getvalue();
         switch (condvalue) {
         case CONDistrue:
@@ -6012,7 +6032,7 @@ class DoStatement : LoopStatement, ConditionalStatement
             self.annotate(e);
             e.emitlabel(looplabel, 'do');
 
-            self.body.emit(e);
+            body.emit(e);
             e.emitlabel(continuelabel, 'continue');
             if (condvalue != CONDisfalse)
                 self.emit_if(e, looplabel, breaklabel);
@@ -6955,9 +6975,8 @@ function parseFloat(start, tk, owner)
 //            CompoundStatement
 //*********************************************
 
-class CompoundStatement : BlockStatement
+class CompoundStatement : MultiStatementBase, BlockStatement
 {
-    var statements;
     var end;
     var labels;
 
@@ -6997,11 +7016,6 @@ class CompoundStatement : BlockStatement
         return value;
     }
     function getend() { return self.end; }
-    function optimize()
-    {
-        optimize_array(self.statements);
-        return self;
-    }
     function emit(var e)
     {
         e.comment('{');
@@ -7384,20 +7398,23 @@ class FunctionBase : BlockStatement
                 e.say(l, " = find_lex '", lexicals[l], "'");
         }
 
-        e.comment('Body');
-        self.body.emit(e);
-
-        e.annotate(self.body.getend());
+        var body = self.body;
+        if (body.isempty())
+            e.comment('Empty body');
+        else {
+            e.comment('Body');
+            body.emit(e);
+            e.annotate(body.getend());
+        }
         e.say("\n.end # ", name, "\n");
 
         // Local functions
         var localfun = self.localfun;
-        if (localfun != null)
-        {
-        for (int ifn = 0; ifn < elements(localfun); ++ifn) {
-            var fn = localfun[ifn];
-            fn.emit(e);
-        }
+        if (localfun != null) {
+            for (int ifn = 0; ifn < elements(localfun); ++ifn) {
+                var fn = localfun[ifn];
+                fn.emit(e);
+            }
         }
     }
 }
