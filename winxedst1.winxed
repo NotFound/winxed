@@ -4075,6 +4075,68 @@ class OpCModExpr : OpBinaryExpr
 
 //*********************************************
 
+class OpShiftleftExpr : OpBinaryExpr
+{
+    function checkresult()
+    {
+        return REGint;
+    }
+    function emit(e, result)
+    {
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        string res = result != null ? result : self.tempreg(REGint);
+        string op1;
+        if (lexpr.checkresult() == REGint)
+            op1 = lexpr.emit_get(e);
+        else {
+            op1 = self.tempreg(REGint);
+            lexpr.emit(e, op1);
+        }
+        string op2;
+        if (rexpr.checkresult() == REGint)
+            op2 = rexpr.emit_get(e);
+        else {
+            op2 = self.tempreg(REGint);
+            rexpr.emit(e, op1);
+        }
+        e.say('shl ', res, ', ', op1, ', ', op2);
+    }
+}
+
+//*********************************************
+
+class OpShiftrightExpr : OpBinaryExpr
+{
+    function checkresult()
+    {
+        return REGint;
+    }
+    function emit(e, result)
+    {
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        string res = result != null ? result : self.tempreg(REGint);
+        string op1;
+        if (lexpr.checkresult() == REGint)
+            op1 = lexpr.emit_get(e);
+        else {
+            op1 = self.tempreg(REGint);
+            lexpr.emit(e, op1);
+        }
+        string op2;
+        if (rexpr.checkresult() == REGint)
+            op2 = rexpr.emit_get(e);
+        else {
+            op2 = self.tempreg(REGint);
+            rexpr.emit(e, op1);
+        }
+        e.say('shr ', res, ', ', op1, ', ', op2);
+    }
+}
+
+//*********************************************
+
 class Argument
 {
     var arg;
@@ -5108,7 +5170,9 @@ const int
     Code_div_assign    = 24,
     Code_same          = 25,
     Code_not_same      = 26,
-    Code_instanceof    = 27;
+    Code_instanceof    = 27,
+    Code_shiftleft     = 28,
+    Code_shiftright    = 29;
 
 function getOpCode_2(t)
 {
@@ -5138,6 +5202,15 @@ function getOpCode_5(t)
     case '/':  return Code_div;
     case '%':  return Code_mod;
     case '%%': return Code_cmod;
+    default:   return Code_none;
+    }
+}
+
+function getOpCode_7(t)
+{
+    switch (t.checkop()) {
+    case '<<':  return Code_shiftleft;
+    case '>>':  return Code_shiftright;
     default:   return Code_none;
     }
 }
@@ -5343,31 +5416,57 @@ function parseExpr_6(tk, owner)
     return lexpr;
 }
 
-function parseExpr_8(tk, owner)
+function parseExpr_7(tk, owner)
 {
     using static parseExpr_6;
-    using static getOpCode_8;
 
     var lexpr = parseExpr_6(tk, owner);
+    var rexpr;
+    var t;
+    int code;
+    while ((code = getOpCode_7(t= tk.get())) != Code_none) {
+        switch (code) {
+          case Code_shiftleft:
+            rexpr = parseExpr_6(tk, owner);
+            lexpr= new OpShiftleftExpr().set(owner, t, lexpr, rexpr);
+            break;
+          case Code_shiftright:
+            rexpr = parseExpr_6(tk, owner);
+            lexpr= new OpShiftrightExpr().set(owner, t, lexpr, rexpr);
+            break;
+        default:
+            InternalError('Invalid code in parseExpr_7', t);
+        }
+    }
+    tk.unget(t);
+    return lexpr;
+}
+
+function parseExpr_8(tk, owner)
+{
+    using static parseExpr_7;
+    using static getOpCode_8;
+
+    var lexpr = parseExpr_7(tk, owner);
     var rexpr;
     var t;
     int code;
     while ((code = getOpCode_8(t= tk.get())) != Code_none) {
         switch (code) {
           case Code_equal:
-            rexpr = parseExpr_6(tk, owner);
+            rexpr = parseExpr_7(tk, owner);
             lexpr = new OpEqualExpr().set(owner, t, lexpr, rexpr);
             break;
           case Code_not_equal:
-            rexpr = parseExpr_6(tk, owner);
+            rexpr = parseExpr_7(tk, owner);
             lexpr = new OpNotEqualExpr().set(owner, t, lexpr, rexpr);
             break;
           case Code_same:
-            rexpr = parseExpr_6(tk, owner);
+            rexpr = parseExpr_7(tk, owner);
             lexpr = new OpSameExpr(true, owner, t, lexpr, rexpr);
             break;
           case Code_not_same:
-            rexpr = parseExpr_6(tk, owner);
+            rexpr = parseExpr_7(tk, owner);
             lexpr = new OpSameExpr(false, owner, t, lexpr, rexpr);
             break;
           case Code_instanceof:
