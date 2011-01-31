@@ -776,91 +776,80 @@ class Emit
         }
         handle.print("\n");
     }
+
     function emitif(string value, string label)
     {
-        string ins = 'if ' + value + ' goto ' + label + "\n";
-        self.handle.print(ins);
+        self.say('if ', value, ' goto ', label);
     }
     function emitunless(string value, string label)
     {
-        string ins = 'unless ' + value + ' goto ' + label + "\n";
-        self.handle.print(ins);
+        self.say('unless ', value, ' goto ', label);
     }
+
     function emitif_null(string value, string label)
     {
-        string ins = 'if_null ' + value + ', ' + label + "\n";
-        self.handle.print(ins);
+        self.say('if_null ', value, ', ', label);
     }
     function emitnull(string dst)
     {
-        string ins = "null " + dst + "\n";
-        self.handle.print(ins);
+        self.say("null ", dst);
     }
     function emitinc(string arg)
     {
-        self.handle.print('inc ' + arg + "\n");
+        self.say('inc ', arg);
     }
+
     function emitdec(string arg)
     {
-        self.handle.print('dec ' + arg + "\n");
+        self.say('dec ', arg);
     }
     function emitset(string dst, string src)
     {
-        string ins = "set " + dst + ", " + src + "\n";
-        self.handle.print(ins);
+        self.say("set ", dst, ", ", src);
     }
     function emitassign(string dst, string src)
     {
-        string ins = "assign " + dst + ", " + src + "\n";
-        self.handle.print(ins);
+        self.say("assign ", dst, ", ", src);
     }
     function emitbox(string dst, string src)
     {
-        string ins = "box " + dst + ", " + src + "\n";
-        self.handle.print(ins);
+        self.say("box ", dst, ", ", src);
     }
     function emitunbox(string dst, string src)
     {
-        string ins = "unbox " + dst + ", " + src + "\n";
-        self.handle.print(ins);
+        self.say("unbox ", dst, ", ", src);
     }
     function emitbinop(string op, string res, string dst, string src)
     {
-        string ins = op + " " + res + ", " + dst + ", " + src + "\n";
-        self.handle.print(ins);
+        self.say(op, " ", res, ", ", dst, ", ", src);
     }
     function emitaddto(string dst, string src)
     {
-        string ins = "add " + dst + ", " + src + "\n";
-        self.handle.print(ins);
+        self.say("add ", dst, ", ", src);
     }
     function emitadd(string dst, string src1, string src2)
     {
-        string ins = "add " + dst + ", " + src1 + ", " + src2 + "\n";
-        self.handle.print(ins);
+        self.say("add ", dst, ", ", src1, ", ", src2);
     }
     function emitmul(string dst, string src1, string src2)
     {
-        string ins = "mul " + dst + ", " + src1 + ", " + src2 + "\n";
-        self.handle.print(ins);
+        self.say("mul ", dst, ", ", src1, ", ", src2);
     }
     function emitconcat1(string dst, string src)
     {
-        string ins = "concat " + dst + ", " + dst + ", " + src + "\n";
-        self.handle.print(ins);
+        self.say("concat ", dst, ", ", dst, ", ", src);
     }
     function emitconcat(string dst, string src1, string src2)
     {
-        string ins = "concat " + dst + ", " + src1 + ", " + src2 + "\n";
-        self.handle.print(ins);
+        self.say("concat ", dst, ", ", src1, ", ", src2);
     }
     function emitprint(string arg)
     {
-        self.handle.print('print ' + arg + "\n");
+        self.say('print ', arg);
     }
     function emitsay(string arg)
     {
-        self.handle.print('say ' + arg + "\n");
+        self.say('say ', arg);
     }
 }
 
