@@ -4069,12 +4069,8 @@ class OpCModExpr : OpBinaryExpr
 
 //*********************************************
 
-class OpShiftleftExpr : OpBinaryExpr
+class OpShiftleftExpr : OpBinaryIntExpr
 {
-    function checkresult()
-    {
-        return REGint;
-    }
     function emit(e, result)
     {
         string res = result != null ? result : self.tempreg(REGint);
@@ -4083,16 +4079,16 @@ class OpShiftleftExpr : OpBinaryExpr
         self.annotate(e);
         e.emitbinop('shl', res, lreg, rreg);
     }
+    function do_op(int left, int right)
+    {
+        return left << right;
+    }
 }
 
 //*********************************************
 
-class OpShiftrightExpr : OpBinaryExpr
+class OpShiftrightExpr : OpBinaryIntExpr
 {
-    function checkresult()
-    {
-        return REGint;
-    }
     function emit(e, result)
     {
         string res = result != null ? result : self.tempreg(REGint);
@@ -4100,6 +4096,10 @@ class OpShiftrightExpr : OpBinaryExpr
         string rreg = self.emit_intright(e);
         self.annotate(e);
         e.emitbinop('shr', res, lreg, rreg);
+    }
+    function do_op(int left, int right)
+    {
+        return left >> right;
     }
 }
 
