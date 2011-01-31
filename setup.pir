@@ -115,7 +115,6 @@ print "\tFile: "
 say $S2
 $P6 = $P4['name']
 # predefined say
-.annotate 'line', 63
 print "\tName: "
 say $P6
 .annotate 'line', 64
@@ -124,12 +123,12 @@ print "\tDescription: "
 say $S3
 $P6 = $P4['copyright_holder']
 # predefined say
-.annotate 'line', 65
 print "\t(C) "
 say $P6
+.annotate 'line', 65
 # predefined say
+say ''
 .annotate 'line', 66
- say ''
 # }
 __label_2: # endif
 .annotate 'line', 69
