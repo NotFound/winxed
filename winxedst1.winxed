@@ -5999,7 +5999,8 @@ class DoStatement : LoopStatement, ConditionalStatement
     }
     function emit(e)
     {
-        switch (self.getvalue()) {
+        int condvalue = self.getvalue();
+        switch (condvalue) {
         case CONDistrue:
             self.emit_infinite(e);
             break;
@@ -6012,7 +6013,9 @@ class DoStatement : LoopStatement, ConditionalStatement
             e.emitlabel(looplabel, 'do');
 
             self.body.emit(e);
-            self.emit_if(e, looplabel, breaklabel);
+            e.emitlabel(continuelabel, 'continue');
+            if (condvalue != CONDisfalse)
+                self.emit_if(e, looplabel, breaklabel);
             e.emitlabel(breaklabel, 'enddo');
         }
     }
