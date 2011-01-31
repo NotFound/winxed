@@ -1524,6 +1524,10 @@ class CommonBase
     {
         return self.owner.findclasskey(classkey);
     }
+    function dowarnings()
+    {
+        return self.owner.dowarnings();
+    }
 }
 
 //*********************************************
@@ -4843,7 +4847,7 @@ class NewExpr : NewBaseExpr
             // By name, usually a pmc.
             string name = self.value.rawstring();
             var aux = get_class(name);
-            if (aux == null)
+            if (aux == null && self.dowarnings())
                 Warn("Can't locate class " + name + " at compile time", self.value);
 
             // Avoid using root_new here for a now.
@@ -4867,7 +4871,8 @@ class NewExpr : NewBaseExpr
                     e.say('new ', regnew, ", ", cl.getclasskey(), reginit);
                 }
                 else {
-                    Warn('Checking: new unknown type');
+                    if (self.dowarnings())
+                        Warn('Checking: new unknown type');
                     e.say('new ', regnew, ", ['", self.value, "']", reginit);
                 }
                 constructor = self.value;
@@ -7617,7 +7622,8 @@ class ClassSpecifierId : ClassSpecifier
     {
         var key = ns.findclasskey(self.key);
         if (key == null) {
-            Warn("class " + join(".", self.key) + " not found at compile time");
+            if (self.dowarnings())
+                Warn("class " + join(".", self.key) + " not found at compile time");
             e.print(getparrotkey(self.key));
         }
         else e.print(key.getclasskey());
@@ -8070,13 +8076,15 @@ class NamespaceStatement : NamespaceBase
 
 class RootNamespace : NamespaceBase
 {
+    var unit;
     var predefs_used;
     var libs;
     var loads;
     var subidgen;
 
-    function init [vtable] ()
+    function RootNamespace(unit)
     {
+        self.unit = unit;
         self.predefs_used = {};
         self.subidgen = 0;
     }
@@ -8141,6 +8149,10 @@ class RootNamespace : NamespaceBase
     {
          SyntaxError('Cannot close root namespace', t);
     }
+    function dowarnings()
+    {
+        return self.unit.dowarnings();
+    }
     function optimize()
     {
         self.optimize_base();
@@ -8197,9 +8209,12 @@ const string EVAL_NAME = '__eval__';
 class WinxedCompileUnit
 {
     var rootns;
+    var warnings;
+
     function init [vtable] ()
     {
-        var rootns= new RootNamespace();
+        self.warnings = true;
+        var rootns= new RootNamespace(self);
 
         // Store predefined constants in the root namespace.
         var taux = new TokenIdentifier('__predefconst__', 0, 'predefconst');
@@ -8221,6 +8236,14 @@ class WinxedCompileUnit
                     '');
 
         self.rootns = rootns;
+    }
+    function setwarnmode(int mode)
+    {
+        self.warnings =: mode;
+    }
+    function dowarnings()
+    {
+        return int(self.warnings);
     }
     function parse(tk)
     {
@@ -8245,7 +8268,9 @@ class WinxedCompileUnit
 
 class WinxedHLL
 {
-    function compile(string code, string target[named,optional])
+    function compile(string code,
+            string target[named,optional],
+            int nowarn[named,optional] )
     {
         if (target == null)
             target = '';
@@ -8256,6 +8281,8 @@ class WinxedHLL
         handlein.open(EVAL_NAME, 'r');
         var tk= new Tokenizer(handlein, EVAL_NAME);
         var winxed= new WinxedCompileUnit();
+        if (nowarn)
+            winxed.setwarnmode(false);
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
@@ -8283,13 +8310,16 @@ class WinxedHLL
         }
         return object;
     }
-    function compile_from_file_to_pir(string filename, var handleout)
+    function compile_from_file_to_pir(string filename, var handleout,
+            int nowarn[named,optional] )
     {
         var handlein = new ['FileHandle'];
         handlein.open(filename, 'r');
         handlein.encoding('utf8');
         var tk= new Tokenizer(handlein, filename);
         var winxed= new WinxedCompileUnit();
+        if (nowarn)
+            winxed.setwarnmode(false);
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
@@ -8298,13 +8328,16 @@ class WinxedHLL
         winxed.emit(emit);
         emit.close();
     }
-    function compile_from_file(string filename)
+    function compile_from_file(string filename,
+            int nowarn[named,optional] )
     {
         var handlein = new ['FileHandle'];
         handlein.open(filename, 'r');
         handlein.encoding('utf8');
         var tk= new Tokenizer(handlein, filename);
         var winxed= new WinxedCompileUnit();
+        if (nowarn)
+            winxed.setwarnmode(false);
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
@@ -8324,9 +8357,11 @@ class WinxedHLL
 
 //*********************************************
 
-function winxed_parser(tk, string outputfile)
+function winxed_parser(tk, string outputfile, int warn)
 {
     var winxed= new WinxedCompileUnit();
+    if (! warn)
+        winxed.setwarnmode(false);
     winxed.parse(tk);
 
     winxed.optimize();
@@ -8362,6 +8397,7 @@ function stage1(argv)
     getopts.push_string('e=s');
     getopts.push_string('c');
     getopts.push_string('noan');
+    getopts.push_string('nowarn');
 
     argv.shift();
     var opts = getopts.get_options(argv);
@@ -8369,6 +8405,10 @@ function stage1(argv)
     var opt_e = opts['e'];
     var opt_c = opts['c'];
     var noan  = opts['noan'];
+    var opt_nowarn = opts['nowarn'];
+    int warn = 1;
+    if (opt_nowarn != null)
+        warn = 0;
 
     int argc= argv;
     string filename;
@@ -8398,7 +8438,7 @@ function stage1(argv)
     string outputfile = '';
     if (opt_o != null)
         outputfile = opt_o;
-    winxed_parser(t, outputfile);
+    winxed_parser(t, outputfile, warn);
 
     file.close();
 }

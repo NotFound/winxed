@@ -48,6 +48,7 @@ class Options : ['Getopt', 'Obj']
           [ 'L=s',      'Add to parrot library search path' ],
           [ 'I=s',      'Add to parrot include search path' ],
           [ 'noan',     'No code annotations' ],
+          [ 'nowarn',   'No warnings' ],
           [ 'target=s', 'Set target type: pir, pbc or run. Default is run.' ],
           [ 'help',     'Show this help' ]
         ];
@@ -96,6 +97,7 @@ function main [main] (argv)
     var opt_stage   = options['stage'];
     var compileonly = options['c'];
     var noan        = options['noan'];
+    var opt_nowarn  = options['nowarn'];
     var eval        = options['e'];
     var opt_L       = options['L'];
     var opt_I       = options['I'];
@@ -239,6 +241,8 @@ function main [main] (argv)
     cmd.push('-c');
     if (noan)
         cmd.push('--noan');;
+    if (opt_nowarn != null && stage != 0)
+        cmd.push('--nowarn');
     if (eval != null) {
         cmd.push('-e');
         cmd.push(eval);
