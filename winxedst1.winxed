@@ -3500,11 +3500,9 @@ class OpBoolAndExpr : OpBaseBoolExpr
     {
         string res = result != null ? result : self.tempreg(REGint);
         if (self.lexpr.issimple() && self.rexpr.issimple()) {
-            string op1 = self.tempreg(REGint);
-            string op2 = self.tempreg(REGint);
-            self.lexpr.emit(e, op1);
-            self.rexpr.emit(e, op2);
-            e.say('and ', res, ', ', op1, ', ', op2);
+            string lreg = self.emit_intleft(e);
+            string rreg = self.emit_intright(e);
+            e.emitbinop('and', res, lreg, rreg);
         }
         else {
             string l = self.owner.genlabel();
@@ -3541,11 +3539,9 @@ class OpBoolOrExpr : OpBaseBoolExpr
         else
             res = self.tempreg(REGint);
         if (self.lexpr.issimple() && self.rexpr.issimple()) {
-            string op1 = self.tempreg(REGint);
-            string op2 = self.tempreg(REGint);
-            self.lexpr.emit(e, op1);
-            self.rexpr.emit(e, op2);
-            e.say('or ', res, ', ', op1, ', ', op2);
+            string lreg = self.emit_intleft(e);
+            string rreg = self.emit_intright(e);
+            e.emitbinop('or', res, lreg, rreg);
         }
         else {
             string l = self.owner.genlabel();
