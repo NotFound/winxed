@@ -2756,6 +2756,28 @@ class OpBinaryExpr : OpExpr
 
 //*********************************************
 
+class OpBinaryIntExpr : OpBinaryExpr
+{
+    function checkresult()
+    {
+        return REGint;
+    }
+    function optimize()
+    {
+        self.optimizearg();
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        if (lexpr.isintegerliteral() && rexpr.isintegerliteral()) {
+            int li = int(lexpr.numval);
+            int ri = int(rexpr.numval);
+            return integerValue(self.owner, self.start, self.do_op(li, ri));
+        }
+        return self;
+    }
+}
+
+//*********************************************
+
 class OpUnaryMinusExpr : OpUnaryExpr
 {
     function checkresult()
@@ -3555,30 +3577,14 @@ class OpBoolOrExpr : OpBaseBoolExpr
 
 //*********************************************
 
-class OpBaseBinExpr : OpBinaryExpr
+class OpBaseBinExpr : OpBinaryIntExpr
 {
-    function checkresult()
-    {
-        return REGint;
-    }
 }
 
 //*********************************************
 
 class OpBinAndExpr : OpBaseBinExpr
 {
-    function optimize()
-    {
-        self.optimizearg();
-        if (self.lexpr.isintegerliteral() && self.rexpr.isintegerliteral()) {
-            var lval = self.lexpr.numval;
-            int ln = lval;
-            var rval = self.rexpr.numval;
-            int rn = rval;
-            return integerValue(self.owner, self.start, ln & rn);
-        }
-        return self;
-    }
     function emit(e, result)
     {
         string res = result != null ? result : self.tempreg(REGint);
@@ -3587,24 +3593,16 @@ class OpBinAndExpr : OpBaseBinExpr
         self.annotate(e);
         e.emitbinop('band', res, lreg, rreg);
     }
+    function do_op(int left, int right)
+    {
+        return left & right;
+    }
 }
 
 //*********************************************
 
 class OpBinOrExpr : OpBaseBinExpr
 {
-    function optimize()
-    {
-        self.optimizearg();
-        if (self.lexpr.isintegerliteral() && self.rexpr.isintegerliteral()) {
-            var lval = self.lexpr.numval;
-            int ln = lval;
-            var rval = self.rexpr.numval;
-            int rn = rval;
-            return integerValue(self.owner, self.start, ln | rn);
-        }
-        return self;
-    }
     function emit(e, result)
     {
         string res = result != null ? result : self.tempreg(REGint);
@@ -3612,6 +3610,10 @@ class OpBinOrExpr : OpBaseBinExpr
         string rreg = self.emit_intright(e);
         self.annotate(e);
         e.emitbinop('bor', res, lreg, rreg);
+    }
+    function do_op(int left, int right)
+    {
+        return left | right;
     }
 }
 
@@ -4029,18 +4031,18 @@ class OpDivExpr : OpBinaryExpr
 
 //*********************************************
 
-class OpModExpr : OpBinaryExpr
+class OpModExpr : OpBinaryIntExpr
 {
-    function checkresult()
-    {
-        return REGint;
-    }
     function emit(e, result)
     {
         string lreg = self.emit_intleft(e);
         string rreg = self.emit_intright(e);
         self.annotate(e);
         e.emitbinop('mod', result, lreg, rreg);
+    }
+    function do_op(int left, int right)
+    {
+        return left % right;
     }
 }
 
