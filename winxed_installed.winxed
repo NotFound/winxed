@@ -21,6 +21,7 @@ class Options : [ 'Getopt', 'Obj']
           [ 'e=s',      'Evaluate' ],
           [ 'L=s',      'Add to parrot library search path' ],
           [ 'I=s',      'Add to parrot include search path' ],
+          [ 'nowarn',   'No warnings' ],
           [ 'help',     'Show this help' ]
         ];
         self.options = options;
@@ -81,6 +82,10 @@ function main [main] (argv)
     var eval        = options['e'];
     var opt_L       = options['L'];
     var opt_I       = options['I'];
+    var opt_nowarn  = options['nowarn'];
+    int nowarn = 0;
+    if (opt_nowarn != null)
+        nowarn = 1;
 
     if (help != null) {
         optionset.showhelp();
@@ -118,7 +123,8 @@ function main [main] (argv)
         if (compileonly != null) {
             var handleout = new 'StringHandle';
             handleout.open('', 'w');
-            compiler.compile_from_file_to_pir(srcfile, handleout);
+            compiler.compile_from_file_to_pir(srcfile, handleout,
+                    nowarn:[named("nowarn")]);
             handleout.close();
             string pircode = handleout.read(0);
             string pirfile = extname(srcfile, '.pir');
@@ -128,17 +134,20 @@ function main [main] (argv)
             exit(0);
         }
         else
-            code = compiler.compile_from_file(srcfile);
+            code = compiler.compile_from_file(srcfile,
+                    nowarn:[named("nowarn")]);
     }
     else {
         string expr = 'function main[main](argv){' + string(eval) + ';}';
         if (compileonly != null) {
-            code = compiler.compile(expr, "pir":[named("target")]);
+            code = compiler.compile(expr, "pir":[named("target")],
+                    nowarn:[named("nowarn")]);
             print(code);
             exit(0);
         }
         else {
-            code = compiler.compile(expr);
+            code = compiler.compile(expr,
+                    nowarn:[named("nowarn")]);
             argv.unshift('__EVAL__');
         }
     }
