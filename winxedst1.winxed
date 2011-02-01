@@ -693,6 +693,7 @@ class Emit
     var line;
     var pendingf;
     var pendingl;
+    var noan;
 
     function initialize(var handle)
     {
@@ -701,6 +702,10 @@ class Emit
         self.line = 0;
         self.pendingf = false;
         self.pendingl = false;
+    }
+    function disable_annotations()
+    {
+        self.noan = 1;
     }
     function close()
     {
@@ -740,18 +745,21 @@ class Emit
     }
     function annotate(var t)
     {
-        var file = self.file;
-        var line = self.line;
-        string tfile = t.file;
-        int tline = t.line;
-        if (file != tfile) {
-            file =: tfile;
-            self.pendingf =: true;
-            line =: 0;
-        }
-        if (line != tline) {
-            line =: tline;
-            self.pendingl =: true;
+        if (self.noan == null)
+        {
+            var file = self.file;
+            var line = self.line;
+            string tfile = t.file;
+            int tline = t.line;
+            if (file != tfile) {
+                file =: tfile;
+                self.pendingf =: true;
+                line =: 0;
+            }
+            if (line != tline) {
+                line =: tline;
+                self.pendingl =: true;
+            }
         }
     }
     function comment(string s)
@@ -2095,7 +2103,7 @@ class UsingStatement : Statement
             string subid = self.subid;
             e.say(".const 'Sub' ", vdata.getreg(), ' = "', subid, '"');
         }
-	else {
+        else {
             self.annotate(e);
             e.print('get_hll_global ', vdata.getreg(), ', ');
             path.pop();
@@ -8512,7 +8520,7 @@ class WinxedHLL
 
 //*********************************************
 
-function winxed_parser(tk, string outputfile, int warn)
+function winxed_parser(tk, string outputfile, int warn, int noan)
 {
     var winxed= new WinxedCompileUnit();
     if (! warn)
@@ -8527,6 +8535,8 @@ function winxed_parser(tk, string outputfile, int warn)
     else
         handle = open(outputfile, 'w');
     var emit= new Emit();
+    if (noan)
+        emit.disable_annotations();
     emit.initialize(handle);
     winxed.emit(emit);
     emit.close();
@@ -8543,33 +8553,54 @@ function initializer [init,load]()
     compreg('winxed', comp);
 }
 
+class Options
+{
+    var getopts;
+    var opts;
+
+    function Options(argv)
+    {
+        using extern Getopt.Obj;
+        var getopts = new ['Getopt','Obj'];
+        getopts.notOptStop(1);
+        getopts.push_string('o=s');
+        getopts.push_string('e=s');
+        getopts.push_string('c');
+        getopts.push_string('noan');
+        getopts.push_string('nowarn');
+        getopts.notOptStop(1);
+        argv.shift();
+        var opts = getopts.get_options(argv);
+        self.getopts = getopts;
+        self.opts = opts;
+    }
+    function getbool(string option)
+    {
+        var opts = self.opts;
+        var value = opts[option];
+        return value != null;
+    }
+    function getstring(string option, string default[optional])
+    {
+        var opts = self.opts;
+        var value = opts[option];
+        return value != null ? string(value) : default;
+    }
+}
+
 function stage1(argv)
 {
-    using extern Getopt.Obj;
-    var getopts = new ['Getopt','Obj'];
-    getopts.notOptStop(1);
-    getopts.push_string('o=s');
-    getopts.push_string('e=s');
-    getopts.push_string('c');
-    getopts.push_string('noan');
-    getopts.push_string('nowarn');
-
-    argv.shift();
-    var opts = getopts.get_options(argv);
-    var opt_o = opts['o'];
-    var opt_e = opts['e'];
-    var opt_c = opts['c'];
-    var noan  = opts['noan'];
-    var opt_nowarn = opts['nowarn'];
-    int warn = 1;
-    if (opt_nowarn != null)
-        warn = 0;
+    var options = new Options(argv);
+    string outputfile = options.getstring('o', '');
+    string expr = options.getstring('e');
+    int opt_c = options.getbool('c');
+    int noan  = options.getbool('noan');
+    int warn = ! options.getbool('nowarn');
 
     int argc= argv;
     string filename;
-    string expr;
     var file;
-    if (opt_e == null) {
+    if (expr == null) {
         if (argc == 0)
             throw Error('No file');
 
@@ -8578,7 +8609,6 @@ function stage1(argv)
         file.encoding('utf8');
     }
     else {
-        expr = opt_e;
         expr = 'function main[main](argv){' + expr + ';}';
         file = new ['StringHandle'];
         file.open(EVAL_NAME, 'w');
@@ -8590,10 +8620,7 @@ function stage1(argv)
 
     var t= new Tokenizer(file, filename);
 
-    string outputfile = '';
-    if (opt_o != null)
-        outputfile = opt_o;
-    winxed_parser(t, outputfile, warn);
+    winxed_parser(t, outputfile, warn, noan);
 
     file.close();
 }
