@@ -99,6 +99,11 @@ function Expected(string msg, var t)
     SyntaxError("Expected " + msg, t);
 }
 
+function ExpectedIdentifier(var t)
+{
+    SyntaxError("Expected identifier", t);
+}
+
 function ExpectedOp(string msg, var t)
 {
     SyntaxError("Expected '" + msg + "'", t);
@@ -119,7 +124,7 @@ function RequireKeyword(string name, var t)
 function RequireIdentifier(var t)
 {
     if (! t.isidentifier())
-        Expected('identifier', t);
+        ExpectedIdentifier(t);
 }
 
 function ExpectOp(string name, var tk)
@@ -169,7 +174,7 @@ class Token
     }
     function getidentifier()
     {
-        Expected('identifier', self);
+        ExpectedIdentifier(self);
     }
     function iskeyword(string name) { return false; }
     function checkkeyword()         { return false; }
@@ -1479,6 +1484,29 @@ function optimize_array(var arr)
         arr[i] = arr[i].optimize();
 }
 
+function parseDotted(tk)
+{
+    var list = [];
+    var t = tk.get();
+    if (t.isidentifier()) {
+        list.push(t);
+        while ((t= tk.get()).isop('.')) {
+            t= tk.get();
+            list.push(t);
+        }
+    }
+    tk.unget(t);
+    return list;
+}
+
+function toIdentifierList(var tlist)
+{
+    string list[];
+    for (var t in tlist)
+        list.push(t.getidentifier());
+    return list;
+}
+
 //*********************************************
 //               CommonBase
 //*********************************************
@@ -1508,6 +1536,10 @@ class CommonBase
     function addlocalfunction(fn)
     {
         return self.owner.addlocalfunction(fn);
+    }
+    function findsymbol(classkey)
+    {
+        return self.owner.findsymbol(classkey);
     }
     function findclasskey(classkey)
     {
@@ -1983,14 +2015,11 @@ class ExternStatement : Statement
     function ExternStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
-        string path[];
-        var t;
-        do {
-            t= tk.get();
-            path.push(t.getidentifier());
-        } while ((t= tk.get()).isop('.'));
-        RequireOp(';', t);
-        self.path = path;
+        var path = parseDotted(tk);
+        if (elements(path) == 0)
+            ExpectedIdentifier(tk.get());
+        ExpectOp(';', tk);
+        self.path = toIdentifierList(path);
         return self;
     }
     function optimize() { return self; }
@@ -2031,35 +2060,52 @@ class StaticStatement : Statement
 class UsingStatement : Statement
 {
     var path;
+    var subid;
+
     function UsingStatement(start, tk, owner)
     {
         self.initstatement(start, owner);
-        string path[];
-        var t;
-        do {
-            t= tk.get();
-            path.push(t.getidentifier());
-        } while ((t= tk.get()).isop('.'));
-        RequireOp(';', t);
-        self.path = path;
+        var path = parseDotted(tk);
+        if (elements(path) == 0)
+            ExpectedIdentifier(tk.get());
+        ExpectOp(';', tk);
+        self.path = toIdentifierList(path);
     }
-    function optimize() { return self; }
+    function optimize()
+    {
+        var path = self.path;
+        string name = path[-1];
+        var vdata = self.createvar(name, REGvar);
+
+        var symbol = self.findsymbol(path);
+        if (symbol != null) {
+            if (symbol instanceof FunctionStatement) {
+                string subid = symbol.makesubid();
+                self.subid = subid;
+            }
+        }
+        return self;
+    }
     function emit(e)
     {
         var path = self.path;
-        string name = path.pop();
-        self.annotate(e);
- 
-        var vdata = self.createvar(name, REGvar);
-        e.print('get_hll_global ', vdata.getreg(), ', ');
-
-        int n = path;
-        switch (n) {
-        case 0:
-            e.say("'", name, "'");
-            break;
-        default:
-            e.say(getparrotkey(path), " , '", name, "'");
+        string name = path[-1];
+        var vdata = self.getvar(name);
+        if (self.subid != null) {
+            string subid = self.subid;
+            e.say(".const 'Sub' ", vdata.getreg(), ' = "', subid, '"');
+        }
+	else {
+            self.annotate(e);
+            e.print('get_hll_global ', vdata.getreg(), ', ');
+            path.pop();
+            switch (elements(path)) {
+            case 0:
+                e.say("'", name, "'");
+                break;
+            default:
+                e.say(getparrotkey(path), " , '", name, "'");
+            }
         }
     }
 }
@@ -7786,6 +7832,10 @@ class ClassStatement : VarContainer
     {
         return self.owner.generatesubid();
     }
+    function findsymbol(classkey)
+    {
+        return self.parent.findsymbol(classkey);
+    }
     function findclasskey(classkey)
     {
         return self.parent.findclasskey(classkey);
@@ -7944,6 +7994,40 @@ class NamespaceBase : VarContainer
             for (var ns in namespaces) {
                 if (ns.name == basename) {
                     var found = ns.findclasskey(childkey);
+                    if (found != null)
+                        return found;
+                }
+            }
+        }
+        return null;
+    }
+    function findsymbol(classkey)
+    {
+        // Look for a symbol by its key in this namespace
+        // and its childs.
+        switch (elements(classkey)) {
+          case 0:
+            return null;
+          case 1:
+            string name = classkey[0];
+            // The key contains the name, look by name
+            var sym = self.checkclass_base(name);
+            if (sym != null)
+                return sym;
+            for (var s in self.functions)
+                if (s.name == name)
+                    return s;
+            return null;
+          default:
+            // The key is multi: look for a child namespace named
+            // as the first key item, and look into it with the
+            // remaining.
+            var namespaces = self.namespaces;
+            var childkey = clone(classkey);
+            string basename = childkey.shift();
+            for (var ns in namespaces) {
+                if (ns.name == basename) {
+                    var found = ns.findsymbol(childkey);
                     if (found != null)
                         return found;
                 }
