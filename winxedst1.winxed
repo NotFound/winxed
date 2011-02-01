@@ -7063,24 +7063,26 @@ class RegisterStore
     }
     function tempreg()
     {
-        var freg = self.freereg;
-        var treg = self.tempreg;
-        int n= freg;
+        var freereg = self.freereg;
+        var tempreg = self.tempreg;
         string reg;
-        if (n > 0)
-            reg= freg.pop();
-        else {
+        if (elements(freereg) > 0)
+            reg= freereg.pop();
+        else
             reg= self.createreg();
-            treg.push(reg);
-        }
+        tempreg.push(reg);
         return reg;
     }
     function freetemps()
     {
-        for (string s in self.tempreg)
-            self.freereg.unshift(s);
-        string tempreg[];
-        self.tempreg= tempreg;
+        var freereg = self.freereg;
+        var tempreg = self.tempreg;
+        int n = elements(tempreg);
+        for (int i = n - 1; i >= 0; --i) {
+            string s = tempreg[i];
+            freereg.push(s);
+        }
+        tempreg =: 0;
     }
 }
 
