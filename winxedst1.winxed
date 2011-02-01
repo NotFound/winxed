@@ -3325,7 +3325,7 @@ class OpEqualExpr : ComparatorBaseExpr
     }
     function emitop(e, string result, string regl, string regr)
     {
-        e.say('iseq ', result, ', ', regl, ', ', regr);
+        e.emitbinop('iseq', result, regl, regr);
     }
     function emit(e, result)
     {
@@ -3378,7 +3378,7 @@ class OpNotEqualExpr : ComparatorBaseExpr
     }
     function emitop(e, string result, string regl, string regr)
     {
-        e.say('isne ', result, ', ', regl, ', ', regr);
+        e.emitbinop('isne', result, regl, regr);
     }
     function emit(e, result)
     {
@@ -3414,7 +3414,7 @@ class OpSameExpr : ComparatorBaseExpr
     {
         int positive = self.positive;
         string op = positive ? 'issame' : 'isntsame';
-        e.say(op, ' ', result, ', ', regl, ', ', regr);
+        e.emitbinop(op, result, regl, regr);
     }
     function emit(e, result)
     {
@@ -3445,7 +3445,7 @@ class OpLessExpr : ComparatorBaseExpr
     }
     function emitop(e, string result, string regl, string regr)
     {
-        e.say('islt ', result, ', ', regl, ', ', regr);
+        e.emitbinop('islt', result, regl, regr);
     }
     function emitop_if(e, string labeltrue, string regl, string regr)
     {
@@ -3468,7 +3468,7 @@ class OpGreaterExpr : ComparatorBaseExpr
     }
     function emitop(e, string result, string regl, string regr)
     {
-        e.say('isgt ', result, ', ', regl, ', ', regr);
+        e.emitbinop('isgt', result, regl, regr);
     }
     function emitop_if(e, string labeltrue, string regl, string regr)
     {
@@ -3491,7 +3491,7 @@ class OpLessEqualExpr : ComparatorBaseExpr
     }
     function emitop(e, string result, string regl, string regr)
     {
-        e.say('isle ', result, ', ', regl, ', ', regr);
+        e.emitbinop('isle', result, regl, regr);
     }
     function emitop_if(e, string labeltrue, string regl, string regr)
     {
@@ -3514,7 +3514,7 @@ class OpGreaterEqualExpr : ComparatorBaseExpr
     }
     function emitop(e, string result, string regl, string regr)
     {
-        e.say('isge ', result, ', ', regl, ', ', regr);
+        e.emitbinop('isge', result, regl, regr);
     }
     function emitop_if(e, string labeltrue, string regl, string regr)
     {
