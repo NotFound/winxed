@@ -7459,16 +7459,23 @@ class FunctionStatement : FunctionBase
 
     function parse(tk)
     {
-        var t= tk.get();
-        self.name= t;
-        t= tk.get();
+        var name = tk.get();
+        self.name = name;
+        var t = tk.get();
         if (t.isop('[')) {
             var modifiers = new ModifierList(tk, self);
-            self.modifiers= modifiers;
-            t= tk.get();
+            self.modifiers = modifiers;
+            t = tk.get();
         }
         RequireOp('(', t);
         self.parse_parameters(tk);
+
+        var fullname = clone(self.owner.getpath());
+        fullname.push(name.getidentifier());
+        self.createconst('__FUNCTION__', REGstring,
+                new StringLiteral(self,
+                    new TokenQuoted(name.file, name.line, join('.', fullname))),
+                    '');
 
         t= tk.get();
         if (!t.isop('{'))
@@ -7729,11 +7736,15 @@ class ClassStatement : VarContainer
         var constants = [];
         self.constants = constants;
 
-        var t= tk.get();
-        self.name= t;
-        t= tk.get();
+        var name = tk.get();
+        self.name = name;
+        var classns = clone(parent.getpath());
+        classns.push(self.name);
+        self.classns = classns;
+
+        var t = tk.get();
         if (t.isop(':')) {
-            var bases= self.bases;
+            var bases = self.bases;
             for (;;) {
                 var base = parseClassSpecifier(tk, self);
                 bases.push(base);
@@ -7766,9 +7777,10 @@ class ClassStatement : VarContainer
                 SyntaxError("Unexpected item in class", t);
             }
         }
-        var classns = self.parent.getpath();
-        classns.push(self.name);
-        self.classns = classns;
+    }
+    function getpath()
+    {
+        return self.classns;
     }
     function generatesubid()
     {
@@ -7886,6 +7898,7 @@ function include_parrot(var start, var tk, var ns)
 
 class NamespaceBase : VarContainer
 {
+    var nspath;
     var namespaces;
     var classes;
     var functions;
@@ -7898,6 +7911,10 @@ class NamespaceBase : VarContainer
         self.classes= [];
         self.functions = [];
         self.items = [];
+    }
+    function getpath()
+    {
+        return self.nspath;
     }
     function checkclass_base(string name)
     {
@@ -8049,6 +8066,10 @@ class NamespaceStatement : NamespaceBase
     function NamespaceStatement(var parent, var start,
             string name, var modifier)
     {
+        var nspath = clone(parent.getpath());
+        nspath.push(name);
+        self.nspath = nspath;
+
         self.parent= parent;
         self.start = start;
         self.owner = parent;
@@ -8066,13 +8087,6 @@ class NamespaceStatement : NamespaceBase
     function use_predef(string name)
     {
         self.owner.use_predef(name);
-    }
-    function getpath()
-    {
-        var path=self.parent.getpath();
-        if (self.hll == null)
-            path.push(self.name);
-        return path;
     }
     function addlib(string libname)
     {
@@ -8144,6 +8158,8 @@ class RootNamespace : NamespaceBase
 
     function RootNamespace(unit)
     {
+        string nspath[];
+        self.nspath = nspath;
         self.unit = unit;
         self.predefs_used = {};
         self.subidgen = 0;
@@ -8186,11 +8202,6 @@ class RootNamespace : NamespaceBase
             self.loads = loads;
         }
         loads[name] = 1;
-    }
-    function getpath()
-    {
-        string path[];
-        return path;
     }
     function checkclass(string name)
     {
