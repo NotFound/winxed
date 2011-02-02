@@ -8,13 +8,13 @@ $include_const 'except_types.pasm';
 
 $load 'Getopt/Obj.pbc';
 
-class Options : [ 'Getopt', 'Obj']
+class WinxedDriverOptions : [ 'Getopt', 'Obj']
 {
     var name;
     var options;
     var opts;
 
-    function Options(argv, int unused)
+    function WinxedDriverOptions(argv)
     {
         var options = [
           [ 'c',        'Compile only. Same as --target=pir' ],
@@ -31,9 +31,18 @@ class Options : [ 'Getopt', 'Obj']
         self.name = argv.shift();
         self.opts = self.get_options(argv);
     }
-    function get()
+    function getbool(string option)
     {
-        return self.opts;
+        var value = self.opts[option];
+        return value != null;
+    }
+    function getstring(string option)
+    {
+        var value = self.opts[option];
+        string result = null;
+        if (value != null)
+            result = value;
+        return result;
     }
     function showhelp()
     {
@@ -74,20 +83,16 @@ function extname(string filename, string ext)
 
 function main [main] (argv)
 {
-    var optionset = new Options(argv, 0);
-    var options = optionset.get();
+    var optionset = new WinxedDriverOptions(argv);
 
-    var help        = options['help'];
-    var compileonly = options['c'];
-    var eval        = options['e'];
-    var opt_L       = options['L'];
-    var opt_I       = options['I'];
-    var opt_nowarn  = options['nowarn'];
-    int nowarn = 0;
-    if (opt_nowarn != null)
-        nowarn = 1;
+    int help        = optionset.getbool('help');
+    int compileonly = optionset.getbool('c');
+    string eval     = optionset.getstring('e');
+    string opt_L    = optionset.getstring('L');
+    string opt_I    = optionset.getstring('I');
+    int nowarn      = optionset.getbool('nowarn');
 
-    if (help != null) {
+    if (help) {
         optionset.showhelp();
         exit(0);
     }
@@ -120,7 +125,7 @@ function main [main] (argv)
             exit(1);
         }
         string srcfile = argv[0];
-        if (compileonly != null) {
+        if (compileonly) {
             var handleout = new 'StringHandle';
             handleout.open('', 'w');
             compiler.compile_from_file_to_pir(srcfile, handleout,
@@ -138,8 +143,8 @@ function main [main] (argv)
                     nowarn:[named("nowarn")]);
     }
     else {
-        string expr = 'function main[main](argv){' + string(eval) + ';}';
-        if (compileonly != null) {
+        string expr = 'function main[main](argv){' + eval + ';}';
+        if (compileonly) {
             code = compiler.compile(expr, "pir":[named("target")],
                     nowarn:[named("nowarn")]);
             print(code);

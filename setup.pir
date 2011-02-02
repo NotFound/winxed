@@ -31,8 +31,8 @@ if $I1 goto __label_1
 $I1 = $P2.'is_closed'()
 __label_1:
 unless $I1 goto __label_0
-concat $S2, "Can't open ", __ARG_1
 .annotate 'line', 31
+concat $S2, "Can't open ", __ARG_1
 # predefined Error
 root_new $P4, ['parrot';'Exception']
 $P4['message'] = $S2
@@ -98,13 +98,14 @@ $P3 = $P2['file']
 set $S2, 'setup.json'
 .annotate 'line', 56
 if_null $P3, __label_1
+.annotate 'line', 57
 set $S2, $P3
 __label_1: # endif
 .annotate 'line', 58
 # var data: $P4
 $P4 = 'loadData'($S2)
-unless $I1 goto __label_2
 .annotate 'line', 60
+unless $I1 goto __label_2
 # {
 .annotate 'line', 61
 # string description: $S3
@@ -113,22 +114,23 @@ $S3 = $P4['description']
 # predefined say
 print "\tFile: "
 say $S2
-$P6 = $P4['name']
+$P5 = $P4['name']
 # predefined say
+.annotate 'line', 63
 print "\tName: "
-say $P6
+say $P5
 .annotate 'line', 64
 # predefined say
 print "\tDescription: "
 say $S3
-$P6 = $P4['copyright_holder']
+$P5 = $P4['copyright_holder']
 # predefined say
-print "\t(C) "
-say $P6
 .annotate 'line', 65
+print "\t(C) "
+say $P5
 # predefined say
-say ''
 .annotate 'line', 66
+say ''
 # }
 __label_2: # endif
 .annotate 'line', 69
