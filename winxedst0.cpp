@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 31-jan-2011
+// Revision 2-feb-2011
 
 // Winxed compiler stage 0.
 
@@ -6906,7 +6906,6 @@ void winxed_main (int argc, char **argv)
     std::string inputname;
     std::string expr;
     std::string outputname;
-    bool compileonly= true;
     bool noan= false;
 
     int i;
@@ -6916,8 +6915,6 @@ void winxed_main (int argc, char **argv)
         {
             outputname= argv[++i];
         }
-        else if (strcmp(argv[i], "-c") == 0)
-            compileonly= true;
         else if (strcmp(argv[i], "-e") == 0)
             expr = argv[++i];
         else if (strcmp(argv[i], "--noan") == 0)

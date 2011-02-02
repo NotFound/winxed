@@ -231,7 +231,6 @@ function main [main] (argv)
         cmd.push(winxedbin);
     }
 
-    cmd.push('-c');
     if (noan)
         cmd.push('--noan');;
     if (nowarn && stage != 0)

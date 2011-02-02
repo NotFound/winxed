@@ -72,7 +72,7 @@ winxedst1.pbc: winxedst1.pir
 	parrot -o winxedst1.pbc winxedst1.pir
 
 winxedst1.pir: winxedst0$(EXEEXT) winxedst1.winxed
-	./winxedst0 -c -o winxedst1.pir winxedst1.winxed
+	./winxedst0 -o winxedst1.pir winxedst1.winxed
 
 #-------------------------------
 #    Compiler stage 2
@@ -87,7 +87,7 @@ winxedst2.pbc: winxedst2.pir
 	parrot -o winxedst2.pbc winxedst2.pir
 
 winxedst2.pir: winxedst1.winxed winxedst1.pbc
-	parrot winxedst1.pbc -c -o winxedst2.pir winxedst1.winxed
+	parrot winxedst1.pbc -o winxedst2.pir winxedst1.winxed
 
 #-------------------------------
 #      Driver
@@ -102,7 +102,7 @@ $(DRIVER).pbc: $(DRIVER).pir
 	parrot -o $(DRIVER).pbc $(DRIVER).pir
 
 $(DRIVER).pir: winxed.winxed winxedst0$(EXEEXT)
-	./winxedst0$(EXEEXT) -c -o $(DRIVER).pir winxed.winxed
+	./winxedst0$(EXEEXT) -o $(DRIVER).pir winxed.winxed
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #                      Install
@@ -138,7 +138,7 @@ install: preinstall
 
 # Useful for some tests
 %.pir: %.winxed winxed
-	./winxedst0$(EXEEXT) -c $<
+	./winxedst0$(EXEEXT) $<
 
 
 test: $(DRIVER).pbc

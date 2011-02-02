@@ -8565,7 +8565,6 @@ class Options
         getopts.notOptStop(1);
         getopts.push_string('o=s');
         getopts.push_string('e=s');
-        getopts.push_string('c');
         getopts.push_string('noan');
         getopts.push_string('nowarn');
         getopts.notOptStop(1);
@@ -8593,7 +8592,6 @@ function stage1(argv)
     var options = new Options(argv);
     string outputfile = options.getstring('o', '');
     string expr = options.getstring('e');
-    int opt_c = options.getbool('c');
     int noan  = options.getbool('noan');
     int warn = ! options.getbool('nowarn');
 
