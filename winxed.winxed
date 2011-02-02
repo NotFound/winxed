@@ -10,13 +10,10 @@ function extname(string filename, string ext)
 {
     // Strip a possible .winxed extension from filename,
     // add ext, and return the result.
-    string newname;
     int l = length(filename);
-    if (l > 7 && substr(filename, -7) == '.winxed')
-        newname = substr(filename, 0, l - 7) + ext;
-    else
-        newname = filename + ext;
-    return newname;
+    return (l > 7 && substr(filename, -7) == '.winxed') ?
+        substr(filename, 0, l - 7) + ext :
+        filename + ext;
 }
 
 // Use the OS pmc for file operations.
@@ -59,9 +56,17 @@ class Options : ['Getopt', 'Obj']
         self.name = argv.shift();
         self.opts = self.get_options(argv);
     }
-    function get()
+    function getbool(string option)
     {
-        return self.opts;
+        var opts = self.opts;
+        var value = opts[option];
+        return value != null;
+    }
+    function getstring(string option, string default[optional])
+    {
+        var opts = self.opts;
+        var value = opts[option];
+        return value != null ? string(value) : default;
     }
     function showhelp()
     {
@@ -90,22 +95,21 @@ function main [main] (argv)
 {
     const int DEFAULT_STAGE = 2;
 
-    var optionset = new Options(argv, 0);
-    var options = optionset.get();
+    var options = new Options(argv, 0);
 
-    var help        = options['help'];
-    var opt_stage   = options['stage'];
-    var compileonly = options['c'];
-    var noan        = options['noan'];
-    var opt_nowarn  = options['nowarn'];
-    var eval        = options['e'];
-    var opt_L       = options['L'];
-    var opt_I       = options['I'];
-    var opt_o       = options['o'];
-    var opt_target  = options['target'];
+    int help         = options.getbool('help');
+    string opt_stage = options.getstring('stage');
+    int compileonly  = options.getbool('c');
+    int noan         = options.getbool('noan');
+    int nowarn       = options.getbool('nowarn');
+    string eval      = options.getstring('e');
+    string libs      = options.getstring('L');
+    string incs      = options.getstring('I');
+    string obj       = options.getstring('o', '');
+    string target    = options.getstring('target');
 
-    if (help != null) {
-        optionset.showhelp();
+    if (help) {
+        options.showhelp();
         return;
     }
 
@@ -122,58 +126,47 @@ function main [main] (argv)
             stage = envstage;
     }
 
-    string obj = '';
-    if (opt_o != null)
-        obj = opt_o;
-    string libs = '';
-    if (opt_L != null)
-        libs = opt_L;
-    string incs = '';
-    if (opt_I != null)
-        incs = opt_I;
-
     const int TargetDefault = 0;
     const int TargetRun     = 1;
     const int TargetPir     = 2;
     const int TargetPbc     = 3;
-    int target = TargetDefault;
-    if (opt_target != null) {
-        string starget = opt_target;
-        switch (starget) {
+    int targettype = TargetDefault;
+    if (target != null) {
+        switch (target) {
         case 'pir':
-            target = TargetPir;
+            targettype = TargetPir;
             break;
         case 'pbc':
-            target = TargetPbc;
+            targettype = TargetPbc;
             break;
         case 'run':
-            target = TargetRun;
+            targettype = TargetRun;
             break;
         default:
-            die('Invalid target: ' + starget);
+            die('Invalid target: ' + target);
         }
     }
-    if (compileonly != null) {
-        if (target != TargetDefault)
+    if (compileonly) {
+        if (targettype != TargetDefault)
             die("Conflicting options");
-        target = TargetPir;
+        targettype = TargetPir;
     }
-    if (target == TargetDefault)
-        target = TargetRun;
+    if (targettype == TargetDefault)
+        targettype = TargetRun;
 
     string srcfile;
     if (eval == null) {
         int argc= argv;
         if (argc < 1) {
             say("ERROR: No program specified");
-            optionset.showhelp();
+            options.showhelp();
             return;
         }
         srcfile = argv.shift();
     }
 
     string pirfile;
-    if (obj != '' && target == TargetPir)
+    if (obj != '' && targettype == TargetPir)
         pirfile = obj;
     else {
         if (eval != null)
@@ -241,7 +234,7 @@ function main [main] (argv)
     cmd.push('-c');
     if (noan)
         cmd.push('--noan');;
-    if (opt_nowarn != null && stage != 0)
+    if (nowarn && stage != 0)
         cmd.push('--nowarn');
     if (eval != null) {
         cmd.push('-e');
@@ -258,14 +251,14 @@ function main [main] (argv)
 
     string runit[] = [ 'parrot' ];
 
-    switch (target) {
+    switch (targettype) {
     case TargetRun:
         // Execute result
-        if (libs != '') {
+        if (libs != null) {
             runit.push('-L');
             runit.push(libs);
         }
-        if (incs != '') {
+        if (incs != null) {
             runit.push('-I');
             runit.push(incs);
         }
@@ -305,6 +298,6 @@ function main [main] (argv)
     default:
         ; // Otherwise, nothing to do.
     }
-    retval = (retval & 0xFF00) / 256;
+    retval = (retval >> 8) & 0xFF;
     exit(retval);
 }
