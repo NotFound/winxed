@@ -561,7 +561,7 @@ class Tokenizer
             '!': {
                 '=': { '': getop, '=': getop }
             },
-            '%': { '%': getop },
+            '%': { '%': getop, '=': getop },
             '/': { '=': getop, '/': getlinecomment, '*': getcomment },
             '#': getlinecomment
         };
@@ -3231,6 +3231,27 @@ class OpDivToExpr : OpBaseAssignExpr
 
 //*********************************************
 
+class OpModToExpr : OpBaseAssignExpr
+{
+    function emit(e, result)
+    {
+        string reg = self.emit_get(e);
+        if (result != '')
+            e.emitset(result, reg);
+    }
+    function emit_get(e)
+    {
+        string type = self.lexpr.checkresult();
+        string reg = self.lexpr.emit_get(e);
+        string reg2 = self.rexpr.emit_get(e);
+        self.annotate(e);
+        e.say('mod ', reg, ', ', reg2);
+        return reg;
+    }
+}
+
+//*********************************************
+
 class ComparatorBaseExpr : OpBinaryExpr
 {
     function checkresult() { return REGint; }
@@ -5230,7 +5251,8 @@ const int
     Code_not_same      = 26,
     Code_instanceof    = 27,
     Code_shiftleft     = 28,
-    Code_shiftright    = 29;
+    Code_shiftright    = 29,
+    Code_mod_assign    = 30;
 
 function getOpCode_2(t)
 {
@@ -5306,6 +5328,7 @@ function getOpCode_16(t)
     case '-=': return Code_sub_assign;
     case '*=': return Code_mul_assign;
     case '/=': return Code_div_assign;
+    case '%=': return Code_mod_assign;
     default:   return Code_none;
     }
 }
@@ -5674,6 +5697,9 @@ function parseExpr_16(tk, owner)
             break;
         case Code_div_assign:
             expr = new OpDivToExpr();
+            break;
+        case Code_mod_assign:
+            expr = new OpModToExpr();
             break;
         default:
             InternalError('Unexpected code in parseExpr_16', t);
