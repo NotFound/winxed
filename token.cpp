@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 1-dec-2010
+// Revision 2-feb-2011
 
 #include "token.h"
 #include "errors.h"
@@ -401,6 +401,9 @@ Token Tokenizer::getany ()
     case '/':
         switch((c = getchar()))
         {
+        case '=':
+            s+= c;
+            break;
         case '/':
             for (; (!is.eof()) && c != '\n'; c= getchar())
                 s+= c;
@@ -545,6 +548,16 @@ Token Tokenizer::getany ()
             ungetchar(c);
         }
         break;
+    case '*':
+        switch ((c= getchar()))
+        {
+        case '=':
+            s+= c;
+            break;
+        default:
+            ungetchar(c);
+        }
+        break;
     case '!':
         if ((c= getchar()) == '=') {
             s+= c;
@@ -557,11 +570,14 @@ Token Tokenizer::getany ()
             ungetchar(c);
         break;
     case '%':
-        c= getchar();
-        if (c == '%')
+        switch (c= getchar())
+        {
+        case '%': case '=':
             s+= c;
-        else
+            break;
+        default:
             ungetchar(c);
+        }
         break;        
     case '$':
         c = getchar();

@@ -4937,7 +4937,8 @@ Expr * parseExpr_14(BlockBase &block, Tokenizer &tk)
 
 enum AssignOp { AssignOpNone,
     SimpleAssignOp, AssignToOp,
-    AddAssignOp, SubAssignOp
+    AddAssignOp, SubAssignOp,
+    MulAssignOp, DivAssignOp, ModAssignOp
 };
 
 AssignOp getAssignOp(const Token &t)
@@ -4946,6 +4947,9 @@ AssignOp getAssignOp(const Token &t)
     if (t.isop("=:")) return AssignToOp;
     if (t.isop("+=")) return AddAssignOp;
     if (t.isop("-=")) return SubAssignOp;
+    if (t.isop("*=")) return MulAssignOp;
+    if (t.isop("/=")) return DivAssignOp;
+    if (t.isop("%=")) return ModAssignOp;
     return AssignOpNone;
 }
 
@@ -4988,7 +4992,8 @@ Expr * parseExpr_16(BlockBase &block, Tokenizer &tk)
         case SubAssignOp:
             subexpr= new OpSubToExpr(block, t, subexpr, subexpr2);
             break;
-        default: /* Must never happen */ ;
+        default:
+            throw CompileError("Unimplemented in stage 0", t);
         }
     }
     tk.unget(t);
