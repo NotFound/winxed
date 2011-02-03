@@ -2,7 +2,7 @@
 #define INCLUDE_ERRORS_H
 
 // errors.h
-// Revision 8-nov-2009
+// Revision 3-feb-2011
 
 #include "token.h"
 
@@ -31,6 +31,12 @@ class Unsupported : public CompileError
 {
 public:
 	Unsupported(const std::string &msg, const Token &where);
+};
+
+class UnsupportedInStage : public CompileError
+{
+public:
+	UnsupportedInStage(const std::string &msg, const Token &where);
 };
 
 class SyntaxError : public CompileError

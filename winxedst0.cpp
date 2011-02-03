@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 2-feb-2011
+// Revision 3-feb-2011
 
 // Winxed compiler stage 0.
 
@@ -4753,6 +4753,10 @@ Expr * parseExpr_4(BlockBase &block, Tokenizer &tk)
         Expr *subexpr= parseExpr_4(block, tk);
         return new OpPreDecExpr(block, t, subexpr);
     }
+    else if (t.iskeyword("delete"))
+    {
+        throw UnsupportedInStage("operator delete", t);
+    }
     else
     {
         tk.unget(t);
@@ -4993,7 +4997,7 @@ Expr * parseExpr_16(BlockBase &block, Tokenizer &tk)
             subexpr= new OpSubToExpr(block, t, subexpr, subexpr2);
             break;
         default:
-            throw CompileError("Unimplemented in stage 0", t);
+            throw UnsupportedInStage("operator " + t.str(), t);
         }
     }
     tk.unget(t);

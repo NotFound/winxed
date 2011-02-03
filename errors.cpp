@@ -1,5 +1,5 @@
 // errors.cpp
-// Revision 8-nov-2009
+// Revision 3-feb-2011
 
 #include "errors.h"
 
@@ -37,6 +37,14 @@ std::string CompileError::file() const
 
 Unsupported::Unsupported(const std::string &msg, const Token &where) :
 	CompileError("Unsupported feature: " + msg, where)
+{
+}
+
+//**********************************************************************
+
+UnsupportedInStage::UnsupportedInStage(const std::string &msg,
+    const Token &where) :
+	CompileError("Unsupported in stage 0: " + msg, where)
 {
 }
 
