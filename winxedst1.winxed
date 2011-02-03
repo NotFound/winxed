@@ -3102,10 +3102,7 @@ class OpBaseAssignExpr : Expr
     }
     function checkresult()
     {
-        if (self.lexpr.isidentifier())
-            return self.lexpr.checkresult();
-        else
-            InternalError('Unimplemented');
+        return self.lexpr.checkresult();
     }
     function optimize_base()
     {
@@ -3117,12 +3114,6 @@ class OpBaseAssignExpr : Expr
     {
         return self.optimize_base();
     }
-}
-
-//*********************************************
-
-class OpAssignExpr : OpBaseAssignExpr
-{
     function emit(e, result)
     {
         string reg = self.emit_get(e);
@@ -3131,6 +3122,12 @@ class OpAssignExpr : OpBaseAssignExpr
             e.emitset(result, reg);
         }
     }
+}
+
+//*********************************************
+
+class OpAssignExpr : OpBaseAssignExpr
+{
     function emit_get(e)
     {
         self.annotate(e);
@@ -3164,12 +3161,6 @@ class OpAssignToExpr : OpBaseAssignExpr
 
 class OpAddToExpr : OpBaseAssignExpr
 {
-    function emit(e, result)
-    {
-        string reg = self.emit_get(e);
-        if (result != '')
-            e.emitset(result, reg);
-    }
     function emit_get(e)
     {
         var lexpr = self.lexpr;
@@ -3213,12 +3204,6 @@ class OpAddToExpr : OpBaseAssignExpr
 
 class OpSubToExpr : OpBaseAssignExpr
 {
-    function emit(e, result)
-    {
-        string reg = self.emit_get(e);
-        if (result != '')
-            e.emitset(result, reg);
-    }
     function emit_get(e)
     {
         string type = self.lexpr.checkresult();
@@ -3234,20 +3219,29 @@ class OpSubToExpr : OpBaseAssignExpr
 
 class OpMulToExpr : OpBaseAssignExpr
 {
-    function emit(e, result)
-    {
-        string reg = self.emit_get(e);
-        if (result != '')
-            e.emitset(result, reg);
-    }
     function emit_get(e)
     {
-        string type = self.lexpr.checkresult();
-        string reg = self.lexpr.emit_get(e);
-        string reg2 = self.rexpr.emit_get(e);
-        self.annotate(e);
-        e.say('mul ', reg, ', ', reg2);
-        return reg;
+        string ltype = self.lexpr.checkresult();
+        string rtype = self.lexpr.checkresult();
+        string lreg = self.lexpr.emit_get(e);
+        string rreg;
+        switch (ltype) {
+          case REGstring:
+            if (rtype == REGint)
+                rreg = self.rexpr.emit_get(e);
+            else {
+                rreg = self.tempreg(REGint);
+                self.rexpr.emit(e, rreg);
+            }
+            self.annotate(e);
+            e.say('repeat ', lreg, ', ', lreg, ', ', rreg);
+            break;
+          default:
+            rreg = self.rexpr.emit_get(e);
+            self.annotate(e);
+            e.say('mul ', lreg, ', ', rreg);
+        }
+        return lreg;
     }
 }
 
@@ -3255,12 +3249,6 @@ class OpMulToExpr : OpBaseAssignExpr
 
 class OpDivToExpr : OpBaseAssignExpr
 {
-    function emit(e, result)
-    {
-        string reg = self.emit_get(e);
-        if (result != '')
-            e.emitset(result, reg);
-    }
     function emit_get(e)
     {
         string type = self.lexpr.checkresult();
@@ -3276,12 +3264,6 @@ class OpDivToExpr : OpBaseAssignExpr
 
 class OpModToExpr : OpBaseAssignExpr
 {
-    function emit(e, result)
-    {
-        string reg = self.emit_get(e);
-        if (result != '')
-            e.emitset(result, reg);
-    }
     function emit_get(e)
     {
         string type = self.lexpr.checkresult();
