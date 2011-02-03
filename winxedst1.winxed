@@ -6757,8 +6757,13 @@ class DeclareStatement : Statement
                         init.emit(e, reg);
                     }
                     else {
-                        string ireg = self.tempreg(itype);
-                        init.emit(e, ireg);
+                        string ireg;
+                        if (itype == '')
+                            ireg = init.emit_get(e);
+                        else {
+                            ireg = self.tempreg(itype);
+                            init.emit(e, ireg);
+                        }
                         if (t_reg == REGstring && itype == REGvar) {
                             string auxlabel = self.genlabel();
                             e.emitnull(reg);
@@ -7386,7 +7391,7 @@ class FunctionBase : BlockStatement
         case REGvar:
             store = self.regstP; break;
         default:
-            InternalError("Invalid type in tempreg");
+            InternalError("Invalid type '" + type + "' in tempreg");
         }
         string reg = store.tempreg();
         return reg;
