@@ -114,18 +114,18 @@ $S3 = $P4['description']
 # predefined say
 print "\tFile: "
 say $S2
+.annotate 'line', 63
 $P5 = $P4['name']
 # predefined say
-.annotate 'line', 63
 print "\tName: "
 say $P5
 .annotate 'line', 64
 # predefined say
 print "\tDescription: "
 say $S3
+.annotate 'line', 65
 $P5 = $P4['copyright_holder']
 # predefined say
-.annotate 'line', 65
 print "\t(C) "
 say $P5
 # predefined say
