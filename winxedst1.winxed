@@ -4663,6 +4663,8 @@ class IndexExpr : Expr, SimpleArgList
             int nargs = elements(self.argregs);
             if (nargs != 1)
                SyntaxError('Bad string index', self.start);
+            if (result == '')
+                result = self.tempreg(REGstring);
             e.say('substr ', result, ', ', self.regleft, ', ', argregs[0], ', ', 1);
         }
         else {
