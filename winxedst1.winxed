@@ -3175,22 +3175,35 @@ class OpAddToExpr : OpBaseAssignExpr
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
         string ltype = lexpr.checkresult();
+        string rtype = rexpr.checkresult();
         string reg = lexpr.emit_get(e);
         if (ltype == REGstring && (rexpr instanceof ConcatString))
             rexpr.emit_concat_to(e, reg);
         else {
             string reg2 = rexpr.emit_get(e);
+            string aux;
             self.annotate(e);
-            if (ltype == REGstring) {
-                if (rexpr.checkresult() != REGstring) {
-                    string aux = self.tempreg(REGstring);
+            switch (ltype) {
+              case REGstring:
+                if (rtype != REGstring) {
+                    aux = self.tempreg(REGstring);
                     e.emitset(aux, reg2);
                     reg2 = aux;
                 }
                 e.emitconcat1(reg, reg2);
-            }
-            else
+                break;
+              case REGint:
+              case REGfloat:
+                if (ltype != rtype) {
+                    aux = self.tempreg(ltype);
+                    e.emitset(aux, reg2);
+                    reg2 = aux;
+                }
                 e.emitaddto(reg, reg2);
+                break;
+              default:
+                e.emitaddto(reg, reg2);
+            }
         }
         return reg;
     }
