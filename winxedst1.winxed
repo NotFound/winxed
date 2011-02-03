@@ -8516,6 +8516,7 @@ class WinxedHLL
 {
     function compile(string code,
             string target[named,optional],
+            int noan[named,optional],
             int nowarn[named,optional] )
     {
         if (target == null)
@@ -8535,6 +8536,8 @@ class WinxedHLL
         var handleout = new ['StringHandle'];
         handleout.open(EVAL_NAME, 'w');
         var emit= new Emit();
+        if (noan)
+            emit.disable_annotations();
         emit.initialize(handleout);
         winxed.emit(emit);
         emit.close();
@@ -8557,6 +8560,7 @@ class WinxedHLL
         return object;
     }
     function compile_from_file_to_pir(string filename, var handleout,
+            int noan[named,optional],
             int nowarn[named,optional] )
     {
         var handlein = new ['FileHandle'];
@@ -8570,11 +8574,14 @@ class WinxedHLL
         handlein.close();
         winxed.optimize();
         var emit= new Emit();
+        if (noan)
+            emit.disable_annotations();
         emit.initialize(handleout);
         winxed.emit(emit);
         emit.close();
     }
     function compile_from_file(string filename,
+            int noan[named,optional],
             int nowarn[named,optional] )
     {
         var handlein = new ['FileHandle'];
@@ -8590,6 +8597,8 @@ class WinxedHLL
         var handleout = new ['StringHandle'];
         handleout.open(EVAL_NAME, 'w');
         var emit= new Emit();
+        if (noan)
+            emit.disable_annotations();
         emit.initialize(handleout);
         winxed.emit(emit);
         emit.close();

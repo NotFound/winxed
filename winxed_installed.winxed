@@ -22,6 +22,7 @@ class WinxedDriverOptions : [ 'Getopt', 'Obj']
           [ 'L=s',      'Add to parrot library search path' ],
           [ 'I=s',      'Add to parrot include search path' ],
           [ 'nowarn',   'No warnings' ],
+          [ 'noan',     'No code annotations' ],
           [ 'help',     'Show this help' ]
         ];
         self.options = options;
@@ -91,6 +92,7 @@ function main [main] (argv)
     string opt_L    = optionset.getstring('L');
     string opt_I    = optionset.getstring('I');
     int nowarn      = optionset.getbool('nowarn');
+    int noan        = optionset.getbool('noan');
 
     if (help) {
         optionset.showhelp();
@@ -117,6 +119,7 @@ function main [main] (argv)
     }
 
     var code;
+    var compileoptions = { "noan" : noan, "nowarn" : nowarn };
 
     if (eval == null) {
         if (elements(argv) < 1) {
@@ -129,7 +132,7 @@ function main [main] (argv)
             var handleout = new 'StringHandle';
             handleout.open('', 'w');
             compiler.compile_from_file_to_pir(srcfile, handleout,
-                    nowarn:[named("nowarn")]);
+                    compileoptions:[named, flat]);
             handleout.close();
             string pircode = handleout.read(0);
             string pirfile = extname(srcfile, '.pir');
@@ -140,19 +143,19 @@ function main [main] (argv)
         }
         else
             code = compiler.compile_from_file(srcfile,
-                    nowarn:[named("nowarn")]);
+                    compileoptions:[named, flat]);
     }
     else {
         string expr = 'function main[main](argv){' + eval + ';}';
         if (compileonly) {
             code = compiler.compile(expr, "pir":[named("target")],
-                    nowarn:[named("nowarn")]);
+                    compileoptions:[named, flat]);
             print(code);
             exit(0);
         }
         else {
             code = compiler.compile(expr,
-                    nowarn:[named("nowarn")]);
+                    compileoptions:[named, flat]);
             argv.unshift('__EVAL__');
         }
     }
