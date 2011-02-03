@@ -2881,7 +2881,7 @@ class OpDeleteExpr : OpUnaryExpr
     function emit(e, result)
     {
         var expr = self.subexpr;
-        if (expr instanceof IndexExpr) {
+        if (expr instanceof IndexExpr && expr.checkresult() != REGstring) {
             expr.emit_prep(e);
             self.annotate(e);
             e.print('delete ');
