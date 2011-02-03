@@ -2867,6 +2867,36 @@ class OpBinaryIntExpr : OpBinaryExpr
 
 //*********************************************
 
+class OpDeleteExpr : OpUnaryExpr
+{
+    function checkresult()
+    {
+        return REGint;
+    }
+    function set(owner, t, subexpr)
+    {
+        self.initunary(owner, t, subexpr);
+        return self;
+    }
+    function emit(e, result)
+    {
+        var expr = self.subexpr;
+        if (expr instanceof IndexExpr) {
+            expr.emit_prep(e);
+            self.annotate(e);
+            e.print('delete ');
+            expr.emit_aux(e);
+            e.say();
+            if (result != '')
+                e.emitset(result, '1');
+        }
+        else
+            SyntaxError("delete with invalid operator", self.start);
+    }
+}
+
+//*********************************************
+
 class OpUnaryMinusExpr : OpUnaryExpr
 {
     function checkresult()
@@ -4564,6 +4594,8 @@ class MemberExpr : Expr
 class IndexExpr : Expr, SimpleArgList
 {
     var left;
+    var regleft;
+    var argregs;
 
     function IndexExpr(tk, owner, start, subexp)
     {
@@ -4598,40 +4630,58 @@ class IndexExpr : Expr, SimpleArgList
         }
         return self;
     }
-    function emit(e, result)
+    function emit_prep(e)
     {
-        var regleft;
+        var regleft = self.regleft;
+        var argregs = self.argregs;
+        if (regleft != null || argregs != null)
+            InternalError('wrong call to IndexExpr.emit_args', self.start);
         if (self.left.isidentifier())
             regleft = self.left.getIdentifier();
         else
             regleft = self.left.emit_get(e);
-        int nargs = self.numargs();
-        var argregs = self.getargvalues(e);
+        self.regleft = regleft;
+        argregs = self.getargvalues(e);
+        self.argregs = argregs;
+    }
+    function emit_aux(e)
+    {
+        var regleft = self.regleft;
+        var argregs = self.argregs;
+        if (regleft == null || argregs == null)
+            InternalError('wrong call to IndexExpr.emit_aux', self.start);
+        e.print(self.regleft, '[');
+        e.print(join('; ', self.argregs));
+        e.print(']');
+    }
+    function emit(e, result)
+    {
+        self.emit_prep(e);
         string type = self.checkresult();
         if (type == REGstring) {
+            var argregs = self.argregs;
+            int nargs = elements(self.argregs);
             if (nargs != 1)
                SyntaxError('Bad string index', self.start);
-            e.say('substr ', result, ', ', regleft, ', ', argregs[0], ', ', 1);
+            e.say('substr ', result, ', ', self.regleft, ', ', argregs[0], ', ', 1);
         }
         else {
-            e.print(result, ' = ', regleft, '[');
-            e.print(join('; ', argregs));
-            e.say(']');
+            self.annotate(e);
+            e.print(result, ' = ');
+            self.emit_aux(e);
+            e.say('');
         }
     }
     function emit_assign(e, string typeright, string rreg)
     {
-        var regleft = self.left.emit_get(e);
-        var argregs = self.getargvalues(e);
+        self.emit_prep(e);
         self.annotate(e);
-        e.print(regleft, '[');
-        e.print(join('; ', argregs));
-        e.say('] = ', rreg);
+        self.emit_aux(e);
+        e.say(' = ', rreg);
     }
     function emit_assign_get(e, expr)
     {
-        var regleft = self.left.emit_get(e);
-        var argregs = self.getargvalues(e);
+        self.emit_prep(e);
         string rreg;
         if (expr.isnull()) {
             rreg = self.tempreg(REGvar);
@@ -4640,9 +4690,8 @@ class IndexExpr : Expr, SimpleArgList
         else
             rreg = expr.emit_get(e);
         self.annotate(e);
-        e.print(regleft, '[');
-        e.print(join('; ', argregs));
-        e.say('] = ', rreg);
+        self.emit_aux(e);
+        e.say(' = ', rreg);
         return rreg;
     }
 }
@@ -5252,7 +5301,8 @@ const int
     Code_instanceof    = 27,
     Code_shiftleft     = 28,
     Code_shiftright    = 29,
-    Code_mod_assign    = 30;
+    Code_mod_assign    = 30,
+    Code_delete        = 31;
 
 function getOpCode_2(t)
 {
@@ -5271,7 +5321,9 @@ function getOpCode_4(t)
     case '!':  return Code_not;
     case '++': return Code_inc;
     case '--': return Code_dec;
-    default:   return Code_none;
+    default:
+        if (t.iskeyword('delete')) return Code_delete;
+        else return Code_none;
     }
 }
 
@@ -5431,6 +5483,9 @@ function parseExpr_4(tk, owner)
             break;
         case Code_dec:
             oper = new OpPreDecExpr();
+            break;
+        case Code_delete:
+            oper = new OpDeleteExpr();
             break;
         default:
             InternalError('Invalid code in parseExpr_4', t);
