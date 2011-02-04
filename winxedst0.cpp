@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 3-feb-2011
+// Revision 4-feb-2011
 
 // Winxed compiler stage 0.
 
@@ -4825,25 +4825,25 @@ Expr * parseExpr_8(BlockBase &block, Tokenizer &tk)
 {
     Expr *subexpr= parseExpr_7(block, tk);
     Token t= tk.get();
-    if (t.isop("=="))
+    if (t.isop('<'))
     {
         Expr *subexpr2= parseExpr_7(block, tk);
-        subexpr= new OpEqualExpr(block, t, subexpr, subexpr2);
+        subexpr= new OpLessExpr(block, t, subexpr, subexpr2);
     }
-    else if (t.isop("!="))
+    else if (t.isop('>'))
     {
         Expr *subexpr2= parseExpr_7(block, tk);
-        subexpr= new OpNotEqualExpr(block, t, subexpr, subexpr2);
+        subexpr= new OpGreaterExpr(block, t, subexpr, subexpr2);
     }
-    else if (t.isop("==="))
+    else if (t.isop("<="))
     {
         Expr *subexpr2= parseExpr_7(block, tk);
-        subexpr= new OpSameExpr(true, block, t, subexpr, subexpr2);
+        subexpr= new OpLessEqualExpr(block, t, subexpr, subexpr2);
     }
-    else if (t.isop("!=="))
+    else if (t.isop(">="))
     {
         Expr *subexpr2= parseExpr_7(block, tk);
-        subexpr= new OpSameExpr(false, block, t, subexpr, subexpr2);
+        subexpr= new OpGreaterEqualExpr(block, t, subexpr, subexpr2);
     }
     else if (t.iskeyword("instanceof"))
     {
@@ -4860,25 +4860,25 @@ Expr * parseExpr_9(BlockBase &block, Tokenizer &tk)
 {
     Expr *subexpr= parseExpr_8(block, tk);
     Token t= tk.get();
-    if (t.isop('<'))
+    if (t.isop("=="))
     {
         Expr *subexpr2= parseExpr_8(block, tk);
-        subexpr= new OpLessExpr(block, t, subexpr, subexpr2);
+        subexpr= new OpEqualExpr(block, t, subexpr, subexpr2);
     }
-    else if (t.isop('>'))
+    else if (t.isop("!="))
     {
         Expr *subexpr2= parseExpr_8(block, tk);
-        subexpr= new OpGreaterExpr(block, t, subexpr, subexpr2);
+        subexpr= new OpNotEqualExpr(block, t, subexpr, subexpr2);
     }
-    else if (t.isop("<="))
+    else if (t.isop("==="))
     {
         Expr *subexpr2= parseExpr_8(block, tk);
-        subexpr= new OpLessEqualExpr(block, t, subexpr, subexpr2);
+        subexpr= new OpSameExpr(true, block, t, subexpr, subexpr2);
     }
-    else if (t.isop(">="))
+    else if (t.isop("!=="))
     {
         Expr *subexpr2= parseExpr_8(block, tk);
-        subexpr= new OpGreaterEqualExpr(block, t, subexpr, subexpr2);
+        subexpr= new OpSameExpr(false, block, t, subexpr, subexpr2);
     }
     else
     {

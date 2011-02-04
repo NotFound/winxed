@@ -5369,10 +5369,10 @@ function getOpCode_7(t)
 function getOpCode_8(t)
 {
     switch (t.checkop()) {
-    case '==':  return Code_equal;
-    case '!=':  return Code_not_equal;
-    case '===':  return Code_same;
-    case '!==':  return Code_not_same;
+    case '<':  return Code_less;
+    case '>':  return Code_greater;
+    case '<=': return Code_less_equal;
+    case '>=': return Code_greater_equal;
     default:
         if (t.iskeyword('instanceof')) return Code_instanceof;
         else return Code_none;
@@ -5382,10 +5382,10 @@ function getOpCode_8(t)
 function getOpCode_9(t)
 {
     switch (t.checkop()) {
-    case '<':  return Code_less;
-    case '>':  return Code_greater;
-    case '<=': return Code_less_equal;
-    case '>=': return Code_greater_equal;
+    case '==':  return Code_equal;
+    case '!=':  return Code_not_equal;
+    case '===':  return Code_same;
+    case '!==':  return Code_not_same;
     default:   return Code_none;
     }
 }
@@ -5608,27 +5608,27 @@ function parseExpr_8(tk, owner)
     int code;
     while ((code = getOpCode_8(t= tk.get())) != Code_none) {
         switch (code) {
-          case Code_equal:
+          case Code_less:
             rexpr = parseExpr_7(tk, owner);
-            lexpr = new OpEqualExpr().set(owner, t, lexpr, rexpr);
+            lexpr = new OpLessExpr().set(owner, t, lexpr, rexpr);
             break;
-          case Code_not_equal:
+          case Code_greater:
             rexpr = parseExpr_7(tk, owner);
-            lexpr = new OpNotEqualExpr().set(owner, t, lexpr, rexpr);
+            lexpr = new OpGreaterExpr().set(owner, t, lexpr, rexpr);
             break;
-          case Code_same:
+          case Code_less_equal:
             rexpr = parseExpr_7(tk, owner);
-            lexpr = new OpSameExpr(true, owner, t, lexpr, rexpr);
+            lexpr = new OpLessEqualExpr().set(owner, t, lexpr, rexpr);
             break;
-          case Code_not_same:
+          case Code_greater_equal:
             rexpr = parseExpr_7(tk, owner);
-            lexpr = new OpSameExpr(false, owner, t, lexpr, rexpr);
+            lexpr = new OpGreaterEqualExpr().set(owner, t, lexpr, rexpr);
             break;
           case Code_instanceof:
             lexpr = new OpInstanceOfExpr(owner, t, lexpr, tk);
             break;
           default:
-            InternalError('Invalid code in parseExpr_8', t);
+            InternalError('Invalid code in parseExpr_9', t);
         }
     }
     tk.unget(t);
@@ -5641,25 +5641,29 @@ function parseExpr_9(tk, owner)
     using static getOpCode_9;
 
     var lexpr = parseExpr_8(tk, owner);
+    var rexpr;
     var t;
     int code;
     while ((code = getOpCode_9(t= tk.get())) != Code_none) {
-        var rexpr = parseExpr_8(tk, owner);
         switch (code) {
-        case Code_less:
-            lexpr = new OpLessExpr().set(owner, t, lexpr, rexpr);
+          case Code_equal:
+            rexpr = parseExpr_8(tk, owner);
+            lexpr = new OpEqualExpr().set(owner, t, lexpr, rexpr);
             break;
-        case Code_greater:
-            lexpr = new OpGreaterExpr().set(owner, t, lexpr, rexpr);
+          case Code_not_equal:
+            rexpr = parseExpr_8(tk, owner);
+            lexpr = new OpNotEqualExpr().set(owner, t, lexpr, rexpr);
             break;
-        case Code_less_equal:
-            lexpr = new OpLessEqualExpr().set(owner, t, lexpr, rexpr);
+          case Code_same:
+            rexpr = parseExpr_8(tk, owner);
+            lexpr = new OpSameExpr(true, owner, t, lexpr, rexpr);
             break;
-        case Code_greater_equal:
-            lexpr = new OpGreaterEqualExpr().set(owner, t, lexpr, rexpr);
+          case Code_not_same:
+            rexpr = parseExpr_8(tk, owner);
+            lexpr = new OpSameExpr(false, owner, t, lexpr, rexpr);
             break;
-        default:
-            InternalError('Invalid code in parseExpr_9', t);
+          default:
+            InternalError('Invalid code in parseExpr_8', t);
         }
     }
     tk.unget(t);
