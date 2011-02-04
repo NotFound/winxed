@@ -3776,6 +3776,24 @@ class OpBinOrExpr : OpBaseBinExpr
 
 //*********************************************
 
+class OpBinXorExpr : OpBaseBinExpr
+{
+    function emit(e, result)
+    {
+        string res = result != null ? result : self.tempreg(REGint);
+        string lreg = self.emit_intleft(e);
+        string rreg = self.emit_intright(e);
+        self.annotate(e);
+        e.emitbinop('bxor', res, lreg, rreg);
+    }
+    function do_op(int left, int right)
+    {
+        return left ^ right;
+    }
+}
+
+//*********************************************
+
 class ConcatString : Expr
 {
     var values;
@@ -5684,14 +5702,28 @@ function parseExpr_10(tk, owner)
     return lexpr;
 }
 
-function parseExpr_12(tk, owner)
+function parseExpr_11(tk, owner)
 {
     using static parseExpr_10;
 
     var lexpr = parseExpr_10(tk, owner);
     var t;
-    while ((t = tk.get()).isop('|')) {
+    while ((t = tk.get()).isop('^')) {
         var rexpr = parseExpr_10(tk, owner);
+        lexpr = new OpBinXorExpr().set(owner, t, lexpr, rexpr);
+    }
+    tk.unget(t);
+    return lexpr;
+}
+
+function parseExpr_12(tk, owner)
+{
+    using static parseExpr_11;
+
+    var lexpr = parseExpr_11(tk, owner);
+    var t;
+    while ((t = tk.get()).isop('|')) {
+        var rexpr = parseExpr_11(tk, owner);
         lexpr = new OpBinOrExpr().set(owner, t, lexpr, rexpr);
     }
     tk.unget(t);

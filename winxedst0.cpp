@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 4-feb-2011
+// Revision 5-feb-2011
 
 // Winxed compiler stage 0.
 
@@ -3496,6 +3496,31 @@ private:
 
 //**********************************************************************
 
+class OpBinXorExpr : public CommonBinOpExpr
+{
+public:
+    OpBinXorExpr(BlockBase &block,
+            Token t, Expr *first, Expr *second) :
+        CommonBinOpExpr(block, t, first, second)
+    {
+    }
+private:
+    bool isinteger() const { return true; }
+    void emit(Emit &e, const std::string &result)
+    {
+        std::string res= result.empty() ? gentemp(REGint) : result;
+        std::string op1= gentemp(REGint);
+        std::string op2= gentemp(REGint);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
+        e << res << " = bxor " << op1 << ", " << op2;
+        if (!result.empty())
+            e << '\n';
+    }
+};
+
+//**********************************************************************
+
 class OpBoolAndExpr : public OpBaseExpr
 {
 public:
@@ -4900,13 +4925,26 @@ Expr * parseExpr_10(BlockBase &block, Tokenizer &tk)
     return subexpr;
 }
 
-Expr * parseExpr_12(BlockBase &block, Tokenizer &tk)
+Expr * parseExpr_11(BlockBase &block, Tokenizer &tk)
 {
     Expr *subexpr= parseExpr_10(block, tk);
     Token t;
-    while ((t= tk.get()).isop('|'))
+    while ((t= tk.get()).isop('^'))
     {
         Expr *subexpr2= parseExpr_10(block, tk);
+        subexpr= new OpBinXorExpr(block, t, subexpr, subexpr2);
+    }
+    tk.unget(t);
+    return subexpr;
+}
+
+Expr * parseExpr_12(BlockBase &block, Tokenizer &tk)
+{
+    Expr *subexpr= parseExpr_11(block, tk);
+    Token t;
+    while ((t= tk.get()).isop('|'))
+    {
+        Expr *subexpr2= parseExpr_11(block, tk);
         subexpr= new OpBinOrExpr(block, t, subexpr, subexpr2);
     }
     tk.unget(t);
