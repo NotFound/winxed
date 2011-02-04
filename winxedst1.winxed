@@ -840,6 +840,10 @@ class Emit
     {
         self.say("add ", dst, ", ", src);
     }
+    function emitsubto(string dst, string src)
+    {
+        self.say("sub ", dst, ", ", src);
+    }
     function emitadd(string dst, string src1, string src2)
     {
         self.say("add ", dst, ", ", src1, ", ", src2);
@@ -3206,11 +3210,29 @@ class OpSubToExpr : OpBaseAssignExpr
 {
     function emit_get(e)
     {
-        string type = self.lexpr.checkresult();
-        string reg = self.lexpr.emit_get(e);
-        string reg2 = self.rexpr.emit_get(e);
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        string ltype = lexpr.checkresult();
+        string rtype = rexpr.checkresult();
+        string reg = lexpr.emit_get(e);
+        string reg2 = rexpr.emit_get(e);
+        string aux;
         self.annotate(e);
-        e.say('sub ', reg, ', ', reg2);
+        switch (ltype) {
+          case REGstring:
+            InternalError('-= to string must not happen', self.start);
+          case REGint:
+          case REGfloat:
+            if (ltype != rtype) {
+                aux = self.tempreg(ltype);
+                e.emitset(aux, reg2);
+                reg2 = aux;
+            }
+            e.emitsubto(reg, reg2);
+            break;
+          default:
+            e.emitsubto(reg, reg2);
+        }
         return reg;
     }
 }

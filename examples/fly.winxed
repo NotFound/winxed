@@ -648,6 +648,8 @@ class Fly
 
 function main(var argv)
 {
+    cry(argv[0], length(argv[0]), bytelength(argv[0]));
+
     if (argv[1] == '--detach') {
         // Detach from the controlling terminal, where available
         switch (fork()) {
