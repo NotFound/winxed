@@ -4110,8 +4110,10 @@ class OpMulExpr : OpBinaryExpr
                 rval = self.tempreg(REGfloat);
                 e.emitset(rval, rreg);
             }
-            self.annotate(e);
-            e.emitmul(result, lreg, rval);
+	    if (result != '') {
+                self.annotate(e);
+                e.emitmul(result, lreg, rval);
+            }
             return;
         }
 
@@ -4129,19 +4131,24 @@ class OpMulExpr : OpBinaryExpr
             rexpr.emit(e, rreg);
         }
         else {
-            switch(rtype) {
-            case REGstring:
+            switch (rtype) {
+              case REGstring:
                 rreg= self.tempreg(self.checkresult());
                 rexpr.emit(e, rreg);
                 break;
-            case REGint:
-            default:
+              case REGfloat:
+                rreg = rexpr.emit_get(e);
+                break;
+              case REGint:
+              default:
                 nright= rexpr.getIntegerValue();
                 rreg= nright;
                 break;
             }
         }
         self.annotate(e);
+        if (result == '')
+            result = self.tempreg(self.checkresult());
         e.emitmul(result, lreg, rreg);
     }
 }
