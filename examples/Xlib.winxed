@@ -7,7 +7,6 @@
 ***********************************************************************/
 
 // Event selection masks
-// Warning: hexadecimals not available in stage 0
 const int KeyPressMask        = 0x00000001;
 const int KeyReleaseMask      = 0x00000002;
 const int ButtonPressMask     = 0x00000004;
@@ -31,6 +30,9 @@ const int ClientMessage = 33;
                         Internal helper functions
 ***********************************************************************/
 
+$include_const 'iglobals.pasm';
+$include_const 'datatypes.pasm';
+
 namespace Xlib__private
 {
 
@@ -52,13 +54,6 @@ function loadXlib()
     return l;
 }
 
-// Harcoded values, from iglobals.pasm and datatypes.pasm
-const int IGLOBALS_CONFIG_HASH = 8;
-const int DATATYPE_CHAR   = -94;
-const int DATATYPE_INT    = -92;
-const int DATATYPE_LONG   = -91;
-const int DATATYPE_PTR    = -71;
-const int DATATYPE_UINT32 = -73;
 const int time_t = DATATYPE_UINT32;
 
 /*
@@ -161,28 +156,16 @@ function eventstruct()
 
 function newAtomlist(int n)
 {
-    var config_hash = getinterp()[IGLOBALS_CONFIG_HASH];
-    int intsize = config_hash['intsize'];
-    int auxdata[n * 3];
-    for (int i = 0; i < n; ++i) {
-        auxdata[3 * i + 0] = DATATYPE_INT;
-        auxdata[3 * i + 1] = 1;
-        auxdata[3 * i + 2] = intsize * i;
-    }
-    var aux = new 'ManagedStruct'(auxdata);
-    return aux;
+    return new 'ManagedStruct'([ DATATYPE_INT, n, 0]);
 }
 
 function AtomlistFromStrings(var display, var atomnames)
 {
-    int natoms = atomnames;
-    using Xlib__private.newAtomlist;
+    int natoms = elements(atomnames);
+    using newAtomlist;
     var aux = newAtomlist(natoms);
-    for (int i = 0; i< atomnames; ++i) {
-        string name = atomnames[i];
-        int atom = display.InternAtom(name);
-        aux[i] = atom;
-    }
+    for (int i = 0; i < natoms; ++i)
+        aux[i] = int(display.InternAtom(atomnames[i]));
     return aux;
 }
 
