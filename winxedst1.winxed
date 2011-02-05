@@ -4365,21 +4365,50 @@ class CallPredefExpr : Expr
                 string argtype = arg.checkresult();
                 string paramtype = predef.paramtype(i);
                 string argr;
-                if (argtype == paramtype || paramtype == REGany)
-                    argr = arg.emit_get(e);
-                else {
-                    argr = self.tempreg(paramtype);
-                    if (paramtype == REGvar) {
-                        string nreg = '';
-                        switch (argtype) {
-                        case REGint: nreg = 'Integer'; break;
-                        case REGfloat: nreg = 'Float'; break;
-                        case REGstring: nreg = 'String'; break;
+                if (arg.isnull()) {
+                    switch (paramtype) {
+                      case REGint:
+                      case REGfloat:
+                      case REGstring:
+                        argr = self.tempreg(paramtype);
+                        e.emitnull(argr);
+                      default:
+                        if (pnull == '') {
+                            pnull = self.tempreg(REGvar);
+                            e.emitnull(pnull);
                         }
-                        if (nreg != '')
-                            e.say('new ', argr, ", '", nreg , "'");
+                        argr = pnull;
                     }
-                    arg.emit(e, argr);
+                }
+                else {
+                    if (argtype == paramtype || paramtype == REGany)
+                        argr = arg.emit_get(e);
+                    else {
+                        string aux;
+                        argr = self.tempreg(paramtype);
+                        switch (paramtype) {
+                          case REGvar:
+                            switch (argtype) {
+                              case REGint:
+                              case REGfloat:
+                              case REGstring:
+                                aux = arg.emit_get(e);
+                                e.emitbox(argr, aux);
+                                break;
+                              default:
+                                arg.emit(e, argr);
+                            }
+                            break;
+                          case REGint:
+                          case REGfloat:
+                          case REGstring:
+                            aux = arg.emit_get(e);
+                            e.emitset(argr, aux);
+                            break;
+                          default:
+                            arg.emit(e, argr);
+                        }
+                    }
                 }
                 argreg.push(argr);
             }
