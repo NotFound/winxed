@@ -1065,7 +1065,11 @@ class Predef_typecast
         else {
             string arg = rawarg.emit_get(e);
             e.annotate(start);
-            e.emitset(result, arg);
+            // Special case
+            if (arg == NULL)
+                e.emitnull(result);
+            else
+                e.emitset(result, arg);
         }
     }
 }
@@ -4332,10 +4336,19 @@ class CallPredefExpr : Expr
         string argreg[];
         var arg;
         int np = predef.params();
+        string pnull = '';
         switch (np) {
           case PREDEF_arglist:
             for (arg in args) {
                 string reg = arg.arg.emit_get(e);
+                // Special case
+                if (reg == NULL) {
+                    if (pnull == '') {
+                        pnull = self.tempreg(REGvar);
+                        e.emitnull(pnull);
+                    }
+                    reg = pnull;
+                }
                 argreg.push(reg);
             }
             break;
@@ -4458,13 +4471,17 @@ class CallExpr : Expr
             call = ismethod ? funref.emit_left_get(e) : funref.emit_get(e);
 
         string argreg[];
+        string pnull = '';
         var args = self.args;
         for (var argument in args) {
             var arg = argument.arg;
             string reg;
             if (arg.isnull()) {
-                reg = self.tempreg(REGvar);
-                e.emitnull(reg);
+                if (pnull == '') {
+                    pnull = self.tempreg(REGvar);
+                    e.emitnull(pnull);
+                }
+                reg = pnull;
             }
             else
                 reg = arg.emit_get(e);
