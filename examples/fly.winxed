@@ -9,38 +9,20 @@
 
 function fork()
 {
-    var lib = null;
-    var dl_fork = dlfunc(lib, 'fork', 'i');
-    int r;
-    if (dl_fork == null || ! dl_fork)
-        r = -1;
-    else
-        r = dl_fork();
-    return r;
+    var dl_fork = dlfunc(null, 'fork', 'i');
+    return (dl_fork == null || ! dl_fork) ? -1 : int(dl_fork());
 }
 
 function setsid()
 {
-    var lib = null;
-    var dl_setsid = dlfunc(lib, 'setsid', 'i');
-    int r;
-    if (dl_setsid == null || ! dl_setsid)
-        r = -1;
-    else
-        r = dl_setsid();
-    return r;
+    var dl_setsid = dlfunc(null, 'setsid', 'i');
+    return (dl_setsid == null || ! dl_setsid) ? -1 : int(dl_setsid());
 }
 
 function close(int handle)
 {
-    var lib = null;
-    var dl_close = dlfunc(lib, 'close', 'ii');
-    int r;
-    if (dl_close == null || ! dl_close)
-        r = -1;
-    else
-        r = dl_close(handle);
-    return r;
+    var dl_close = dlfunc(null, 'close', 'ii');
+    return (dl_close == null || ! dl_close) ? -1 : int(dl_close(handle));
 }
 
 //**********************************************************************
@@ -194,13 +176,6 @@ function train(float angle, float dis)
     glVertex3f(lenb, 0.0,     width / 2);
     glEnd();
 
-    glBegin(GL_QUAD_STRIP);
-    glVertex3f(lena, 0.0,  width / 2);
-    glVertex3f(lenb, 0.0,  width / 2);
-    glVertex3f(lena, 0.0, -width / 2);
-    glVertex3f(lenb, 0.0, -width / 2);
-    glEnd();
-
     glColor3f(0.8, 0.8, 0.0);
     glBegin(GL_QUAD_STRIP);
     glVertex3f(lena, 0.0,    -width / 2);
@@ -261,8 +236,7 @@ class Fly
 
     function create(string title)
     {
-        int w = glutCreateWindow(title);
-        self.w = w;
+        self.w = int(glutCreateWindow(title));
         self.aspect = 1.0;
 
         self.auto = 1;
@@ -410,9 +384,11 @@ class Fly
         gluLookAt(
              x, y, z,
              x + dx, y + dy, z + dz,
-             0.0, 1.0, 0.0);
+             0.0, 0.2, 0.0);
 
         glPushMatrix();
+        if (y < 0.0)
+            glCullFace(GL_FRONT);
         float length = 200.0;
         glColor3f(0.4, 0.4, 0.4);
         glBegin(GL_QUADS);
@@ -421,6 +397,8 @@ class Fly
         glVertex3f(-length,  0.0, -length);
         glVertex3f(-length,  0.0,  length);
         glEnd();
+        if (y < 0.0)
+            glCullFace(GL_BACK);
         glPopMatrix();
 
         glDisable(GL_CULL_FACE);
@@ -558,8 +536,7 @@ class Fly
                 self.dz =: dz;
             }
 
-            float speed = self.speed;
-            diff = (now - prev) * speed;
+            diff = (now - prev) * float(self.speed);
             //cry(diff);
 
             x += dx * diff;
@@ -575,31 +552,30 @@ class Fly
 
     function keyboard(int key, int x, int y)
     {
-        float speed;
         switch (key) {
           case ord("\e"):
             glutDestroyWindow(self.w);
             self.w = null;
             break;
           case ord("+"):
-            speed = self.speed;
-            speed = speed * 1.1;
-            self.speed = speed;
+            self.speed *= 1.1;
             break;
           case ord("-"):
-            speed = self.speed;
-            speed = speed * 0.9;
-            self.speed = speed;
+            self.speed *= 0.9;
+            break;
+          case ord('s'):
+            self.dy =: 0.0;
             break;
           case ord("\t"):
             var auto = self.auto;
             switch (auto) {
               case 1:
-                auto = 2; break;
+                auto =: 2; break;
               case 2:
-                auto = 1; break;
+                auto =: 1; break;
+              default:
+                auto =: 1;
             }
-            self.auto =: auto;
             break;
         }
     }
