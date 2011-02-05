@@ -4982,6 +4982,13 @@ class NewBaseExpr : Expr
             RequireOp(')', t);
         }
     }
+    function optimize()
+    {
+        var initializer = self.initializer;
+        if (initializer != null)
+            optimize_array(initializer);
+        return self;
+    }
 }
 
 //**********************************************************************
