@@ -8625,25 +8625,10 @@ class WinxedCompileUnit
 
 class WinxedHLL
 {
-    function compile(string code,
-            string target[named,optional],
-            int noan[named,optional],
-            int nowarn[named,optional] )
+    function __private_compile_tail(winxed, target, noan)
     {
-        if (target == null)
-            target = '';
-        var handlein = new ['StringHandle'];
-        handlein.open(EVAL_NAME, 'w');
-        handlein.puts(code);
-        handlein.close();
-        handlein.open(EVAL_NAME, 'r');
-        var tk= new Tokenizer(handlein, EVAL_NAME);
-        var winxed= new WinxedCompileUnit();
-        if (nowarn)
-            winxed.setwarnmode(false);
-        winxed.parse(tk);
-        handlein.close();
-        winxed.optimize();
+        if (target == 'parse')
+            return winxed;
         var handleout = new ['StringHandle'];
         handleout.open(EVAL_NAME, 'w');
         var emit= new Emit();
@@ -8670,6 +8655,27 @@ class WinxedHLL
         }
         return object;
     }
+    function compile(string code,
+            string target[named,optional],
+            int noan[named,optional],
+            int nowarn[named,optional] )
+    {
+        if (target == null)
+            target = '';
+        var handlein = new ['StringHandle'];
+        handlein.open(EVAL_NAME, 'w');
+        handlein.puts(code);
+        handlein.close();
+        handlein.open(EVAL_NAME, 'r');
+        var tk= new Tokenizer(handlein, EVAL_NAME);
+        var winxed= new WinxedCompileUnit();
+        if (nowarn)
+            winxed.setwarnmode(false);
+        winxed.parse(tk);
+        handlein.close();
+        winxed.optimize();
+        return self.__private_compile_tail(winxed, target, noan);
+    }
     function compile_from_file_to_pir(string filename, var handleout,
             int noan[named,optional],
             int nowarn[named,optional] )
@@ -8692,9 +8698,12 @@ class WinxedHLL
         emit.close();
     }
     function compile_from_file(string filename,
+            string target[named,optional],
             int noan[named,optional],
             int nowarn[named,optional] )
     {
+        if (target == null)
+            target = '';
         var handlein = new ['FileHandle'];
         handlein.open(filename, 'r');
         handlein.encoding('utf8');
@@ -8705,19 +8714,7 @@ class WinxedHLL
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
-        var handleout = new ['StringHandle'];
-        handleout.open(EVAL_NAME, 'w');
-        var emit= new Emit();
-        if (noan)
-            emit.disable_annotations();
-        emit.initialize(handleout);
-        winxed.emit(emit);
-        emit.close();
-        handleout.close();
-        string pircode = handleout.read(0);
-        var pircomp = compreg('PIR');
-        var object = pircomp(pircode);
-        return object;
+        return self.__private_compile_tail(winxed, target, noan);
     }
 }
 
