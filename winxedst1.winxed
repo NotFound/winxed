@@ -4309,11 +4309,6 @@ class Argument
     {
         return self.arg.hascompilevalue();
     }
-    function cantailcall()
-    {
-        //return self.arg.cantailcall();
-        return false;
-    }
 }
 
 class ArgumentList
@@ -4366,6 +4361,11 @@ class ArgumentList
     {
         var args = self.args;
         return args[i];
+    }
+    function getfreearg(int i)
+    {
+        var args = self.args;
+        return args[i].arg;
     }
     function optimize()
     {
@@ -6047,7 +6047,7 @@ class ReturnYieldStatement : Statement
 
         // Experimental tailcall optimization
         if (n == 1 && (self instanceof ReturnStatement)) {
-            var func = values.getarg(0);
+            var func = values.getfreearg(0);
             if (func.cantailcall()) {
                 self.annotate(e);
                 return func.emit(e, '.tailcall');
