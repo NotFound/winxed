@@ -407,9 +407,6 @@ class Fly
             glCullFace(GL_BACK);
         glPopMatrix();
 
-        glDisable(GL_CULL_FACE);
-        glColor3f(0.6, 0.6, 0.6);
-
         const float angle = -67.0 * ToRad;
         const float rangle = angle + 90.0 * ToRad;
         const float inix =  189.5;
@@ -419,32 +416,39 @@ class Fly
         float heights[nsteps] = [ 0.2, 0.4, 0.3, 0.0, -0.3, -0.4, -0.2 ];
         float stepx = sin(angle)  * 2.0;
         float stepz = cos(angle)  * 2.0;
-        for (int r = 0; r < 2; ++r) {
-            float xpos1 = inix + sin(rangle) * 5.5 * r;
-            float zpos1 = iniz + cos(rangle) * 5.5 * r;
-            float xpos2 = xpos1 + sin(rangle)  * 4.0;
-            float zpos2 = zpos1 + cos(rangle) * 4.0;
-            float ypos = 0.1;
 
-            glBegin(GL_QUAD_STRIP);
-            glVertex3f(xpos1, ypos, zpos1);
-            glVertex3f(xpos2, ypos, zpos2);
-            for (int s = 0; s < nsteps; ++s) {
-                int ss = steps[s];
-                float sx = stepx * ss;
-                float sz = stepz * ss;
-                float sy = heights[s] * ss;
-                xpos1 += sx;
-                xpos2 += sx;
-                zpos1 += sz;
-                zpos2 += sz;
-                ypos += sy;
+        glCullFace(GL_FRONT);
+        glColor3f(0.6, 0.6, 0.6);
+
+        for (int face = 0; face < 2; ++face) {
+            for (int r = 0; r < 2; ++r) {
+                float xpos1 = inix + sin(rangle) * 5.5 * r;
+                float zpos1 = iniz + cos(rangle) * 5.5 * r;
+                float xpos2 = xpos1 + sin(rangle)  * 4.0;
+                float zpos2 = zpos1 + cos(rangle) * 4.0;
+                float ypos = 0.1;
+
+                glBegin(GL_QUAD_STRIP);
                 glVertex3f(xpos1, ypos, zpos1);
                 glVertex3f(xpos2, ypos, zpos2);
+                for (int s = 0; s < nsteps; ++s) {
+                    int ss = steps[s];
+                    float sx = stepx * ss;
+                    float sz = stepz * ss;
+                    float sy = heights[s] * ss;
+                    xpos1 += sx;
+                    xpos2 += sx;
+                    zpos1 += sz;
+                    zpos2 += sz;
+                    ypos += sy;
+                    glVertex3f(xpos1, ypos, zpos1);
+                    glVertex3f(xpos2, ypos, zpos2);
+                }
+                glEnd();
             }
-            glEnd();
+            glColor3f(0.2, 0.2, 0.3);
+            glCullFace(GL_BACK);
         }
-        glEnable(GL_CULL_FACE);
 
         for (var thing in self.things)
             thing.draw();
