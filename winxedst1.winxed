@@ -4110,7 +4110,7 @@ class OpMulExpr : OpBinaryExpr
                 rval = self.tempreg(REGfloat);
                 e.emitset(rval, rreg);
             }
-	    if (result != '') {
+            if (result != '') {
                 self.annotate(e);
                 e.emitmul(result, lreg, rval);
             }
@@ -4309,6 +4309,146 @@ class Argument
     {
         return self.arg.hascompilevalue();
     }
+    function cantailcall()
+    {
+        //return self.arg.cantailcall();
+        return false;
+    }
+}
+
+class ArgumentList
+{
+    var owner;
+    var start;
+    var args;
+    var argregs;
+
+    function ArgumentList(owner, start, tk, string delimiter)
+    {
+        self.owner = owner;
+        self.start = start;
+        var args = [];
+        var t = tk.get();
+        if (! t.isop(delimiter)) {
+            tk.unget(t);
+            do {
+                var modifier = null;
+                var expr = parseExpr(tk, owner);
+                t = tk.get();
+                if (t.isop(':')) {
+                    t = tk.get();
+                    if (t.isop('[')) {
+                        modifier = new ModifierList(tk, owner);
+                        t = tk.get();
+                    }
+                    else {
+                        InternalError('Checking implementation');
+                    }
+                }
+                args.push(new Argument(expr, modifier));
+            } while (t.isop(','));
+            if (! t.isop(delimiter))
+                SyntaxError("Unfinished argument list", t);
+            if (elements(args) > 0)
+                self.args = args;
+        }
+    }
+    function numargs()
+    {
+        var args = self.args;
+        return args == null ? 0 : elements(args);
+    }
+    function getrawargs()
+    {
+        return self.args;
+    }
+    function getarg(int i)
+    {
+        var args = self.args;
+        return args[i];
+    }
+    function optimize()
+    {
+        var args = self.args;
+        if (args != null)
+            optimize_array(args);
+        return self;
+    }
+    function getargvalues(var e)
+    {
+        var argregs = self.argregs;
+        if (argregs == null) {
+            string regs[];
+            string pnull = '';
+            argregs = regs;
+            var args = self.args;
+            int nargs = elements(args);
+            for (int i = 0; i < nargs; ++i) {
+                var a = args[i].arg;
+                string reg;
+                if (a.isnull())
+                {
+                    if (pnull == '') {
+                        pnull = self.owner.tempreg(REGvar);
+                        e.emitnull(pnull);
+                        reg = pnull;
+                    }
+                }
+                else
+                    reg = a.emit_get(e);
+                argregs.push(reg);
+            }
+            self.argregs = argregs;
+        }
+        return argregs;
+    }
+    function emitargs(var e)
+    {
+        var args = self.args;
+        var argreg = self.getargvalues(e);
+
+        string sep = '';
+        int n = self.numargs();
+        for (int i = 0; i < n; ++i) {
+            string a = argreg[i];
+            e.print(sep, a);
+            int isflat = 0, isnamed = 0;
+            string setname = '';
+            var modifiers = args[i].modifiers;
+            if (modifiers != null) {
+                for (var modif in modifiers.getlist()) {
+                    string name = modif.getname();
+                    if (name == 'flat')
+                        isflat = 1;
+                    if (name == 'named') {
+                        isnamed = 1;
+                        switch (modif.numargs()) {
+                          case 0: 
+                            break;
+                          case 1:
+                            var argmod = modif.getarg(0);
+                            if (! argmod.isstringliteral())
+                                SyntaxError('Invalid modifier', self.start);
+                            setname = argmod.getPirString();
+                            break;
+                          default:
+                            SyntaxError('Invalid modifier', self.start);
+                        }
+                    }
+                }
+            }
+            if (isflat && isnamed)
+                e.print(' :flat :named');
+            else if (isflat)
+                e.print(' :flat');
+            else if (isnamed) {
+                e.print(' :named');
+                if (setname != '')
+                    e.print("(", setname, ")");
+            }
+            sep = ', ';
+        }
+    }
 }
 
 function arglist_hascompilevalue(var arglist)
@@ -4435,28 +4575,10 @@ class CallExpr : Expr
     {
         self.initexpr(owner, start);
         self.funref = subexp;
-        self.args = [];
         var t = tk.get();
         if (! t.isop(')')) {
             tk.unget(t);
-            do {
-                var modifier = null;
-                var expr = parseExpr(tk, owner);
-                t = tk.get();
-                if (t.isop(':')) {
-                    t = tk.get();
-                    if (t.isop('[')) {
-                        modifier = new ModifierList(tk, owner);
-                        t = tk.get();
-                    }
-                    else {
-                        InternalError('Checking implementation');
-                    }
-                }
-                self.args.push(new Argument(expr, modifier));
-            } while (t.isop(','));
-            if (! t.isop(')'))
-                Expected("')' or ','", t);
+            self.args = new ArgumentList(owner, start, tk, ')');
         }
     }
     function checkresult() { return REGvar; }
@@ -4464,24 +4586,30 @@ class CallExpr : Expr
     {
         self.funref = self.funref.optimize();
         var args = self.args;
-        optimize_array(args);
+        int nargs = 0;
+        if (args != null) {
+            args = args.optimize();
+            nargs = args.numargs();
+            self.args = args;
+        }
 
         // Check for predefined functions
         var funref = self.funref;
         if (funref.isidentifier()) {
             string call = funref.getName();
-            var predef = findpredef(call, elements(args));
+            var predef = findpredef(call, nargs);
             if (predef != null) {
                 self.use_predef(call);
+                var rawargs = nargs == 0 ? [] : args.getrawargs();
 
                 // Check for compile time evaluation.
                 var evalfun = predef.evalfun;
                 if (evalfun != null) {
-                    if (arglist_hascompilevalue(args))
-                        return evalfun(self.owner, self.start, args);
+                    if (arglist_hascompilevalue(rawargs))
+                        return evalfun(self.owner, self.start, rawargs);
                 }
 
-                return new CallPredefExpr(self.owner, self.start, predef, args);
+                return new CallPredefExpr(self.owner, self.start, predef, rawargs);
             }
         }
 
@@ -4506,23 +4634,10 @@ class CallExpr : Expr
         else
             call = ismethod ? funref.emit_left_get(e) : funref.emit_get(e);
 
-        string argreg[];
-        string pnull = '';
         var args = self.args;
-        for (var argument in args) {
-            var arg = argument.arg;
-            string reg;
-            if (arg.isnull()) {
-                if (pnull == '') {
-                    pnull = self.tempreg(REGvar);
-                    e.emitnull(pnull);
-                }
-                reg = pnull;
-            }
-            else
-                reg = arg.emit_get(e);
-            argreg.push(reg);
-        }
+        if (args != null)
+            args.getargvalues(e);
+
         self.annotate(e);
 
         if (result != null && result != '') {
@@ -4538,48 +4653,8 @@ class CallExpr : Expr
             e.print(call);
 
         e.print('(');
-
-        string sep = '';
-        int n = argreg;
-        for (int i = 0; i < n; ++i) {
-            string a = argreg[i];
-            e.print(sep, a);
-            int isflat = 0, isnamed = 0;
-            string setname = '';
-            var modifiers = args[i].modifiers;
-            if (modifiers != null) {
-                for (var modif in modifiers.getlist()) {
-                    string name = modif.getname();
-                    if (name == 'flat')
-                        isflat = 1;
-                    if (name == 'named') {
-                        isnamed = 1;
-                        switch (modif.numargs()) {
-                          case 0: 
-                            break;
-                          case 1:
-                            var argmod = modif.getarg(0);
-                            if (! argmod.isstringliteral())
-                                SyntaxError('Invalid modifier', self.start);
-                            setname = argmod.getPirString();
-                            break;
-                          default:
-                            SyntaxError('Invalid modifier', self.start);
-                        }
-                    }
-                }
-            }
-            if (isflat && isnamed)
-                e.print(' :flat :named');
-            else if (isflat)
-                e.print(' :flat');
-            else if (isnamed) {
-                e.print(' :named');
-                if (setname != '')
-                    e.print("(", setname, ")");
-            }
-            sep = ', ';
-        }
+        if (args != null)
+            args.emitargs(e);
         e.say(')');
     }
 }
@@ -5952,54 +6027,40 @@ class ReturnYieldStatement : Statement
     {
         self.initstatement(start, owner);
         var t = tk.get();
-        var values = [];
         if (! t.isop(';')) {
             tk.unget(t);
-            do {
-                var expr = parseExpr(tk, self);
-                values.push(expr);
-            } while ((t = tk.get()).isop(','));
+            self.values = new ArgumentList(owner, start, tk, ";");
         }
-        RequireOp(';', t);
-        self.values = values;
     }
     function optimize()
     {
-        optimize_array(self.values);
+        var values = self.values;
+        if (values != null)
+            values = values.optimize();
         return self;
     }
     function emit(e)
     {
-        var args = [];
+        //var args = [];
         var values = self.values;
-        int n = values;
+        int n = values == null ? 0 : int(values.numargs());
 
         // Experimental tailcall optimization
         if (n == 1 && (self instanceof ReturnStatement)) {
-            var func = values[0];
+            var func = values.getarg(0);
             if (func.cantailcall()) {
                 self.annotate(e);
                 return func.emit(e, '.tailcall');
             }
         }
-        for (int i= 0; i < n; ++i) {
-            var value = values[i];
-            string reg;
-            if (value.isnull()) {
-                reg = self.tempreg(REGvar);
-                e.emitnull(reg);
-            }
-            else
-                reg = value.emit_get(e);
-            args.push(reg);
-        }
+
+        if (n > 0)
+            values.getargvalues(e);
+
         self.annotate(e);
         self.emitret(e);
-        string sep = '';
-        for (string arg in args) {
-            e.print(sep, arg);
-            sep= ', ';
-        }
+        if (n > 0)
+            values.emitargs(e);
         e.say(')');
     }
 }
