@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 5-feb-2011
+// Revision 7-feb-2011
 
 // Winxed compiler stage 0.
 
@@ -6867,6 +6867,8 @@ void Winxed::parse (Tokenizer &tk)
                     (tk, t, *cur_nsblock, cur_namespace, fname.identifier());
             functions.push_back(f);
         }
+        else if (t.iskeyword("$include_const"))
+            throw UnsupportedInStage(t.str(), t);
         else if (t.iskeyword("$load"))
         {
             Token loadname = tk.get();
