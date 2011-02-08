@@ -1,0 +1,68 @@
+#! winxed
+// hlltest.winxed
+// Testing the experimental HLL feature.
+
+// Some tricks are needed to locate the functions.
+
+// This function is used to avoid infinite recursion in set_string_native
+function newstring()
+{
+    var s = new ['parrot': 'String'];
+    return s;
+}
+
+namespace foo [HLL]
+{
+
+class MyString
+{
+    var str;
+    function set_string_native[vtable](string s)
+    {
+        ${ say 'set' };
+        using static newstring;
+        var str = newstring();
+        str =: s;
+        self.str = str;
+    }
+    function get_string[vtable]()
+    {
+        ${ say 'get' };
+        string s = self.str;
+        return s;
+    }
+}
+
+function bar(var s)
+{
+    ${ say 'bar <' };
+    string str = s;
+    ${ say 'bar >' };
+    return str;
+}
+
+function createmappings()
+{
+    var interp = getinterp();
+    var ms = new foo.MyString();
+    interp.hll_map('String', ms);
+}
+
+} // foo
+
+function main()
+{
+    using foo.createmappings;
+    using foo.bar;
+    createmappings();
+    say('Hi');
+
+    var s = new foo.MyString();
+    s =: 'Hello';
+    say(s);
+    var x = bar('world');
+    cry(': ');
+    say(x);
+}
+
+// End
