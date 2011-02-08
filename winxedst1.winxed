@@ -7911,6 +7911,10 @@ class ClassSpecifier
     }
     function reftype() { return CLASSSPECIFIER_invalid; }
 
+    function dowarnings()
+    {
+        return self.owner.dowarnings();
+    }
     function annotate(e)
     {
         e.annotate(self.start);
