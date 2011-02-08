@@ -7900,21 +7900,14 @@ const int
     CLASSSPECIFIER_parrotkey = 2, // Parrot key
     CLASSSPECIFIER_id        = 3; // Identifier, maybe qualified
 
-class ClassSpecifier
+class ClassSpecifier : CommonBase
 {
-    var owner;
-    var start;
     function ClassSpecifier(owner, start)
     {
-        self.owner = owner;
-        self.start = start;
+        self.initbase(start, owner);
     }
     function reftype() { return CLASSSPECIFIER_invalid; }
 
-    function dowarnings()
-    {
-        return self.owner.dowarnings();
-    }
     function annotate(e)
     {
         e.annotate(self.start);
@@ -8033,10 +8026,9 @@ function parseClassSpecifier(tk, owner)
 //            ClassStatement
 //*********************************************
 
-class ClassStatement : VarContainer
+class ClassStatement : CommonBase, VarContainer
 {
     var parent;
-    var owner;
     var name;
     var bases;
     var constants;
@@ -8044,10 +8036,10 @@ class ClassStatement : VarContainer
     var members;
     var classns;
 
-    function ClassStatement(tk, parent)
+    function ClassStatement(start, tk, parent)
     {
+        self.initbase(start, parent);
         self.parent= parent;
-        self.owner = parent;
         var functions = [];
         self.functions = functions;
         var members = [];
@@ -8350,7 +8342,7 @@ class NamespaceBase : VarContainer
                 items.push(f);
                 break;
               case 'class':
-                var c= new ClassStatement(tk, self);
+                var c= new ClassStatement(t, tk, self);
                 classes.push(c);
                 items.push(c);
                 break;
