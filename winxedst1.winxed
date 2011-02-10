@@ -1405,6 +1405,10 @@ function getpredefs()
             'get_class {res}, {arg0}',
             REGvar, REGstring
         ),
+        new PredefFunction().set('typeof',
+            'typeof {res}, {arg0}',
+            REGvar, REGvar
+        ),
         new PredefFunction().set('getattribute',
             'getattribute {res}, {arg0}, {arg1}',
             REGvar, REGvar, REGstring

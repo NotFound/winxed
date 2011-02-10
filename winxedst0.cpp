@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 7-feb-2011
+// Revision 10-feb-2011
 
 // Winxed compiler stage 0.
 
@@ -454,6 +454,9 @@ const PredefFunction *PredefFunction::predefs[]= {
     new PredefFunctionFixargs("get_class",
         "get_class {res}, {arg0}",
         REGvar, REGstring),
+    new PredefFunctionFixargs("typeof",
+        "typeof {res}, {arg0}",
+        REGvar, REGvar),
     new PredefFunctionFixargs("clone",
         "clone {res}, {arg0}",
         REGvar, REGvar),
