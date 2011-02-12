@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 10-feb-2011
+// Revision 12-feb-2011
 
 // Winxed compiler stage 0.
 
@@ -363,6 +363,15 @@ const PredefFunction *PredefFunction::predefs[]= {
     new PredefFunctionFixargs("spawnw",
         "spawnw {res}, {arg0}",
         REGint, REGvar),
+    new PredefFunctionFixargs("getstdin",
+        "getstdin {res}, {arg0}",
+        REGvar, REGvar),
+    new PredefFunctionFixargs("getstdout",
+        "getstdout {res}, {arg0}",
+        REGvar, REGvar),
+    new PredefFunctionFixargs("getstderr",
+        "getstderr {res}, {arg0}",
+        REGvar, REGvar),
     new PredefFunctionFixargs("open",
         "root_new {res}, ['parrot';'FileHandle']\n"
         "{res}.'open'({arg0})",

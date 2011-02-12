@@ -54,8 +54,7 @@ const int
 
 function Warn(string msg, var pos [optional], int has_pos [opt_flag])
 {
-    var stderr;
-    ${ getstderr stderr };
+    var stderr = getstderr();
     stderr.print('WARNING: ');
     stderr.print(msg);
     if (has_pos) {
@@ -1243,6 +1242,18 @@ function getpredefs()
         new PredefFunction().set('spawnw',
             'spawnw {res}, {arg0}',
             REGint, REGvar
+        ),
+        new PredefFunction().set('getstdin',
+            'getstdin {res}, {arg0}',
+            REGvar, REGvar
+        ),
+        new PredefFunction().set('getstdout',
+            'getstdout {res}, {arg0}',
+            REGvar, REGvar
+        ),
+        new PredefFunction().set('getstderr',
+            'getstderr {res}, {arg0}',
+            REGvar, REGvar
         ),
         new PredefFunction().set('open',
             "root_new {res}, ['parrot';'FileHandle']\n" +
@@ -8799,7 +8810,7 @@ function winxed_parser(tk, string outputfile, int warn, int noan)
 
     var handle;
     if (outputfile == '-')
-        ${ getstdout handle };
+        handle = getstdout();
     else
         handle = open(outputfile, 'w');
     var emit= new Emit();
