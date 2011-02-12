@@ -1244,16 +1244,16 @@ function getpredefs()
             REGint, REGvar
         ),
         new PredefFunction().set('getstdin',
-            'getstdin {res}, {arg0}',
-            REGvar, REGvar
+            'getstdin {res}',
+            REGvar
         ),
         new PredefFunction().set('getstdout',
-            'getstdout {res}, {arg0}',
-            REGvar, REGvar
+            'getstdout {res}',
+            REGvar
         ),
         new PredefFunction().set('getstderr',
-            'getstderr {res}, {arg0}',
-            REGvar, REGvar
+            'getstderr {res}',
+            REGvar
         ),
         new PredefFunction().set('open',
             "root_new {res}, ['parrot';'FileHandle']\n" +
