@@ -22,7 +22,7 @@ function getOS()
     var os;
     try {
         loadlib('os');
-        os = new 'OS';
+        os = new ['OS'];
     }
     catch() { }
     for (;;)
@@ -244,7 +244,7 @@ function main [main] (argv)
     if (eval == null)
         cmd.push(srcfile);
     retval = spawnw(cmd);
-    retval = (retval & 0xFF00) / 256;
+    retval = (retval >> 8) & 0xFF;
     if (retval)
         exit(retval);
 
@@ -300,3 +300,5 @@ function main [main] (argv)
     retval = (retval >> 8) & 0xFF;
     exit(retval);
 }
+
+// End
