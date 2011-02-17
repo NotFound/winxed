@@ -6613,7 +6613,7 @@ class ForeachStatement : LoopStatement, BlockStatement
         if (type != '') {
             string deftype = typetoregcheck(type);
             self.createvar(sname, deftype);
-            self.deftype = type;
+            self.deftype = deftype;
         }
         self.varname = name;
         self.container = parseExpr(tk, self);
