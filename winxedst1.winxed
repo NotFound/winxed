@@ -6602,6 +6602,7 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
 
 class ForeachStatement : LoopStatement, BlockStatement
 {
+    var deftype;
     var varname;
     var container;
 
@@ -6609,8 +6610,11 @@ class ForeachStatement : LoopStatement, BlockStatement
     {
         self.initstatement(start, owner);
         string sname = name;
-        if (type != '')
-            self.createvar(sname, typetoregcheck(type));
+        if (type != '') {
+            string deftype = typetoregcheck(type);
+            self.createvar(sname, deftype);
+            self.deftype = type;
+        }
         self.varname = name;
         self.container = parseExpr(tk, self);
         ExpectOp(')', tk);
