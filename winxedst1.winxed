@@ -4210,20 +4210,19 @@ class OpDivExpr : OpBinaryExpr
     function emit(e, result)
     {
         var lexpr = self.lexpr;
-        var lreg;
-        if (lexpr.checkresult() == REGfloat)
-            lreg = lexpr.emit_get(e);
-        else {
-            lreg = self.tempreg(REGfloat);
-            lexpr.emit(e, lreg);
+        var aux;
+        var lreg = lexpr.emit_get(e);
+        if (lexpr.checkresult() != REGfloat) {
+            aux = self.tempreg(REGfloat);
+            e.emitset(aux, lreg);
+            lreg = aux;
         }
         var rexpr = self.rexpr;
-        var rreg;
-        if (rexpr.checkresult() == REGfloat)
-            rreg = rexpr.emit_get(e);
-        else {
-            rreg = self.tempreg(REGfloat);
-            rexpr.emit(e, rreg);
+        var rreg = rexpr.emit_get(e);
+        if (rexpr.checkresult() != REGfloat) {
+            aux = self.tempreg(REGfloat);
+            e.emitset(aux, rreg);
+            rreg = aux;
         }
         self.annotate(e);
         e.say('div ', result, ', ', lreg, ', ', rreg);
