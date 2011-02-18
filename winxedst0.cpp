@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 12-feb-2011
+// Revision 18-feb-2011
 
 // Winxed compiler stage 0.
 
@@ -421,6 +421,9 @@ const PredefFunction *PredefFunction::predefs[]= {
     new PredefFunctionFixargs("substr",
         "substr {res}, {arg0}, {arg1}, {arg2}",
         REGstring, REGstring, REGint, REGint),
+    new PredefFunctionFixargs("replace",
+        "replace {res}, {arg0}, {arg1}, {arg2}, {arg3}",
+        REGstring, REGstring, REGint, REGint, REGstring),
     new PredefFunctionFixargs("indexof",
         "index {res}, {arg0}, {arg1}",
         REGint, REGstring, REGstring),

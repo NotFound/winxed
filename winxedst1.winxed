@@ -959,6 +959,7 @@ class PredefFunction
     var type0;
     var type1;
     var type2;
+    var type3;
     var nparams;
 
     function name()
@@ -978,6 +979,7 @@ class PredefFunction
         case 0: type = self.type0; break;
         case 1: type = self.type1; break;
         case 2: type = self.type2; break;
+        case 3: type = self.type3; break;
         default:
             InternalError('Invalid predef arg');
         }
@@ -987,7 +989,8 @@ class PredefFunction
         string typeresult,
         string type0[optional],
         string type1[optional],
-        string type2[optional])
+        string type2[optional],
+        string type3[optional])
     {
         self.name = name;
         if (body instanceof 'String')
@@ -1017,6 +1020,10 @@ class PredefFunction
                     self.type2 = type2;
                     ++n;
                 }
+                if (type3 != null) {
+                    self.type3 = type3;
+                    ++n;
+                }
             }
         }
         self.nparams = n;
@@ -1028,10 +1035,11 @@ class PredefFunction
         string typeresult,
         string type0[optional],
         string type1[optional],
-        string type2[optional])
+        string type2[optional],
+        string type3[optional])
     {
         self.evalfun = evalfun;
-        self.set(name, body, typeresult, type0, type1, type2);
+        self.set(name, body, typeresult, type0, type1, type2, type3);
         return self;
     }
     function expand(var e, var owner, var start, string result, args)
@@ -1323,6 +1331,10 @@ function getpredefs()
             predefeval_substr_l,
             'substr {res}, {arg0}, {arg1}, {arg2}',
             REGstring, REGstring, REGint, REGint
+        ),
+        new PredefFunction().set('replace',
+            'replace {res}, {arg0}, {arg1}, {arg2}, {arg3}',
+            REGstring, REGstring, REGint, REGint, REGstring
         ),
         new PredefFunction().set_eval('indexof',
             predefeval_indexof,
