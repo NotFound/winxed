@@ -179,7 +179,8 @@ unless $P3 goto __label_1
 shift $P1, $P3
 # {
 .annotate 'line', 56
-$S2 = $P1[0]
+$P4 = $P1[0]
+set $S2, $P4
 # predefined length
 length $I3, $S2
 add $I2, $I3, 4
@@ -192,11 +193,11 @@ goto __label_0
 __label_1: # endfor
 .annotate 'line', 59
 getattribute $P2, self, 'options'
-iter $P4, $P2
-set $P4, 0
+iter $P5, $P2
+set $P5, 0
 __label_3: # for iteration
-unless $P4 goto __label_4
-shift $P1, $P4
+unless $P5 goto __label_4
+shift $P1, $P5
 # {
 .annotate 'line', 60
 # string s: $S1
