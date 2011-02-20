@@ -909,11 +909,12 @@ const int PREDEF_arglist = -1, PREDEF_raw1 = -2;
 // Invokable object generated from a string body
 class Predef_frombody
 {
+    const string resultmark = '{res}';
     var body;
     var typeresult;
     function Predef_frombody(string typeresult, string bodystr)
     {
-        int pos = indexof(bodystr, '{res}');
+        int pos = indexof(bodystr, resultmark);
         if (typeresult == REGnone && pos != -1)
             InternalError('void predef with {res}');
         if (typeresult != REGnone && pos == -1)
@@ -934,16 +935,17 @@ class Predef_frombody
         else {
             if (result == null || result == '')
                 InternalError('Bad result in non void predef');
-            while ((pos = indexof(body, '{res}')) != -1)
-                body = substr(body, 0, pos) + result + substr(body, pos + 5);
+            while ((pos = indexof(body, resultmark)) != -1)
+                body = replace(body, pos, length(resultmark), result);
         }
 
         int n = args;
         for (int i = 0; i < n; ++i) {
             string argmark = '{arg' + i + '}';
+	    int l = length(argmark);
             string arg = args[i];
             while ((pos = indexof(body, argmark)) != -1)
-                body = substr(body, 0, pos) + arg + substr(body, pos + 6);
+                body = replace(body, pos, l, arg);
         }
         e.annotate(start);
         e.say(body);
