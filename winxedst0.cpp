@@ -4060,6 +4060,8 @@ CallExpr::CallExpr(BlockBase &block,
             args.push_back(parseExpr(block, tk));
             t= tk.get();
         } while (t.isop(',') );
+        if (t.isop(':'))
+            throw UnsupportedInStage("argument modifiers", t);
         RequireOp (')', t);
     }
 
