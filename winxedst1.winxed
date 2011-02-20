@@ -4612,7 +4612,8 @@ class CallExpr : Expr
     function checkresult() { return REGvar; }
     function optimize()
     {
-        self.funref = self.funref.optimize();
+        var funref = self.funref.optimize();
+        self.funref = funref;
         var args = self.args;
         int nargs = 0;
         if (args != null) {
@@ -4622,7 +4623,6 @@ class CallExpr : Expr
         }
 
         // Check for predefined functions
-        var funref = self.funref;
         if (funref.isidentifier()) {
             string call = funref.getName();
             var predef = findpredef(call, nargs);
@@ -4652,16 +4652,19 @@ class CallExpr : Expr
         var funref = self.funref;
         int ismethod = funref instanceof MemberExpr;
         string call;
-        if (funref.isidentifier()) {
-            call = funref.checkIdentifier();
-            if (call == '') {
-                string aux = funref.getName();
-                call = "'" + aux + "'";
+	if (ismethod)
+            call = funref.emit_left_get(e);
+        else {
+            if (funref.isidentifier()) {
+                call = funref.checkIdentifier();
+                if (call == '') {
+                    string aux = funref.getName();
+                    call = "'" + aux + "'";
+                }
             }
+            else
+                call = funref.emit_get(e);
         }
-        else
-            call = ismethod ? funref.emit_left_get(e) : funref.emit_get(e);
-
         var args = self.args;
         if (args != null)
             args.getargvalues(e);
