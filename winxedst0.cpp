@@ -1273,6 +1273,7 @@ public:
         throw InternalError("Not an assignable expression");
     }
     virtual void emit(Emit &e, const std::string &result) = 0;
+    virtual std::string emit_get(Emit &e);
     virtual bool issimple() const { return false; }
     virtual const Token &gettoken() const
     {
@@ -2107,11 +2108,7 @@ void ArgumentList::prepare(Emit &e)
     for (size_t i= 0; i < args.size(); ++i)
     {
         if (! args[i]->issimple() )
-        {
-            std::string reg= gentemp(args[i]->checkresult());
-            args[i]->emit(e, reg);
-            argregs.push_back(reg);
-        }
+            argregs.push_back(args[i]->emit_get(e));
         else
         {
             if (args[i]->isnull())
@@ -2137,6 +2134,15 @@ void ArgumentList::emit(Emit &e)
         else
             e << argregs[i];
     }
+}
+
+//**********************************************************************
+
+std::string Expr::emit_get(Emit &e)
+{
+    std::string reg = gentemp(checkresult());
+    emit(e, reg);
+    return reg;
 }
 
 //**********************************************************************
@@ -2623,26 +2629,20 @@ Expr *OpEqualExpr::optimize()
 
 void OpEqualExpr::emit(Emit &e, const std::string &result)
 {
-    char ltype = lexpr->checkresult();
-    char rtype = rexpr->checkresult();
     std::string res= gentemp(REGint);
     if (lexpr->isnull() || rexpr->isnull())
     {
         std::string op;
         if (lexpr->isnull())
-        {
-            op= gentemp(rtype);
-            rexpr->emit(e, op);
-        }
+            op= rexpr->emit_get(e);
         else
-        {
-            op= gentemp(ltype);
-            lexpr->emit(e, op);
-        }
+            op= lexpr->emit_get(e);
         e << op_isnull(res, op);
     }
     else
     {
+        char ltype = lexpr->checkresult();
+        char rtype = rexpr->checkresult();
         if (ltype == rtype)
         {
             std::string op1= gentemp(ltype);
@@ -2746,20 +2746,11 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
     std::string res= gentemp(REGint);
     if (lexpr->isnull() || rexpr->isnull())
     {
-        char type;
         std::string op;
         if (lexpr->isnull())
-        {
-            type= rexpr->checkresult();
-            op= gentemp(type);
-            rexpr->emit(e, op);
-        }
+            op= rexpr->emit_get(e);
         else
-        {
-            type= lexpr->checkresult();
-            op= gentemp(type);
-            lexpr->emit(e, op);
-        }
+            op= lexpr->emit_get(e);
         e << op_isnull(res, op) << '\n' <<
             "not " << res;
     }
@@ -3170,9 +3161,8 @@ private:
         }
         else {
             std::string lreg = gentemp(REGvar);
-            std::string rreg = gentemp(rexpr->checkresult());
             lexpr->emit(e, lreg);
-            rexpr->emit(e, rreg);
+            std::string rreg = rexpr->emit_get(e);
             e << op_assign(lreg, rreg) << '\n';
         }
     }
@@ -4142,12 +4132,7 @@ void CallExpr::emit(Emit &e, const std::string &result)
                 }
                 break;
             case REGany:
-                {
-                    char type= arg.checkresult();
-                    std::string reg= gentemp(type);
-                    arg.emit(e, reg);
-                    argregs.push_back(reg);
-                }
+                argregs.push_back(arg.emit_get(e));
                 break;
             default:
                 {
@@ -4190,11 +4175,7 @@ void CallExpr::emit(Emit &e, const std::string &result)
     {
         Expr &arg= * args[i];
         if (! arg.issimple() )
-        {
-            std::string reg= gentemp(arg.checkresult());
-            arg.emit(e, reg);
-            argregs.push_back(reg);
-        }
+            argregs.push_back(arg.emit_get(e));
         else
         {
             if (arg.isnull())
@@ -4407,11 +4388,7 @@ void NewExpr::emit(Emit &e, const std::string &result)
     {
         std::vector<std::string> regs;
         for (size_t i= 0; i < numinits; ++i)
-        {
-            std::string reg = gentemp(init[i]->checkresult());
-            init[i]->emit(e, reg);
-            regs.push_back(reg);
-        }
+            regs.push_back(init[i]->emit_get(e));
         e << regnew << ".'" << claspec->basename() << "'(" << regs[0];
         for (size_t i= 1; i < numinits; ++i)
             e << ", " << regs[i];
@@ -4535,8 +4512,7 @@ void IndexExpr::emit(Emit &e, const std::string &result)
     {
         if (! arg[i]->issimple() )
         {
-            reg= gentemp(arg[i]->checkresult());
-            arg[i]->emit(e, reg);
+            reg= arg[i]->emit_get(e);
             argvalue[i]= reg;
         }
     }
@@ -4591,22 +4567,16 @@ void IndexExpr::emitassign(Emit &e, Expr& value, const std::string &to)
     }
     else
     {
-        reg2= gentemp(value.checkresult());
-        value.emit(e, reg2);
+        reg2= value.emit_get(e);
         e << '\n';
     }
 
-    std::string reg;
     size_t nitems= arg.size();
     std::vector <std::string> argvalue(nitems);
     for (size_t i= 0; i < nitems; ++i)
     {
         if (! arg[i]->issimple() )
-        {
-            reg= gentemp(arg[i]->checkresult());
-            arg[i]->emit(e, reg);
-            argvalue[i]= reg;
-        }
+            argvalue[i]= arg[i]->emit_get(e);
     }
     e << name << '[';
     for (size_t i= 0; i < nitems; ++i)
@@ -5708,9 +5678,7 @@ void ForStatement::emit(Emit &e)
         e << l_condition << ": # for condition\n";
     if (condition)
     {
-        char type= condition->checkresult();
-        std::string reg= gentemp(type);
-        condition->emit(e, reg);
+        std::string reg= condition->emit_get(e);
         e << "unless " << reg << " goto " << breaklabel << " # for end\n";
     }
     e << "# for body\n";
@@ -5915,8 +5883,7 @@ std::string Condition::emit(Emit &e)
     else
     {
         char type= expr->checkresult();
-        reg = gentemp(type);
-        expr->emit(e, reg);
+        reg = expr->emit_get(e);
         if (type == REGvar || type == REGstring)
         {
             std::string reg2= reg;
@@ -5944,8 +5911,7 @@ void Condition::emit_if(Emit &e, const std::string &labeltrue)
     else
     {
         char type= expr->checkresult();
-        reg = gentemp(type);
-        expr->emit(e, reg);
+        reg = expr->emit_get(e);
         if (type == REGvar || type == REGstring) {
             auxlabel = genlocallabel();
             e << "if_null " << reg << ", " << auxlabel << "\n";
@@ -5967,8 +5933,7 @@ void Condition::emit_else(Emit &e, const std::string &labelfalse)
     else
     {
         char type= expr->checkresult();
-        reg = gentemp(type);
-        expr->emit(e, reg);
+        reg = expr->emit_get(e);
         if (type == REGvar || type == REGstring)
             e << "if_null " << reg << ", " << labelfalse << "\n";
     }
@@ -6069,8 +6034,7 @@ void SwitchStatement::emit(Emit &e)
         condition->emit(e, reg);
     else
     {
-        std::string r= gentemp(condition->checkresult());
-        condition->emit(e, r);
+        std::string r= condition->emit_get(e);
         e << op_set(reg, r) << '\n';
     }
 
