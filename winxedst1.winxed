@@ -885,7 +885,9 @@ function floatresult(string r1, string r2)
 const string NULL = 'null', SELF = 'self';
 
 // Var flags
-const int VAR_is_volatile = 1;
+const int
+    VAR_is_volatile = 1,
+    VAR_is_lexical  = 2;
 
 //*********************************************
 //         Predefined functions
@@ -2205,7 +2207,7 @@ class VarData
     function isconst() { return self.value != null; }
     function getid() { return self.id; }
     function getlex() { return self.lexname; }
-    function isvolatile() { return int(self.flags) & VAR_is_volatile; }
+    function getflags() { return self.flags; }
 }
 
 class ConstantInternalFail
@@ -2721,7 +2723,12 @@ class IdentifierExpr : SimpleExpr
         var desc = self.owner.getvar(name);
         if (desc != null) {
             if (desc.isconst() && desc.getid() == null)
-                    return desc.getvalue();
+                return desc.getvalue();
+            int flags = desc.getflags();
+            if (flags & VAR_is_volatile) {
+                if (flags & VAR_is_lexical)
+                    return new LexicalVolatileExpr(self, desc);
+            }
         }
         return self;
     }
@@ -2729,10 +2736,13 @@ class IdentifierExpr : SimpleExpr
     {
         string id = self.getIdentifier();
         var desc = self.owner.getvar(self.name);
-        if (desc != null && desc.isvolatile()) {
-            string lexname = desc.getlex();
-            if (lexname != null && lexname != '')
-                e.say("find_lex ", id, ", '", lexname, "'");
+        int flags = desc == null ? 0 : desc.getflags();
+        if (flags & VAR_is_volatile) {
+            if (flags & VAR_is_lexical) {
+                string lexname = desc.getlex();
+                if (lexname != null && lexname != '')
+                    e.say("find_lex ", id, ", '", lexname, "'");
+            }
         }
         return id;
     }
@@ -2785,13 +2795,59 @@ class IdentifierExpr : SimpleExpr
                     e.emitset(lreg, rreg);
             }
         }
-        var desc = self.owner.getvar(self.name);
-        if (desc.isvolatile()) {
-            string lexname = desc.getlex();
-            if (lexname != null && lexname != '')
-                e.say("store_lex '", lexname, "', ", lreg);
-        }
         return lreg;
+    }
+}
+
+//*********************************************
+
+class LexicalVolatileExpr : Expr
+{
+    var desc;
+    function LexicalVolatileExpr(idexpr, desc)
+    {
+        self.initexpr(idexpr.owner, idexpr.start);
+        self.desc = desc;
+    }
+    function checkresult() { return REGvar; }
+    function emit_get(e)
+    {
+        var desc = self.desc;
+        string lexname = desc.getlex();
+        string reg = self.owner.tempreg(REGvar);
+        e.say("find_lex ", reg, ", '", lexname, "'");
+        return reg;
+    }
+    function emit(e, result)
+    {
+        if (result != '') {
+            self.annotate(e);
+            string reg = self.emit_get(e);
+            e.emitset(result, reg);
+        }
+    }
+    function emit_assign_get(e, expr)
+    {
+        string lreg = self.owner.tempreg(REGvar);
+        if (expr.isnull())
+            e.emitnull(lreg);
+        else if (expr instanceof IndexExpr)
+            expr.emit(e, lreg);
+        else {
+            string typeright = expr.checkresult();
+            if (REGvar == typeright) {
+                expr.emit(e, lreg);
+            }
+            else {
+                string rreg = expr.emit_get(e);
+                self.annotate(e);
+                e.emitbox(lreg, rreg);
+            }
+        }
+
+        var desc = self.desc;
+        string lexname = desc.getlex();
+        e.say("store_lex '", lexname, "', ", lreg);
     }
 }
 
@@ -7904,7 +7960,7 @@ class LocalFunctionStatement : FunctionBase
                 if (ownerscope instanceof FunctionBase) {
                     if (ownerscope.same_scope_as(outer)) {
                         string lexname = scope.makelexical(r);
-                        int flags = r.isvolatile() ? VAR_is_volatile : 0;
+                        int flags = r.getflags() | VAR_is_lexical;
                         r = self.createvar(name, REGvar, flags);
                         r.lexname = lexname;
                         string reg = r.getreg();
