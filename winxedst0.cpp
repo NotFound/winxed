@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 20-feb-2011
+// Revision 22-feb-2011
 
 // Winxed compiler stage 0.
 
@@ -453,16 +453,9 @@ const PredefFunction *PredefFunction::predefs[]= {
         "get_root_global $P0, ['parrot';'String';'Utils'], 'chomp'\n"
         "{res} = $P0({arg0}, {arg1})",
         REGstring, REGstring, REGstring),
-
-    // This is quick helper for Resizable...Array usage
-    // while a better way is implemeneted.
-    new PredefFunctionFixargs("__push_int",
+    new PredefFunctionFixargs("push",
         "push {arg0}, {arg1}",
-        REGnone, REGvar, REGint),
-    new PredefFunctionFixargs("__push_string",
-        "push {arg0}, {arg1}",
-        REGnone, REGvar, REGstring),
-
+        REGnone, REGvar, REGany),
     new PredefFunctionFixargs("getinterp",
         "getinterp {res}",
         REGvar),

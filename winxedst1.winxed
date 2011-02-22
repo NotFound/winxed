@@ -639,7 +639,7 @@ class Tokenizer
     }
     function unget(t)
     {
-        self.stacked.push(t);
+        push(self.stacked, t);
     }
 }
 
@@ -1378,6 +1378,10 @@ function getpredefs()
             "{res} = $P0({arg0}, {arg1})",
             REGstring, REGstring, REGstring
         ),
+        new PredefFunction().set('push',
+            'push {arg0}, {arg1}',
+            REGnone, REGvar, REGany
+        ),
         new PredefFunction().set('sqrt',
             'sqrt {res}, {arg0}',
             REGfloat, REGfloat
@@ -1534,10 +1538,10 @@ function parseDotted(tk)
     var list = [];
     var t = tk.get();
     if (t.isidentifier()) {
-        list.push(t);
+        push(list, t);
         while ((t= tk.get()).isop('.')) {
             t= tk.get();
-            list.push(t);
+            push(list, t);
         }
     }
     tk.unget(t);
@@ -1548,7 +1552,7 @@ function toIdentifierList(var tlist)
 {
     string list[];
     for (var t in tlist)
-        list.push(t.getidentifier());
+        push(list, t.getidentifier());
     return list;
 }
 
@@ -1627,7 +1631,7 @@ class SimpleArgList
         var t;
         do {
             var value = parseExpr(tk, owner);
-            args.push(value);
+            push(args, value);
         } while ((t= tk.get()).isop(','));
         RequireOp(oper_end, t);
     }
@@ -1646,7 +1650,7 @@ class SimpleArgList
         for (int i= 0; i < nargs; ++i) {
             var a = args[i];
             string reg = a.emit_get(e);
-            argreg.push(reg);
+            push(argreg, reg);
         }
         return argreg;
     }
@@ -1709,7 +1713,7 @@ class ModifierList
                 args.parseargs(tk, owner, ')');
                 t= tk.get();
             }
-            list.push(new Modifier(name, args));
+            push(list, new Modifier(name, args));
         } while (t.isop(','));
         RequireOp(']', t);
         self.list = list;
@@ -1950,15 +1954,13 @@ class MultiStatement : MultiStatementBase
 {
     function MultiStatement(var st1, var st2)
     {
-        var statements = [];
-        statements.push(st1);
-        statements.push(st2);
+        var statements = [st1, st2];
         self.statements = statements;
     }
     function isempty() { return false; }
     function push(var statement)
     {
-        self.statements.push(statement);
+        push(self.statements, statement);
         return self;
     }
     function emit(e)
@@ -2014,7 +2016,7 @@ class PiropStatement : Statement
                     tk.unget(t);
                     arg = parseExpr(tk, owner);
                 }
-                args.push(arg);
+                push(args, arg);
             } while ((t = tk.get()).isop(','));
             RequireOp('}', t);
             self.args = args;
@@ -2043,7 +2045,7 @@ class PiropStatement : Statement
             for (int i= 0; i < nargs; ++i) {
                 var a = args[i];
                 string reg = a.emit_get(e);
-                argreg.push(reg);
+                push(argreg, reg);
             }
             e.say(join(', ', argreg));
         }
@@ -3838,7 +3840,7 @@ class ConcatString : Expr
             if (rexpr instanceof ConcatString)
                 self.values.append(rexpr.values);
             else
-                self.values.push(rexpr);
+                push(self.values, rexpr);
         }
         else if (rexpr instanceof ConcatString) {
             self.values = rexpr.values;
@@ -4368,7 +4370,7 @@ class ArgumentList
                         InternalError('Checking implementation');
                     }
                 }
-                args.push(new Argument(expr, modifier));
+                push(args, new Argument(expr, modifier));
             } while (t.isop(','));
             if (! t.isop(delimiter))
                 SyntaxError("Unfinished argument list", t);
@@ -4424,7 +4426,7 @@ class ArgumentList
                 }
                 else
                     reg = a.emit_get(e);
-                argregs.push(reg);
+                push(argregs, reg);
             }
             self.argregs = argregs;
         }
@@ -4524,13 +4526,13 @@ class CallPredefExpr : Expr
                     }
                     reg = pnull;
                 }
-                argreg.push(reg);
+                push(argreg, reg);
             }
             break;
           case PREDEF_raw1:
             var rawargs = [];
             for (arg in args)
-                rawargs.push(arg.arg);
+                push(rawargs, arg.arg);
             self.predef.expand(e, self, self.start, result, rawargs);
             return;
           default:
@@ -4585,7 +4587,7 @@ class CallPredefExpr : Expr
                         }
                     }
                 }
-                argreg.push(argr);
+                push(argreg, argr);
             }
         }
         self.predef.expand(e, self, self.start, result, argreg);
@@ -4907,7 +4909,7 @@ class ArrayExpr : Expr
             tk.unget(t);
             do {
                 var item = parseExpr(tk, owner);
-                self.values.push(item);
+                push(self.values, item);
             } while ((t= tk.get()).isop(','));
             if (!t.isop(']'))
                 Expected("']' or ','", t);
@@ -4969,7 +4971,7 @@ class ArrayExpr : Expr
             }
             if (container != '') {
                 self.annotate(e);
-                e.say(container, ".'push'(", itemreg, ")");
+                e.say('push ', container, ", ", itemreg);
             }
         }
     }
@@ -4994,8 +4996,8 @@ class HashExpr : Expr
                 var key = parseExpr(tk, owner);
                 ExpectOp(':', tk);
                 var value = parseExpr(tk, owner);
-                keys.push(key);
-                values.push(value);
+                push(keys, key);
+                push(values, value);
 
             } while ((t = tk.get()).isop(','));
             if (! t.isop('}'))
@@ -5089,7 +5091,7 @@ class NewBaseExpr : Expr
             var initializer = [];
             do {
                 var auxinit = parseExpr(tk, owner);
-                initializer.push(auxinit);
+                push(initializer, auxinit);
             } while ((t = tk.get()).isop(','));
             self.initializer = initializer;
             RequireOp(')', t);
@@ -5120,11 +5122,11 @@ class NewExpr : NewBaseExpr
         if (firstvalue.isidentifier() ) {
             if (t.isop('.')) {
                 string values [];
-                values.push(firstvalue);
+                push(values, firstvalue);
                 do {
                     var value = tk.get();
                     RequireIdentifier(value);
-                    values.push(value);
+                    push(values, value);
                 } while ((t= tk.get()).isop('.'));
                 self.value = values;
             }
@@ -5247,7 +5249,7 @@ class NewExpr : NewBaseExpr
             string argregs[];
             for (var arg in initializer) {
                 string reg = arg.emit_get(e);
-                argregs.push(reg);
+                push(argregs, reg);
             }
             e.print(regnew, ".'", constructor, "'(");
             e.print(join(", ", argregs));
@@ -5342,7 +5344,7 @@ class NewQualifiedExpr : NewBaseExpr
             string argregs[];
             for (var arg in init) {
                 string reg = arg.emit_get(e);
-                argregs.push(reg);
+                push(argregs, reg);
             }
             string constructor = nskey.last();
             e.print(regnew, ".'", constructor, "'(");
@@ -6452,16 +6454,16 @@ class SwitchStatement : Breakable, Statement
         self.default_st = [];
         while ((t = tk.get()).iskeyword('case') || t.iskeyword('default')) {
             if (t.iskeyword('case')) {
-                self.case_value.push(parseExpr(tk, self));
+                push(self.case_value, parseExpr(tk, self));
                 t = tk.get();
                 if (! t.isop(':'))
                     Expected("':' in case", t);
                 var st = [];
                 while (! ((t = tk.get()).isop('}') || t.iskeyword('case') || t.iskeyword('default'))) {
                     tk.unget(t);
-                    st.push(parseStatement(tk, self));
+                    push(st, parseStatement(tk, self));
                 }
-                self.case_st.push(st);
+                push(self.case_st, st);
                 tk.unget(t);
             }
             else {
@@ -6470,7 +6472,7 @@ class SwitchStatement : Breakable, Statement
                     Expected("':' in default", t);
                 while (! ((t = tk.get()).isop('}') || t.iskeyword('case') || t.iskeyword('default'))) {
                     tk.unget(t);
-                    self.default_st.push(parseStatement(tk, self));
+                    push(self.default_st, parseStatement(tk, self));
                 }
                 tk.unget(t);
             }
@@ -6514,7 +6516,7 @@ class SwitchStatement : Breakable, Statement
         string regval = self.tempreg(type);
         for (var caseval in self.case_value) {
             string label = self.genlabel();
-            caselabel.push(label);
+            push(caselabel, label);
             caseval.emit(e, regval);
             e.say('if ', reg, ' == ', regval, ' goto ', label);
         }
@@ -6799,7 +6801,7 @@ class TryStatement : BlockStatement
                     string argregs [];
                     for (int i= 0; i < nargs; ++i) {
                         var arg = modif.getarg(i);
-                        argregs.push(arg.emit_get(e));
+                        push(argregs, arg.emit_get(e));
                     }
                     e.print(reghandler, ".'", modifname, "'(");
                     string sep = '';
@@ -6917,7 +6919,7 @@ class DeclareStatement : Statement
                 tk.unget(t);
                 do {
                     var item = parseExpr(tk, self);
-                    self.init.push(item);
+                    push(self.init, item);
                 } while ((t = tk.get()).isop(','));
                 if (! t.isop(']'))
                     Expected("',' or ']'", t);
@@ -7342,7 +7344,7 @@ class CompoundStatement : MultiStatementBase, BlockStatement
             var c = parseStatement(tk, self);
             if (c == null)
                 InternalError('Unexpected null statement');
-            self.statements.push(c);
+            push(self.statements, c);
         }
         self.end= t;
     }
@@ -7421,7 +7423,7 @@ class RegisterStore
             reg= freereg.pop();
         else
             reg= self.createreg();
-        tempreg.push(reg);
+        push(tempreg, reg);
         return reg;
     }
     function freetemps()
@@ -7431,7 +7433,7 @@ class RegisterStore
         int n = elements(tempreg);
         for (int i = n - 1; i >= 0; --i) {
             string s = tempreg[i];
-            freereg.push(s);
+            push(freereg, s);
         }
         tempreg =: 0;
     }
@@ -7511,7 +7513,7 @@ class FunctionBase : BlockStatement
                     arg['modifiers'] = modifiers;
                     t = tk.get();
                 }
-                params.push(arg);
+                push(params, arg);
             } while (t.isop(','));
             if (!t.isop(')'))
                 Expected("')' or ','", t);
@@ -7524,7 +7526,7 @@ class FunctionBase : BlockStatement
         if (localfun == null)
             self.localfun = [ fn ];
         else
-            localfun.push(fn);
+            push(localfun, fn);
     }
 
     function optimize()
@@ -7822,7 +7824,7 @@ class FunctionStatement : FunctionBase
         self.parse_parameters(tk);
 
         var fullname = clone(self.owner.getpath());
-        fullname.push(name.getidentifier());
+        push(fullname, name.getidentifier());
         self.createconst('__FUNCTION__', REGstring,
                 new StringLiteral(self,
                     new TokenQuoted(name.file, name.line, join('.', fullname))),
@@ -7977,7 +7979,7 @@ class ClassSpecifierParrotKey : ClassSpecifier
         var t = tk.get();
         if (!t.isstring())
             Expected('literal string', t);
-        key.push(t.rawstring());
+        push(key, t.rawstring());
         t = tk.get();
         if (! t.isop(']')) {
             switch (t.checkop()) {
@@ -7992,7 +7994,7 @@ class ClassSpecifierParrotKey : ClassSpecifier
                 t = tk.get();
                 if (!t.isstring())
                     Expected('literal string', t);
-                key.push(t.rawstring());
+                push(key, t.rawstring());
             } while ((t = tk.get()).isop(','));
             RequireOp(']', t);
         }
@@ -8020,7 +8022,7 @@ class ClassSpecifierId : ClassSpecifier
         var t;
         while ((t = tk.get()).isop('.')) {
             t = tk.get();
-            key.push(string(t));
+            push(key, string(t));
         }
         tk.unget(t);
         self.key = key;
@@ -8086,7 +8088,7 @@ class ClassStatement : CommonBase, VarContainer
         var name = tk.get();
         self.name = name;
         var classns = clone(parent.getpath());
-        classns.push(self.name);
+        push(classns, self.name);
         self.classns = classns;
 
         var t = tk.get();
@@ -8094,7 +8096,7 @@ class ClassStatement : CommonBase, VarContainer
             var bases = self.bases;
             for (;;) {
                 var base = parseClassSpecifier(tk, self);
-                bases.push(base);
+                push(bases, base);
                 t= tk.get();
                 if (!t.isop(',')) break;
             }
@@ -8105,20 +8107,20 @@ class ClassStatement : CommonBase, VarContainer
             switch (key) {
               case 'function':
                 var f= new MethodStatement(t, tk, self);
-                functions.push(f);
+                push(functions, f);
                 break;
               case 'var':
                 var name = tk.get();
                 if (! name.isidentifier())
                    Expected("member identifier", name);
-                members.push(name);
+                push(members, name);
                 t = tk.get();
                 if (! t.isop(';'))
                     Expected("';' in member declaration", t);
                 break;
               case 'const':
                 var cst = parseConst(t, tk, self);
-                constants.push(cst);
+                push(constants, cst);
                 break;
               default:
                 SyntaxError("Unexpected item in class", t);
@@ -8350,8 +8352,8 @@ class NamespaceBase : VarContainer
 
         RequireOp('{', t);
         var child= new NamespaceStatement(self, start, name, modifier);
-        self.namespaces.push(child);
-        self.items.push(child);
+        push(self.namespaces, child);
+        push(self.items, child);
         child.parse(tk);
     }
     function parse(tk)
@@ -8369,17 +8371,17 @@ class NamespaceBase : VarContainer
                 break;
               case 'const':
                 var cst = parseConst(t, tk, self);
-                items.push(cst);
+                push(items, cst);
                 break;
               case 'function':
                 var f= new FunctionStatement(t, tk, self);
-                functions.push(f);
-                items.push(f);
+                push(functions, f);
+                push(items, f);
                 break;
               case 'class':
                 var c= new ClassStatement(t, tk, self);
-                classes.push(c);
-                items.push(c);
+                push(classes, c);
+                push(items, c);
                 break;
               case 'using':
                 t = tk.get();
@@ -8452,7 +8454,7 @@ class NamespaceStatement : NamespaceBase
             string name, var modifier)
     {
         var nspath = clone(parent.getpath());
-        nspath.push(name);
+        push(nspath, name);
         self.nspath = nspath;
 
         self.parent= parent;
