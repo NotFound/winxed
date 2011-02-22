@@ -21,59 +21,59 @@ root_new $P1, ['parrot';'ResizablePMCArray']
 .annotate 'line', 20
 root_new $P4, ['parrot';'ResizablePMCArray']
 box $P5, 'c'
-$P4.'push'($P5)
+push $P4, $P5
 box $P5, 'Compile only. Same as --target=pir'
-$P4.'push'($P5)
+push $P4, $P5
 .annotate 'line', 19
-$P1.'push'($P4)
+push $P1, $P4
 .annotate 'line', 21
 root_new $P6, ['parrot';'ResizablePMCArray']
 box $P7, 'e=s'
-$P6.'push'($P7)
+push $P6, $P7
 box $P7, 'Evaluate'
-$P6.'push'($P7)
+push $P6, $P7
 .annotate 'line', 19
-$P1.'push'($P6)
+push $P1, $P6
 .annotate 'line', 22
 root_new $P8, ['parrot';'ResizablePMCArray']
 box $P9, 'L=s'
-$P8.'push'($P9)
+push $P8, $P9
 box $P9, 'Add to parrot library search path'
-$P8.'push'($P9)
+push $P8, $P9
 .annotate 'line', 19
-$P1.'push'($P8)
+push $P1, $P8
 .annotate 'line', 23
 root_new $P10, ['parrot';'ResizablePMCArray']
 box $P11, 'I=s'
-$P10.'push'($P11)
+push $P10, $P11
 box $P11, 'Add to parrot include search path'
-$P10.'push'($P11)
+push $P10, $P11
 .annotate 'line', 19
-$P1.'push'($P10)
+push $P1, $P10
 .annotate 'line', 24
 root_new $P12, ['parrot';'ResizablePMCArray']
 box $P13, 'nowarn'
-$P12.'push'($P13)
+push $P12, $P13
 box $P13, 'No warnings'
-$P12.'push'($P13)
+push $P12, $P13
 .annotate 'line', 19
-$P1.'push'($P12)
+push $P1, $P12
 .annotate 'line', 25
 root_new $P14, ['parrot';'ResizablePMCArray']
 box $P15, 'noan'
-$P14.'push'($P15)
+push $P14, $P15
 box $P15, 'No code annotations'
-$P14.'push'($P15)
+push $P14, $P15
 .annotate 'line', 19
-$P1.'push'($P14)
+push $P1, $P14
 .annotate 'line', 26
 root_new $P16, ['parrot';'ResizablePMCArray']
 box $P17, 'help'
-$P16.'push'($P17)
+push $P16, $P17
 box $P17, 'Show this help'
-$P16.'push'($P17)
+push $P16, $P17
 .annotate 'line', 19
-$P1.'push'($P16)
+push $P1, $P16
 .annotate 'line', 28
 setattribute self, 'options', $P1
 .annotate 'line', 29
