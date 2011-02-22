@@ -698,16 +698,19 @@ class Emit
     function updateannot()
     {
         if (self.pendingf) {
-            self.handle.print(".annotate 'file', '");
-            self.handle.print(self.file);
-            self.handle.print("'");
-            self.handle.print("\n");
+            self.handle.print(join("", [
+                ".annotate 'file', '",
+                self.file,
+                "'\n" ]
+            ));
             self.pendingf =: false;
         }
         if (self.pendingl) {
-            self.handle.print(".annotate 'line', ");
-            self.handle.print(self.line);
-            self.handle.print("\n");
+            self.handle.print(join("", [
+                ".annotate 'line', ",
+                self.line,
+                "\n" ]
+            ));
             self.pendingl =: false;
         }
     }
@@ -757,8 +760,7 @@ class Emit
         handle.print(label);
         handle.print(':');
         if (comment != null) {
-            handle.print(' # ');
-            handle.print(comment);
+            handle.print(' # ' + comment);
         }
         handle.print("\n");
     }
@@ -4600,14 +4602,15 @@ class CallExpr : Expr
     function optimize()
     {
         var funref = self.funref.optimize();
-        self.funref = funref;
         var args = self.args;
         int nargs = 0;
         if (args != null) {
             args = args.optimize();
             nargs = args.numargs();
-            self.args = args;
         }
+
+        if (funref instanceof MemberExpr)
+            return new CallMemberExpr(self, funref, args);
 
         // Check for predefined functions
         if (funref.isidentifier()) {
@@ -4628,30 +4631,31 @@ class CallExpr : Expr
             }
         }
 
+        self.funref = funref;
+        self.args = args;
         return self;
     }
     function cantailcall()
     {
         return true;
     }
+    function emitcall(e)
+    {
+        var funref = self.funref;
+        string call;
+        if (funref.isidentifier()) {
+            call = funref.checkIdentifier();
+            if (call == '')
+                call = join("", [ "'", funref.getName(), "'" ] );
+        }
+        else
+            call = funref.emit_get(e);
+        return call;
+    }
     function emit(e, result)
     {
         var funref = self.funref;
-        int ismethod = funref instanceof MemberExpr;
-        string call;
-        if (ismethod)
-            call = funref.emit_left_get(e);
-        else {
-            if (funref.isidentifier()) {
-                call = funref.checkIdentifier();
-                if (call == '') {
-                    string aux = funref.getName();
-                    call = "'" + aux + "'";
-                }
-            }
-            else
-                call = funref.emit_get(e);
-        }
+        string call = self.emitcall(e);
         var args = self.args;
         if (args != null)
             args.getargvalues(e);
@@ -4665,15 +4669,31 @@ class CallExpr : Expr
                 e.print(result, ' = ');
         }
 
-        if (ismethod)
-            e.print(call, ".'", funref.get_member(), "'");
-        else
-            e.print(call);
-
+        e.print(call);
         e.print('(');
         if (args != null)
             args.emitargs(e);
         e.say(')');
+    }
+}
+
+//*********************************************
+
+// Always created from CallExpr, never directly.
+
+class CallMemberExpr : CallExpr
+{
+    function CallMemberExpr(callst, funref, args)
+    {
+        self.initexpr(callst.owner, callst.start);
+        self.funref = funref;
+        self.args = args;
+    }
+    function emitcall(e)
+    {
+        var funref = self.funref;
+        return join("", [ funref.emit_left_get(e),
+                ".'", funref.get_member(), "'" ] );
     }
 }
 
