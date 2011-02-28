@@ -2949,7 +2949,7 @@ class OpBinaryIntExpr : OpBinaryExpr
 
 //*********************************************
 
-class OpDeleteExpr : OpUnaryExpr
+class OpDelExBase : OpUnaryExpr
 {
     function checkresult()
     {
@@ -2960,6 +2960,11 @@ class OpDeleteExpr : OpUnaryExpr
         self.initunary(owner, t, subexpr);
         return self;
     }
+}
+
+
+class OpDeleteExpr : OpDelExBase
+{
     function emit(e, result)
     {
         var expr = self.subexpr;
@@ -2974,6 +2979,41 @@ class OpDeleteExpr : OpUnaryExpr
         }
         else
             SyntaxError("delete with invalid operator", self.start);
+    }
+}
+
+class OpExistsExpr : OpDelExBase
+{
+    function emit(e, result)
+    {
+        var expr = self.subexpr;
+        // TODO: empty result shouldn't be allowed, check.
+        string reg = result != '' ? result : self.tempreg(REGint);
+        if (expr instanceof IndexExpr && expr.checkresult() != REGstring) {
+            expr.emit_prep(e);
+            self.annotate(e);
+            e.print('exists ', reg, ', ');
+            expr.emit_aux(e);
+            if (result != '')
+                e.say();
+        }
+        else
+            SyntaxError("exists with invalid operator", self.start);
+    }
+    function emit_get(e)
+    {
+        var expr = self.subexpr;
+        string reg = self.tempreg(REGint);
+        if (expr instanceof IndexExpr && expr.checkresult() != REGstring) {
+            expr.emit_prep(e);
+            self.annotate(e);
+            e.print('exists ', reg, ', ');
+            expr.emit_aux(e);
+            e.say();
+            return reg;
+        }
+        else
+            SyntaxError("exists with invalid operator", self.start);
     }
 }
 
@@ -5568,7 +5608,8 @@ const int
     Code_shiftleft     = 28,
     Code_shiftright    = 29,
     Code_mod_assign    = 30,
-    Code_delete        = 31;
+    Code_delete        = 31,
+    Code_exists        = 32;
 
 function getOpCode_2(t)
 {
@@ -5589,6 +5630,7 @@ function getOpCode_4(t)
     case '--': return Code_dec;
     default:
         if (t.iskeyword('delete')) return Code_delete;
+        else if (t.iskeyword('exists')) return Code_exists;
         else return Code_none;
     }
 }
@@ -5752,6 +5794,9 @@ function parseExpr_4(tk, owner)
             break;
         case Code_delete:
             oper = new OpDeleteExpr();
+            break;
+        case Code_exists:
+            oper = new OpExistsExpr();
             break;
         default:
             InternalError('Invalid code in parseExpr_4', t);
