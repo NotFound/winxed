@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 22-feb-2011
+// Revision 28-feb-2011
 
 // Winxed compiler stage 0.
 
@@ -6844,7 +6844,7 @@ void Winxed::parse (Tokenizer &tk)
                     (tk, t, *cur_nsblock, cur_namespace, fname.identifier());
             functions.push_back(f);
         }
-        else if (t.iskeyword("$include_const"))
+        else if (t.iskeyword("$include_const") || t.iskeyword("$loadlib"))
             throw UnsupportedInStage(t.str(), t);
         else if (t.iskeyword("$load"))
         {
@@ -7022,7 +7022,7 @@ int main (int argc, char **argv)
         std::cerr << e.file() << ':';
         if (e.linenum() != 0)
             std::cerr  << e.linenum() << ':';
-         std::cerr << e.what() << '\n';
+         std::cerr << ' ' << e.what() << '\n';
     }
     catch (std::exception &e)
     {
