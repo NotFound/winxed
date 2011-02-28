@@ -5280,23 +5280,8 @@ class NewExpr : NewBaseExpr
 
         if (! (firstvalue.isstring() || firstvalue.isidentifier()))
             SyntaxError("Unimplemented", firstvalue);
+        self.value = firstvalue;
         var t = tk.get();
-        if (firstvalue.isidentifier() ) {
-            if (t.isop('.')) {
-                string values [];
-                push(values, firstvalue);
-                do {
-                    var value = tk.get();
-                    RequireIdentifier(value);
-                    push(values, value);
-                } while ((t= tk.get()).isop('.'));
-                self.value = values;
-            }
-            else
-                self.value = firstvalue;
-        }
-        else
-            self.value = firstvalue;
 
         if (t.isop('('))
             self.parseinitializer(tk);
@@ -5335,9 +5320,8 @@ class NewExpr : NewBaseExpr
         var initializer = self.initializer;
         int numinits = initializer == null ? 0 : elements(initializer);
 
-        const int BYNAME = 0, BYIDENT = 1, BYMULTI = 2;
-        int type = (self.value instanceof 'ResizableStringArray') ? BYMULTI :
-                self.value.isstring() ? BYNAME : 
+        const int BYNAME = 0, BYIDENT = 1;
+        int type = self.value.isstring() ? BYNAME : 
                 self.value.isidentifier() ? BYIDENT : -1;
 
         string reginit = '';
@@ -5358,7 +5342,7 @@ class NewExpr : NewBaseExpr
             }
             break;
           default:
-            if (type != BYIDENT && type != BYMULTI)
+            if (type != BYIDENT)
                 SyntaxError('Multiple init arguments not allowed here', self.start);
             if (! is_init)
                 regnew = self.tempreg(REGvar);
@@ -5378,11 +5362,6 @@ class NewExpr : NewBaseExpr
             if (numinits > 1) {
                 e.say(regnew, ".'", self.value, "'()");
             }
-            break;
-          case BYMULTI:
-            var multival = self.value;
-            constructor = multival[elements(multival) - 1];
-            e.say('new ', regnew, ", ", getparrotkey(multival), reginit);
             break;
           case BYIDENT:
             var id = self.owner.getvar(self.value);
