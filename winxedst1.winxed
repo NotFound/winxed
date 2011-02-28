@@ -2863,6 +2863,33 @@ class OpExpr : Expr
 
 //*********************************************
 
+class OpClassExpr : OpExpr
+{
+    var clspec;
+
+    function OpClassExpr(tk, owner, start)
+    {
+        self.initop(owner, start);
+        self.clspec = parseClassSpecifier(tk, owner);
+    }
+    function checkresult() { return REGvar; }
+    function emit(e, result)
+    {
+        var clspec = self.clspec;
+        string aux = self.owner.tempreg(REGvar);
+        e.print('get_namespace ', aux, ', ');
+        clspec.emit(e, self.owner);
+        e.say();
+        // In void context use a temporary and get it anyway,
+        // to avoid discarding side effects.
+        if (result == '')
+            result = self.owner.tempreg(REGvar);
+        e.say('typeof ', result, ', ', aux);
+    }
+}
+
+//*********************************************
+
 class OpUnaryExpr : OpExpr
 {
     var subexpr;
@@ -5748,16 +5775,20 @@ function parseExpr_0(tk, owner)
         return new ArrayExpr(tk, owner, t);
     if (t.isop('{'))
         return new HashExpr(tk, owner, t);
-    if (t.iskeyword('new'))
-        return parseNew(tk, owner, t);
     if (t.isstring())
         return new StringLiteral(owner, t);
     if (t.isint())
         return new IntegerLiteral(owner, t);
     if (t.isfloat())
         return new FloatLiteral(owner, t);
-    if (t.iskeyword('function'))
+    switch (t.checkkeyword()) {
+      case 'new':
+        return parseNew(tk, owner, t);
+      case 'function':
         return new FunctionExpr(tk, owner, t);
+      case 'class':
+        return new OpClassExpr(tk, owner, t);
+    }
     if (t.isidentifier())
         return new IdentifierExpr(owner, t);
     SyntaxError('Expression expected', t);
