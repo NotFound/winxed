@@ -8576,9 +8576,15 @@ class NamespaceBase : VarContainer
                 t = tk.get();
                 if (! t.isstring())
                     Expected('string literal', t);
-                string reqload = t;
-                self.addload(reqload);
                 ExpectOp(';', tk);
+                self.addload((new StringLiteral(self, t)).getPirString());
+                break;
+              case '$loadlib':
+                t = tk.get();
+                if (! t.isstring())
+                    Expected('string literal', t);
+                ExpectOp(';', tk);
+                self.addlib((new StringLiteral(self, t)).getPirString());
                 break;
               default:
                 SyntaxError("Unexpected token", t);
