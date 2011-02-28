@@ -8561,7 +8561,7 @@ class NamespaceBase : VarContainer
               case 'using':
                 t = tk.get();
                 if (! t.iskeyword('extern'))
-                    SyntaxError('Unsupported at nmaespace level', t);
+                    SyntaxError('Unsupported at namespace level', t);
                 t = tk.get();
                 if (! t.isstring())
                     Expected('string literal', t);
