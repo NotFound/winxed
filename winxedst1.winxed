@@ -5296,15 +5296,15 @@ class NewExpr : NewBaseExpr
             // and obtain the string value.
             var name = value.getidentifier();
             var desc = self.owner.getvar(name);
-            if (desc != null && desc['const']) {
-                if (desc['id'] != null) {
-                    value = desc['value'];
+            if (desc != null && desc.isconst()) {
+                if (desc.getid() == null) {
+                    value = desc.getvalue();
                     if (! (value instanceof StringLiteral))
                         SyntaxError('Constant value must evaluate to a string', value);
                     self.value = value.strval;
                 }
                 else
-                    SyntaxError('Constant value must evaluate to a string', value);
+                    SyntaxError('*Constant value must evaluate to a string', value);
             }
         }
 
@@ -5380,7 +5380,7 @@ class NewExpr : NewBaseExpr
             }
             else {
                 //say('new with var');
-                e.say('new ', regnew, ", ", id['reg'], "", reginit);
+                e.say('new ', regnew, ", ", id.getreg(), "", reginit);
             }
             break;
           default:
