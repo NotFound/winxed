@@ -4707,6 +4707,8 @@ class CallExpr : Expr
 
         if (funref instanceof MemberExpr)
             return new CallMemberExpr(self, funref, args);
+        if (funref instanceof MemberRefExpr)
+            return new CallMemberRefExpr(self, funref, args);
 
         // Check for predefined functions
         if (funref.isidentifier()) {
@@ -4775,8 +4777,9 @@ class CallExpr : Expr
 
 //*********************************************
 
-// Always created from CallExpr, never directly.
+// Method calls. Always created from CallExpr, never directly.
 
+// Method call by name.
 class CallMemberExpr : CallExpr
 {
     function CallMemberExpr(callst, funref, args)
@@ -4793,28 +4796,41 @@ class CallMemberExpr : CallExpr
     }
 }
 
+// Method call by reference.
+// The reference is a expression, its result must be a var containing a
+// invokable or a string with the method name.
+class CallMemberRefExpr : CallExpr
+{
+    function CallMemberRefExpr(callst, funref, args)
+    {
+        self.initexpr(callst.owner, callst.start);
+        self.funref = funref;
+        self.args = args;
+    }
+    function emitcall(e)
+    {
+        var funref = self.funref;
+        var right = funref.right;
+        var type = right.checkresult();
+        if (type != REGvar && type != REGstring)
+            SyntaxError("Invalid expression type in '.*'", funref.start);
+        // We want a well defined order of evaluation here, so use variables
+        // to store intermediate results.
+        string lreg = funref.emit_left_get(e);
+        string rreg = right.emit_get(e);
+        return lreg + '.' + rreg;
+    }
+}
+
 //*********************************************
 
-class MemberExpr : Expr
+class MemberExprBase : Expr
 {
     var left;
-    var right;
-
-    function MemberExpr(tk, owner, start, subexp)
+    function MemberExprBase(owner, start, subexp)
     {
         self.initexpr(owner, start);
         self.left = subexp;
-        self.right = tk.get();
-    }
-    function checkresult() { return REGvar; }
-    function optimize()
-    {
-        self.left = self.left.optimize();
-        return self;
-    }
-    function get_member()
-    {
-        return self.right;
     }
     function emit_left_get(e)
     {
@@ -4827,6 +4843,27 @@ class MemberExpr : Expr
             e.emitbox(reg, auxreg);
         }
         return reg;
+    }
+}
+
+class MemberExpr : MemberExprBase
+{
+    var right;
+
+    function MemberExpr(owner, start, subexp, right)
+    {
+        self.MemberExprBase(owner, start, subexp);
+        self.right = right;
+    }
+    function checkresult() { return REGvar; }
+    function optimize()
+    {
+        self.left = self.left.optimize();
+        return self;
+    }
+    function get_member()
+    {
+        return self.right;
     }
     function emit_get(e)
     {
@@ -4883,6 +4920,30 @@ class MemberExpr : Expr
         }
         e.say("setattribute ", obj, ", '", ident, "', ", value);
         return value;
+    }
+}
+
+// Member derefrence via a var or string expresion.
+// Used only for method calls.
+class MemberRefExpr : MemberExprBase
+{
+    var right;
+    function MemberRefExpr(owner, start, left, right)
+    {
+        self.MemberExprBase(owner, start, left);
+        self.right = right;
+    }
+    function checkresult() { return REGvar; }
+    function optimize()
+    {
+        self.left = self.left.optimize();
+        self.right = self.right.optimize();
+        return self;
+    }
+    function emit(e, result)
+    {
+        SyntaxError('Member reference can be used only for method calls',
+            self.start);
     }
 }
 
@@ -5730,6 +5791,7 @@ function parseExpr_2(tk, owner)
 
     var subexp = parseExpr_0(tk, owner);
     var t;
+    var start;
     int code;
     while ((code = getOpCode_2(t = tk.get())) != Code_none ) {
         switch(code) {
@@ -5740,7 +5802,14 @@ function parseExpr_2(tk, owner)
             subexp = new IndexExpr(tk, owner, t, subexp);
             break;
         case Code_dot:
-            subexp = new MemberExpr(tk, owner, t, subexp);
+            start = t;
+            t = tk.get();
+            if (t.isop('*')) {
+                var right = parseExpr_0(tk, owner);
+                subexp = new MemberRefExpr(owner, t, subexp, right);
+            }
+            else
+                subexp = new MemberExpr(owner, start, subexp, t);
             break;
         default:
             InternalError('Unexpected code in parseExpr_2');
