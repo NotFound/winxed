@@ -17,8 +17,9 @@ class WinxedDriverOptions : [ 'Getopt', 'Obj']
     function WinxedDriverOptions(argv)
     {
         var options = [
-          [ 'c',        'Compile only. Same as --target=pir' ],
+          [ 'c',        'Compile to pir' ],
           [ 'e=s',      'Evaluate' ],
+          [ 'o=s',      'Object name' ],
           [ 'L=s',      'Add to parrot library search path' ],
           [ 'I=s',      'Add to parrot include search path' ],
           [ 'nowarn',   'No warnings' ],
@@ -89,6 +90,7 @@ function main [main] (argv)
     int help        = optionset.getbool('help');
     int compileonly = optionset.getbool('c');
     string eval     = optionset.getstring('e');
+    string object   = optionset.getstring('o');
     string opt_L    = optionset.getstring('L');
     string opt_I    = optionset.getstring('I');
     int nowarn      = optionset.getbool('nowarn');
@@ -98,6 +100,9 @@ function main [main] (argv)
         optionset.showhelp();
         exit(0);
     }
+
+    if (object != null && ! compileonly)
+        die('-o without -c is not supported yet');
 
     var compiler = load_language('winxed');
     if (compiler == null)
@@ -135,7 +140,7 @@ function main [main] (argv)
                     compileoptions:[named, flat]);
             handleout.close();
             string pircode = handleout.read(0);
-            string pirfile = extname(srcfile, '.pir');
+            string pirfile = object != null ? object : string(extname(srcfile, '.pir'));
             var outfile = open(pirfile, 'w');
             outfile.print(pircode);
             outfile.close();
