@@ -8658,6 +8658,10 @@ class NamespaceStatement : NamespaceBase
                 self.hll = self.name;
         }
     }
+    function dowarnings()
+    {
+        return self.parent.dowarnings();
+    }
     function generatesubid()
     {
         return self.owner.generatesubid();
