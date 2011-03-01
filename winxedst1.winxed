@@ -2876,15 +2876,13 @@ class OpClassExpr : OpExpr
     function emit(e, result)
     {
         var clspec = self.clspec;
-        string aux = self.owner.tempreg(REGvar);
-        e.print('get_namespace ', aux, ', ');
-        clspec.emit(e, self.owner);
-        e.say();
         // In void context use a temporary and get it anyway,
         // to avoid discarding side effects.
         if (result == '')
             result = self.owner.tempreg(REGvar);
-        e.say('typeof ', result, ', ', aux);
+        e.print('get_class ', result, ', ');
+        clspec.emit(e, self.owner);
+        e.say();
     }
 }
 
