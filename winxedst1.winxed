@@ -3021,15 +3021,13 @@ class OpExistsExpr : OpDelExBase
     function emit(e, result)
     {
         var expr = self.subexpr;
-        // TODO: empty result shouldn't be allowed, check.
         string reg = result != '' ? result : self.tempreg(REGint);
         if (expr instanceof IndexExpr && expr.checkresult() != REGstring) {
             expr.emit_prep(e);
             self.annotate(e);
             e.print('exists ', reg, ', ');
             expr.emit_aux(e);
-            if (result != '')
-                e.say();
+            e.say();
         }
         else
             SyntaxError("exists with invalid operator", self.start);
