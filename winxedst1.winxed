@@ -1770,9 +1770,7 @@ function parseStatement(tk, owner)
     if (t.isop('${'))
         return new PiropStatement(t, tk, owner);
 
-    string key = t.checkkeyword();
-    var st;
-    switch (key) {
+    switch (t.checkkeyword()) {
     case 'using':
         return parseUsing(t, tk, owner);
     case 'const':
@@ -1823,9 +1821,7 @@ function parseStatement(tk, owner)
         tk.unget(t);
         return new ExprStatement(t, tk, owner);
     }
-    if (st == null)
-        InternalError('parseStatement failure');
-    return st.parse(t, tk, owner);
+    InternalError('parseStatement failure', t);
 }
 
 //*********************************************
@@ -1834,7 +1830,7 @@ function parseStatement(tk, owner)
 
 class Statement : CommonBase
 {
-    function initstatement(start, owner)
+    function Statement(start, owner)
     {
         self.initbase(start, owner);
     }
@@ -1980,7 +1976,7 @@ class PiropStatement : Statement
 
     function PiropStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         var t = tk.get();
         int dotted = false;
         if (t.isop('.')) {
@@ -2050,7 +2046,7 @@ class ExternStatement : Statement
     var path;
     function ExternStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         var path = parseDotted(tk);
         if (elements(path) == 0)
             ExpectedIdentifier(tk.get());
@@ -2075,7 +2071,7 @@ class StaticStatement : Statement
     var symbol;
     function StaticStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         string sym = tk.get();
         ExpectOp(';', tk);
         self.symbol = sym;
@@ -2100,7 +2096,7 @@ class UsingStatement : Statement
 
     function UsingStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         var path = parseDotted(tk);
         if (elements(path) == 0)
             ExpectedIdentifier(tk.get());
@@ -2155,7 +2151,7 @@ class ExprStatement : Statement
     var expr;
     function ExprStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         self.expr = parseExpr(tk, self);
         ExpectOp(';', tk);
     }
@@ -2313,6 +2309,10 @@ class BlockStatement : VarContainer, Statement
 
 class Expr : CommonBase
 {
+    function Expr(owner, start)
+    {
+        self.initbase(start, owner);
+    }
     function issimple() { return false; }
     function isliteral() { return false; }
     function isintegerliteral() { return false; }
@@ -2322,10 +2322,6 @@ class Expr : CommonBase
     function isnull() { return false; }
     function hascompilevalue() { return false; }
     function isnegable() { return false; }
-    function initexpr(owner, start)
-    {
-        self.initbase(start, owner);
-    }
     function tempreg(type)
     {
         return self.owner.tempreg(type);
@@ -2372,7 +2368,7 @@ class FunctionExpr : Expr
     var fn;
     function FunctionExpr(tk, owner, start)
     {
-        self.initexpr(owner, start);
+        self.Expr(owner, start);
         var t = tk.get();
         if (!t.isop('('))
             SyntaxError('anonymous function expected', t);
@@ -2497,7 +2493,7 @@ class StringLiteral : Literal
     var strval;
     function StringLiteral(owner, t)
     {
-        self.initexpr(owner, t);
+        self.Expr(owner, t);
         self.strval = t;
     }
     function isstringliteral() { return true; }
@@ -2575,7 +2571,7 @@ class IntegerLiteral : Literal
     function IntegerLiteral(owner, t,
             value [optional], int has_value [opt_flag])
     {
-        self.initexpr(owner, t);
+        self.Expr(owner, t);
         self.pos = t;
         int n;
         if (has_value)
@@ -2617,7 +2613,7 @@ class FloatLiteral : Literal
     var numval;
     function FloatLiteral(owner, t)
     {
-        self.initexpr(owner, t);
+        self.Expr(owner, t);
         self.numval = t;
     }
     function isfloatliteral() { return true; }
@@ -2655,7 +2651,7 @@ class IdentifierExpr : SimpleExpr
     function isidentifier() { return true; }
     function IdentifierExpr(owner, t)
     {
-        self.initexpr(owner, t);
+        self.Expr(owner, t);
         self.name = t;
     }
     function isnull()
@@ -2806,7 +2802,7 @@ class LexicalVolatileExpr : Expr
     var desc;
     function LexicalVolatileExpr(idexpr, desc)
     {
-        self.initexpr(idexpr.owner, idexpr.start);
+        self.Expr(idexpr.owner, idexpr.start);
         self.desc = desc;
     }
     function checkresult() { return REGvar; }
@@ -2857,7 +2853,7 @@ class OpExpr : Expr
 {
     function initop(owner, start)
     {
-        self.initexpr(owner, start);
+        self.Expr(owner, start);
     }
 }
 
@@ -2891,7 +2887,7 @@ class OpClassExpr : OpExpr
 class OpUnaryExpr : OpExpr
 {
     var subexpr;
-    function initunary(owner, start, subexpr)
+    function OpUnaryExpr(owner, start, subexpr)
     {
         self.initop(owner, start);
         self.subexpr = subexpr;
@@ -2982,7 +2978,7 @@ class OpDelExBase : OpUnaryExpr
     }
     function set(owner, t, subexpr)
     {
-        self.initunary(owner, t, subexpr);
+        self.OpUnaryExpr(owner, t, subexpr);
         return self;
     }
 }
@@ -3052,7 +3048,7 @@ class OpUnaryMinusExpr : OpUnaryExpr
     }
     function set(owner, t, subexpr)
     {
-        self.initunary(owner, t, subexpr);
+        self.OpUnaryExpr(owner, t, subexpr);
         return self;
     }
     function optimize()
@@ -3091,7 +3087,7 @@ class OpNotExpr : OpUnaryExpr
     }
     function set(owner, t, subexpr)
     {
-        self.initunary(owner, t, subexpr);
+        self.OpUnaryExpr(owner, t, subexpr);
         return self;
     }
     function optimize()
@@ -3139,7 +3135,7 @@ class OpPreIncExpr : OpUnaryExpr
     }
     function set(owner, t, subexpr)
     {
-        self.initunary(owner, t, subexpr);
+        self.OpUnaryExpr(owner, t, subexpr);
         self.subexpr = subexpr;
         return self;
     }
@@ -3164,7 +3160,7 @@ class OpPostIncExpr : OpUnaryExpr
 {
     function set(owner, t, subexpr)
     {
-        self.initunary(owner, t, subexpr);
+        self.OpUnaryExpr(owner, t, subexpr);
         return self;
     }
     function checkresult()
@@ -3192,7 +3188,7 @@ class OpPreDecExpr : OpUnaryExpr
     }
     function set(owner, t, subexpr)
     {
-        self.initunary(owner, t, subexpr);
+        self.OpUnaryExpr(owner, t, subexpr);
         return self;
     }
     function emit(e, result)
@@ -3216,7 +3212,7 @@ class OpPostDecExpr : OpUnaryExpr
 {
     function set(owner, t, subexpr)
     {
-        self.initunary(owner, t, subexpr);
+        self.OpUnaryExpr(owner, t, subexpr);
         return self;
     }
     function checkresult()
@@ -3242,7 +3238,7 @@ class OpBaseAssignExpr : Expr
     var rexpr;
     function set(owner, start, lexpr, rexpr)
     {
-        self.initexpr(owner, start);
+        self.Expr(owner, start);
         self.lexpr = lexpr;
         self.rexpr = rexpr;
         return self;
@@ -3525,7 +3521,7 @@ class NullCheckerExpr : Expr
 
     function NullCheckerExpr(base, expr, int checknull)
     {
-        self.initexpr(base.owner, base.start);
+        self.Expr(base.owner, base.start);
         self.expr = expr;
         self.checknull = checknull;
     }
@@ -3942,7 +3938,7 @@ class ConcatString : Expr
     var values;
     function ConcatString(owner, start, lexpr, rexpr)
     {
-        self.initexpr(owner, start);
+        self.Expr(owner, start);
         if (lexpr instanceof ConcatString) {
             self.values = lexpr.values;
             if (rexpr instanceof ConcatString)
@@ -4606,7 +4602,7 @@ class CallPredefExpr : Expr
 
     function CallPredefExpr(owner, start, predef, args)
     {
-        self.initexpr(owner, start);
+        self.Expr(owner, start);
         self.predef = predef;
         self.args = args;
     }
@@ -4711,7 +4707,7 @@ class CallExpr : Expr
 
     function CallExpr(tk, owner, start, subexp)
     {
-        self.initexpr(owner, start);
+        self.Expr(owner, start);
         self.funref = subexp;
         var t = tk.get();
         if (! t.isop(')')) {
@@ -4809,7 +4805,7 @@ class CallMemberExpr : CallExpr
 {
     function CallMemberExpr(callst, funref, args)
     {
-        self.initexpr(callst.owner, callst.start);
+        self.Expr(callst.owner, callst.start);
         self.funref = funref;
         self.args = args;
     }
@@ -4828,7 +4824,7 @@ class CallMemberRefExpr : CallExpr
 {
     function CallMemberRefExpr(callst, funref, args)
     {
-        self.initexpr(callst.owner, callst.start);
+        self.Expr(callst.owner, callst.start);
         self.funref = funref;
         self.args = args;
     }
@@ -4854,7 +4850,7 @@ class MemberExprBase : Expr
     var left;
     function MemberExprBase(owner, start, subexp)
     {
-        self.initexpr(owner, start);
+        self.Expr(owner, start);
         self.left = subexp;
     }
     function emit_left_get(e)
@@ -4982,7 +4978,7 @@ class IndexExpr : Expr, SimpleArgList
 
     function IndexExpr(tk, owner, start, subexp)
     {
-        self.initexpr(owner, start);
+        self.Expr(owner, start);
         self.left = subexp;
         self.parseargs(tk, owner, ']');
     }
@@ -5089,7 +5085,7 @@ class ArrayExpr : Expr
 
     function ArrayExpr(tk, owner, start)
     {
-        self.initexpr(owner, start);
+        self.Expr(owner, start);
         self.values = [];
         var t = tk.get();
         if (! t.isop(']')) {
@@ -5173,7 +5169,7 @@ class HashExpr : Expr
 
     function HashExpr(tk, owner, start)
     {
-        self.initexpr(owner, start);
+        self.Expr(owner, start);
         var t = tk.get();
         var keys = [];
         var values = [];
@@ -5301,7 +5297,7 @@ class NewExpr : NewBaseExpr
 
     function NewExpr(var tk, var owner, var start, var firstvalue)
     {
-        self.initexpr(owner, start);
+        self.Expr(owner, start);
 
         if (! (firstvalue.isstring() || firstvalue.isidentifier()))
             SyntaxError("Unimplemented", firstvalue);
@@ -5438,7 +5434,7 @@ class NewIndexedExpr : NewBaseExpr
 
     function NewIndexedExpr(var tk, var owner, var start)
     {
-        self.initexpr(owner, start);
+        self.Expr(owner, start);
         self.owner = owner;
         var nskey = new ClassSpecifierParrotKey(tk, owner, start);
         self.nskey = nskey;
@@ -5482,7 +5478,7 @@ class NewQualifiedExpr : NewBaseExpr
 
     function NewQualifiedExpr(var tk, var owner, var start)
     {
-        self.initexpr(owner, start);
+        self.Expr(owner, start);
         self.owner = owner;
         var nskey = new ClassSpecifierId(tk, owner, start);
         self.nskey = nskey;
@@ -5565,7 +5561,7 @@ class OpInstanceOfExpr : Expr
 
     function OpInstanceOfExpr(owner, start, lexpr, tk)
     {
-        self.initexpr(owner, start);
+        self.Expr(owner, start);
         self.lexpr = lexpr;
         self.checked= tk.get();
     }
@@ -5600,7 +5596,7 @@ class OpConditionalExpr : Expr
 
     function set(owner, start, condition, etrue, efalse)
     {
-        self.initexpr(owner, start);
+        self.Expr(owner, start);
         self.condition = new Condition().set(condition);
         self.etrue = etrue;
         self.efalse = efalse;
@@ -6241,7 +6237,7 @@ class ReturnYieldStatement : Statement
 
     function parse(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         var t = tk.get();
         if (! t.isop(';')) {
             tk.unget(t);
@@ -6315,7 +6311,7 @@ class LabelStatement : Statement
     var value;
     function LabelStatement(n, owner)
     {
-        self.initstatement(n, owner);
+        self.Statement(n, owner);
         self.name= n;
         string value= self.owner.createlabel(n);
         self.value= value;
@@ -6363,7 +6359,7 @@ class GotoStatement : Statement
 
     function GotoStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         var t = tk.get();
         RequireIdentifier(t);
         self.label = t;
@@ -6407,7 +6403,7 @@ class IfStatement : ConditionalStatement
     var falsebranch;
     function IfStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         self.parsecondition(tk);
         self.truebranch = parseStatement(tk, self);
         var t = tk.get();
@@ -6488,7 +6484,7 @@ class WhileStatement : LoopStatement, ConditionalStatement
 {
     function WhileStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         self.parsecondition(tk);
         self.parsebody(tk);
     }
@@ -6529,7 +6525,7 @@ class DoStatement : LoopStatement, ConditionalStatement
 {
     function DoStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         self.parsebody(tk);
         ExpectKeyword('while', tk);
         self.parsecondition(tk);
@@ -6576,7 +6572,7 @@ class ContinueStatement : Statement
 {
     function ContinueStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         ExpectOp(';', tk);
     }
     function optimize() { return self; }
@@ -6596,7 +6592,7 @@ class BreakStatement : Statement
 {
     function BreakStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         ExpectOp(';', tk);
     }
     function optimize() { return self; }
@@ -6621,7 +6617,7 @@ class SwitchStatement : Breakable, Statement
 
     function SwitchStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         var t = tk.get();
         if (! t.isop('('))
             Expected("'(' in switch", t);
@@ -6737,7 +6733,7 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
 
     function ForStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         var t = tk.get();
         if (! t.isop(';')) {
             tk.unget(t);
@@ -6809,7 +6805,7 @@ class ForeachStatement : LoopStatement, BlockStatement
 
     function ForeachStatement(start, tk, owner, name, string type)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         string sname = name;
         if (type != '') {
             string deftype = typetoregcheck(type);
@@ -6883,7 +6879,7 @@ class ThrowStatement : Statement
 
     function ThrowStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         self.excep = parseExpr(tk, self);
     }
     function optimize()
@@ -6912,7 +6908,7 @@ class TryStatement : BlockStatement
 
     function TryStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         var t = tk.get();
         if (t.isop('[')) {
             self.modifiers = new ModifierList(tk, self);
@@ -7031,7 +7027,7 @@ class VarBaseStatement : Statement
     var reg;
     function initvarbase(start, owner, name, int flags[optional])
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         self.name = name;
         var vdata = self.createvar(name, REGvar, flags);
         self.reg = vdata.getreg();
@@ -7054,7 +7050,7 @@ class DeclareStatement : Statement
     var init;
     function parse(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         var t= tk.get();
         RequireIdentifier(t);
         self.name= t;
@@ -7232,7 +7228,7 @@ class ConstStatement : Statement
     function ConstStatement(var start, var owner,
             string type, var name, var value)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         self.type = type;
         self.name= name;
         self.value = value;
@@ -7518,7 +7514,7 @@ class CompoundStatement : MultiStatementBase, BlockStatement
 
     function CompoundStatement(start, tk, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         self.labels = {};
         self.statements= [];
         var t;
@@ -7645,7 +7641,7 @@ class FunctionBase : BlockStatement
 
     function FunctionBase(start, owner)
     {
-        self.initstatement(start, owner);
+        self.Statement(start, owner);
         self.params = [];
         self.nlabel= 0;
         self.regstI = new RegisterStore().settype(REGint);
@@ -8286,8 +8282,7 @@ class ClassStatement : CommonBase, VarContainer
         }
         RequireOp('{', t);
         for (t = tk.get(); !t.isop('}'); t = tk.get()) {
-            string key = t.checkkeyword();
-            switch (key) {
+            switch (t.checkkeyword()) {
               case 'function':
                 var f= new MethodStatement(t, tk, self);
                 push(functions, f);
@@ -8547,8 +8542,7 @@ class NamespaceBase : VarContainer
         var t;
         for (t = tk.get(); t && !t.isop('}'); t = tk.get())
         {
-            string key = t.checkkeyword();
-            switch (key) {
+            switch (t.checkkeyword()) {
               case 'namespace':
                 self.parsenamespace(t, tk);
                 break;
