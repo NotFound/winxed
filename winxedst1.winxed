@@ -1085,44 +1085,35 @@ class Predef_typecast
     }
 }
 
-class Predef_say
+function Predef_say(e, start, string result, args)
 {
-    function invoke [vtable](e, start, result, args)
-    {
-        e.annotate(start);
-        int n = int(args) - 1;
-        if (n >= 0) {
-            for (int i = 0; i < n; ++i)
-                e.emitprint(args[i]);
-            e.emitsay(args[n]);
-        }
-        else
-            e.emitsay("''");
-    }
-}
-
-class Predef_cry
-{
-    function invoke [vtable](e, start, result, args)
-    {
-        e.annotate(start);
-        e.say("getstderr $P0");
-        int n = int(args);
-        for (int i = 0; i < n; ++i)
-            e.say("print $P0, ", args[i]);
-        e.say("print $P0, \"\\n\"");
-    }
-}
-
-class Predef_print
-{
-    function invoke [vtable](e, start, result, args)
-    {
-        e.annotate(start);
-        int n = args;
+    e.annotate(start);
+    int n = elements(args) - 1;
+    if (n >= 0) {
         for (int i = 0; i < n; ++i)
             e.emitprint(args[i]);
+        e.emitsay(args[n]);
     }
+    else
+        e.emitsay("''");
+}
+
+function Predef_cry(e, start, string result, args)
+{
+    e.annotate(start);
+    e.say("getstderr $P0");
+    int n = elements(args);
+    for (int i = 0; i < n; ++i)
+        e.say("print $P0, ", args[i]);
+    e.say("print $P0, \"\\n\"");
+}
+
+function Predef_print(e, start, string result, args)
+{
+    e.annotate(start);
+    int n = elements(args);
+    for (int i = 0; i < n; ++i)
+        e.emitprint(args[i]);
 }
 
 // invoke is a quick & dirty way to allow use of multiple return values.
@@ -1231,6 +1222,9 @@ function getpredefs()
     using predefeval_substr_l;
     using predefeval_indexof;
     using predefeval_indexof_pos;
+    using static Predef_print;
+    using static Predef_say;
+    using static Predef_cry;
     using static Predef_invoke;
 
     var predefs = [
@@ -1506,15 +1500,15 @@ function getpredefs()
             REGvar, REGvar, REGvar
         ),
         new PredefFunction('print',
-            new Predef_print(),
+            Predef_print,
             REGnone, REGarglist
         ),
         new PredefFunction('say',
-            new Predef_say(),
+            Predef_say,
             REGnone, REGarglist
         ),
         new PredefFunction('cry',
-            new Predef_cry(),
+            Predef_cry,
             REGnone, REGarglist
         ),
         new PredefFunction('invoke',
