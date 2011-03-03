@@ -7056,184 +7056,315 @@ class VarBaseStatement : Statement
 }
 
 //*********************************************
-//            DeclareStatement
+//            Declare Statements
 //*********************************************
 
-class DeclareStatement : Statement
+class DeclareBase : Statement
 {
     var name;
-    var t_reg;
-    var t_name;
-    var t_array;
+    var basetype;
     var reg;
-    var typearray;
-    var size;
-    var init;
-    function parse(start, tk, owner)
+
+    function DeclareBase(start, owner, name, string basetype)
     {
         self.Statement(start, owner);
-        var t= tk.get();
-        RequireIdentifier(t);
-        self.name= t;
-        var vdata;
-        string reg;
+        self.name = name;
+        self.basetype = basetype;
+    }
+}
 
-        t= tk.get();
-        if (t.isop('[')) {
-            // Array
-            self.typearray = 1;
-            vdata = self.createvar(self.name, REGvar);
-            reg = vdata.getreg();
-            t = tk.get();
-            if (t.isop(']')) {
-                // Variable length
-                t= tk.get();
-            }
-            else {
-                tk.unget(t);
-                self.size = parseExpr(tk, self);
-                ExpectOp(']', tk);
-                t= tk.get();
-            }
-        }
-        else {
-            // Simple
-            self.typearray = 0;
-            vdata = self.createvar(self.name, self.t_reg);
-            reg = vdata.getreg();
-            if (t.isop('=')) {
-                // Simple initializer
-                self.init = parseExpr(tk, self);
-                t= tk.get();
-            }
-        }
+//*********************************************
 
-        self.reg= reg;
+class DeclareSingleStatement : DeclareBase
+{
+    var init;
+
+    function DeclareSingleStatement(start, owner, name, string basetype, tk)
+    {
+        self.DeclareBase(start, owner, name, basetype);
+        var vdata = self.createvar(self.name, self.basetype);
+        self.reg = vdata.getreg();
+        var t = tk.get();
         if (t.isop('=')) {
-            t = tk.get();
-            if (! t.isop('['))
-                Expected("array initializer", t);
-            self.init = [];
-            t = tk.get();
-            if (! t.isop(']')) {
-                tk.unget(t);
-                do {
-                    var item = parseExpr(tk, self);
-                    push(self.init, item);
-                } while ((t = tk.get()).isop(','));
-                if (! t.isop(']'))
-                    Expected("',' or ']'", t);
-            }
-            t = tk.get();
+            // Simple initializer
+            self.init = parseExpr(tk, self);
         }
-        tk.unget(t);
+        else
+            tk.unget(t);
     }
     function optimize()
     {
         var init = self.init;
-        if (self.size != null)
-            self.size = self.size.optimize();
-        if (init != null) {
-            if (self.typearray == 0)
-                self.init = init.optimize();
-            else
-                optimize_array(init);
-        }
+        if (init != null)
+            self.init = init.optimize();
         return self;
     }
     function emit(var e)
     {
         self.annotate(e);
-        string tname = self.t_name;
         string name = self.name;
         string reg = self.reg;
-        string t_reg = self.t_reg;
+        string basetype = self.basetype;
         var init = self.init;
-        e.comment(tname + ' ' + name + ': ' + reg);
+        e.comment(name + ': ' + reg);
 
-        if (self.typearray == 0) {
-            if (init == null || init.isnull())
-                self.defaultinit(e);
+        if (init == null || init.isnull())
+            e.emitnull(reg);
+        else {
+            string itype = init.checkresult();
+            if (itype == basetype) {
+                if (itype == REGstring && (init instanceof ConcatString))
+                    init.emit_concat_set(e, reg);
+                else
+                    init.emit(e, reg);
+            }
             else {
-                string itype = init.checkresult();
-                if (itype == t_reg) {
-                    if (itype == REGstring && (init instanceof ConcatString))
-                        init.emit_concat_set(e, reg);
-                    else
-                        init.emit(e, reg);
+                if (init instanceof IndexExpr) {
+                    // Use the declared type for the indexing
+                    init.emit(e, reg);
                 }
                 else {
-                    if (init instanceof IndexExpr) {
-                        // Use the declared type for the indexing
-                        init.emit(e, reg);
-                    }
+                    string ireg;
+                    if (itype == '')
+                        ireg = init.emit_get(e);
                     else {
-                        string ireg;
-                        if (itype == '')
-                            ireg = init.emit_get(e);
-                        else {
-                            ireg = self.tempreg(itype);
-                            init.emit(e, ireg);
-                        }
-                        if (t_reg == REGstring && itype == REGvar) {
-                            string auxlabel = self.genlabel();
-                            e.emitnull(reg);
-                            e.emitif_null(ireg, auxlabel);
-                            e.emitset(reg, ireg);
-                            e.emitlabel(auxlabel);
-                        }
-                        else
-                            e.emitset(reg, ireg);
+                        ireg = self.tempreg(itype);
+                        init.emit(e, ireg);
                     }
+                    if (basetype == REGstring && itype == REGvar) {
+                        string auxlabel = self.genlabel();
+                        e.emitnull(reg);
+                        e.emitif_null(ireg, auxlabel);
+                        e.emitset(reg, ireg);
+                        e.emitlabel(auxlabel);
+                    }
+                    else
+                        e.emitset(reg, ireg);
                 }
             }
         }
-        else {
-            var size = self.size;
-            if (size != null) {
-                // Fixed size array
-                string regsize = size.emit_get(e);
-                e.say('new ', reg, ", ['Fixed", self.t_array, "Array'], ", regsize);
-            }
-            else {
-                // Variable size array
-                e.say('root_new ', reg, ", ['parrot'; 'Resizable", self.t_array, "Array']");
-            }
-            if (init != null) {
-                string itemreg = self.tempreg(t_reg);
-                int n = elements(init);
-                if (size == null) {
-                    if (n > 0) {
-                        // Allocate initializers size
-                        e.emitset(reg, n);
-                    }
-                }
-                int i= 0;
-                for (var item in init) {
-                    item.emit(e, itemreg);
-                    e.say(reg, '[', i , '] = ', itemreg);
-                    ++i;
-                }
-            }
-        }
-    }
-    function defaultinit(var e)
-    {
-        InternalError('DeclareStatement.defaultinit must be overriden');
     }
 }
 
-function parseDeclareHelper(fun, start, tk, owner)
+//*********************************************
+
+class DeclareArrayStatement : DeclareBase
+{
+    var size;
+    var initarray;
+    var arraytype;
+
+    function DeclareArrayStatement(start, owner,
+            name, string basetype, string arraytype,
+            tk)
+    {
+        self.DeclareBase(start, owner, name, basetype);
+        self.arraytype = arraytype;
+        var vdata = self.createvar(self.name, REGvar);
+        self.reg = vdata.getreg();
+        var t = tk.get();
+        if (! t.isop(']')) {
+            // Fixed length
+            tk.unget(t);
+            self.size = parseExpr(tk, self);
+            ExpectOp(']', tk);
+        }
+        t = tk.get();
+        if (t.isop('=')) {
+            t = tk.get();
+            if (! t.isop('['))
+                Expected("array initializer", t);
+            self.initarray = [];
+            t = tk.get();
+            if (! t.isop(']')) {
+                tk.unget(t);
+                do {
+                    var item = parseExpr(tk, self);
+                    push(self.initarray, item);
+                } while ((t = tk.get()).isop(','));
+                if (! t.isop(']'))
+                    Expected("',' or ']'", t);
+            }
+        }
+        else
+            tk.unget(t);
+    }
+    function optimize()
+    {
+        var init = self.initarray;
+        if (self.size != null)
+            self.size = self.size.optimize();
+        if (init != null)
+            optimize_array(init);
+        return self;
+    }
+    function emit(e)
+    {
+        self.annotate(e);
+
+        var reg = self.reg;
+        var size = self.size;
+        var init = self.initarray;
+        var basetype = self.basetype;
+        string arraytype = string(self.arraytype) + 'Array';
+        if (size != null) {
+            // Fixed size array
+            string regsize = size.emit_get(e);
+            e.say('new ', reg, ", ['Fixed", arraytype, "'], ", regsize);
+        }
+        else {
+            // Variable size array
+            e.say('new ', reg, ", ['Resizable", arraytype, "']");
+        }
+        if (init != null) {
+            string itemreg = self.tempreg(basetype);
+            int n = elements(init);
+            if (size == null) {
+                if (n > 0) {
+                    // Allocate initializers size
+                    e.emitset(reg, n);
+                }
+            }
+            int i = 0;
+            for (var item in init) {
+                item.emit(e, itemreg);
+                e.say(reg, '[', i , '] = ', itemreg);
+                ++i;
+            }
+        }
+    }
+}
+
+//*********************************************
+
+function parseDeclareHelper(funsingle, funarray, start, tk, owner)
 {
     var next;
     var r = null;
     do {
-        var item = fun(start, tk, owner);
+        var name = tk.get();
+        RequireIdentifier(name);
+        var t = tk.get();
+        var item;
+        if (t.isop('['))
+            item = funarray(start, owner, tk, name);
+        else {
+            tk.unget(t);
+            item = funsingle(start, owner, name, tk);
+        }
         r = addtomulti(r, item);
         next = tk.get();
     } while (next.isop(','));
     RequireOp(';', next);
     return r;
+}
+
+//*********************************************
+
+class IntStatement : DeclareSingleStatement
+{
+    function IntStatement(start, owner, name, tk)
+    {
+        self.DeclareSingleStatement(start, owner, name, REGint, tk);
+    }
+}
+
+class IntArrayStatement : DeclareArrayStatement
+{
+    function IntArrayStatement(start, owner, name, tk)
+    {
+        self.DeclareArrayStatement(start, owner, name, REGint, 'Integer', tk);
+    }
+}
+
+
+function newIntSingle(start, owner, name, tk)
+{
+    return new IntStatement(start, owner, name, tk);
+}
+
+function newIntArray(start, owner, tk, name)
+{
+    return new IntArrayStatement(start, owner, name, tk);
+}
+
+function parseInt(start, tk, owner)
+{
+    using static newIntSingle;
+    using static newIntArray;
+    return parseDeclareHelper(newIntSingle, newIntArray, start, tk, owner);
+}
+
+//*********************************************
+
+class FloatStatement : DeclareSingleStatement
+{
+    function FloatStatement(start, owner, name, tk)
+    {
+        self.DeclareSingleStatement(start, owner, name, REGfloat, tk);
+    }
+}
+
+class FloatArrayStatement : DeclareArrayStatement
+{
+    function FloatArrayStatement(start, owner, name, tk)
+    {
+        self.DeclareArrayStatement(start, owner, name, REGfloat, 'Float', tk);
+    }
+}
+
+
+function newFloatSingle(start, owner, name, tk)
+{
+    return new FloatStatement(start, owner, name, tk);
+}
+
+function newFloatArray(start, owner, tk, name)
+{
+    return new FloatArrayStatement(start, owner, name, tk);
+}
+
+function parseFloat(start, tk, owner)
+{
+    using static newFloatSingle;
+    using static newFloatArray;
+    return parseDeclareHelper(newFloatSingle, newFloatArray, start, tk, owner);
+}
+
+//*********************************************
+
+class StringStatement : DeclareSingleStatement
+{
+    function StringStatement(start, owner, name, tk)
+    {
+        self.DeclareSingleStatement(start, owner, name, REGstring, tk);
+    }
+}
+
+class StringArrayStatement : DeclareArrayStatement
+{
+    function StringArrayStatement(start, owner, name, tk)
+    {
+        self.DeclareArrayStatement(start, owner, name, REGstring, 'String', tk);
+    }
+}
+
+
+function newStringSingle(start, owner, name, tk)
+{
+    return new StringStatement(start, owner, name, tk);
+}
+
+function newStringArray(start, owner, tk, name)
+{
+    return new StringArrayStatement(start, owner, name, tk);
+}
+
+function parseString(start, tk, owner)
+{
+    using static newStringSingle;
+    using static newStringArray;
+    return parseDeclareHelper(newStringSingle, newStringArray, start, tk, owner);
 }
 
 //*********************************************
@@ -7431,97 +7562,6 @@ function parseVolatile(start, tk, owner)
     if (!t.iskeyword('var'))
         SyntaxError("invalid volatile type", t);
     return parseVar(start, tk, owner, VAR_is_volatile);
-}
-
-//*********************************************
-//            StringStatement
-//*********************************************
-
-class StringStatement : DeclareStatement
-{
-    function StringStatement(t, tk, owner)
-    {
-        self.t_reg = REGstring;
-        self.t_name = 'string';
-        self.t_array = 'String';
-        self.parse(t, tk, owner);
-    }
-    function defaultinit(var e)
-    {
-        e.emitnull(self.reg);
-    }
-}
-
-function newStringSt(start, tk, owner)
-{
-    return new StringStatement(start, tk, owner);
-}
-
-function parseString(start, tk, owner)
-{
-    using static newStringSt;
-    return parseDeclareHelper(newStringSt, start, tk, owner);
-}
-
-//*********************************************
-//            IntStatement
-//*********************************************
-
-class IntStatement : DeclareStatement
-{
-    function IntStatement(t, tk, owner)
-    {
-        self.t_reg = REGint;
-        self.t_name = 'int';
-        self.t_array = 'Integer';
-        self.parse(t, tk, owner);
-    }
-    function defaultinit(var e)
-    {
-        e.emitnull(self.reg);
-    }
-}
-
-function newIntSt(start, tk, owner)
-{
-    return new IntStatement(start, tk, owner);
-}
-
-function parseInt(start, tk, owner)
-{
-    using static newIntSt;
-    return parseDeclareHelper(newIntSt, start, tk, owner);
-}
-
-//*********************************************
-//            FloatStatement
-//*********************************************
-
-class FloatStatement : DeclareStatement
-{
-    function FloatStatement(t, tk, owner)
-    {
-        self.t_reg = REGfloat;
- 
-        self.t_name = 'float';
-        self.t_array = 'Float';
-        self.parse(t, tk, owner);
-    }
-    function defaultinit(var e)
-    {
-        e.emitnull(self.reg);
-    }
-}
-
-function newFloatSt(start, tk, owner)
-{
-    return new FloatStatement(start, tk, owner);
-}
-
-function parseFloat(start, tk, owner)
-{
-    using static newFloatSt;
-    return parseDeclareHelper(newFloatSt, start, tk, owner);
 }
 
 //*********************************************
