@@ -1125,6 +1125,16 @@ class Predef_print
     }
 }
 
+// invoke is a quick & dirty way to allow use of multiple return values.
+// It's a wrap around the call that gives the signature object returned.
+function Predef_invoke(e, start, string result, args)
+{
+    var arg = args[0];
+    if (! (arg instanceof CallExpr))
+        SyntaxError("invoke argument must be callable", start);
+    arg.emit(e, "(" + result + " :call_sig)");
+}
+
 function predefeval_length(var owner, var start, var args)
 {
     var arg = args[0].arg;
@@ -1221,6 +1231,7 @@ function getpredefs()
     using predefeval_substr_l;
     using predefeval_indexof;
     using predefeval_indexof_pos;
+    using static Predef_invoke;
 
     var predefs = [
         new PredefFunction('int',
@@ -1505,6 +1516,10 @@ function getpredefs()
         new PredefFunction('cry',
             new Predef_cry(),
             REGnone, REGarglist
+        ),
+        new PredefFunction('invoke',
+            Predef_invoke,
+            REGvar, REGraw1
         )
     ];
     for (;;)
