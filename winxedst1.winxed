@@ -7028,13 +7028,8 @@ class TryStatement : BlockStatement
                         var arg = modif.getarg(i);
                         push(argregs, arg.emit_get(e));
                     }
-                    e.print(INDENT, reghandler, ".'", modifname, "'(");
-                    string sep = '';
-                    for (string argreg in argregs) {
-                        e.print(sep, argreg);
-                        sep = ', ';
-                    }
-                    e.say(")");
+                    e.say(INDENT, reghandler, ".'", modifname,
+                            "'(", join(', ', argregs), ")");
                     break;
                 default:
                     SyntaxError('Unexpected modifier in try', self.start);
