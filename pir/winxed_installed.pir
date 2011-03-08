@@ -9,8 +9,7 @@
 .namespace [ 'WinxedDriverOptions' ]
 
 .sub 'WinxedDriverOptions' :method
-.param pmc __ARG_1
-
+        .param pmc __ARG_1
 .annotate 'file', 'winxed_installed.winxed'
 .annotate 'line', 17
 # Body
@@ -110,8 +109,7 @@
 
 
 .sub 'getbool' :method
-.param string __ARG_1
-
+        .param string __ARG_1
 .annotate 'line', 36
 # Body
 # {
@@ -130,8 +128,7 @@
 
 
 .sub 'getstring' :method
-.param string __ARG_1
-
+        .param string __ARG_1
 .annotate 'line', 41
 # Body
 # {
@@ -156,7 +153,6 @@
 
 
 .sub 'showhelp' :method
-
 .annotate 'line', 49
 # Body
 # {
@@ -232,7 +228,7 @@
 .annotate 'line', 66
 # predefined length
     length $I3, $S1
-sub $I2, $I1, $I3
+    sub $I2, $I1, $I3
 .annotate 'line', 67
     repeat $S2, ' ', $I2
     $P2 = $P1[1]
@@ -265,9 +261,8 @@ sub $I2, $I1, $I3
 .namespace [ ]
 
 .sub 'extname'
-.param string __ARG_1
-.param string __ARG_2
-
+        .param string __ARG_1
+        .param string __ARG_2
 .annotate 'line', 73
 # Body
 # {
@@ -287,7 +282,7 @@ sub $I2, $I1, $I3
  __label_2:
     unless $I2 goto __label_0
 .annotate 'line', 80
-sub $I3, $I1, 7
+    sub $I3, $I1, 7
 # predefined substr
     substr $S3, __ARG_1, 0, $I3
     concat $S0, $S3, __ARG_2
@@ -307,15 +302,14 @@ sub $I3, $I1, 7
 
 
 .sub 'main' :main
-.param pmc __ARG_1
-
+        .param pmc __ARG_1
 .annotate 'line', 86
 # Body
 # {
 .annotate 'line', 88
 # var optionset: $P1
     new $P1, [ 'WinxedDriverOptions' ]
-$P1.'WinxedDriverOptions'(__ARG_1)
+    $P1.'WinxedDriverOptions'(__ARG_1)
 .annotate 'line', 90
 # help: $I1
     $P16 = $P1.'getbool'('help')
@@ -440,8 +434,8 @@ $P1.'WinxedDriverOptions'(__ARG_1)
 .annotate 'line', 127
 # var compileoptions: $P10
     root_new $P10, ['parrot';'Hash']
-$P10["noan"] = $I4
-$P10["nowarn"] = $I3
+    $P10["noan"] = $I4
+    $P10["nowarn"] = $I3
 .annotate 'line', 129
     unless_null $S1, __label_10
 # {
@@ -575,7 +569,7 @@ $P10["nowarn"] = $I3
 # try: create handler
     new $P16, 'ExceptionHandler'
     set_label $P16, __label_25
-$P16.'handle_types_except'(64)
+    $P16.'handle_types_except'(64)
     push_eh $P16
 # try: begin
 # {

@@ -9,8 +9,7 @@
 .namespace [ ]
 
 .sub 'loadData'
-.param string __ARG_1
-
+        .param string __ARG_1
 .annotate 'file', 'setup.winxed'
 .annotate 'line', 26
 # Body
@@ -61,8 +60,7 @@
 
 
 .sub 'main' :main
-.param pmc __ARG_1
-
+        .param pmc __ARG_1
 .annotate 'line', 41
 # Body
 # {
