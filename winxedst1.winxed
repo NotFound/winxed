@@ -7648,25 +7648,21 @@ class RegisterStore
     var nreg;
     var tempreg;
     var freereg;
-    function init [vtable]()
+    function RegisterStore(string type)
     {
+        self.type = type;
         // Registers number 0 are reserved for temporary usage in predefs.
         self.nreg = 1;
         string tempreg[];
         string freereg[];
-        self.tempreg= tempreg;
-        self.freereg= freereg;
-    }
-    function settype(string type)
-    {
-        self.type = type;
-        return self;
+        self.tempreg = tempreg;
+        self.freereg = freereg;
     }
     function createreg()
     {
         var n = self.nreg;
         int i = n;
-        string reg= i++;
+        string reg = i++;
         n =: i;
         string type = self.type;
         reg = '$' + type + reg;
@@ -7678,9 +7674,9 @@ class RegisterStore
         var tempreg = self.tempreg;
         string reg;
         if (elements(freereg) > 0)
-            reg= freereg.pop();
+            reg = freereg.pop();
         else
-            reg= self.createreg();
+            reg = self.createreg();
         push(tempreg, reg);
         return reg;
     }
@@ -7723,10 +7719,10 @@ class FunctionBase : BlockStatement
         self.Statement(start, owner);
         self.params = [];
         self.nlabel= 0;
-        self.regstI = new RegisterStore().settype(REGint);
-        self.regstN = new RegisterStore().settype(REGfloat);
-        self.regstS = new RegisterStore().settype(REGstring);
-        self.regstP = new RegisterStore().settype(REGvar);
+        self.regstI = new RegisterStore(REGint);
+        self.regstN = new RegisterStore(REGfloat);
+        self.regstS = new RegisterStore(REGstring);
+        self.regstP = new RegisterStore(REGvar);
     }
 
     function getouter() { return self; }
