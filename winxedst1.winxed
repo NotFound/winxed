@@ -8514,8 +8514,9 @@ class NamespaceBase : VarContainer
     var items;
     var owner;
 
-    function init [vtable] ()
+    function NamespaceBase(nspath)
     {
+        self.nspath = nspath;
         self.namespaces= [];
         self.classes= [];
         self.functions = [];
@@ -8716,7 +8717,7 @@ class NamespaceStatement : NamespaceBase
     {
         var nspath = clone(parent.getpath());
         push(nspath, name);
-        self.nspath = nspath;
+        self.NamespaceBase(nspath);
 
         self.parent= parent;
         self.start = start;
@@ -8811,7 +8812,7 @@ class RootNamespace : NamespaceBase
     function RootNamespace(unit)
     {
         string nspath[];
-        self.nspath = nspath;
+        self.NamespaceBase(nspath);
         self.unit = unit;
         self.predefs_used = {};
         self.subidgen = 0;
