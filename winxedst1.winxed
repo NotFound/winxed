@@ -1569,9 +1569,11 @@ function findpredef(string name, int nargs)
 
 function optimize_array(var arr)
 {
-    int n = elements(arr);
-    for (int i= 0; i < n; ++i)
-        arr[i] = arr[i].optimize();
+    if (arr != null) {
+        int n = elements(arr);
+        for (int i= 0; i < n; ++i)
+            arr[i] = arr[i].optimize();
+    }
 }
 
 function parseDotted(tk)
@@ -1679,9 +1681,7 @@ class SimpleArgList
 
     function optimizeargs()
     {
-        var args = self.args;
-        if (args != null)
-            optimize_array(args);
+        optimize_array(self.args);
     }
     function getargvalues(var e)
     {
@@ -2062,9 +2062,7 @@ class PiropStatement : Statement
     }
     function optimize()
     {
-        var args = self.args;
-        if (args != null)
-            optimize_array(args);
+        optimize_array(self.args);
         return self;
     }
     function emit(e)
@@ -2077,7 +2075,6 @@ class PiropStatement : Statement
         if (args == null)
             e.say(opname);
         else {
-            e.print(opname, ' ');
             var argreg = [];
             int nargs = elements(args);
             for (int i= 0; i < nargs; ++i) {
@@ -2085,7 +2082,7 @@ class PiropStatement : Statement
                 string reg = a.emit_get(e);
                 push(argreg, reg);
             }
-            e.say(join(', ', argreg));
+            e.say(opname, ' ', join(', ', argreg));
         }
     }
 }
@@ -4554,9 +4551,7 @@ class ArgumentList
     }
     function optimize()
     {
-        var args = self.args;
-        if (args != null)
-            optimize_array(args);
+        optimize_array(self.args);
         return self;
     }
     function getargvalues(var e)
@@ -5337,9 +5332,7 @@ class NewBaseExpr : Expr
     }
     function optimize()
     {
-        var initializer = self.initializer;
-        if (initializer != null)
-            optimize_array(initializer);
+        optimize_array(self.initializer);
         return self;
     }
 }
@@ -5384,9 +5377,7 @@ class NewExpr : NewBaseExpr
             }
         }
 
-        var initializer = self.initializer;
-        if (initializer != null)
-            optimize_array(self.initializer);
+        optimize_array(self.initializer);
         return self;
     }
     function emit(e, result, int is_init[optional])
@@ -7225,11 +7216,9 @@ class DeclareArrayStatement : DeclareBase
     }
     function optimize()
     {
-        var init = self.initarray;
         if (self.size != null)
             self.size = self.size.optimize();
-        if (init != null)
-            optimize_array(init);
+        optimize_array(self.initarray);
         return self;
     }
     function emit(e)
