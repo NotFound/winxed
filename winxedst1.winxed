@@ -4571,8 +4571,8 @@ class ArgumentList
                     if (pnull == '') {
                         pnull = self.owner.tempreg(REGvar);
                         e.emitnull(pnull);
-                        reg = pnull;
                     }
+                    reg = pnull;
                 }
                 else
                     reg = a.emit_get(e);
