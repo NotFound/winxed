@@ -4699,6 +4699,7 @@ class CallPredefExpr : Expr
                       case REGstring:
                         argr = self.tempreg(paramtype);
                         e.emitnull(argr);
+                        break;
                       default:
                         if (pnull == '') {
                             pnull = self.tempreg(REGvar);
