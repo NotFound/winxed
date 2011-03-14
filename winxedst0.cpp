@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 28-feb-2011
+// Revision 14-mar-2011
 
 // Winxed compiler stage 0.
 
@@ -5708,17 +5708,30 @@ void ThrowStatement::emit (Emit &e)
 {
     e.annotate(pos);
 
+    char type = excep->checkresult();
+    std::string op;
+    switch (type)
+    {
+    case REGvar:
+        op = "throw";
+        break;
+    case REGstring:
+        op = "die";
+        break;
+    default:
+        throw SyntaxError("Invalid throw argument", pos);
+    }
     if (excep->issimple() )
     {
-        e << "throw ";
+        e << op << ' ';
         excep->emit(e, std::string());
         e << '\n';
     }
     else
     {
-        std::string reg= gentemp(REGvar);
+        std::string reg= gentemp(type);
         excep->emit(e, reg);
-        e << "throw " << reg << '\n';
+        e << op << ' ' << reg << '\n';
     }
 }
 

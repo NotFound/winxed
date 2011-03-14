@@ -6936,9 +6936,19 @@ class ThrowStatement : Statement
     }
     function emit(e)
     {
-        string reg = self.excep.emit_get(e);
+        var excep = self.excep;
+        string reg = excep.emit_get(e);
         self.annotate(e);
-        e.emitarg1('throw', reg);
+        switch (excep.checkresult()) {
+          case REGvar:
+            e.emitarg1('throw', reg);
+            break;
+          case REGstring:
+            e.emitarg1('die', reg);
+            break;
+          default:
+            SyntaxError("Invalid throw argument", self.start);
+        }
     }
 }
 
