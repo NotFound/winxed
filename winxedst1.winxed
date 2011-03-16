@@ -6727,11 +6727,19 @@ class SwitchStatement : Breakable, Statement
                 type = REGvar;
         }
         // Evaluate condition
+        var condition = self.condition;
+        var condtype = condition.checkresult();
+
+        // This can happen if there isn't any case. Not likely in hand
+        // written code but allowing it may simplify code generators.
+        if (type == '')
+            type = condtype;
+
         string reg = self.tempreg(type);
-        if (self.condition.checkresult() == type)
-            self.condition.emit(e, reg);
+        if (condtype == type)
+            condition.emit(e, reg);
         else {
-            string regcond = self.condition.emit_get(e);
+            string regcond = condition.emit_get(e);
             e.emitset(reg, regcond);
         }
 
