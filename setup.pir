@@ -10,10 +10,9 @@
 
 .sub 'loadData'
         .param string __ARG_1
-.annotate 'file', 'setup.winxed'
-.annotate 'line', 26
 # Body
 # {
+.annotate 'file', 'setup.winxed'
 .annotate 'line', 28
 # var json: $P1
 # predefined load_language
@@ -61,7 +60,6 @@
 
 .sub 'main' :main
         .param pmc __ARG_1
-.annotate 'line', 41
 # Body
 # {
 .annotate 'line', 44

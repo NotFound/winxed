@@ -10,10 +10,9 @@
 
 .sub 'WinxedDriverOptions' :method
         .param pmc __ARG_1
-.annotate 'file', 'winxed_installed.winxed'
-.annotate 'line', 17
 # Body
 # {
+.annotate 'file', 'winxed_installed.winxed'
 .annotate 'line', 19
 # var options: $P1
     root_new $P1, ['parrot';'ResizablePMCArray']
@@ -110,7 +109,6 @@
 
 .sub 'getbool' :method
         .param string __ARG_1
-.annotate 'line', 36
 # Body
 # {
 .annotate 'line', 38
@@ -129,7 +127,6 @@
 
 .sub 'getstring' :method
         .param string __ARG_1
-.annotate 'line', 41
 # Body
 # {
 .annotate 'line', 43
@@ -153,7 +150,6 @@
 
 
 .sub 'showhelp' :method
-.annotate 'line', 49
 # Body
 # {
 .annotate 'line', 51
@@ -263,7 +259,6 @@
 .sub 'extname'
         .param string __ARG_1
         .param string __ARG_2
-.annotate 'line', 73
 # Body
 # {
 .annotate 'line', 77
@@ -303,7 +298,6 @@
 
 .sub 'main' :main
         .param pmc __ARG_1
-.annotate 'line', 86
 # Body
 # {
 .annotate 'line', 88
