@@ -7713,6 +7713,91 @@ class RegisterStore
 }
 
 //*********************************************
+//            FunctionParameter
+//*********************************************
+
+class FunctionParameter
+{
+    var name;
+    var modifiers;
+    function FunctionParameter(func, tk)
+    {
+        var t = tk.get();
+        string type = typetoregcheck(t.checkkeyword());
+        if (type != '')
+            t = tk.get();
+        else
+            type = REGvar;
+        string argname = '__ARG_' + string(func.getparamnum());
+        func.createvarnamed(t, type, argname);
+
+        self.name = string(t);
+        t = tk.get();
+        if (t.isop('['))
+            self.modifiers = new ModifierList(tk, self);
+        else
+            tk.unget(t);
+    }
+    function emit(func, e)
+    {
+        string paramname = self.name;
+        var param = func.getvar(paramname);
+        string ptype = typetopirname(param.gettype());
+        e.print('        .param ', ptype, ' ', param.getreg());
+        var modarg = self.modifiers;
+        if (modarg != null) {
+            var named = null;
+            var slurpy = null;
+            var modarglist = modarg.getlist();
+            for (var mod in modarglist) {
+                string modname = mod.getname();
+                switch (modname) {
+                  case 'named':
+                    named = mod;
+                    break;
+                  case 'slurpy':
+                    slurpy = mod;
+                    break;
+                  default:
+                    e.print(' :', modname);
+                }
+            }
+            if (named != null && slurpy != null) {
+                // Special case for named slurpy: named refers
+                // to the slurpy content, not to the param himself.
+                // TODO: check that named has no arguments,
+                // or use a different way.
+                e.print(" :named :slurpy");
+            }
+            else {
+                if (named != null) {
+                    string setname;
+                    int nargs = named.numargs();
+                    switch (nargs) {
+                      case 0:
+                        setname = "'" + paramname + "'";
+                        break;
+                      case 1:
+                        var argmod = named.getarg(0);
+                        if (! argmod.isstringliteral())
+                            SyntaxError('Invalid modifier', func.start);
+                        setname = argmod.getPirString();
+                        break;
+                      default:
+                        SyntaxError('Invalid modifier', func.start);
+                    }
+                    e.print(" :named(", setname, ")");
+                }
+                else if (slurpy != null) {
+                    e.print(" :slurpy");
+                }
+            }
+        }
+        e.say('');
+    }
+}
+
+//*********************************************
 //            FunctionBase
 //*********************************************
 
@@ -7768,25 +7853,8 @@ class FunctionBase : BlockStatement
         if (! t.isop(')')) {
             tk.unget(t);
             do {
+                push(params, new FunctionParameter(self, tk));
                 t = tk.get();
-                string type = typetoregcheck(t.checkkeyword());
-                if (type != '')
-                    t = tk.get();
-                else
-                    type = REGvar;
-                string argname = '__ARG_' + string(self.getparamnum());
-                self.createvarnamed(t, type, argname);
-
-                string varname = t;
-                var arg = { };
-                arg['name'] = varname;
-                t = tk.get();
-                if (t.isop('[')) {
-                    var modifiers = new ModifierList(tk, self);
-                    arg['modifiers'] = modifiers;
-                    t = tk.get();
-                }
-                push(params, arg);
             } while (t.isop(','));
             if (!t.isop(')'))
                 Expected("')' or ','", t);
@@ -7947,82 +8015,26 @@ class FunctionBase : BlockStatement
         }
         e.say();
 
-        var params = self.params;
-        var param;
-        string paramname;
-        var a;
+        // Parameters
+        for (var param in self.params)
+            param.emit(self, e);
 
-        for (param in params) {
-            paramname = param['name'];
-            a = self.getvar(paramname);
-            string ptype = typetopirname(a.gettype());
-            e.print('        .param ', ptype, ' ', a.getreg());
-            var modarg = param['modifiers'];
-            if (modarg != null) {
-                var named = null;
-                var slurpy = null;
-                var modarglist = modarg.getlist();
-                for (var mod in modarglist) {
-                    string modname = mod.getname();
-                    switch (modname) {
-                    case 'named':
-                        named = mod;
-                        break;
-                    case 'slurpy':
-                        slurpy = mod;
-                        break;
-                    default:
-                        e.print(' :', modname);
-                    }
-                }
-                if (named != null && slurpy != null) {
-                    // Special case for named slurpy: named refers
-                    // to the slurpy content, not to the param himself.
-                    // TODO: check that named has no arguments,
-                    // or use a different way.
-                    e.print(" :named :slurpy");
-                }
-                else {
-                    if (named != null) {
-                        string setname;
-                        int nargs = named.numargs();
-                        switch (nargs) {
-                        case 0:
-                            setname = "'" + paramname + "'";
-                            break;
-                        case 1:
-                            var argmod = named.getarg(0);
-                            if (! argmod.isstringliteral())
-                                SyntaxError('Invalid modifier', self.start);
-                            setname = argmod.getPirString();
-                            break;
-                        default:
-                            SyntaxError('Invalid modifier', self.start);
-                        }
-                        e.print(" :named(", setname, ")");
-                    }
-                    else if (slurpy != null) {
-                        e.print(" :slurpy");
-                    }
-                }
-            }
-            e.say('');
-        }
-        e.annotate(self.start);
-
-        // lexicals declared in this function and its inner scopes
         var lexicals = self.lexicals;
-        if (lexicals != null)
-        {
-            for (string l in lexicals)
-                e.say(".lex '", lexicals[l], "', ", l);
-        }
-        // lexicals from outers used inside
-        lexicals = self.usedlexicals;
-        if (lexicals != null)
-        {
-            for (string l in lexicals)
-                e.emitfind_lex(l, lexicals[l]);
+        var usedlexicals = self.usedlexicals;
+        if (lexicals != null || usedlexicals != null) {
+            e.annotate(self.start);
+            // lexicals declared in this function and its inner scopes
+            if (lexicals != null)
+            {
+                for (string l in lexicals)
+                    e.say(".lex '", lexicals[l], "', ", l);
+            }
+            // lexicals from outers used inside
+            if (usedlexicals != null)
+            {
+                for (string l in usedlexicals)
+                    e.emitfind_lex(l, usedlexicals[l]);
+            }
         }
 
         var body = self.body;
