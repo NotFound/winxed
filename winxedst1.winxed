@@ -6975,9 +6975,8 @@ class TryStatement : BlockStatement
     {
         self.Statement(start, owner);
         var t = tk.get();
-        if (t.isop('[')) {
+        if (t.isop('['))
             self.modifiers = new ModifierList(tk, self);
-        }
         else
             tk.unget(t);
 
@@ -8100,8 +8099,7 @@ class FunctionStatement : FunctionBase
         self.name = name;
         var t = tk.get();
         if (t.isop('[')) {
-            var modifiers = new ModifierList(tk, self);
-            self.modifiers = modifiers;
+            self.modifiers = new ModifierList(tk, self);
             t = tk.get();
         }
         RequireOp('(', t);
