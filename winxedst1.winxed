@@ -4564,9 +4564,8 @@ class ArgumentList
                         modifier = new ModifierList(tk, owner);
                         t = tk.get();
                     }
-                    else {
-                        InternalError('Checking implementation');
-                    }
+                    else
+                        Expected('modifier list', t);
                 }
                 push(args, new Argument(expr, modifier));
             } while (t.isop(','));
