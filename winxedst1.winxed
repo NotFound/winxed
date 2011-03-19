@@ -3489,6 +3489,18 @@ class OpModToExpr : OpBaseAssignExpr
 class ComparatorBaseExpr : OpBinaryExpr
 {
     function checkresult() { return REGint; }
+    function optimize()
+    {
+        self.optimizearg();
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        if (lexpr.isintegerliteral() && rexpr.isintegerliteral()) {
+            int li = int(lexpr.numval);
+            int ri = int(rexpr.numval);
+            return integerValue(self.owner, self.start, self.int_op(li, ri));
+        }
+        return self;
+    }
     function emit_comparator(e, result, int doifelse[optional])
     {
         string rl = self.lexpr.checkresult();
@@ -3624,10 +3636,17 @@ class OpEqualExpr : ComparatorBaseExpr
         if (lexpr.isliteral() && rexpr.isliteral()) {
             string ltype = lexpr.checkresult();
             string rtype = rexpr.checkresult();
-            if (ltype == REGstring && rtype == REGstring) {
-                string ls = (lexpr.strval).str;
-                string rs = (rexpr.strval).str;
-                return integerValue(self.owner, self.start, ls == rs);
+            if (ltype == rtype) {
+                switch (ltype) {
+                  case REGint:
+                    int li = int(lexpr.numval);
+                    int ri = int(rexpr.numval);
+                    return integerValue(self.owner, self.start, li == ri);
+                  case REGstring:
+                    string ls = (lexpr.strval).str;
+                    string rs = (rexpr.strval).str;
+                    return integerValue(self.owner, self.start, ls == rs);
+                }
             }
         }
         return self;
@@ -3677,10 +3696,17 @@ class OpNotEqualExpr : ComparatorBaseExpr
         if (lexpr.isliteral() && rexpr.isliteral()) {
             string ltype = lexpr.checkresult();
             string rtype = rexpr.checkresult();
-            if (ltype == REGstring && rtype == REGstring) {
-                string ls = (lexpr.strval).str;
-                string rs = (rexpr.strval).str;
-                return integerValue(self.owner, self.start, ls != rs);
+            if (ltype == rtype) {
+                switch (ltype) {
+                  case REGint:
+                    int li = int(lexpr.numval);
+                    int ri = int(rexpr.numval);
+                    return integerValue(self.owner, self.start, li != ri);
+                  case REGstring:
+                    string ls = (lexpr.strval).str;
+                    string rs = (rexpr.strval).str;
+                    return integerValue(self.owner, self.start, ls != rs);
+                }
             }
         }
         return self;
@@ -3719,6 +3745,10 @@ class OpSameExpr : ComparatorBaseExpr
         int positive = self.positive;
         return new OpSameExpr(! positive, self.owner, self.start, self.lexpr, self.rexpr);
     }
+    function int_op(int left, int right)
+    {
+        return self.positive ? (left == right) : (left != right);
+    }
     function emitop(e, string result, string regl, string regr)
     {
         int positive = self.positive;
@@ -3752,6 +3782,10 @@ class OpLessExpr : ComparatorBaseExpr
     {
         return new OpGreaterEqualExpr().setfrom(self);
     }
+    function int_op(int left, int right)
+    {
+        return left < right;
+    }
     function emitop(e, string result, string regl, string regr)
     {
         e.emitbinop('islt', result, regl, regr);
@@ -3774,6 +3808,10 @@ class OpGreaterExpr : ComparatorBaseExpr
     function negated()
     {
         return new OpLessEqualExpr().setfrom(self);
+    }
+    function int_op(int left, int right)
+    {
+        return left > right;
     }
     function emitop(e, string result, string regl, string regr)
     {
@@ -3798,6 +3836,10 @@ class OpLessEqualExpr : ComparatorBaseExpr
     {
         return new OpGreaterExpr().setfrom(self);
     }
+    function int_op(int left, int right)
+    {
+        return left <= right;
+    }
     function emitop(e, string result, string regl, string regr)
     {
         e.emitbinop('isle', result, regl, regr);
@@ -3820,6 +3862,10 @@ class OpGreaterEqualExpr : ComparatorBaseExpr
     function negated()
     {
         return new OpLessExpr().setfrom(self);
+    }
+    function int_op(int left, int right)
+    {
+        return left >= right;
     }
     function emitop(e, string result, string regl, string regr)
     {
