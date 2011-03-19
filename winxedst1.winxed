@@ -8503,19 +8503,32 @@ function include_parrot(var start, var tk, var ns)
     if (file.is_closed())
         SyntaxError('File not found', t);
 
-    // Use a regular expression to check lines like:
-    // .macro_const CONST_NAME value
+    // Parse lines like this: .macro_const CONST_NAME value
     // Assume only integer values for a now
-    using extern PGE;
-    var regexcomp = compreg('PGE::P5Regex');
-    var rule = regexcomp('^\.macro_const\s+([A-Za-z0-9_]+)\s+(\S+)');
-
+    const string MACRO_CONST = '.macro_const';
     for (string line = file.readline(); !file.eof(); line = file.readline()) {
-        string matches[];
-        matches = rule(line);
-        if (elements(matches) > 0) {
-            string name = matches[0];
-            string value = matches[1];
+        if (substr(line, 0, length(MACRO_CONST)) == MACRO_CONST) {
+            int pos = length(MACRO_CONST);
+            string c;
+            while ((c = substr(line, pos, 1)) == " " || c == "\t")
+                ++pos;
+            int pos2 = pos;
+            while ((c = substr(line, pos2, 1)) != " " && c != "\t" &&
+                    c != "\n" && c != "\r" && c != "")
+                ++pos2;
+            if (pos2 == pos)
+                continue;
+            string name = substr(line, pos, pos2 - pos);
+            while ((c = substr(line, pos2, 1)) == " " || c == "\t")
+                ++pos2;
+            pos = pos2;
+            while ((c = substr(line, pos2, 1)) != " " && c != "\t" &&
+                    c != "\n" && c != "\r" && c != "")
+                ++pos2;
+            if (pos2 == pos)
+                continue;
+            string value = substr(line, pos, pos2- pos);
+
             int ivalue;
             if (substr(value, 0, 2) == '0x' || substr(value, 0, 2) == '0X')
                 ivalue = substr(value, 2).to_int(16);
@@ -8527,6 +8540,7 @@ function include_parrot(var start, var tk, var ns)
                     '');
         }
     }
+
     file.close();
 }
 
