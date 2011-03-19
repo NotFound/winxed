@@ -4592,10 +4592,10 @@ class ArgumentList
         for (int i = 0; i < n; ++i) {
             string a = argreg[i];
             e.print(sep, a);
-            int isflat = 0, isnamed = 0;
-            string setname = '';
             var modifiers = args[i].modifiers;
             if (modifiers != null) {
+                int isflat = 0, isnamed = 0;
+                string setname = '';
                 for (var modif in modifiers.getlist()) {
                     string name = modif.getname();
                     if (name == 'flat')
@@ -4616,15 +4616,17 @@ class ArgumentList
                         }
                     }
                 }
-            }
-            if (isflat && isnamed)
-                e.print(' :flat :named');
-            else if (isflat)
-                e.print(' :flat');
-            else if (isnamed) {
-                e.print(' :named');
-                if (setname != '')
-                    e.print("(", setname, ")");
+                if (isflat) {
+                    if (isnamed)
+                        e.print(' :flat :named');
+                    else
+                        e.print(' :flat');
+                }
+                else if (isnamed) {
+                    e.print(' :named');
+                    if (setname != '')
+                        e.print("(", setname, ")");
+                }
             }
             sep = ', ';
         }
