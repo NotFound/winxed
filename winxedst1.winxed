@@ -3407,7 +3407,7 @@ class OpSubToExpr : OpBaseAssignExpr
         self.annotate(e);
         switch (ltype) {
           case REGstring:
-            InternalError('-= to string must not happen', self.start);
+            SyntaxError("-= can't be applied to string", self.start);
           case REGint:
           case REGfloat:
             if (ltype != rtype) {
