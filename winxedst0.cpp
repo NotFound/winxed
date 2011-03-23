@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 14-mar-2011
+// Revision 23-mar-2011
 
 // Winxed compiler stage 0.
 
@@ -58,17 +58,19 @@ char nativetype(const Token &name)
 
 //**********************************************************************
 
+#define INDENT "    "
+
 inline
 std::string op(const char *name, const std::string &op1)
 {
-    return std::string(name) + ' ' + op1;
+    return INDENT + std::string(name) + ' ' + op1;
 }
 
 inline
 std::string op(const char *name,
     const std::string &op1, const std::string &op2)
 {
-    return std::string(name) + ' ' + op1 + ", " + op2;
+    return INDENT + std::string(name) + ' ' + op1 + ", " + op2;
 }
 
 inline
@@ -76,7 +78,19 @@ std::string op(const char *name,
     const std::string &op1,
     const std::string &op2, const std::string &op3)
 {
-    return std::string(name) + ' ' + op1 + ", " + op2 + ", " + op3;
+    return INDENT + std::string(name) + ' ' + op1 + ", " + op2 + ", " + op3;
+}
+
+inline
+std::string op_inc(const std::string &op1)
+{
+    return op("inc", op1);
+}
+
+inline
+std::string op_dec(const std::string &op1)
+{
+    return op("dec", op1);
 }
 
 inline
@@ -302,7 +316,7 @@ private:
     {
         const size_t n = args.size();
         for (size_t i= 0; i < n; ++i)
-            e << "print " << args[i] << '\n';
+            e << INDENT "print " << args[i] << '\n';
     }
 };
 
@@ -318,11 +332,11 @@ private:
         const size_t n = args.size();
         if (n > 0) {
             for (size_t i= 0; i < n - 1; ++i)
-                e << "print " << args[i] << '\n';
-            e << "say " << args[n-1] << '\n';
+                e << INDENT "print " << args[i] << '\n';
+            e << INDENT "say " << args[n-1] << '\n';
         }
         else
-            e << "say ''\n";
+            e << INDENT "say ''\n";
     }
 };
 
@@ -336,11 +350,11 @@ private:
         const std::vector<std::string> args) const
     {
         e <<
-            "getstderr $P0\n";
+            INDENT "getstderr $P0\n";
         const size_t n = args.size();
         for (size_t i= 0; i < n; ++i)
-            e << "$P0.'print'(" << args[i] << ")\n";
-        e << "$P0.'print'(\"\\n\")\n";
+            e << INDENT "$P0.'print'(" << args[i] << ")\n";
+        e << INDENT "$P0.'print'(\"\\n\")\n";
     }
 };
 
@@ -535,7 +549,14 @@ void PredefFunctionFixargs::emit(Emit &e, const std::string &result,
     if (n > 3)
         while ((pos= body.find("{arg3}")) != std::string::npos)
             body= body.replace(pos, 6, args[3]);
-    e << body << '\n';
+    pos = 0;
+    size_t prev = 0;
+    while ((pos = body.find("\n", prev)) != std::string::npos)
+    {
+        e << INDENT << body.substr(prev, pos - prev + 1);
+	prev = pos + 1;
+    }
+    e << INDENT << body.substr(prev) << '\n';
 }
 
 //**********************************************************************
@@ -1206,7 +1227,7 @@ public:
 private:
     void emit (Emit &e)
     {
-        e << "load_bytecode '" << n << ".pbc'\n";
+        e << INDENT "load_bytecode '" << n << ".pbc'\n";
     }
 
     std::string n;
@@ -1489,7 +1510,7 @@ private:
         if (args)
             args->prepare(e);
         e.annotate(start);
-        e << opname;
+        e << INDENT << opname;
         if (args) {
             e << ' ';
             args->emit(e);
@@ -1688,7 +1709,7 @@ public:
 private:
     void emit (Emit &e)
     {
-        e << "goto " << getbreaklabel() << " # break\n";
+        e << INDENT "goto " << getbreaklabel() << " # break\n";
     }
 };
 
@@ -1705,7 +1726,7 @@ public:
 private:
     void emit (Emit &e)
     {
-        e << "goto " << getcontinuelabel() << " # continue\n";
+        e << INDENT "goto " << getcontinuelabel() << " # continue\n";
     }
 };
 
@@ -2056,7 +2077,7 @@ LabelStatement::LabelStatement(Block &block, const std::string &name) :
 
 void LabelStatement::emit (Emit &e)
 {
-    e << codename << ":"
+    e << "  " << codename << ":"
         " # " << labelname << '\n';
 }
 
@@ -2078,7 +2099,7 @@ void GotoStatement::emit (Emit &e)
 {
     e.annotate(start);
     e <<
-        "goto " << bl.getnamedlabel(labelname) <<
+        INDENT "goto " << bl.getnamedlabel(labelname) <<
         " # " << labelname << '\n';
 }
 
@@ -2186,7 +2207,7 @@ private:
     void emit(Emit &e, const std::string &result)
     {
         if (!result.empty() )
-            e << result << " = ";
+            e << INDENT << result << " = ";
         e << t.pirliteralstring();
         if (!result.empty() )
             e << '\n';
@@ -2216,7 +2237,7 @@ private:
     void emit(Emit &e, const std::string &result)
     {
         if (!result.empty() )
-            e << result << " = ";
+            e << INDENT << result << " = ";
         e << getintegervalue();
         if (!result.empty() )
             e << '\n';
@@ -2300,7 +2321,7 @@ Expr *IdentifierExpr::optimize()
 void IdentifierExpr::emit(Emit &e, const std::string &result)
 {
     if (!result.empty() )
-        e << result << " = ";
+        e << INDENT << result << " = ";
     e << getidentifier();
     if (! result.empty() )
         e << '\n';
@@ -2369,7 +2390,7 @@ private:
         expr->emit(e, arg);
         std::string r= result.empty() ? gentemp(REGint) : result;
         annotate(e);
-        e << r << " = neg " << arg;
+        e << INDENT << r << " = neg " << arg;
         if (! result.empty() )
             e << '\n';
     }
@@ -2406,6 +2427,7 @@ private:
             gentemp(REGint) :
             result;
         annotate(e);
+	e << INDENT;
         if (expr->isinteger())
             e << "not ";
         else
@@ -2449,7 +2471,7 @@ private:
     {
         std::string var= getvar();
         annotate(e);
-        e << "inc " << var << '\n';
+        e << op_inc(var) << '\n';
         if (! result.empty())
             e << result << " = " << var << '\n';
     }
@@ -2469,7 +2491,7 @@ private:
     {
         std::string var= getvar();
         annotate(e);
-        e << "dec " << var << '\n';
+        e << op_dec(var) << '\n';
         if (! result.empty())
             e << result << " = " << var << '\n';
     }
@@ -2490,8 +2512,8 @@ private:
         std::string var= getvar();
         std::string reg= gentemp(REGint);
         annotate(e);
-        e << reg << " = " << var << "\n"
-            "inc " << var << '\n';
+        e << reg << " = " << var << '\n' <<
+            op_inc(var) << '\n';
         if (! result.empty())
             e << result << " = " << reg << '\n';
     }
@@ -2512,8 +2534,8 @@ private:
         std::string var= getvar();
         std::string reg= gentemp(REGint);
         annotate(e);
-        e << reg << " = " << var << "\n"
-            "dec " << var << '\n';
+        e << reg << " = " << var << '\n' <<
+            op_dec(var) << '\n';
         if (! result.empty())
             e << result << " = " << reg << '\n';
     }
@@ -2649,7 +2671,7 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
             std::string op2= gentemp(rtype);
             lexpr->emit(e, op1);
             rexpr->emit(e, op2);
-            e << res << " = iseq " << op1 << " , " << op2;
+            e << INDENT << res << " = iseq " << op1 << " , " << op2;
         }
         else if (ltype == REGvar && rtype == REGstring)
         {
@@ -2658,8 +2680,8 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
             std::string aux= gentemp(REGvar);
             lexpr->emit(e, aux);
             rexpr->emit(e, op2);
-            e << op1 << " = " << aux << '\n';
-            e << res << " = iseq " << op1 << " , " << op2;
+            e << INDENT << op1 << " = " << aux << '\n';
+            e << INDENT << res << " = iseq " << op1 << " , " << op2;
         }
         else if (ltype == REGstring && rtype == REGvar)
         {
@@ -2668,8 +2690,8 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
             std::string aux= gentemp(REGvar);
             lexpr->emit(e, op1);
             rexpr->emit(e, aux);
-            e << op2 << " = " << aux << '\n';
-            e << res << " = iseq " << op1 << " , " << op2;
+            e << INDENT << op2 << " = " << aux << '\n';
+            e << INDENT << res << " = iseq " << op1 << " , " << op2;
         }
         else
         {
@@ -2703,11 +2725,11 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
             }
             else
                 rexpr->emit(e, op2);
-            e << res << " = iseq " << op1 << " , " << op2;
+            e << INDENT << res << " = iseq " << op1 << " , " << op2;
         }
     }
     if (!result.empty())
-        e << '\n' << result << " = " << res << '\n';
+        e << '\n' << INDENT << result << " = " << res << '\n';
 }
 
 //**********************************************************************
@@ -2752,7 +2774,7 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
         else
             op= lexpr->emit_get(e);
         e << op_isnull(res, op) << '\n' <<
-            "not " << res;
+            INDENT "not " << res;
     }
     else if (lexpr->isinteger() && rexpr->isinteger())
     {
@@ -2760,7 +2782,7 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
         std::string op2= gentemp(REGint);
         lexpr->emit(e, op1);
         rexpr->emit(e, op2);
-        e << res << " = isne " << op1 << " , " << op2;
+        e << INDENT << res << " = isne " << op1 << " , " << op2;
     }
     else if (lexpr->isstring() && rexpr->isstring())
     {
@@ -2768,7 +2790,7 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
         std::string op2= gentemp(REGstring);
         lexpr->emit(e, op1);
         rexpr->emit(e, op2);
-        e << res << " = isne " << op1 << " , " << op2;
+        e << INDENT << res << " = isne " << op1 << " , " << op2;
     }
     else
     {
@@ -2802,10 +2824,10 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
         }
         else
             rexpr->emit(e, op2);
-        e << res << " = isne " << op1 << " , " << op2;
+        e << INDENT << res << " = isne " << op1 << " , " << op2;
     }
     if (!result.empty())
-        e << '\n' << result << " = " << res << '\n';
+        e << '\n' << INDENT << result << " = " << res << '\n';
 }
 
 //**********************************************************************
@@ -2838,10 +2860,10 @@ private:
         lexpr->emit(e, op1);
         rexpr->emit(e, op2);
         std::string res= result.empty() ? gentemp(REGint) : result;
-        e << res << " = " << (positive ? "issame" : "isntsame") <<
+        e << INDENT << res << " = " << (positive ? "issame" : "isntsame") <<
             ' ' << op1 << " , " << op2;
         if (!result.empty())
-            e << '\n' << result << " = " << res << '\n';
+            e << '\n' << INDENT << result << " = " << res << '\n';
     }
     bool positive;
 };
@@ -2877,14 +2899,14 @@ void ComparatorBaseExpr::emit(Emit &e, const std::string &result)
         else {
             std::string aux= gentemp(REGvar);
             lexpr->emit(e, aux);
-            e << op1 << " = " << aux << '\n';
+            e << INDENT << op1 << " = " << aux << '\n';
         }
         if (type2 == REGint)
             rexpr->emit(e, op2);
         else {
             std::string aux= gentemp(REGvar);
             rexpr->emit(e, aux);
-            e << op2 << " = " << aux << '\n';
+            e << INDENT << op2 << " = " << aux << '\n';
         }
         emitop(e, res, op1, op2);
         if (!result.empty())
@@ -2899,14 +2921,14 @@ void ComparatorBaseExpr::emit(Emit &e, const std::string &result)
         else {
             std::string aux= gentemp(REGvar);
             lexpr->emit(e, aux);
-            e << op1 << " = " << aux << '\n';
+            e << INDENT << op1 << " = " << aux << '\n';
         }
         if (type2 == REGstring)
             rexpr->emit(e, op2);
         else {
             std::string aux= gentemp(REGvar);
             rexpr->emit(e, aux);
-            e << op2 << " = " << aux << '\n';
+            e << INDENT << op2 << " = " << aux << '\n';
         }
         emitop(e, res, op1, op2);
         if (!result.empty())
@@ -3023,7 +3045,7 @@ private:
             {
                 rexpr->emit(e, varname);
                 if (! result.empty() )
-                    e << result << " = " << varname << '\n';
+                    e << INDENT << result << " = " << varname << '\n';
                 return;
             }
             switch (type)
@@ -3034,9 +3056,9 @@ private:
                     std::string r= gentemp(REGvar);
                     rexpr->emit(e, r);
                     e.annotate(start);
-                    e << varname << " = " << r << '\n';
+                    e << INDENT << varname << " = " << r << '\n';
                     if (! result.empty() )
-                        e << result << " = " << r << '\n';
+                        e << INDENT << result << " = " << r << '\n';
                 }
                 else {
                     if (result.empty() )
@@ -3046,8 +3068,8 @@ private:
                         std::string r= gentemp(REGint);
                         rexpr->emit(e, r);
                         e.annotate(start);
-                        e << varname << " = " << r << '\n';
-                        e << result << " = " << r << '\n';
+                        e << INDENT << varname << " = " << r << '\n';
+                        e << INDENT << result << " = " << r << '\n';
                     }
                 }
                 break;
@@ -3062,9 +3084,9 @@ private:
                     std::string r= gentemp(REGstring);
                     rexpr->emit(e, r);
                     e.annotate(start);
-                    e << varname << " = " << r << '\n';
+                    e << INDENT << varname << " = " << r << '\n';
                     if (! result.empty() )
-                        e << result << " = " << r << '\n';
+                        e << INDENT << result << " = " << r << '\n';
                 }
                 else {
                     if (result.empty() )
@@ -3074,8 +3096,8 @@ private:
                         std::string r= gentemp(REGstring);
                         rexpr->emit(e, r);
                         e.annotate(start);
-                        e << varname << " = " << r << '\n';
-                        e << result << " = " << r << '\n';
+                        e << INDENT << varname << " = " << r << '\n';
+                        e << INDENT << result << " = " << r << '\n';
                     }
                 }
                 break;
@@ -3088,17 +3110,17 @@ private:
                 else if (rexpr->isinteger() || rexpr->isstring() )
                 {
                     e.annotate(start);
-                    e << "box " << varname << ", ";
+                    e << INDENT "box " << varname << ", ";
                     rexpr->emit(e, std::string());
                     e << '\n';
                     if (! result.empty() )
-                        e << result << " = " << varname << '\n';
+                        e << INDENT << result << " = " << varname << '\n';
                 }
                 else
                 {
                     rexpr->emit(e, varname);
                     if (! result.empty() )
-                        e << result << " = " << varname << '\n';
+                        e << INDENT << result << " = " << varname << '\n';
                 }
             }
         }
@@ -3111,7 +3133,7 @@ private:
                 gentemp(rexpr->checkresult());
             lexpr->emitassign(e, *rexpr, reg);
             if (! result.empty() )
-                e << result << " = " << reg << '\n';
+                e << INDENT << result << " = " << reg << '\n';
         }
     }
 };
@@ -3147,14 +3169,14 @@ private:
                     std::string r= gentemp(type == REGstring ? REGstring : REGvar);
                     rexpr->emit(e, r);
                     e.annotate(start);
-                    e << varname << " = " << r << '\n';
+                    e << INDENT << varname << " = " << r << '\n';
                 }
                 else
                     rexpr->emit(e, varname);
                 break;
             default:
                 e.annotate(start);
-                e << "assign " << varname << ", ";
+                e << INDENT "assign " << varname << ", ";
                 rexpr->emit(e, std::string());
                 e << '\n';
             }
@@ -3195,16 +3217,16 @@ private:
                 std::string reg= gentemp(REGstring);
                 rexpr->emit(e, reg);
                 std::string dest = lexpr->getidentifier();
-                e << "concat " << dest << ", " << dest << ", " << reg << '\n';
+                e << INDENT "concat " << dest << ", " << dest << ", " << reg << '\n';
             }
             else
             {
-                e << "add " << lexpr->getidentifier() << ", ";
+                e << INDENT "add " << lexpr->getidentifier() << ", ";
                 rexpr->emit(e, "");
                 e << '\n';
             }
             if (! result.empty())
-                e << "assign " << result << ", " <<
+                e << INDENT "assign " << result << ", " <<
                     lexpr->getidentifier() << '\n';
         }
     }
@@ -3231,11 +3253,11 @@ private:
     {
         if (lexpr->isidentifier())
         {
-            e << "sub " << lexpr->getidentifier() << ", ";
+            e << INDENT "sub " << lexpr->getidentifier() << ", ";
             rexpr->emit(e, "");
             e << '\n';
             if (! result.empty())
-                e << "assign " << result << ", " <<
+                e << INDENT "assign " << result << ", " <<
                     lexpr->getidentifier() << '\n';
         }
     }
@@ -3295,7 +3317,7 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
         std::string op2= gentemp(REGstring);
         lexpr->emit(e, op1);
         rexpr->emit(e, op2);
-        e << res << " = concat " << op1 << " , " << op2;
+        e << INDENT << res << " = concat " << op1 << " , " << op2;
     }
     else if (isinteger())
     {
@@ -3336,10 +3358,10 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
         switch (lexpr->checkresult() )
         {
         case REGint:
-            e << op1 << " = new 'Integer'\n";
+            e << INDENT << op1 << " = new 'Integer'\n";
             break;
         case REGstring:
-            e << op1 << " = new 'String'\n";
+            e << INDENT << op1 << " = new 'String'\n";
             break;
         default:
             e << op_null(op1) << '\n';
@@ -3347,10 +3369,10 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
         switch (rexpr->checkresult() )
         {
         case REGint:
-            e << op2 << " = new 'Integer'\n";
+            e << INDENT << op2 << " = new 'Integer'\n";
             break;
         case REGstring:
-            e << op2 << " = new 'String'\n";
+            e << INDENT << op2 << " = new 'String'\n";
             break;
         default:
             e << op_null(op2) << '\n';
@@ -3429,14 +3451,14 @@ private:
         {
             lexpr->emit(e, op1);
             rexpr->emit(e, op2);
-            e << res << " = or " << op1 << ", " << op2;
+            e << INDENT << res << " = or " << op1 << ", " << op2;
         }
         else
         {
             std::string l = genlocallabel();
             lexpr->emit(e, res);
             e.annotate(start);
-            e << "if " << res << " goto " << l << '\n';
+            e << INDENT "if " << res << " goto " << l << '\n';
             rexpr->emit(e, res);
             e << l << ":\n";
         }
@@ -3464,7 +3486,7 @@ private:
         std::string op2= gentemp(REGint);
         lexpr->emit(e, op1);
         rexpr->emit(e, op2);
-        e << res << " = band " << op1 << ", " << op2;
+        e << INDENT << res << " = band " << op1 << ", " << op2;
         if (!result.empty())
             e << '\n';
     }
@@ -3489,7 +3511,7 @@ private:
         std::string op2= gentemp(REGint);
         lexpr->emit(e, op1);
         rexpr->emit(e, op2);
-        e << res << " = bor " << op1 << ", " << op2;
+        e << INDENT <<  res << " = bor " << op1 << ", " << op2;
         if (!result.empty())
             e << '\n';
     }
@@ -3514,7 +3536,7 @@ private:
         std::string op2= gentemp(REGint);
         lexpr->emit(e, op1);
         rexpr->emit(e, op2);
-        e << res << " = bxor " << op1 << ", " << op2;
+        e << INDENT << res << " = bxor " << op1 << ", " << op2;
         if (!result.empty())
             e << '\n';
     }
@@ -3549,14 +3571,14 @@ private:
             lexpr->emit(e, op1);
             rexpr->emit(e, op2);
             e.annotate(start);
-            e << res << " = and " << op1 << ", " << op2;
+            e << INDENT << res << " = and " << op1 << ", " << op2;
         }
         else
         {
             std::string l = genlocallabel();
             lexpr->emit(e, res);
             e.annotate(start);
-            e << "unless " << res << " goto " << l << '\n';
+            e << INDENT "unless " << res << " goto " << l << '\n';
             rexpr->emit(e, res);
             e << l << ":\n";
         }
@@ -3607,7 +3629,7 @@ private:
             std::string op2= gentemp(REGint);
             lexpr->emit(e, op1);
             rexpr->emit(e, op2);
-            e << "repeat " << res << ", " << op1 << ", " << op2;
+            e << INDENT "repeat " << res << ", " << op1 << ", " << op2;
         }
         else
         {
@@ -3657,7 +3679,7 @@ private:
         else
             rexpr->emit(e, op2);
         if (result.empty())
-            e << "new " << res << ", 'Integer'" << '\n';
+            e << INDENT "new " << res << ", 'Integer'" << '\n';
         e << op_div(res, op1, op2);
         if (!result.empty())
             e << '\n';
@@ -3734,7 +3756,7 @@ private:
         std::string op2= gentemp(REGint);
         lexpr->emit(e, op1);
         rexpr->emit(e, op2);
-        e << res << " = shl " << op1 << ", " << op2;
+        e << INDENT << res << " = shl " << op1 << ", " << op2;
         if (!result.empty())
             e << '\n';
     }
@@ -3759,7 +3781,7 @@ private:
         std::string op2= gentemp(REGint);
         lexpr->emit(e, op1);
         rexpr->emit(e, op2);
-        e << res << " = shr " << op1 << ", " << op2;
+        e << INDENT << res << " = shr " << op1 << ", " << op2;
         if (!result.empty())
             e << '\n';
     }
@@ -3798,27 +3820,27 @@ private:
 void ArrayExpr::emit(Emit &e, const std::string &result)
 {
     std::string reg = gentemp(REGvar);
-    e << reg << " = root_new ['parrot';'ResizablePMCArray']\n";
+    e << INDENT << reg << " = root_new ['parrot';'ResizablePMCArray']\n";
     for (size_t i= 0; i < elems.size(); ++i)
     {
         Expr *elem= elems[i];
         std::string el = gentemp(REGvar);
         if (elem->issimple() && !elem->isidentifier())
         {
-            e << el << " = box ";
+            e << INDENT << el << " = box ";
             elem->emit(e, std::string());
             e << "\n"
-                "push " << reg << " , " << el << '\n';
+                INDENT "push " << reg << " , " << el << '\n';
         }
         else
         {
             elem->emit(e, el);
-            e << "push " << reg << " , " << el << '\n';
+            e << INDENT "push " << reg << " , " << el << '\n';
         }
     }
 
     if (!result.empty())
-        e << result << " = " << reg << '\n';
+        e << INDENT << result << " = " << reg << '\n';
 }
 
 //**********************************************************************
@@ -3919,10 +3941,10 @@ private:
 void HashExpr::emit(Emit &e, const std::string &result)
 {
     std::string reg = gentemp(REGvar);
-    e << reg << " = root_new ['parrot';'Hash']\n";
+    e << INDENT << reg << " = root_new ['parrot';'Hash']\n";
     std::for_each(elems.begin(), elems.end(), EmitItem(e, *this, reg) );
     if (!result.empty())
-        e << result << " = " << reg << '\n';
+        e << INDENT << result << " = " << reg << '\n';
 }
 
 //**********************************************************************
@@ -3949,7 +3971,7 @@ public:
             gentemp(REGvar) : result;
         left->emit(e, reg);
         e.annotate(start);
-        e << "getattribute " << r << ", " << reg <<
+        e << INDENT "getattribute " << r << ", " << reg <<
             ", '" << right.identifier() << "'\n";
         if (result != r)
             e << op_set(result, r) << '\n';
@@ -3997,11 +4019,11 @@ public:
             regattrval= gentemp(REGvar);
             e << op_box(regattrval, regval) << '\n';
         }
-        e << "setattribute " << reg << ", '" << right.identifier() <<
+        e << INDENT "setattribute " << reg << ", '" << right.identifier() <<
                 "', " << regattrval << '\n';
 
         if (! to.empty())
-            e << "set " << to << ", " << regattrval << '\n';
+            e << INDENT "set " << to << ", " << regattrval << '\n';
     }
 private:
     Token start;
@@ -4195,6 +4217,7 @@ void CallExpr::emit(Emit &e, const std::string &result)
         std::string quote(islocal(name) ? "" : "'");
         name = quote + name + quote;
         e.annotate(start);
+	e << INDENT;
         if (!result.empty() )
             e << result << " = ";
         e << name << '(';
@@ -4207,13 +4230,13 @@ void CallExpr::emit(Emit &e, const std::string &result)
             std::string mefun= gentemp(REGvar);
             me->emitleft(e, mefun);
             e.annotate(start);
-            e << reg << " = " << mefun << ".'" << me->getmember() << "'(";
+            e << INDENT << reg << " = " << mefun << ".'" << me->getmember() << "'(";
         }
         else
         {
             called->emit(e, reg);
             e.annotate(start);
-            e << reg << '(';
+            e << INDENT << reg << '(';
         }
     }
 
@@ -4238,7 +4261,7 @@ void CallExpr::emit(Emit &e, const std::string &result)
     {
         e << '\n';
         if (!result.empty() )
-            e << result << " = " << reg << '\n';
+            e << INDENT << result << " = " << reg << '\n';
     }
     else
     {
@@ -4372,7 +4395,7 @@ void NewExpr::emit(Emit &e, const std::string &result)
 
     
     if (! result.empty())
-        e << regnew << " = ";
+        e << INDENT << regnew << " = ";
 
     e << "new ";
     claspec->emit(e);
@@ -4434,11 +4457,11 @@ private:
     {
         std::string sep;
         if (!hll.empty()) {
-            e << "root_new " << result << ", [" << hll;
+            e << INDENT "root_new " << result << ", [" << hll;
             sep = ";";
         }
         else {
-            e << "new " << result << ", ";
+            e << INDENT "new " << result << ", ";
             sep = "[";
         }
         for (std::vector<std::string>::iterator it = nskey.begin();
@@ -4517,7 +4540,7 @@ void IndexExpr::emit(Emit &e, const std::string &result)
         }
     }
     if (!result.empty() )
-        e << result << " = ";
+        e << INDENT << result << " = ";
     e << name << '[';
     for (size_t i= 0; i < nitems; ++i)
     {
@@ -4590,7 +4613,7 @@ void IndexExpr::emitassign(Emit &e, Expr& value, const std::string &to)
     e << "] = " << reg2 << '\n';
 
     if (!to.empty())
-        e << "set " << to << ", " << reg2 << '\n';
+        e << INDENT "set " << to << ", " << reg2 << '\n';
 }
 
 //**********************************************************************
@@ -5117,7 +5140,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
     std::string arraytype(type == REGint ? "Integer" : "String");
 
     e.annotate(start);
-    e << ".local " <<
+    e << INDENT ".local " <<
         (vtype == ValueSimple ?
                 (type == REGint ? "int" : (
                     type == REGfloat ? "num" : "string") ) :
@@ -5309,7 +5332,7 @@ VarStatement::VarStatement(Block & block, const Token &st, Tokenizer &tk) :
 void VarStatement::emit (Emit &e)
 {
     e.annotate(start);
-    e << ".local pmc " << name << '\n';
+    e << INDENT ".local pmc " << name << '\n';
     if (value.size() == 1)
     {
         Expr & v = *value[0];
@@ -5435,7 +5458,7 @@ UsingStatement::UsingStatement(Block &bl,
 
 void UsingStatement::emit (Emit &e)
 {
-    e << ".local pmc " << n << '\n';
+    e << INDENT ".local pmc " << n << '\n' << INDENT;
     if (! ns.isroot() )
         e  << n <<
             " = get_hll_global " << ns.get_key() <<
@@ -5470,7 +5493,7 @@ void ReturnStatement::emit (Emit &e)
 {
     if (values)
         values->prepare(e);
-    e << ".return (";
+    e << INDENT ".return (";
     if (values)
         values->emit(e);
     e << " )\n";
@@ -5501,7 +5524,7 @@ void YieldStatement::emit (Emit &e)
 {
     if (values)
         values->prepare(e);
-    e << ".yield (";
+    e << INDENT ".yield (";
     if (values)
         values->emit(e);
     e << " )\n";
@@ -5596,19 +5619,19 @@ void ForeachStatement::emit(Emit &e)
 
     e.annotate(start);
     if (vartype != '\0')
-        e << ".local " << nameoftype(vartype) << ' ' << varname << '\n';
+        e << INDENT ".local " << nameoftype(vartype) << ' ' << varname << '\n';
     const std::string iter= "iter_" + varname;
 
-    e << ".local pmc " << iter << "\n" <<
-        iter << " = iter " << container_ << "\n" <<
-        iter << " = 0\n" << // ITERATE_FROM_START
-        continuelabel << ": # FOR IN\n" <<
-        "unless " << iter << " goto " << breaklabel<< "\n"
-        "shift " << varname << ", " << iter << '\n'
+    e << INDENT ".local pmc " << iter << "\n" <<
+        INDENT << iter << " = iter " << container_ << "\n" <<
+        INDENT << iter << " = 0\n" << // ITERATE_FROM_START
+        "  " << continuelabel << ": # FOR IN\n" <<
+        INDENT "unless " << iter << " goto " << breaklabel<< "\n"
+        INDENT "shift " << varname << ", " << iter << '\n'
         ;
     st->emit(e);
-    e << "goto " << continuelabel << '\n' <<
-        breaklabel << ": # FOR IN END\n";
+    e << INDENT "goto " << continuelabel << '\n' <<
+        "  " << breaklabel << ": # FOR IN END\n";
     freelocalregister(container_);
 }
 
@@ -5818,16 +5841,16 @@ void TryStatement::emit (Emit &e)
     if (!exname.empty() )
     {
         genlocal(exname, REGvar);
-        e << ".local pmc " << exname << '\n';
+        e << INDENT ".local pmc " << exname << '\n';
     }
     e <<
-        ".get_results(" << except << ")\n"
-        "finalize " << except << "\n"
-        "pop_eh\n"
+        INDENT ".get_results(" << except << ")\n"
+        INDENT "finalize " << except << "\n"
+        INDENT "pop_eh\n"
         ;
 
     scatch->emit(e);
-    e << pasthandler << ":\n";
+    e << "  " << pasthandler << ":\n";
 }
 
 //**********************************************************************
@@ -5904,8 +5927,8 @@ std::string Condition::emit(Emit &e)
             std::string nocase= genlocallabel();
             e << reg << " = 0\n"
                 "if_null " << reg2 << ", " << nocase << "\n"
-                "unless " << reg2 << " goto " << nocase << "\n"
-                "inc " << reg << '\n' <<
+                "unless " << reg2 << " goto " << nocase << "\n" <<
+                op_inc(reg) << '\n' <<
                 nocase << ":\n";
         }
     }
@@ -6766,25 +6789,25 @@ void ClassStatement::emit (Emit &e)
 
     e << ".sub Winxed_class_init :anon :load :init\n";
     e.annotate(start);
-    e << "$P0 = newclass " << ns.get_key() << "\n";
+    e << INDENT "$P0 = newclass " << ns.get_key() << "\n";
 
     for (size_t i= 0; i < parents.size(); ++i)
     {
         ClassSpecifier & parent= *parents[i];
         parent.annotate(e);
         std::ostringstream oss;
-        oss << "$P" << i + 1;
+        oss << INDENT "$P" << i + 1;
         std::string p= oss.str();
         e << p << " = get_class ";
         parent.emit(e);
         e << "\n"
-            "addparent $P0, " << p << "\n";
+            INDENT "addparent $P0, " << p << "\n";
     }
     for (size_t i= 0; i < attrs.size(); ++i)
     {
         const Token &attrname= attrs[i];
         e.annotate(attrname);
-        e << "addattribute $P0, '" << attrname.identifier() << "'\n";
+        e << INDENT "addattribute $P0, '" << attrname.identifier() << "'\n";
     }
 
     e << ".end\n";
