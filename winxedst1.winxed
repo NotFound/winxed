@@ -5657,22 +5657,28 @@ class OpInstanceOfExpr : Expr
     {
         self.Expr(owner, start);
         self.lexpr = lexpr;
-        self.checked = tk.get();
+        self.checked = parseClassSpecifier(tk, self);
+    }
+    function optimize()
+    {
+        self.lexpr = self.lexpr.optimize();
+        return self;
     }
     function checkresult() { return REGint; }
     function emit(e, result)
     {
         var checked = self.checked;
-        string checkedval;
-        if (checked.isidentifier()) {
-           checkedval = checked.getidentifier();
-           checkedval = "'" + checkedval + "'";
-        }
+
+        string r;
+        if (result == '')
+            r = self.tempreg(REGint);
         else
-            checkedval = checked;
-        string r = self.lexpr.emit_get(e);
+            r = result;
+        string check = self.lexpr.emit_get(e);
         self.annotate(e);
-        e.say(INDENT, 'isa ', result, ', ', r, ', ', checkedval);
+        e.print(INDENT + 'isa ', r, ', ', check, ', ');
+        checked.emit(e, self.owner);
+        e.say();
     }
 }
 
