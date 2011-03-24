@@ -4117,7 +4117,7 @@ class OpAddExpr : OpBinaryExpr
                 var t;
                 string es = etok.str;
                 string rs = rtok.str;
-                if ((etok instanceof TypeSingleQuoted) && (rtok instanceof TypeSingleQuoted))
+                if ((etok instanceof TokenSingleQuoted) && (rtok instanceof TokenSingleQuoted))
                     t = new TokenSingleQuoted(etok.file, etok.line, es + rs);
                 else
                     t = new TokenQuoted(etok.file, etok.line, es + rs);
