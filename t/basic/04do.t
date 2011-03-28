@@ -1,6 +1,6 @@
 #! winxed
 
-# Basic tests: do loop
+// Basic tests: do loop
 
 function main()
 {
@@ -19,3 +19,5 @@ function main()
     } while (c);
     is(i, 4, 'do loop with var');
 }
+
+// End

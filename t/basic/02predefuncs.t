@@ -1,11 +1,13 @@
 #! winxed
-# Basic tests for predefined functions
+
+// Basic tests for predefined functions
 
 function main()
 {
     using extern Test.More;
     using Test.More.plan;
     using Test.More.is;
+
     plan (3);
 
     // ord and chr
@@ -17,3 +19,5 @@ function main()
 
     is (ord("A"), 65);
 }
+
+// End

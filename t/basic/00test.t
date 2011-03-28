@@ -5,10 +5,13 @@
 
 function main()
 {
-	using extern Test.More;
-	using Test.More.plan;
-	using Test.More.ok;
+    using extern Test.More;
+    using Test.More.plan;
+    using Test.More.ok;
 
-	plan(1);
-	ok(1, 'plan and ok works');
+    plan(1);
+
+    ok(1, 'plan and ok works');
 }
+
+// End

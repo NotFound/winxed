@@ -1,6 +1,6 @@
 #! winxed
 
-# Basic tests: for loop
+// Basic tests: for loop
 
 function main()
 {
@@ -31,3 +31,5 @@ function main()
         s+= 'x';
     is (s, 'xxxx', 'without increment');
 }
+
+// End

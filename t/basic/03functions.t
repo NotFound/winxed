@@ -1,6 +1,6 @@
 #! winxed
 
-# Basic tests: function calls
+// Basic tests: function calls
 
 function main()
 {
@@ -31,3 +31,5 @@ function retinteger()
     p =: 69;
     return p;
 }
+
+// End
