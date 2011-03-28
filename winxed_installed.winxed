@@ -2,6 +2,8 @@
 
 // Winxed compiler driver.
 
+const int DEBUG = 0;
+
 $include_const 'iglobals.pasm';
 $include_const 'libpaths.pasm';
 $include_const 'except_types.pasm';
@@ -104,9 +106,21 @@ function main [main] (argv)
     if (object != null && ! compileonly)
         die('-o without -c is not supported yet');
 
-    var compiler = load_language('winxed');
-    if (compiler == null)
-        die("winxed: Cannot load language");
+    var compiler;
+    try 
+        compiler = load_language('winxed');
+    catch () { }
+
+    if (compiler == null) {
+        if (DEBUG) {
+            load_bytecode("winxedst2.pbc");
+            compiler = compreg('winxed');
+            if (compiler == null)
+                die("winxed: Cannot load language or stage");
+        }
+        else
+            die("winxed: Cannot load language");
+    }
 
     if (opt_L != null) {
         var interp;
