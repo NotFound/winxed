@@ -8,24 +8,39 @@ function main()
     using Test.More.plan;
     using Test.More.is;
 
-    plan(4);
+    plan(7);
+
+    int check = 0;
+    for (;;) {
+        ++check;
+        is(check, 1, 'for (;;)');
+        break;
+    }
 
     string s;
     int i;
-    for (i= 0; i < 5; ++i)
+    for (i = 0; i < 5; ++i)
         s+= 'x';
     is(s, 'xxxxx', 'simple counting');
+    i = 0;
+    s = '';
+    for (; i < 5; ++i)
+        s+= 'x';
+    is(s, 'xxxxx', 'simple counting without initialization');
 
     s = '';
-    for (i= 0; i < 0; ++i)
+    for (i = 0; i < 0; ++i)
         s+= 'x';
-    is(s, '', 'do nothing');
+    is(s, '', 'condition false at start');
 
     i = 0;
     s = '';
     for (; i < 0; ++i)
         s+= 'x';
-    is(s, '', 'do nothing without initialization');
+    is(s, '', 'condition false at start without initialization');
+    for (; i < 0;)
+        s+= 'x';
+    is(s, '', 'condition false at start - condition only');
 
     for (s = ''; length(s) < 4;)
         s+= 'x';
