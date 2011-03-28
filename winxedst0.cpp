@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 23-mar-2011
+// Revision 28-mar-2011
 
 // Winxed compiler stage 0.
 
@@ -5681,33 +5681,32 @@ void ForStatement::emit(Emit &e)
     e.comment("for loop");
 
     std::string continuelabel= gencontinuelabel();
-    std::string l_condition= (initializer && iteration) ?
-        genlabel() :
-        std::string();
+    std::string l_condition= genlabel();
     std::string breaklabel = genbreaklabel();
+
     if (initializer)
-    {
         initializer->emit(e);
-        if (!l_condition.empty())
-            e << "goto " << l_condition << " # for condition\n";
-    }
-    e << continuelabel << ": # for iteration\n";
-    if (iteration)
-    {
-        iteration->emit(e, std::string());
-        e << '\n';
-    }
-    if (! l_condition.empty())
-        e << l_condition << ": # for condition\n";
+
+    e << l_condition << ": # for condition\n";
     if (condition)
     {
         std::string reg= condition->emit_get(e);
         e << "unless " << reg << " goto " << breaklabel << " # for end\n";
     }
+
     e << "# for body\n";
     st->emit(e);
-    e << "goto " << continuelabel << " # for iteration\n" <<
-        breaklabel << ": # for end\n";
+
+    e << continuelabel << ": # for iteration\n";
+
+    if (iteration)
+    {
+        iteration->emit(e, std::string());
+        e << '\n';
+    }
+    e << "goto " << l_condition << " # for condition\n";
+
+    e << "  " << breaklabel << ": # for end\n";
     e.comment("for loop end");
 }
 
