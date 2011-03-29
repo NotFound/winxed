@@ -328,20 +328,22 @@ class TokenFloat : TokenWithVal
 function getquoted(tk, string start, int line)
 {
     string s = '';
-    string c = tk.getchar();
-    while (c != '"') {
-        if (c == '' || c == "\n")
+    string c;
+    for (c = tk.getchar(); c != '"'; c = tk.getchar()) {
+        switch (c) {
+          case "":
+          case "\n":
             TokenError('Unterminated string', tk, line);
-        // Quick fix for escaped double quotes.
-        if (c == '\') {
+          case '\':
+            // Quick fix for escaped double quotes.
             string c2 = tk.getchar();
             if (c2 == '' || c2 == "\n")
                 TokenError('Unterminated string', tk, line);
             s += c + c2;
-        }
-        else
+            break;
+          default:
             s += c;
-        c = tk.getchar();
+        }
     }
     return new TokenQuoted(tk.filename, line, s);
 }
@@ -349,12 +351,11 @@ function getquoted(tk, string start, int line)
 function getsinglequoted(tk, string start, int line)
 {
     string s = '';
-    string c = tk.getchar();
-    while (c != "'") {
-        if (c == '' || c == "\n")
+    string c;
+    for (c = tk.getchar(); c != "'"; c = tk.getchar()) {
+        if (c == "" || c == "\n")
             TokenError('Unterminated string', tk, line);
         s += c;
-        c = tk.getchar();
     }
     return new TokenSingleQuoted(tk.filename, line, s);
 }
@@ -362,32 +363,37 @@ function getsinglequoted(tk, string start, int line)
 function getheredoc(tk, string start, int linenum)
 {
     string mark = '';
-    string c = tk.getchar();
-    while (c != "\n" && c != '') {
-        // Encode the mark the same way as the heredoc content
-        // to simplify its detection
-        if (c == '"' || c ==  '\')
+    string c;
+    for (c = tk.getchar(); c != "\n"; c = tk.getchar()) {
+        switch (c) {
+          case '':
+            TokenError('Unterminated heredoc', tk, linenum);
+          case '"':
+          case '\':
+            // Encode the mark the same way as the heredoc content
+            // to simplify its detection
             c = '\' + c;
+            break;
+        }
         mark = mark + c;
-        c = tk.getchar();
     }
-    if (c == '')
-        TokenError('Unterminated heredoc', tk, linenum);
     mark = mark + ':>>';
 
     string content = '';
     string line;
     do {
         line = '';
-        c = tk.getchar();
-        while (c != "\n" && c != '') {
-            if (c == '"' || c ==  '\')
+        for (c = tk.getchar(); c != "\n"; c = tk.getchar()) {
+            switch (c) {
+              case '':
+                TokenError('Unterminated heredoc', tk, linenum);
+              case '"':
+              case '\':
                 c = '\' + c;
+                break;
+            }
             line += c;
-            c = tk.getchar();
         }
-        if (c == '')
-            TokenError('Unterminated heredoc', tk, linenum);
         if (line != mark)
             content += line + '\n';
     } while (line != mark);
