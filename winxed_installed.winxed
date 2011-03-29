@@ -22,6 +22,7 @@ class WinxedDriverOptions : [ 'Getopt', 'Obj']
           [ 'c',        'Compile to pir' ],
           [ 'e=s',      'Evaluate' ],
           [ 'o=s',      'Object name' ],
+          [ 'target=s', 'Set target type' ],
           [ 'L=s',      'Add to parrot library search path' ],
           [ 'I=s',      'Add to parrot include search path' ],
           [ 'nowarn',   'No warnings' ],
@@ -89,37 +90,19 @@ function main [main] (argv)
 {
     var optionset = new WinxedDriverOptions(argv);
 
-    int help        = optionset.getbool('help');
-    int compileonly = optionset.getbool('c');
-    string eval     = optionset.getstring('e');
-    string object   = optionset.getstring('o');
-    string opt_L    = optionset.getstring('L');
-    string opt_I    = optionset.getstring('I');
-    int nowarn      = optionset.getbool('nowarn');
-    int noan        = optionset.getbool('noan');
+    int help          = optionset.getbool('help');
+    int compileonly   = optionset.getbool('c');
+    string target     = optionset.getstring('target');
+    string eval       = optionset.getstring('e');
+    string objectname = optionset.getstring('o');
+    string opt_L      = optionset.getstring('L');
+    string opt_I      = optionset.getstring('I');
+    int nowarn        = optionset.getbool('nowarn');
+    int noan          = optionset.getbool('noan');
 
     if (help) {
         optionset.showhelp();
         exit(0);
-    }
-
-    if (object != null && ! compileonly)
-        die('-o without -c is not supported yet');
-
-    var compiler;
-    try 
-        compiler = load_language('winxed');
-    catch () { }
-
-    if (compiler == null) {
-        if (DEBUG) {
-            load_bytecode("winxedst2.pbc");
-            compiler = compreg('winxed');
-            if (compiler == null)
-                die("winxed: Cannot load language or stage");
-        }
-        else
-            die("winxed: Cannot load language");
     }
 
     if (opt_L != null) {
@@ -137,46 +120,78 @@ function main [main] (argv)
         pathlib.push(string(opt_I));
     }
 
-    var code;
     var compileoptions = { "noan" : noan, "nowarn" : nowarn };
+    if (compileonly) {
+        if (target != null)
+            die("options -c and --target can't be used together");
+        compileoptions["target"] = "pir";
+    }
+    else {
+        if (target == null)
+            target = '';
+        switch (target) {
+          case '':
+          case 'run':
+            break;
+          case 'pir':
+            compileonly = true;
+            compileoptions["target"] = target;
+            break;
+          default:
+            die("Invalid target '" + target + "'");
+        }
+    }
 
+    if (objectname != null && ! compileonly)
+        die('-o without -c or --target is not supported yet');
+
+    var compiler;
+    try 
+        compiler = load_language('winxed');
+    catch () { }
+
+    if (compiler == null) {
+        if (DEBUG) {
+            load_bytecode("winxedst2.pbc");
+            compiler = compreg('winxed');
+            if (compiler == null)
+                die("winxed: Cannot load language or stage");
+        }
+        else
+            die("winxed: Cannot load language");
+    }
+
+    var code;
+    string outfilename = null;
     if (eval == null) {
         if (elements(argv) < 1) {
             say("ERROR: No program specified");
             optionset.showhelp();
             exit(1);
         }
-        string srcfile = argv[0];
-        if (compileonly) {
-            var handleout = new 'StringHandle';
-            handleout.open('', 'w');
-            compiler.compile_from_file_to_pir(srcfile, handleout,
-                    compileoptions:[named, flat]);
-            handleout.close();
-            string pircode = handleout.read(0);
-            string pirfile = object != null ? object : string(extname(srcfile, '.pir'));
-            var outfile = open(pirfile, 'w');
-            outfile.print(pircode);
-            outfile.close();
-            exit(0);
-        }
-        else
-            code = compiler.compile_from_file(srcfile,
-                    compileoptions:[named, flat]);
+        string srcfilename = argv[0];
+        if (compileonly && objectname == null)
+            outfilename = extname(srcfilename, '.pir');
+        code = compiler.compile_from_file(srcfilename,
+                compileoptions:[named, flat]);
     }
     else {
         string expr = 'function main[main](argv){' + eval + ';}';
-        if (compileonly) {
-            code = compiler.compile(expr, "pir":[named("target")],
-                    compileoptions:[named, flat]);
-            print(code);
-            exit(0);
-        }
-        else {
-            code = compiler.compile(expr,
-                    compileoptions:[named, flat]);
+        code = compiler.compile(expr,
+                compileoptions:[named, flat]);
+        if (! compileonly)
             argv.unshift('__EVAL__');
-        }
+    }
+
+    if (compileonly) {
+        if (outfilename == null)
+            outfilename = objectname;
+        int create = outfilename != null && outfilename != "-";
+        var outfile = create ? open(outfilename, 'w') : getstdout();
+        outfile.print(code);
+        if (create)
+            outfile.close();
+        exit(0);
     }
 
     // Simplified progrm start: look for a sub called 'main'
