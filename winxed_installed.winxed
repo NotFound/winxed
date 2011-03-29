@@ -134,6 +134,7 @@ function main [main] (argv)
           case 'run':
             break;
           case 'pir':
+          case 'include':
             compileonly = true;
             compileoptions["target"] = target;
             break;
