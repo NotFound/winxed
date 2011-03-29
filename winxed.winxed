@@ -126,23 +126,29 @@ function main [main] (argv)
             stage = envstage;
     }
 
-    const int TargetDefault = 0;
-    const int TargetRun     = 1;
-    const int TargetPir     = 2;
-    const int TargetPbc     = 3;
+    const int
+        TargetDefault = 0,
+        TargetRun     = 1,
+        TargetPir     = 2,
+        TargetPbc     = 3,
+        TargetConst   = 4;
     int targettype = TargetDefault;
+
     if (target != null) {
         switch (target) {
-        case 'pir':
+          case 'pir':
             targettype = TargetPir;
             break;
-        case 'pbc':
+          case 'pbc':
             targettype = TargetPbc;
             break;
-        case 'run':
+          case 'run':
             targettype = TargetRun;
             break;
-        default:
+          case 'include':
+            targettype = TargetConst;
+            break;
+          default:
             die('Invalid target: ' + target);
         }
     }
@@ -166,7 +172,7 @@ function main [main] (argv)
     }
 
     string pirfile;
-    if (obj != '' && targettype == TargetPir)
+    if (obj != '' && targettype == TargetPir || targettype == TargetConst)
         pirfile = obj;
     else {
         if (eval != null)
@@ -229,6 +235,12 @@ function main [main] (argv)
                 winxedbin = './' + winxedbin;
         }
         cmd.push(winxedbin);
+    }
+
+    if (targettype == TargetConst) {
+        if (stage == 0)
+            die('target include unavailable in stage 0');
+        cmd.push('--geninclude');
     }
 
     if (noan)

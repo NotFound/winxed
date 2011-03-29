@@ -9220,7 +9220,8 @@ class WinxedHLL
 
 //*********************************************
 
-function winxed_parser(tk, string outputfile, int warn, int noan)
+function winxed_parser(tk, string outputfile,
+        int warn, int noan, int geninclude)
 {
     var winxed = new WinxedCompileUnit();
     if (! warn)
@@ -9238,7 +9239,10 @@ function winxed_parser(tk, string outputfile, int warn, int noan)
     if (noan)
         emit.disable_annotations();
     emit.initialize(handle);
-    winxed.emit(emit);
+    if (geninclude)
+        winxed.emitinclude(emit);
+    else
+        winxed.emit(emit);
     emit.close();
     handle.close();
 }
@@ -9265,6 +9269,7 @@ class Options
         getopts.notOptStop(1);
         getopts.push_string('o=s');
         getopts.push_string('e=s');
+        getopts.push_string('geninclude');
         getopts.push_string('noan');
         getopts.push_string('nowarn');
         getopts.notOptStop(1);
@@ -9294,6 +9299,7 @@ function stage1(argv)
     string expr = options.getstring('e');
     int noan  = options.getbool('noan');
     int warn = ! options.getbool('nowarn');
+    int geninclude = options.getbool('geninclude');
 
     int argc = argv;
     string filename;
@@ -9318,7 +9324,7 @@ function stage1(argv)
 
     var t = new Tokenizer(file, filename);
 
-    winxed_parser(t, outputfile, warn, noan);
+    winxed_parser(t, outputfile, warn, noan, geninclude);
 
     file.close();
 }
