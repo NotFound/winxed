@@ -945,6 +945,10 @@ class Predef_frombody
             InternalError('void predef with {res}');
         if (typeresult != REGnone && pos == -1)
             InternalError('non void predef without {res}');
+        int l = length(bodystr) - 1;
+        if (substr(bodystr, l, 1) == "\n")
+            bodystr = substr(bodystr, 0, l);
+        bodystr = INDENT + join("\n" + INDENT, split("\n", bodystr));
         self.body = bodystr;
         self.typeresult = typeresult;
     }
@@ -974,7 +978,7 @@ class Predef_frombody
                 body = replace(body, pos, l, arg);
         }
         e.annotate(start);
-        e.say(INDENT + join("\n" + INDENT, split("\n", body)));
+        e.say(body);
     }
 }
 
@@ -1310,32 +1314,42 @@ function getpredefs()
             REGvar
         ),
         new PredefFunction('open',
-            "root_new {res}, ['parrot';'FileHandle']\n" +
-            "{res}.'open'({arg0})",
-            REGvar, REGstring
+<<:
+root_new {res}, ['parrot';'FileHandle']
+{res}.'open'({arg0})
+:>>
+            , REGvar, REGstring
         ),
         new PredefFunction('open',
-            "root_new {res}, ['parrot';'FileHandle']\n" +
-            "{res}.'open'({arg0},{arg1})",
-            REGvar, REGstring, REGstring
+<<:
+root_new {res}, ['parrot';'FileHandle']
+{res}.'open'({arg0},{arg1})
+:>>
+            , REGvar, REGstring, REGstring
         ),
         new PredefFunction('Error',
-            "root_new {res}, ['parrot';'Exception']\n" +
-            "{res}['message'] = {arg0}",
-            REGvar, REGstring
+<<:
+root_new {res}, ['parrot';'Exception']
+{res}['message'] = {arg0}
+:>>
+            , REGvar, REGstring
         ),
         new PredefFunction('Error',
-            "root_new {res}, ['parrot';'Exception']\n" + 
-            "{res}['message'] = {arg0}\n" +
-            "{res}['severity'] = {arg1}",
-            REGvar, REGstring, REGint
+<<:
+root_new {res}, ['parrot';'Exception']
+{res}['message'] = {arg0}
+{res}['severity'] = {arg1}
+:>>
+            , REGvar, REGstring, REGint
         ),
         new PredefFunction('Error',
-            "root_new {res}, ['parrot';'Exception']\n" +
-            "{res}['message'] = {arg0}\n" +
-            "{res}['severity'] = {arg1}\n" +
-            "{res}['type'] = {arg2}",
-            REGvar, REGstring, REGint, REGint
+<<:
+root_new {res}, ['parrot';'Exception']
+{res}['message'] = {arg0}
+{res}['severity'] = {arg1}
+{res}['type'] = {arg2}
+:>>
+            , REGvar, REGstring, REGint, REGint
         ),
         new PredefFunction('elements',
             'elements {res}, {arg0}',
@@ -1353,10 +1367,12 @@ function getpredefs()
         ),
         new PredefFunctionEval('chr',
             predefeval_chr,
-            "chr $S0, {arg0}\n" +
-            "find_encoding $I0, 'utf8'\n" +
-            "trans_encoding {res}, $S0, $I0",
-            REGstring, REGint
+<<:
+chr $S0, {arg0}
+find_encoding $I0, 'utf8'
+trans_encoding {res}, $S0, $I0
+:>>
+            , REGstring, REGint
         ),
         new PredefFunctionEval('ord',
             predefeval_ord,
@@ -1413,14 +1429,18 @@ function getpredefs()
             REGvar, REGstring, REGstring
         ),
         new PredefFunction('chomp',
-            "$P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'\n" +
-            "{res} = $P0({arg0})",
-            REGstring, REGstring
+<<:
+$P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
+{res} = $P0({arg0})
+:>>
+            , REGstring, REGstring
         ),
         new PredefFunction('chomp',
-            "$P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'\n" +
-            "{res} = $P0({arg0}, {arg1})",
-            REGstring, REGstring, REGstring
+<<:
+$P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
+{res} = $P0({arg0}, {arg1})
+:>>
+            , REGstring, REGstring, REGstring
         ),
         new PredefFunction('push',
             'push {arg0}, {arg1}',
@@ -1507,14 +1527,18 @@ function getpredefs()
             REGnone, REGstring, REGvar
         ),
         new PredefFunction('load_language',
-            "load_language {arg0}\n" +
-            "compreg {res}, {arg0}",
-            REGvar, REGstring
+<<:
+load_language {arg0}
+compreg {res}, {arg0}
+:>>
+            , REGvar, REGstring
         ),
         new PredefFunction('load_language',
-            "load_language {arg0}\n" +
-            "compreg {res}, {arg1}",
-            REGvar, REGstring, REGstring
+<<:
+load_language {arg0}
+compreg {res}, {arg1}
+:>>
+            , REGvar, REGstring, REGstring
         ),
         new PredefFunction('loadlib',
             'loadlib {res}, {arg0}',
