@@ -5790,7 +5790,7 @@ class OpConditionalExpr : Expr
     function OpConditionalExpr(owner, start, condition, etrue, efalse)
     {
         self.Expr(owner, start);
-        self.condition = new Condition().set(condition);
+        self.condition = (new Condition).set(condition);
         self.etrue = etrue;
         self.efalse = efalse;
         return self;
