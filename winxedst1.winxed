@@ -687,7 +687,7 @@ class Emit
     var pendingl;
     var noan;
 
-    function initialize(var handle)
+    function Emit(var handle)
     {
         self.handle = handle;
         self.file = '';
@@ -9146,10 +9146,9 @@ class WinxedHLL
             return winxed;
         var handleout = new ['StringHandle'];
         handleout.open(EVAL_NAME, 'w');
-        var emit = new Emit();
+        var emit = new Emit(handleout);
         if (noan)
             emit.disable_annotations();
-        emit.initialize(handleout);
         winxed.emit(emit);
         emit.close();
         handleout.close();
@@ -9174,8 +9173,7 @@ class WinxedHLL
     {
         var handleout = new ['StringHandle'];
         handleout.open(EVAL_NAME, 'w');
-        var emit = new Emit();
-        emit.initialize(handleout);
+        var emit = new Emit(handleout);
         winxed.emitinclude(emit);
         emit.close();
         handleout.close();
@@ -9216,10 +9214,9 @@ class WinxedHLL
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
-        var emit = new Emit();
+        var emit = new Emit(handleout);
         if (noan)
             emit.disable_annotations();
-        emit.initialize(handleout);
         winxed.emit(emit);
         emit.close();
     }
@@ -9265,10 +9262,9 @@ function winxed_parser(tk, string outputfile,
         handle = getstdout();
     else
         handle = open(outputfile, 'w');
-    var emit = new Emit();
+    var emit = new Emit(handle);
     if (noan)
         emit.disable_annotations();
-    emit.initialize(handle);
     if (geninclude)
         winxed.emitinclude(emit);
     else
