@@ -5464,6 +5464,10 @@ class HashExpr : Expr
 class NewBaseExpr : Expr
 {
     var initializer;
+    // The value of initializer is:
+    // * null if no arguments          -> no parenthesis
+    // * empty array if zero arguments -> parenthesized empty list
+    // * non empty array otherwise     -> parenthesized non empty list
 
     function checkresult() { return REGvar; }
     function parseinitializer(tk)
@@ -5471,22 +5475,33 @@ class NewBaseExpr : Expr
         // Called with the tokenizer pointing right after the
         // opening parenthesis
         var owner = self.owner;
+        var initializer = [];
         var t = tk.get();
         if (! t.isop(')')) {
             tk.unget(t);
-            var initializer = [];
             do {
                 var auxinit = parseExpr(tk, owner);
                 push(initializer, auxinit);
             } while ((t = tk.get()).isop(','));
-            self.initializer = initializer;
             RequireOp(')', t);
         }
+        self.initializer = initializer;
     }
     function optimize()
     {
         optimize_array(self.initializer);
         return self;
+    }
+    function emit_constructor(e, string regnew, string constructor)
+    {
+        string argregs[];
+        for (var arg in self.initializer) {
+            string reg = arg.emit_get(e);
+            push(argregs, reg);
+        }
+        e.print(INDENT, regnew, ".'", constructor, "'(");
+        e.print(join(", ", argregs));
+        e.say(")");
     }
 }
 
@@ -5538,7 +5553,7 @@ class NewExpr : NewBaseExpr
         self.annotate(e);
 
         var initializer = self.initializer;
-        int numinits = initializer == null ? 0 : elements(initializer);
+        int numinits = initializer == null ? -1 : elements(initializer);
 
         const int BYNAME = 0, BYIDENT = 1;
         int type = self.value.isstring() ? BYNAME : 
@@ -5548,6 +5563,7 @@ class NewExpr : NewBaseExpr
         string regnew = result;
         string constructor;
         switch (numinits) {
+          case -1:
           case 0:
             break;
           case 1:
@@ -5606,15 +5622,8 @@ class NewExpr : NewBaseExpr
           default:
             InternalError('Unexpected type in new');
         }
-        if (numinits > 1 || (numinits > 0 && type == BYIDENT)) {
-            string argregs[];
-            for (var arg in initializer) {
-                string reg = arg.emit_get(e);
-                push(argregs, reg);
-            }
-            e.print(INDENT, regnew, ".'", constructor, "'(");
-            e.print(join(", ", argregs));
-            e.say(")");
+        if (numinits > 1 || (numinits >= 0 && type == BYIDENT)) {
+            self.emit_constructor(e, regnew, constructor);
             if (! is_init)
                 e.emitset(result, regnew);
         }
@@ -5693,7 +5702,7 @@ class NewQualifiedExpr : NewBaseExpr
         string reginit;
         var init = self.initializer;
 
-        int numinits = init == null ? 0 : elements(init);
+        int numinits = init == null ? -1 : elements(init);
         string regnew = result;
         if (numinits > 0)
             regnew = self.tempreg(REGvar);
@@ -5702,16 +5711,9 @@ class NewQualifiedExpr : NewBaseExpr
         nskey.emit(e, self.owner);
         e.say();
 
-        if (numinits > 0) {
-            string argregs[];
-            for (var arg in init) {
-                string reg = arg.emit_get(e);
-                push(argregs, reg);
-            }
+        if (numinits >= 0) {
             string constructor = nskey.last();
-            e.print(INDENT, regnew, ".'", constructor, "'(");
-            e.print(join(", ", argregs));
-            e.say(")");
+            self.emit_constructor(e, regnew, constructor);
             e.emitset(result, regnew);
         }
     }
