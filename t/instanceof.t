@@ -1,5 +1,7 @@
 #! winxed
 
+// Mininal tests of instanceof operator
+
 class MyArray : 'ResizablePMCArray'
 {
 }
@@ -21,10 +23,12 @@ function main [main] ()
     is (check, 1, 'is own type');
     check= a instanceof 'FixedPMCArray';
     is (check, 0, 'is not a different type');
-    var b = new MyArray();
+    var b = new MyArray;
     check= b instanceof 'ResizablePMCArray';
     is (check, 1, 'is a parent');
-    var c = new MyArray();
+    var c = new MyArray;
     check= c instanceof 'ResizablePMCArray';
     is (check, 1, 'is a grandparent');
 }
+
+// End
