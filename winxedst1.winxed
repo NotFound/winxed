@@ -3948,6 +3948,10 @@ class OpBaseBoolExpr : OpBinaryExpr
 
 class OpBoolAndExpr : OpBaseBoolExpr
 {
+    function OpBoolAndExpr(owner, start, lexpr, rexpr)
+    {
+        self.set(owner, start, lexpr, rexpr);
+    }
     function optimize()
     {
         self.optimizearg();
@@ -3983,6 +3987,10 @@ class OpBoolAndExpr : OpBaseBoolExpr
 
 class OpBoolOrExpr : OpBaseBoolExpr
 {
+    function OpBoolOrExpr(owner, start, lexpr, rexpr)
+    {
+        self.set(owner, start, lexpr, rexpr);
+    }
     function optimize()
     {
         self.optimizearg();
@@ -6257,7 +6265,7 @@ function parseExpr_13(tk, owner)
     var t;
     while ((t = tk.get()).isop('&&')) {
         var rexpr = parseExpr_12(tk, owner);
-        lexpr = new OpBoolAndExpr().set(owner, t, lexpr, rexpr);
+        lexpr = new OpBoolAndExpr(owner, t, lexpr, rexpr);
     }
     tk.unget(t);
     return lexpr;
@@ -6271,7 +6279,7 @@ function parseExpr_14(tk, owner)
     var t;
     while ((t = tk.get()).isop('||')) {
         var rexpr = parseExpr_12(tk, owner);
-        lexpr = new OpBoolOrExpr().set(owner, t, lexpr, rexpr);
+        lexpr = new OpBoolOrExpr(owner, t, lexpr, rexpr);
     }
     tk.unget(t);
     return lexpr;
