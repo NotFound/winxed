@@ -240,7 +240,7 @@ class Fly
     var speed;
     var prev;
 
-    function create(string title)
+    function Fly(string title)
     {
         self.w = int(glutCreateWindow(title));
         self.aspect = 1.0;
@@ -704,8 +704,7 @@ function main(var argv)
 
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH | GLUT_MULTISAMPLE);
 
-    var f = new Fly();
-    f.create('Fly - winxed');
+    var f = new Fly('Fly - winxed');
 
     glutIgnoreKeyRepeat(1);
     glCullFace(GL_BACK);

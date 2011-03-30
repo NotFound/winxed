@@ -31,6 +31,12 @@ class XMLHttpRequest
         using extern LWP.UserAgent;
     }
 
+    function XMLHttpRequest()
+    {
+        // Do nothing
+        // Temporary workaround during new/constructor changes.
+    }
+
     function changeState(int state)
     {
         self.readyState=: state;

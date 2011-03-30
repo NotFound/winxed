@@ -189,6 +189,11 @@ function getlib()
 class Display
 {
     var xdisplay;
+    function Display(string displayname)
+    {
+        var fn = dlfunc(getlib(), 'XOpenDisplay', 'pt');
+        self.xdisplay = fn(displayname);
+    }
     function Close()
     {
         var fn = dlfunc(getlib(), 'XCloseDisplay', 'ip');
@@ -249,7 +254,7 @@ class Display
     function RootWindow(int scrnum)
     {
         var fn = dlfunc(getlib(), 'XRootWindow', 'ppi');
-        var rootw = new Window();
+        var rootw = new Window;
         rootw.display = self;
         rootw.xdrawable = fn(self.xdisplay, scrnum);
         return rootw;
@@ -259,7 +264,7 @@ class Display
         int border_width, int border, int background)
     {
         var fn = dlfunc(getlib(), 'XCreateSimpleWindow', 'pppiiiiiii');
-        var w = new Window();
+        var w = new Window;
         w.display = self;
         w.xdrawable = fn(self.xdisplay, parent.xdrawable,
                 x, y, width, height, border_width, border, background);
@@ -294,9 +299,7 @@ function StringToKeysym(string keystring)
 
 function OpenDisplay()
 {
-    var d = new Display();
-    var fn = dlfunc(getlib(), 'XOpenDisplay', 'pt');
-    d.xdisplay = fn('');
+    var d = new Display('');
     return d;
 }
 
@@ -475,7 +478,7 @@ function main(args)
     var listline = load(filename);
     var line;
 
-    var event = new Event();
+    var event = new Event;
     int oldx = 0;
     int oldy = 0;
     int pressed = 0;
