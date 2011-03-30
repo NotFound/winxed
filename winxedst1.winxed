@@ -4137,6 +4137,10 @@ class ConcatString : Expr
 
 class OpAddExpr : OpBinaryExpr
 {
+    function OpAddExpr(owner, start, lexpr, rexpr)
+    {
+        self.set(owner, start, lexpr, rexpr);
+    }
     function optimize()
     {
         self.optimizearg();
@@ -4243,6 +4247,10 @@ class OpAddExpr : OpBinaryExpr
 
 class OpSubExpr : OpBinaryExpr
 {
+    function OpSubExpr(owner, start, lexpr, rexpr)
+    {
+        self.set(owner, start, lexpr, rexpr);
+    }
     function optimize()
     {
         self.optimizearg();
@@ -4519,6 +4527,10 @@ class OpCModExpr : OpBinaryExpr
 
 class OpShiftleftExpr : OpBinaryIntExpr
 {
+    function OpShiftleftExpr(owner, start, lexpr, rexpr)
+    {
+        self.set(owner, start, lexpr, rexpr);
+    }
     function emit(e, result)
     {
         string res = result != null ? result : self.tempreg(REGint);
@@ -4537,6 +4549,10 @@ class OpShiftleftExpr : OpBinaryIntExpr
 
 class OpShiftrightExpr : OpBinaryIntExpr
 {
+    function OpShiftrightExpr(owner, start, lexpr, rexpr)
+    {
+        self.set(owner, start, lexpr, rexpr);
+    }
     function emit(e, result)
     {
         string res = result != null ? result : self.tempreg(REGint);
@@ -6061,9 +6077,9 @@ function parseExpr_6(tk, owner)
         var rexpr = parseExpr_5(tk, owner);
         var expr;
         if (t.isop('+'))
-            expr = new OpAddExpr().set(owner, t, lexpr, rexpr);
+            expr = new OpAddExpr(owner, t, lexpr, rexpr);
         else
-            expr = new OpSubExpr().set(owner, t, lexpr, rexpr);
+            expr = new OpSubExpr(owner, t, lexpr, rexpr);
         lexpr = expr;
     }
     tk.unget(t);
@@ -6082,11 +6098,11 @@ function parseExpr_7(tk, owner)
         switch (code) {
           case Code_shiftleft:
             rexpr = parseExpr_6(tk, owner);
-            lexpr = new OpShiftleftExpr().set(owner, t, lexpr, rexpr);
+            lexpr = new OpShiftleftExpr(owner, t, lexpr, rexpr);
             break;
           case Code_shiftright:
             rexpr = parseExpr_6(tk, owner);
-            lexpr = new OpShiftrightExpr().set(owner, t, lexpr, rexpr);
+            lexpr = new OpShiftrightExpr(owner, t, lexpr, rexpr);
             break;
         default:
             InternalError('Invalid code in parseExpr_7', t);
