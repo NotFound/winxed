@@ -6329,28 +6329,28 @@ function parseExpr_16(tk, owner)
         var rexpr = parseExpr_16(tk, owner);
         var expr;
         switch (code) {
-        case Code_assign:
-            expr = new OpAssignExpr();
+          case Code_assign:
+            expr = new OpAssignExpr;
             break;
-        case Code_assign_to:
-            expr = new OpAssignToExpr();
+          case Code_assign_to:
+            expr = new OpAssignToExpr;
             break;
-        case Code_add_assign:
-            expr = new OpAddToExpr();
+          case Code_add_assign:
+            expr = new OpAddToExpr;
             break;
-        case Code_sub_assign:
-            expr = new OpSubToExpr();
+          case Code_sub_assign:
+            expr = new OpSubToExpr;
             break;
-        case Code_mul_assign:
-            expr = new OpMulToExpr();
+          case Code_mul_assign:
+            expr = new OpMulToExpr;
             break;
-        case Code_div_assign:
-            expr = new OpDivToExpr();
+          case Code_div_assign:
+            expr = new OpDivToExpr;
             break;
-        case Code_mod_assign:
-            expr = new OpModToExpr();
+          case Code_mod_assign:
+            expr = new OpModToExpr;
             break;
-        default:
+          default:
             InternalError('Unexpected code in parseExpr_16', t);
         }
         expr.set(owner, t, lexpr, rexpr);
