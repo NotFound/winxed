@@ -5787,7 +5787,7 @@ class OpConditionalExpr : Expr
     var etrue;
     var efalse;
 
-    function set(owner, start, condition, etrue, efalse)
+    function OpConditionalExpr(owner, start, condition, etrue, efalse)
     {
         self.Expr(owner, start);
         self.condition = new Condition().set(condition);
@@ -6296,7 +6296,7 @@ function parseExpr_15(tk, owner)
         var etrue = parseExpr_16(tk, owner);
         ExpectOp(':', tk);
         var efalse = parseExpr_16(tk, owner);
-        return new OpConditionalExpr().set(owner, t, econd, etrue, efalse);
+        return new OpConditionalExpr(owner, t, econd, etrue, efalse);
     }
     else {
         tk.unget(t);
