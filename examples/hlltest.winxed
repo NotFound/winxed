@@ -44,7 +44,7 @@ function bar(var s)
 function createmappings()
 {
     var interp = getinterp();
-    var ms = new foo.MyString();
+    var ms = new foo.MyString;
     interp.hll_map('String', ms);
 }
 
@@ -57,7 +57,7 @@ function main()
     createmappings();
     say('Hi');
 
-    var s = new foo.MyString();
+    var s = new foo.MyString;
     s =: 'Hello';
     say(s);
     var x = bar('world');
