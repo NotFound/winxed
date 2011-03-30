@@ -3650,7 +3650,7 @@ class OpEqualExpr : ComparatorBaseExpr
     function isnegable() { return true; }
     function negated()
     {
-        return new OpNotEqualExpr().setfrom(self);
+        return (new OpNotEqualExpr).setfrom(self);
     }
     function optimize()
     {
@@ -3710,7 +3710,7 @@ class OpNotEqualExpr : ComparatorBaseExpr
     function isnegable() { return true; }
     function negated()
     {
-        return new OpEqualExpr().setfrom(self);
+        return (new OpEqualExpr).setfrom(self);
     }
     function optimize()
     {
@@ -3814,7 +3814,7 @@ class OpLessExpr : ComparatorBaseExpr
     function isnegable() { return true; }
     function negated()
     {
-        return new OpGreaterEqualExpr().setfrom(self);
+        return (new OpGreaterEqualExpr).setfrom(self);
     }
     function int_op(int left, int right)
     {
@@ -3841,7 +3841,7 @@ class OpGreaterExpr : ComparatorBaseExpr
     function isnegable() { return true; }
     function negated()
     {
-        return new OpLessEqualExpr().setfrom(self);
+        return (new OpLessEqualExpr).setfrom(self);
     }
     function int_op(int left, int right)
     {
@@ -3868,7 +3868,7 @@ class OpLessEqualExpr : ComparatorBaseExpr
     function isnegable() { return true; }
     function negated()
     {
-        return new OpGreaterExpr().setfrom(self);
+        return (new OpGreaterExpr).setfrom(self);
     }
     function int_op(int left, int right)
     {
@@ -3895,7 +3895,7 @@ class OpGreaterEqualExpr : ComparatorBaseExpr
     function isnegable() { return true; }
     function negated()
     {
-        return new OpLessExpr().setfrom(self);
+        return (new OpLessExpr).setfrom(self);
     }
     function int_op(int left, int right)
     {
@@ -6125,19 +6125,19 @@ function parseExpr_8(tk, owner)
         switch (code) {
           case Code_less:
             rexpr = parseExpr_7(tk, owner);
-            lexpr = new OpLessExpr().set(owner, t, lexpr, rexpr);
+            lexpr = (new OpLessExpr).set(owner, t, lexpr, rexpr);
             break;
           case Code_greater:
             rexpr = parseExpr_7(tk, owner);
-            lexpr = new OpGreaterExpr().set(owner, t, lexpr, rexpr);
+            lexpr = (new OpGreaterExpr).set(owner, t, lexpr, rexpr);
             break;
           case Code_less_equal:
             rexpr = parseExpr_7(tk, owner);
-            lexpr = new OpLessEqualExpr().set(owner, t, lexpr, rexpr);
+            lexpr = (new OpLessEqualExpr).set(owner, t, lexpr, rexpr);
             break;
           case Code_greater_equal:
             rexpr = parseExpr_7(tk, owner);
-            lexpr = new OpGreaterEqualExpr().set(owner, t, lexpr, rexpr);
+            lexpr = (new OpGreaterEqualExpr).set(owner, t, lexpr, rexpr);
             break;
           case Code_instanceof:
             lexpr = new OpInstanceOfExpr(owner, t, lexpr, tk);
@@ -6163,11 +6163,11 @@ function parseExpr_9(tk, owner)
         switch (code) {
           case Code_equal:
             rexpr = parseExpr_8(tk, owner);
-            lexpr = new OpEqualExpr().set(owner, t, lexpr, rexpr);
+            lexpr = (new OpEqualExpr).set(owner, t, lexpr, rexpr);
             break;
           case Code_not_equal:
             rexpr = parseExpr_8(tk, owner);
-            lexpr = new OpNotEqualExpr().set(owner, t, lexpr, rexpr);
+            lexpr = (new OpNotEqualExpr).set(owner, t, lexpr, rexpr);
             break;
           case Code_same:
             rexpr = parseExpr_8(tk, owner);
