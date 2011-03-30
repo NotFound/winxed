@@ -1780,7 +1780,7 @@ class ModifierList
             t = tk.get();
             string name = t.getidentifier();
             t = tk.get();
-            var args = new SimpleArgList();
+            var args = new SimpleArgList;
             if (t.isop('(')) {
                 args.parseargs(tk, owner, ')');
                 t = tk.get();
