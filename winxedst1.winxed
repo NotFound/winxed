@@ -3255,7 +3255,7 @@ class OpPreIncExpr : OpUnaryExpr
 
 class OpPostIncExpr : OpUnaryExpr
 {
-    function set(owner, t, subexpr)
+    function OpPostIncExpr(owner, t, subexpr)
     {
         self.OpUnaryExpr(owner, t, subexpr);
         return self;
@@ -3311,7 +3311,7 @@ class OpPreDecExpr : OpUnaryExpr
 
 class OpPostDecExpr : OpUnaryExpr
 {
-    function set(owner, t, subexpr)
+    function OpPostDecExpr(owner, t, subexpr)
     {
         self.OpUnaryExpr(owner, t, subexpr);
         return self;
@@ -6035,9 +6035,9 @@ function parseExpr_3(tk, owner)
     var subexp = parseExpr_2(tk, owner);
     var t = tk.get();
     if (t.isop('++'))
-        return new OpPostIncExpr().set(owner, t, subexp);
+        return new OpPostIncExpr(owner, t, subexp);
     else if (t.isop('--'))
-        return new OpPostDecExpr().set(owner, t, subexp);
+        return new OpPostDecExpr(owner, t, subexp);
     else
     {
         tk.unget(t);
