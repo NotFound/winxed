@@ -3060,16 +3060,15 @@ class OpDelExBase : OpUnaryExpr
     {
         return REGint;
     }
-    function set(owner, t, subexpr)
-    {
-        self.OpUnaryExpr(owner, t, subexpr);
-        return self;
-    }
 }
 
 
 class OpDeleteExpr : OpDelExBase
 {
+    function OpDeleteExpr(owner, start, subexpr)
+    {
+        self.OpUnaryExpr(owner, start, subexpr);
+    }
     function emit(e, result)
     {
         var expr = self.subexpr;
@@ -3089,6 +3088,10 @@ class OpDeleteExpr : OpDelExBase
 
 class OpExistsExpr : OpDelExBase
 {
+    function OpExistsExpr(owner, start, subexpr)
+    {
+        self.OpUnaryExpr(owner, start, subexpr);
+    }
     function emit(e, result)
     {
         var expr = self.subexpr;
@@ -3124,6 +3127,10 @@ class OpExistsExpr : OpDelExBase
 
 class OpUnaryMinusExpr : OpUnaryExpr
 {
+    function OpUnaryMinusExpr(owner, start, subexpr)
+    {
+        self.OpUnaryExpr(owner, start, subexpr);
+    }
     function checkresult()
     {
         return self.subexpr.checkresult();
@@ -3162,6 +3169,10 @@ class OpUnaryMinusExpr : OpUnaryExpr
 
 class OpNotExpr : OpUnaryExpr
 {
+    function OpNotExpr(owner, start, subexpr)
+    {
+        self.OpUnaryExpr(owner, start, subexpr);
+    }
     function isnegable() { return true; }
     function checkresult()
     {
@@ -3211,6 +3222,10 @@ class OpNotExpr : OpUnaryExpr
 
 class OpPreIncExpr : OpUnaryExpr
 {
+    function OpPreIncExpr(owner, start, subexpr)
+    {
+        self.OpUnaryExpr(owner, start, subexpr);
+    }
     function checkresult()
     {
         return self.subexpr.checkresult();
@@ -3264,6 +3279,10 @@ class OpPostIncExpr : OpUnaryExpr
 
 class OpPreDecExpr : OpUnaryExpr
 {
+    function OpPreDecExpr(owner, start, subexpr)
+    {
+        self.OpUnaryExpr(owner, start, subexpr);
+    }
     function checkresult()
     {
         return self.subexpr.checkresult();
@@ -6014,39 +6033,29 @@ function parseExpr_4(tk, owner)
 
     var t = tk.get();
     int code = getOpCode_4(t);
-    var subexpr;
-    if  (code != Code_none) {
-        subexpr = parseExpr_4(tk, owner);
-        var oper;
+    if (code != Code_none) {
+        var subexpr = parseExpr_4(tk, owner);
         switch (code) {
         case Code_minus:
-            oper = new OpUnaryMinusExpr();
-            break;
+            return new OpUnaryMinusExpr(owner, t, subexpr);
         case Code_not:
-            oper = new OpNotExpr();
-            break;
+            return new OpNotExpr(owner, t, subexpr);
         case Code_inc:
-            oper = new OpPreIncExpr();
-            break;
+            return new OpPreIncExpr(owner, t, subexpr);
         case Code_dec:
-            oper = new OpPreDecExpr();
-            break;
+            return new OpPreDecExpr(owner, t, subexpr);
         case Code_delete:
-            oper = new OpDeleteExpr();
-            break;
+            return new OpDeleteExpr(owner, t, subexpr);
         case Code_exists:
-            oper = new OpExistsExpr();
-            break;
+            return new OpExistsExpr(owner, t, subexpr);
         default:
             InternalError('Invalid code in parseExpr_4', t);
         }
-        subexpr = oper.set(owner, t, subexpr);
     }
     else {
         tk.unget(t);
-        subexpr =  parseExpr_3(tk, owner);
+        return  parseExpr_3(tk, owner);
     }
-    return subexpr;
 }
 
 function parseExpr_5(tk, owner)
