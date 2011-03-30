@@ -1847,7 +1847,7 @@ function parseStatement(tk, owner)
 {
     var t = tk.get();
     if (t.isop(';'))
-        return new EmptyStatement();
+        return new EmptyStatement;
     if (t.isop('{'))
         return new CompoundStatement(t, tk, owner);
     if (t.isop('${'))
@@ -2013,7 +2013,7 @@ class MultiStatementBase
             statements[i] = st;
         }
         if (empty)
-            return new EmptyStatement();
+            return new EmptyStatement;
         else
             return self;
     }
@@ -6544,7 +6544,7 @@ class IfStatement : ConditionalStatement
         if (t.iskeyword("else"))
             self.falsebranch = parseStatement(tk, self);
         else {
-            self.falsebranch = new EmptyStatement();
+            self.falsebranch = new EmptyStatement;
             tk.unget(t);
         }
     }
@@ -6669,7 +6669,7 @@ class DoStatement : LoopStatement, ConditionalStatement
         self.optimize_condition();
         var body = self.body.optimize();
         if (body.isempty() && self.getvalue() == CONDisfalse)
-            return new EmptyStatement();
+            return new EmptyStatement;
         self.body = body;
         return self;
     }
