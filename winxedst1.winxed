@@ -4036,6 +4036,10 @@ class OpBaseBinExpr : OpBinaryIntExpr
 
 class OpBinAndExpr : OpBaseBinExpr
 {
+    function OpBinAndExpr(owner, start, lexpr, rexpr)
+    {
+        self.set(owner, start, lexpr, rexpr);
+    }
     function emit(e, result)
     {
         string res = result != null ? result : self.tempreg(REGint);
@@ -4054,6 +4058,10 @@ class OpBinAndExpr : OpBaseBinExpr
 
 class OpBinOrExpr : OpBaseBinExpr
 {
+    function OpBinOrExpr(owner, start, lexpr, rexpr)
+    {
+        self.set(owner, start, lexpr, rexpr);
+    }
     function emit(e, result)
     {
         string res = result != null ? result : self.tempreg(REGint);
@@ -4072,6 +4080,10 @@ class OpBinOrExpr : OpBaseBinExpr
 
 class OpBinXorExpr : OpBaseBinExpr
 {
+    function OpBinXorExpr(owner, start, lexpr, rexpr)
+    {
+        self.set(owner, start, lexpr, rexpr);
+    }
     function emit(e, result)
     {
         string res = result != null ? result : self.tempreg(REGint);
@@ -6223,7 +6235,7 @@ function parseExpr_10(tk, owner)
     var t;
     while ((t = tk.get()).isop('&')) {
         var rexpr = parseExpr_9(tk, owner);
-        lexpr = new OpBinAndExpr().set(owner, t, lexpr, rexpr);
+        lexpr = new OpBinAndExpr(owner, t, lexpr, rexpr);
     }
     tk.unget(t);
     return lexpr;
@@ -6237,7 +6249,7 @@ function parseExpr_11(tk, owner)
     var t;
     while ((t = tk.get()).isop('^')) {
         var rexpr = parseExpr_10(tk, owner);
-        lexpr = new OpBinXorExpr().set(owner, t, lexpr, rexpr);
+        lexpr = new OpBinXorExpr(owner, t, lexpr, rexpr);
     }
     tk.unget(t);
     return lexpr;
@@ -6251,7 +6263,7 @@ function parseExpr_12(tk, owner)
     var t;
     while ((t = tk.get()).isop('|')) {
         var rexpr = parseExpr_11(tk, owner);
-        lexpr = new OpBinOrExpr().set(owner, t, lexpr, rexpr);
+        lexpr = new OpBinOrExpr(owner, t, lexpr, rexpr);
     }
     tk.unget(t);
     return lexpr;
