@@ -9192,7 +9192,7 @@ class WinxedHLL
         handlein.close();
         handlein.open(EVAL_NAME, 'r');
         var tk = new Tokenizer(handlein, EVAL_NAME);
-        var winxed = new WinxedCompileUnit();
+        var winxed = new WinxedCompileUnit;
         if (nowarn)
             winxed.setwarnmode(false);
         winxed.parse(tk);
@@ -9208,7 +9208,7 @@ class WinxedHLL
         handlein.open(filename, 'r');
         handlein.encoding('utf8');
         var tk = new Tokenizer(handlein, filename);
-        var winxed = new WinxedCompileUnit();
+        var winxed = new WinxedCompileUnit;
         if (nowarn)
             winxed.setwarnmode(false);
         winxed.parse(tk);
@@ -9231,7 +9231,7 @@ class WinxedHLL
         handlein.open(filename, 'r');
         handlein.encoding('utf8');
         var tk = new Tokenizer(handlein, filename);
-        var winxed = new WinxedCompileUnit();
+        var winxed = new WinxedCompileUnit;
         if (nowarn)
             winxed.setwarnmode(false);
         winxed.parse(tk);
@@ -9250,7 +9250,7 @@ class WinxedHLL
 function winxed_parser(tk, string outputfile,
         int warn, int noan, int geninclude)
 {
-    var winxed = new WinxedCompileUnit();
+    var winxed = new WinxedCompileUnit;
     if (! warn)
         winxed.setwarnmode(false);
     winxed.parse(tk);
@@ -9279,7 +9279,7 @@ function winxed_parser(tk, string outputfile,
 
 function initializer [init,load]()
 {
-    var comp = new WinxedHLL();
+    var comp = new WinxedHLL;
     compreg('winxed', comp);
 }
 
