@@ -42,7 +42,7 @@ class Window
         using Curses.derwin;
         using Curses.new_panel;
 
-        var newwindow= new Window();
+        var newwindow= new Window;
         var winscr = derwin(self.win, lines, cols, y, x);
         var panel= new_panel(winscr);
         newwindow.panel= panel;
@@ -144,9 +144,12 @@ function main(args)
     if (argc > 1) s= args[1];
     else          s= 'Hello, world!';
 
-    var scr= new Screen();
-    try test(scr, s);
-    catch(e)
+    var scr;
+    try {
+        scr = new Screen;
+        test(scr, s);
+    }
+    catch (e)
     {
         scr.endwin();
         throw e;

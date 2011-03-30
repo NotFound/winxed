@@ -102,7 +102,7 @@ class Cube
     var y;
     var z;
 
-    function set(float r, float g, float b, float x, float y, float z)
+    function Cube(float r, float g, float b, float x, float y, float z)
     {
         self.r = r;
         self.g = g;
@@ -218,68 +218,38 @@ class OpenGlWindow
 
         var cubes = [];
         self.cubes = cubes;
-        var cube;
 
-        cube = new Cube();
-        cube.set(0.0, 1.0, 0.0, 0.0, 0.0, 0.0);
-        cubes.push(cube);
-
-        cube = new Cube();
-        cube.set(0.5, 0.7, 0.5, 2.0, 0.0, 0.0);
-        cubes.push(cube);
-
-        cube = new Cube();
-        cube.set(1.0, 1.0, 0.0, -2.0, 0.0, 0.0);
-        cubes.push(cube);
-
-        cube = new Cube();
-        cube.set(0.0, 1.0, 1.0, 0.0, 0.0, 2.0);
-        cubes.push(cube);
-
-        cube = new Cube();
-        cube.set(1.0, 0.0, 1.0, 0.0, 0.0, -2.0);
-        cubes.push(cube);
-
-        cube = new Cube();
-        cube.set(1.0, 1.0, 1.0, -2.0, 0.0, -2.0);
-        cubes.push(cube);
-
-        cube = new Cube();
-        cube.set(0.5, 0.5, 1.0, -2.0, 0.0, 2.0);
-        cubes.push(cube);
-
-        cube = new Cube();
-        cube.set(0.5, 0.8, 0.7, 2.0, 0.0, -2.0);
-        cubes.push(cube);
-
-        cube = new Cube();
-        cube.set(1.0, 0.8, 0.8, 2.0, 0.0, 2.0);
-        cubes.push(cube);
-
-        cube = new Cube();
-        cube.set(1.0, 0.0, 0.0, 0.0, 2.0, 0.0);
-        cubes.push(cube);
+        cubes.push(new Cube(0.0, 1.0, 0.0,  0.0, 0.0,  0.0));
+        cubes.push(new Cube(0.5, 0.7, 0.5,  2.0, 0.0,  0.0));
+        cubes.push(new Cube(1.0, 1.0, 0.0, -2.0, 0.0,  0.0));
+        cubes.push(new Cube(0.0, 1.0, 1.0,  0.0, 0.0,  2.0));
+        cubes.push(new Cube(1.0, 0.0, 1.0,  0.0, 0.0, -2.0));
+        cubes.push(new Cube(1.0, 1.0, 1.0, -2.0, 0.0, -2.0));
+        cubes.push(new Cube(0.5, 0.5, 1.0, -2.0, 0.0,  2.0));
+        cubes.push(new Cube(0.5, 0.8, 0.7,  2.0, 0.0, -2.0));
+        cubes.push(new Cube(1.0, 0.8, 0.8,  2.0, 0.0,  2.0));
+        cubes.push(new Cube(1.0, 0.0, 0.0,  0.0, 2.0,  0.0));
 
         var savecb = [];
         self.savecb = savecb;
 
-        var d = new Reshape(); d.set(self);
+        var d = new Reshape; d.set(self);
         savecb.push(d);
         glutReshapeFunc(d);
-        d = new Draw(); d.set(self);
+        d = new Draw; d.set(self);
         savecb.push(d);
         glutDisplayFunc(d);
-        d = new Keyboard(); d.set(self);
+        d = new Keyboard; d.set(self);
         savecb.push(d);
         glutKeyboardFunc(d);
-        d = new Special(); d.set(self);
+        d = new Special; d.set(self);
         savecb.push(d);
         glutSpecialFunc(d);
 
         float now;
         ${ time now };
         self.init = now;
-        d = new Idle(); d.set(self);
+        d = new Idle; d.set(self);
         savecb.push(d);
         glutIdleFunc(d);
     }
@@ -420,7 +390,7 @@ function main(var argv)
 
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
 
-    var window = new OpenGlWindow();
+    var window = new OpenGlWindow;
     window.create('glcubes - Winxed OpenGL demo');
 
     glCullFace(GL_BACK);
