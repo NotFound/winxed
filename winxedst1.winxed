@@ -5659,9 +5659,10 @@ class NewIndexedExpr : NewBaseExpr
             SyntaxError('Multiple init arguments not allowed here', self.start);
         }
         var nskey = self.nskey;
+        e.print(INDENT);
         if (nskey.hasHLL())
             e.print("root_");
-        e.print(INDENT, 'new ', result, ", ");
+        e.print("new ", result, ", ");
         nskey.emit(e, null);
         if (reginit != null)
             e.print(', ', reginit);
