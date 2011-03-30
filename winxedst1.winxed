@@ -4293,6 +4293,10 @@ class OpSubExpr : OpBinaryExpr
 
 class OpMulExpr : OpBinaryExpr
 {
+    function OpMulExpr(owner, start, lexpr, rexpr)
+    {
+        self.set(owner, start, lexpr, rexpr);
+    }
     function optimize()
     {
         self.optimizearg();
@@ -4428,6 +4432,10 @@ class OpMulExpr : OpBinaryExpr
 
 class OpDivExpr : OpBinaryExpr
 {
+    function OpDivExpr(owner, start, lexpr, rexpr)
+    {
+        self.set(owner, start, lexpr, rexpr);
+    }
     function optimize()
     {
         self.optimizearg();
@@ -4489,6 +4497,10 @@ class OpDivExpr : OpBinaryExpr
 
 class OpModExpr : OpBinaryIntExpr
 {
+    function OpModExpr(owner, start, lexpr, rexpr)
+    {
+        self.set(owner, start, lexpr, rexpr);
+    }
     function emit(e, result)
     {
         string lreg = self.emit_intleft(e);
@@ -4506,6 +4518,10 @@ class OpModExpr : OpBinaryIntExpr
 
 class OpCModExpr : OpBinaryExpr
 {
+    function OpCModExpr(owner, start, lexpr, rexpr)
+    {
+        self.set(owner, start, lexpr, rexpr);
+    }
     function checkresult()
     {
         return REGint;
@@ -6043,25 +6059,22 @@ function parseExpr_5(tk, owner)
     int code;
     while ((code = getOpCode_5(t = tk.get())) != Code_none) {
         var rexpr = parseExpr_4(tk, owner);
-        var aux;
         switch (code) {
         case Code_mul:
-            aux = new OpMulExpr();
+            lexpr = new OpMulExpr(owner, t, lexpr, rexpr);
             break;
         case Code_div:
-            aux = new OpDivExpr();
+            lexpr = new OpDivExpr(owner, t, lexpr, rexpr);
             break;
         case Code_mod:
-            aux = new OpModExpr();
+            lexpr = new OpModExpr(owner, t, lexpr, rexpr);
             break;
         case Code_cmod:
-            aux = new OpCModExpr();
+            lexpr = new OpCModExpr(owner, t, lexpr, rexpr);
             break;
         default:
             InternalError('Invalid code in parseExpr_5', t);
         }
-        aux.set(owner, t, lexpr, rexpr);
-        lexpr = aux;
     }
     tk.unget(t);
     return lexpr;
