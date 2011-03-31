@@ -1,12 +1,21 @@
 Winxed compiler.
 Version: 0.Work-in-progress
 
-(C) 2009-2010 Julian Albo
+(C) 2009-2011 Julian Albo
 
-- Stage 0 compiler:
+Build:
+    You need a C++ compiler and parrot installed an in your PATH.
+
+    Use 'make' to build.
+    Use 'make install' to install. It gets installed in the appropiate
+    directories of the parrot install.
+
+    Alternatively, you can install Winxed using parrot plumage.
+    That way a C++ compiler is not needed.
+
 
 Usage:
-	winxedst0 [options] sourcefile
+	winxed [options] sourcefile
 
 Command line options:
 
@@ -14,41 +23,18 @@ Command line options:
 	--target pbc	Compile to pir, call parrot to compile to pbc
 			and delete the pir file.
 	-o filename	Use filename for the generated file.
-	-c		Compile only. Assume pir if --target is not used.
+	-c		Compile only. Same as --target pir
 
 	-e codfragment	Evaluate. The code fragment provided is compiled
 			inside a 'function main(argv) {' ... ';}' enveloppe.
 			Useful for one-liners and quick tests.
 
-Default values:
+        --help          Show help
 
-	If -o is not specified, .pir and .pbc extensions are added
-	after stripping any extension found.
+See --help for more options.
 
-	If --target is not specified and -c is not used, the source is
-	compiled to pir, executed, and the pir file is deleted.
+Web site:
+    http://winxed.org/
 
-	When using -e the generated files are named '##eval##' with the
-	appropiate extension.
-
-NOTE:
-	The only supported options from now on are -c and -o.
-	All others are now handled by the compiler driver and will be
-	dropped from the stage 0 compiler in a near future.
-
-- Compiler driver:
-
-The compiler driver is written in winxed, to compile it you need to build
-the stage 0 compiler first. Then you can do the following:
-
-Compile it to pir:
-    ./winxedst0 -c winxed.winxed
-Build a parrot pbc executable from the pir:
-    parrot -o winxed.pbc winxed.pir
-Build a native executable from the pbc:
-    pbc_to_exe winxed.pbc
-
-Run and insructions: depending on what you've built you can do
-    parrot winxed.pir --help
-    parrot winxed.pbc --help
-    ./winxed --help
+Code repository:
+    http://code.google.com/p/winxed/
