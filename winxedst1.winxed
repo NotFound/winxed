@@ -284,6 +284,10 @@ class TokenQuoted : TokenString
     {
         return '"' + string(self.str) + '"';
     }
+    function getasquoted()
+    {
+        return self.str;
+    }
 }
 
 class TokenSingleQuoted : TokenString
@@ -299,6 +303,21 @@ class TokenSingleQuoted : TokenString
     function viewable()
     {
         return "'" + string(self.str) + "'";
+    }
+    function getasquoted()
+    {
+        string s = '';
+        for (string c in self.str) {
+            switch (c) {
+              case '"':
+              case '\':
+              case "'":
+                c = '\' + c;
+                break;
+            }
+            s += c;
+        }
+        return s;
     }
 }
 
@@ -4189,15 +4208,20 @@ class OpAddExpr : OpBinaryExpr
         string rtype = rexpr.checkresult();
         if (lexpr.isliteral() && rexpr.isliteral()) {
             if (ltype == REGstring && rtype == REGstring) {
+                // Compile time add two literal strings:
+                // If both are single quoted, result is single quoted.
+                // If one is double quoted, result is double quoted,
+                // adding escape char '\' when needed.
                 var etok = lexpr.strval;
                 var rtok = rexpr.strval;
-                var t;
-                string es = etok.str;
-                string rs = rtok.str;
-                if ((etok instanceof TokenSingleQuoted) && (rtok instanceof TokenSingleQuoted))
-                    t = new TokenSingleQuoted(etok.file, etok.line, es + rs);
-                else
-                    t = new TokenQuoted(etok.file, etok.line, es + rs);
+                var t = ((etok instanceof TokenSingleQuoted) &&
+                         (rtok instanceof TokenSingleQuoted))
+                    ?
+                    new TokenSingleQuoted(etok.file, etok.line,
+                            string(etok.str) + string(rtok.str))
+                    :
+                    new TokenQuoted(etok.file, etok.line,
+                            string(etok.getasquoted()) + string(rtok.getasquoted()));
                 return new StringLiteral(self.owner, t);
             }
             if (ltype == REGint && rtype == REGint) {
