@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 28-mar-2011
+// Revision 31-mar-2011
 
 // Winxed compiler stage 0.
 
@@ -554,7 +554,7 @@ void PredefFunctionFixargs::emit(Emit &e, const std::string &result,
     while ((pos = body.find("\n", prev)) != std::string::npos)
     {
         e << INDENT << body.substr(prev, pos - prev + 1);
-	prev = pos + 1;
+        prev = pos + 1;
     }
     e << INDENT << body.substr(prev) << '\n';
 }
@@ -2427,7 +2427,7 @@ private:
             gentemp(REGint) :
             result;
         annotate(e);
-	e << INDENT;
+        e << INDENT;
         if (expr->isinteger())
             e << "not ";
         else
@@ -3460,7 +3460,7 @@ private:
             e.annotate(start);
             e << INDENT "if " << res << " goto " << l << '\n';
             rexpr->emit(e, res);
-            e << l << ":\n";
+            e << "  " << l << ":\n";
         }
         if (!result.empty())
             e << '\n';
@@ -3580,7 +3580,7 @@ private:
             e.annotate(start);
             e << INDENT "unless " << res << " goto " << l << '\n';
             rexpr->emit(e, res);
-            e << l << ":\n";
+            e << "  " << l << ":\n";
         }
         if (!result.empty())
             e << '\n';
@@ -3911,7 +3911,7 @@ public:
             else
             {
                 reg = bl.gentemp(REGvar);
-                (*e) << "get_hll_global " << reg << ", '" <<
+                (*e) << INDENT "get_hll_global " << reg << ", '" <<
                     id << "'\n";
             }
         }
@@ -4217,7 +4217,7 @@ void CallExpr::emit(Emit &e, const std::string &result)
         std::string quote(islocal(name) ? "" : "'");
         name = quote + name + quote;
         e.annotate(start);
-	e << INDENT;
+        e << INDENT;
         if (!result.empty() )
             e << result << " = ";
         e << name << '(';
@@ -4653,10 +4653,10 @@ private:
         std::string label_end= genlocallabel();
         condition->emit_else(e, label_false);
         exprtrue->emit(e, result);
-        e << "goto " << label_end << '\n';
-        e << label_false << ":\n";
+        e << INDENT "goto " << label_end << '\n';
+        e << "  " << label_false << ":\n";
         exprfalse->emit(e, result);
-        e << label_end << ":\n";
+        e << "  " << label_end << ":\n";
     }
     Condition *condition;
     Expr *exprtrue;
@@ -5165,7 +5165,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
         }
         break;
     case ValueArray:
-        e << "root_new " << name << ", ['parrot';"
+        e << INDENT "root_new " << name << ", ['parrot';"
                 "'Resizable" << arraytype << "Array' ]\n";
         if (value.size() > 0)
         {
@@ -5190,7 +5190,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
             regsize= gentemp(REGint);
             esize->emit(e, regsize);
         }
-        e << "root_new " << name << ", ['parrot';"
+        e << INDENT "root_new " << name << ", ['parrot';"
                  "'Fixed" << arraytype << "Array' ]\n" <<
             name << " = ";
         if (regsize.empty())
@@ -5347,7 +5347,7 @@ void VarStatement::emit (Emit &e)
             case REGstring:
                 reg = gentemp(type);
                 v.emit(e, reg);
-                e << "box " << name << ", " << reg << '\n';
+                e << INDENT "box " << name << ", " << reg << '\n';
                 break;
             case REGvar:
                 v.emit(e, name);
@@ -5687,24 +5687,24 @@ void ForStatement::emit(Emit &e)
     if (initializer)
         initializer->emit(e);
 
-    e << l_condition << ": # for condition\n";
+    e << "  " << l_condition << ": # for condition\n";
     if (condition)
     {
         std::string reg= condition->emit_get(e);
-        e << "unless " << reg << " goto " << breaklabel << " # for end\n";
+        e << INDENT "unless " << reg << " goto " << breaklabel << " # for end\n";
     }
 
     e << "# for body\n";
     st->emit(e);
 
-    e << continuelabel << ": # for iteration\n";
+    e << "  " << continuelabel << ": # for iteration\n";
 
     if (iteration)
     {
         iteration->emit(e, std::string());
         e << '\n';
     }
-    e << "goto " << l_condition << " # for condition\n";
+    e << INDENT "goto " << l_condition << " # for condition\n";
 
     e << "  " << breaklabel << ": # for end\n";
     e.comment("for loop end");
@@ -5745,7 +5745,7 @@ void ThrowStatement::emit (Emit &e)
     }
     if (excep->issimple() )
     {
-        e << op << ' ';
+        e << INDENT << op << ' ';
         excep->emit(e, std::string());
         e << '\n';
     }
@@ -5753,7 +5753,7 @@ void ThrowStatement::emit (Emit &e)
     {
         std::string reg= gentemp(type);
         excep->emit(e, reg);
-        e << op << ' ' << reg << '\n';
+        e << INDENT << op << ' ' << reg << '\n';
     }
 }
 
@@ -5804,8 +5804,8 @@ void TryStatement::emit (Emit &e)
         exname;
 
     std::string reghandler= gentemp(REGvar);
-    e << reghandler << " = new 'ExceptionHandler'\n"
-        "set_label " << reghandler << ", " << handler << '\n';
+    e << INDENT << reghandler << " = new 'ExceptionHandler'\n"
+        INDENT "set_label " << reghandler << ", " << handler << '\n';
     static const char * const ehattrs[] = {
         "min_severity", "max_severity"
     };
@@ -5815,12 +5815,12 @@ void TryStatement::emit (Emit &e)
             if (m->numargs() != 1)
                 throw CompileError("Wrong args");
             int n= m->getintegervalue(0);
-            e << reghandler << ".'" << ehattrs[i] << "'(" << n << ")\n";
+            e << INDENT << reghandler << ".'" << ehattrs[i] << "'(" << n << ")\n";
         }
     if (const Modifier *m= modifiers.getmodifier("handle_types"))
     {
         size_t n= m->numargs();
-        e << reghandler << ".'handle_types'(";
+        e << INDENT << reghandler << ".'handle_types'(";
         for (size_t i= 0; i < n; ++i)
         {
             int value= m->getintegervalue(i);
@@ -5830,12 +5830,12 @@ void TryStatement::emit (Emit &e)
         e << ")\n";
     }
 
-    e << "push_eh " << reghandler << '\n';
+    e << INDENT "push_eh " << reghandler << '\n';
 
     stry->emit(e);
     e <<
-        "pop_eh\n"
-        "goto " << pasthandler << '\n' <<
+        INDENT "pop_eh\n"
+        INDENT "goto " << pasthandler << '\n' <<
         handler << ":\n";
     if (!exname.empty() )
     {
@@ -5925,10 +5925,10 @@ std::string Condition::emit(Emit &e)
             reg= gentemp(REGint);
             std::string nocase= genlocallabel();
             e << reg << " = 0\n"
-                "if_null " << reg2 << ", " << nocase << "\n"
-                "unless " << reg2 << " goto " << nocase << "\n" <<
+                INDENT "if_null " << reg2 << ", " << nocase << "\n"
+                INDENT "unless " << reg2 << " goto " << nocase << "\n" <<
                 op_inc(reg) << '\n' <<
-                nocase << ":\n";
+                "  " << nocase << ":\n";
         }
     }
     return reg;
@@ -5949,12 +5949,12 @@ void Condition::emit_if(Emit &e, const std::string &labeltrue)
         reg = expr->emit_get(e);
         if (type == REGvar || type == REGstring) {
             auxlabel = genlocallabel();
-            e << "if_null " << reg << ", " << auxlabel << "\n";
+            e << INDENT "if_null " << reg << ", " << auxlabel << "\n";
         }
     }
-    e << "if " << reg << " goto " << labeltrue << '\n';
+    e << INDENT "if " << reg << " goto " << labeltrue << '\n';
     if (!auxlabel.empty())
-        e << auxlabel << ":\n";
+        e << "  " << auxlabel << ":\n";
 }
 
 void Condition::emit_else(Emit &e, const std::string &labelfalse)
@@ -5970,9 +5970,9 @@ void Condition::emit_else(Emit &e, const std::string &labelfalse)
         char type= expr->checkresult();
         reg = expr->emit_get(e);
         if (type == REGvar || type == REGstring)
-            e << "if_null " << reg << ", " << labelfalse << "\n";
+            e << INDENT "if_null " << reg << ", " << labelfalse << "\n";
     }
-    e << "unless " << reg << " goto " << labelfalse << '\n';
+    e << INDENT "unless " << reg << " goto " << labelfalse << '\n';
 }
 
 //**********************************************************************
@@ -6082,23 +6082,23 @@ void SwitchStatement::emit(Emit &e)
         caselabel.push_back(label);
         std::string value= gentemp(type);
         casevalue[i]->emit(e, value);
-        e << "if " << reg << " == " << value <<
+        e << INDENT "if " << reg << " == " << value <<
                 " goto " << label << '\n';
     }
-    e << "goto " << defaultlabel << '\n';
+    e << INDENT "goto " << defaultlabel << '\n';
 
     for (size_t i= 0; i < casest.size(); ++i)
     {
-        e << caselabel[i] << ": # case\n";
+        e << "  " << caselabel[i] << ": # case\n";
         std::vector<BaseStatement *> &cst= casest[i];
         for (size_t j= 0; j < cst.size(); ++j)
             cst[j]->emit(e);
     }
 
-    e << defaultlabel << ": # default\n";
+    e << "  " << defaultlabel << ": # default\n";
     for (size_t i= 0; i < defaultst.size(); ++i)
         defaultst[i]->emit(e);
-    e << breaklabel << ":\n";
+    e << "  " << breaklabel << ":\n";
     e.comment("switch end");
 }
 
@@ -6154,11 +6154,11 @@ void IfStatement::emit(Emit &e)
         st->emit(e);
     if (!noelse)
     {
-        e << "goto " << l_endif << '\n';
-        e << l_else << ":\n";
+        e << INDENT "goto " << l_endif << '\n';
+        e << "  " << l_else << ":\n";
         stelse->emit(e);
     }
-    e << l_endif << ":\n";
+    e << "  " << l_endif << ":\n";
 }
 
 //**********************************************************************
@@ -6191,23 +6191,24 @@ void WhileStatement::emit(Emit &e)
     std::string labelcontinue= gencontinuelabel();
     std::string labelend = genbreaklabel();
     bool forever= condition->getvalue() == Condition::CVtrue;
-    e << labelcontinue << ": # WHILE\n";
+    e << "  " << labelcontinue << ": # WHILE\n";
     std::string reg;
     if (! forever) {
         reg= condition->emit(e);
         e << '\n';
     }
     if (st->isempty()) {
+        e << INDENT;
         if (! forever)
             e << "if " << reg << ' ';
         e << "goto " << labelcontinue << '\n';
     }
     else {
         if (! forever)
-            e << "unless " << reg << " goto " << labelend << '\n';
+            e << INDENT "unless " << reg << " goto " << labelend << '\n';
         st->emit(e);
-        e << "goto " << labelcontinue << '\n' <<
-            labelend << ": # END WHILE\n";
+        e << INDENT "goto " << labelcontinue << '\n' <<
+            "  " << labelend << ": # END WHILE\n";
     }
 }
 
@@ -6239,19 +6240,19 @@ void DoStatement::emit(Emit &e)
     bool forever= condition->getvalue() == Condition::CVtrue;
     bool oneshot = condition->getvalue() == Condition::CVfalse;
 
-    e << labelstart << ": # DO\n";
+    e << "  " << labelstart << ": # DO\n";
 
     if (!st->isempty())
         st->emit(e);
-    e << labelcontinue << ": # DO CONTINUE\n";
+    e << "  " << labelcontinue << ": # DO CONTINUE\n";
     if (! forever)
     {
         if (!oneshot)
             condition->emit_if(e, labelstart);
     }
     else
-        e << "goto " << labelstart << '\n';
-    e << labelend << ": # END DO\n";
+        e << INDENT "goto " << labelstart << '\n';
+    e << "  " << labelend << ": # END DO\n";
 }
 
 //**********************************************************************
