@@ -954,16 +954,19 @@ const int PREDEF_arglist = -1, PREDEF_raw1 = -2;
 // Invokable object generated from a string body
 class Predef_frombody
 {
-    const string resultmark = '{res}';
+    const string resultmark = '%0';
     var body;
     var typeresult;
     function Predef_frombody(string typeresult, string bodystr)
     {
+        // Minimal sanity check
         int pos = indexof(bodystr, resultmark);
         if (typeresult == REGnone && pos != -1)
-            InternalError('void predef with {res}');
+            InternalError('void predef with ' + resultmark);
         if (typeresult != REGnone && pos == -1)
-            InternalError('non void predef without {res}');
+            InternalError('non void predef without ' + resultmark);
+
+        // Predecorate output
         int l = length(bodystr) - 1;
         if (substr(bodystr, l, 1) == "\n")
             bodystr = substr(bodystr, 0, l);
@@ -973,10 +976,8 @@ class Predef_frombody
     }
     function invoke [vtable](e, start, string result, args)
     {
-        string body = self.body;
         string typeresult = self.typeresult;
 
-        int pos;
         if (typeresult == REGnone) {
             if (result != null && result != '')
                 SyntaxError('using return value from void predef');
@@ -984,20 +985,13 @@ class Predef_frombody
         else {
             if (result == null || result == '')
                 InternalError('Bad result in non void predef');
-            while ((pos = indexof(body, resultmark)) != -1)
-                body = replace(body, pos, length(resultmark), result);
         }
 
-        int n = args;
-        for (int i = 0; i < n; ++i) {
-            string argmark = '{arg' + i + '}';
-            int l = length(argmark);
-            string arg = args[i];
-            while ((pos = indexof(body, argmark)) != -1)
-                body = replace(body, pos, l, arg);
-        }
+        var builder = new ['StringBuilder'];
+        builder.append_format(self.body,
+                result, args[0], args[1], args[2], args[3]);
         e.annotate(start);
-        e.say(body);
+        e.say(string(builder));
     }
 }
 
@@ -1301,282 +1295,282 @@ function getpredefs()
             REGstring, REGraw1
         ),
         new PredefFunction('die',
-            'die {arg0}',
+            'die %1',
             REGnone, REGstring
         ),
         new PredefFunction('exit',
-            'exit {arg0}',
+            'exit %1',
             REGnone, REGint
         ),
         new PredefFunction('time',
-            'time {res}',
+            'time %0',
             REGint
         ),
         new PredefFunction('floattime',
-            'time {res}',
+            'time %0',
             REGfloat
         ),
         new PredefFunction('spawnw',
-            'spawnw {res}, {arg0}',
+            'spawnw %0, %1',
             REGint, REGvar
         ),
         new PredefFunction('getstdin',
-            'getstdin {res}',
+            'getstdin %0',
             REGvar
         ),
         new PredefFunction('getstdout',
-            'getstdout {res}',
+            'getstdout %0',
             REGvar
         ),
         new PredefFunction('getstderr',
-            'getstderr {res}',
+            'getstderr %0',
             REGvar
         ),
         new PredefFunction('open',
 <<:
-root_new {res}, ['parrot';'FileHandle']
-{res}.'open'({arg0})
+root_new %0, ['parrot';'FileHandle']
+%0.'open'(%1)
 :>>
             , REGvar, REGstring
         ),
         new PredefFunction('open',
 <<:
-root_new {res}, ['parrot';'FileHandle']
-{res}.'open'({arg0},{arg1})
+root_new %0, ['parrot';'FileHandle']
+%0.'open'(%1,%2)
 :>>
             , REGvar, REGstring, REGstring
         ),
         new PredefFunction('Error',
 <<:
-root_new {res}, ['parrot';'Exception']
-{res}['message'] = {arg0}
+root_new %0, ['parrot';'Exception']
+%0['message'] = %1
 :>>
             , REGvar, REGstring
         ),
         new PredefFunction('Error',
 <<:
-root_new {res}, ['parrot';'Exception']
-{res}['message'] = {arg0}
-{res}['severity'] = {arg1}
+root_new %0, ['parrot';'Exception']
+%0['message'] = %1
+%0['severity'] = %2
 :>>
             , REGvar, REGstring, REGint
         ),
         new PredefFunction('Error',
 <<:
-root_new {res}, ['parrot';'Exception']
-{res}['message'] = {arg0}
-{res}['severity'] = {arg1}
-{res}['type'] = {arg2}
+root_new %0, ['parrot';'Exception']
+%0['message'] = %1
+%0['severity'] = %2
+%0['type'] = %3
 :>>
             , REGvar, REGstring, REGint, REGint
         ),
         new PredefFunction('elements',
-            'elements {res}, {arg0}',
+            'elements %0, %1',
             REGint, REGvar
         ),
         new PredefFunctionEval('length',
             predefeval_length,
-            'length {res}, {arg0}',
+            'length %0, %1',
             REGint, REGstring
         ),
         new PredefFunctionEval('bytelength',
             predefeval_bytelength,
-            'bytelength {res}, {arg0}',
+            'bytelength %0, %1',
             REGint, REGstring
         ),
         new PredefFunctionEval('chr',
             predefeval_chr,
 <<:
-chr $S0, {arg0}
+chr $S0, %1
 find_encoding $I0, 'utf8'
-trans_encoding {res}, $S0, $I0
+trans_encoding %0, $S0, $I0
 :>>
             , REGstring, REGint
         ),
         new PredefFunctionEval('ord',
             predefeval_ord,
-            'ord {res}, {arg0}',
+            'ord %0, %1',
             REGint, REGstring
         ),
         new PredefFunctionEval('ord',
             predefeval_ord_n,
-            'ord {res}, {arg0}, {arg1}',
+            'ord %0, %1, %2',
             REGint, REGstring, REGint
         ),
         new PredefFunctionEval('substr',
             predefeval_substr,
-            'substr {res}, {arg0}, {arg1}',
+            'substr %0, %1, %2',
             REGstring, REGstring, REGint
         ),
         new PredefFunctionEval('substr',
             predefeval_substr_l,
-            'substr {res}, {arg0}, {arg1}, {arg2}',
+            'substr %0, %1, %2, %3',
             REGstring, REGstring, REGint, REGint
         ),
         new PredefFunction('replace',
-            'replace {res}, {arg0}, {arg1}, {arg2}, {arg3}',
+            'replace %0, %1, %2, %3, %4',
             REGstring, REGstring, REGint, REGint, REGstring
         ),
         new PredefFunctionEval('indexof',
             predefeval_indexof,
-            'index {res}, {arg0}, {arg1}',
+            'index %0, %1, %2',
             REGint, REGstring, REGstring
         ),
         new PredefFunctionEval('indexof',
             predefeval_indexof_pos,
-            'index {res}, {arg0}, {arg1}, {arg2}',
+            'index %0, %1, %2, %3',
             REGint, REGstring, REGstring, REGint
         ),
         new PredefFunction('join',
-            'join {res}, {arg0}, {arg1}',
+            'join %0, %1, %2',
             REGstring, REGstring, REGvar
         ),
         new PredefFunction('upcase',
-            'upcase {res}, {arg0}',
+            'upcase %0, %1',
             REGstring, REGstring
         ),
         new PredefFunction('downcase',
-            'downcase {res}, {arg0}',
+            'downcase %0, %1',
             REGstring, REGstring
         ),
         new PredefFunction('titlecase',
-            'titlecase {res}, {arg0}',
+            'titlecase %0, %1',
             REGstring, REGstring
         ),
         new PredefFunction('split',
-            'split {res}, {arg0}, {arg1}',
+            'split %0, %1, %2',
             REGvar, REGstring, REGstring
         ),
         new PredefFunction('chomp',
 <<:
 $P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
-{res} = $P0({arg0})
+%0 = $P0(%1)
 :>>
             , REGstring, REGstring
         ),
         new PredefFunction('chomp',
 <<:
 $P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
-{res} = $P0({arg0}, {arg1})
+%0 = $P0(%1, %2)
 :>>
             , REGstring, REGstring, REGstring
         ),
         new PredefFunction('push',
-            'push {arg0}, {arg1}',
+            'push %1, %2',
             REGnone, REGvar, REGany
         ),
         new PredefFunction('sqrt',
-            'sqrt {res}, {arg0}',
+            'sqrt %0, %1',
             REGfloat, REGfloat
         ),
         new PredefFunction('pow',
-            'pow {res}, {arg0}, {arg1}',
+            'pow %0, %1, %2',
             REGfloat, REGfloat, REGfloat
         ),
         new PredefFunction('exp',
-            'exp {res}, {arg0}',
+            'exp %0, %1',
             REGfloat, REGfloat
         ),
         new PredefFunction('ln',
-            'ln {res}, {arg0}',
+            'ln %0, %1',
             REGfloat, REGfloat
         ),
         new PredefFunction('sin',
-            'sin {res}, {arg0}',
+            'sin %0, %1',
             REGfloat, REGfloat
         ),
         new PredefFunction('cos',
-            'cos {res}, {arg0}',
+            'cos %0, %1',
             REGfloat, REGfloat
         ),
         new PredefFunction('tan',
-            'tan {res}, {arg0}',
+            'tan %0, %1',
             REGfloat, REGfloat
         ),
         new PredefFunction('asin',
-            'asin {res}, {arg0}',
+            'asin %0, %1',
             REGfloat, REGfloat
         ),
         new PredefFunction('acos',
-            'acos {res}, {arg0}',
+            'acos %0, %1',
             REGfloat, REGfloat
         ),
         new PredefFunction('atan',
-            'atan {res}, {arg0}',
+            'atan %0, %1',
             REGfloat, REGfloat
         ),
         new PredefFunction('atan',
-            'atan {res}, {arg0}, {arg1}',
+            'atan %0, %1, %2',
             REGfloat, REGfloat, REGfloat
         ),
         new PredefFunction('getinterp',
-            'getinterp {res}',
+            'getinterp %0',
             REGvar
         ),
         new PredefFunction('get_class',
-            'get_class {res}, {arg0}',
+            'get_class %0, %1',
             REGvar, REGstring
         ),
         new PredefFunction('typeof',
-            'typeof {res}, {arg0}',
+            'typeof %0, %1',
             REGvar, REGvar
         ),
         new PredefFunction('getattribute',
-            'getattribute {res}, {arg0}, {arg1}',
+            'getattribute %0, %1, %2',
             REGvar, REGvar, REGstring
         ),
         new PredefFunction('find_method',
-            'find_method {res}, {arg0}, {arg1}',
+            'find_method %0, %1, %2',
             REGvar, REGvar, REGstring
         ),
         new PredefFunction('callmethodwithargs',
-            '{res} = {arg0}.{arg1}({arg2} :flat)',
+            '%0 = %1.%2(%3 :flat)',
             REGvar, REGvar, REGvar, REGvar
         ),
         new PredefFunction('clone',
-            'clone {res}, {arg0}',
+            'clone %0, %1',
             REGvar, REGvar
         ),
         new PredefFunction('compreg',
-            'compreg {res}, {arg0}',
+            'compreg %0, %1',
             REGvar, REGstring
         ),
         new PredefFunction('compreg',
-            'compreg {arg0}, {arg1}',
+            'compreg %1, %2',
             REGnone, REGstring, REGvar
         ),
         new PredefFunction('load_language',
 <<:
-load_language {arg0}
-compreg {res}, {arg0}
+load_language %1
+compreg %0, %1
 :>>
             , REGvar, REGstring
         ),
         new PredefFunction('load_language',
 <<:
-load_language {arg0}
-compreg {res}, {arg1}
+load_language %1
+compreg %0, %2
 :>>
             , REGvar, REGstring, REGstring
         ),
         new PredefFunction('loadlib',
-            'loadlib {res}, {arg0}',
+            'loadlib %0, %1',
             REGvar, REGstring
         ),
         new PredefFunction('load_bytecode',
-            'load_bytecode {arg0}',
+            'load_bytecode %1',
             REGnone, REGstring
         ),
         new PredefFunction('dlfunc',
-            'dlfunc {res}, {arg0}, {arg1}, {arg2}',
+            'dlfunc %0, %1, %2, %3',
             REGvar, REGvar, REGstring, REGstring
         ),
         new PredefFunction('sprintf',
-            'sprintf {res}, {arg0}, {arg1}',
+            'sprintf %0, %1, %2',
             REGstring, REGstring, REGvar
         ),
         new PredefFunction('sprintf',
-            'sprintf {res}, {arg0}, {arg1}',
+            'sprintf %0, %1, %2',
             REGvar, REGvar, REGvar
         ),
         new PredefFunction('print',
