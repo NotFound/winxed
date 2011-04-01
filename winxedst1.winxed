@@ -7130,6 +7130,46 @@ class ThrowStatement : Statement
 //            TryStatement
 //*********************************************
 
+class TryModifierList : ModifierList
+{
+    var start;
+    function TryModifierList(start, tk, owner)
+    {
+        self.start = start;
+        self.ModifierList(tk, owner);
+    }
+    function emitmodifiers(e, string reghandler)
+    {
+        var modiflist = self.getlist();
+        for (var modif in modiflist) {
+            string modifname = modif.getname();
+            int nargs = modif.numargs();
+            switch (modifname) {
+              case 'min_severity':
+              case 'max_severity':
+                if (nargs != 1)
+                    SyntaxError('Wrong modifier args', self.start);
+                var arg = modif.getarg(0);
+                string argreg = arg.emit_get(e);
+                e.say(INDENT, reghandler, ".'", modifname, "'(", argreg, ")");
+                break;
+              case 'handle_types':
+              case 'handle_types_except':
+                string argregs [];
+                for (int i = 0; i < nargs; ++i) {
+                    var arg = modif.getarg(i);
+                    push(argregs, arg.emit_get(e));
+                }
+                e.say(INDENT, reghandler, ".'", modifname,
+                        "'(", join(', ', argregs), ")");
+                break;
+              default:
+                SyntaxError("Modifier '" + modifname + "' not valid for try", self.start);
+            }
+        }
+    }
+}
+
 class TryStatement : BlockStatement
 {
     var stry;
@@ -7142,7 +7182,7 @@ class TryStatement : BlockStatement
         self.Statement(start, owner);
         var t = tk.get();
         if (t.isop('['))
-            self.modifiers = new ModifierList(tk, self);
+            self.modifiers = new TryModifierList(t, tk, self);
         else
             tk.unget(t);
 
@@ -7191,35 +7231,8 @@ class TryStatement : BlockStatement
         e.say(INDENT, 'new ', reghandler, ", 'ExceptionHandler'");
         e.say(INDENT, 'set_label ', reghandler, ', ', labelhandler);
 
-        if (self.modifiers != null) {
-            var modiflist = self.modifiers.getlist();
-            for (var modif in modiflist) {
-                string modifname = modif.getname();
-                int nargs = modif.numargs();
-                switch (modifname) {
-                case 'min_severity':
-                case 'max_severity':
-                    if (nargs != 1)
-                        SyntaxError('Wrong modifier args', self.start);
-                    var arg = modif.getarg(0);
-                    string argreg = arg.emit_get(e);
-                    e.say(INDENT, reghandler, ".'", modifname, "'(", argreg, ")");
-                    break;
-                case 'handle_types':
-                case 'handle_types_except':
-                    string argregs [];
-                    for (int i = 0; i < nargs; ++i) {
-                        var arg = modif.getarg(i);
-                        push(argregs, arg.emit_get(e));
-                    }
-                    e.say(INDENT, reghandler, ".'", modifname,
-                            "'(", join(', ', argregs), ")");
-                    break;
-                default:
-                    SyntaxError('Unexpected modifier in try', self.start);
-                }
-            }
-        }
+        if (self.modifiers != null)
+            self.modifiers.emitmodifiers(e, reghandler);
 
         e.emitarg1('push_eh', reghandler);
         e.comment('try: begin');
