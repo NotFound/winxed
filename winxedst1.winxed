@@ -4642,6 +4642,50 @@ class OpShiftrightExpr : OpBinaryIntExpr
 
 //*********************************************
 
+class ArgumentModifierList : ModifierList
+{
+    function ArgumentModifierList(tk, owner)
+    {
+        self.ModifierList(tk, owner);
+    }
+    function emitmodifiers(e)
+    {
+        int isflat = 0, isnamed = 0;
+        string setname = '';
+        for (var modif in self.getlist()) {
+            string name = modif.getname();
+            if (name == 'flat')
+                isflat = 1;
+            if (name == 'named') {
+                isnamed = 1;
+                switch (modif.numargs()) {
+                  case 0: 
+                    break;
+                  case 1:
+                    var argmod = modif.getarg(0);
+                    if (! argmod.isstringliteral())
+                        SyntaxError('Invalid modifier', self.start);
+                    setname = argmod.getPirString();
+                    break;
+                  default:
+                    SyntaxError('Invalid modifier', self.start);
+                }
+            }
+        }
+        if (isflat) {
+            if (isnamed)
+                e.print(' :flat :named');
+            else
+                e.print(' :flat');
+        }
+        else if (isnamed) {
+            e.print(' :named');
+            if (setname != '')
+                e.print("(", setname, ")");
+        }
+    }
+}
+
 class Argument
 {
     var arg;
@@ -4684,7 +4728,7 @@ class ArgumentList
                 if (t.isop(':')) {
                     t = tk.get();
                     if (t.isop('[')) {
-                        modifier = new ModifierList(tk, owner);
+                        modifier = new ArgumentModifierList(tk, owner);
                         t = tk.get();
                     }
                     else
@@ -4761,41 +4805,8 @@ class ArgumentList
             string a = argreg[i];
             e.print(sep, a);
             var modifiers = args[i].modifiers;
-            if (modifiers != null) {
-                int isflat = 0, isnamed = 0;
-                string setname = '';
-                for (var modif in modifiers.getlist()) {
-                    string name = modif.getname();
-                    if (name == 'flat')
-                        isflat = 1;
-                    if (name == 'named') {
-                        isnamed = 1;
-                        switch (modif.numargs()) {
-                          case 0: 
-                            break;
-                          case 1:
-                            var argmod = modif.getarg(0);
-                            if (! argmod.isstringliteral())
-                                SyntaxError('Invalid modifier', self.start);
-                            setname = argmod.getPirString();
-                            break;
-                          default:
-                            SyntaxError('Invalid modifier', self.start);
-                        }
-                    }
-                }
-                if (isflat) {
-                    if (isnamed)
-                        e.print(' :flat :named');
-                    else
-                        e.print(' :flat');
-                }
-                else if (isnamed) {
-                    e.print(' :named');
-                    if (setname != '')
-                        e.print("(", setname, ")");
-                }
-            }
+            if (modifiers != null)
+                modifiers.emitmodifiers(e);
             sep = ', ';
         }
     }
