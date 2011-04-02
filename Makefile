@@ -151,10 +151,10 @@ TEST1 = \
 	t/preincdec.t.winxed
 
 test1: $(DRIVER).pbc winxedst1.pbc
-	parrot $(DRIVER).pbc --stage=1 t/harness --stage=1 -r t/basic t/*.t $(TEST1)
+	parrot $(DRIVER).pbc --stage=1 t/harness --stage=1 -r t/basic t/advanced t/*.t $(TEST1)
 
 test2: $(DRIVER).pbc winxedst2.pbc
-	parrot $(DRIVER).pbc --stage=2 t/harness --stage=2 -r t/basic t/*.t $(TEST1)
+	parrot $(DRIVER).pbc --stage=2 t/harness --stage=2 -r t/basic t/advanced t/*.t $(TEST1)
 
 clean:
 	rm -f winxedst2$(EXEEXT)
