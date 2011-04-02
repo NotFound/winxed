@@ -7905,6 +7905,63 @@ class RegisterStore
 //            FunctionParameter
 //*********************************************
 
+class ParameterModifierList : ModifierList
+{
+    function ParameterModifierList(tk, owner)
+    {
+        self.ModifierList(tk, owner);
+    }
+    function emitmodifiers(e, start, string paramname)
+    {
+        var named = null;
+        var slurpy = null;
+        var modarglist = self.getlist();
+        for (var mod in modarglist) {
+            string modname = mod.getname();
+            switch (modname) {
+              case 'named':
+                named = mod;
+                break;
+              case 'slurpy':
+                slurpy = mod;
+                break;
+              default:
+                e.print(' :', modname);
+            }
+        }
+        if (named != null && slurpy != null) {
+            // Special case for named slurpy: named refers
+            // to the slurpy content, not to the param himself.
+            // TODO: check that named has no arguments,
+            // or use a different way.
+            e.print(" :named :slurpy");
+        }
+        else {
+            if (named != null) {
+                string setname;
+                int nargs = named.numargs();
+                switch (nargs) {
+                  case 0:
+                    setname = "'" + paramname + "'";
+                    break;
+                  case 1:
+                    var argmod = named.getarg(0);
+                    if (! argmod.isstringliteral())
+                        SyntaxError('Invalid modifier', start);
+                    setname = argmod.getPirString();
+                    break;
+                  default:
+                    SyntaxError('Invalid modifier', start);
+                }
+                e.print(" :named(", setname, ")");
+            }
+            else if (slurpy != null) {
+                e.print(" :slurpy");
+            }
+        }
+    }
+}
+
 class FunctionParameter
 {
     var name;
@@ -7923,7 +7980,7 @@ class FunctionParameter
         self.name = string(t);
         t = tk.get();
         if (t.isop('['))
-            self.modifiers = new ModifierList(tk, self);
+            self.modifiers = new ParameterModifierList(tk, self);
         else
             tk.unget(t);
     }
@@ -7934,54 +7991,8 @@ class FunctionParameter
         string ptype = typetopirname(param.gettype());
         e.print('        .param ', ptype, ' ', param.getreg());
         var modarg = self.modifiers;
-        if (modarg != null) {
-            var named = null;
-            var slurpy = null;
-            var modarglist = modarg.getlist();
-            for (var mod in modarglist) {
-                string modname = mod.getname();
-                switch (modname) {
-                  case 'named':
-                    named = mod;
-                    break;
-                  case 'slurpy':
-                    slurpy = mod;
-                    break;
-                  default:
-                    e.print(' :', modname);
-                }
-            }
-            if (named != null && slurpy != null) {
-                // Special case for named slurpy: named refers
-                // to the slurpy content, not to the param himself.
-                // TODO: check that named has no arguments,
-                // or use a different way.
-                e.print(" :named :slurpy");
-            }
-            else {
-                if (named != null) {
-                    string setname;
-                    int nargs = named.numargs();
-                    switch (nargs) {
-                      case 0:
-                        setname = "'" + paramname + "'";
-                        break;
-                      case 1:
-                        var argmod = named.getarg(0);
-                        if (! argmod.isstringliteral())
-                            SyntaxError('Invalid modifier', func.start);
-                        setname = argmod.getPirString();
-                        break;
-                      default:
-                        SyntaxError('Invalid modifier', func.start);
-                    }
-                    e.print(" :named(", setname, ")");
-                }
-                else if (slurpy != null) {
-                    e.print(" :slurpy");
-                }
-            }
-        }
+        if (modarg != null)
+            modarg.emitmodifiers(e, func.start, paramname);
         e.say('');
     }
 }
