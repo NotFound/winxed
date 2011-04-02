@@ -1856,6 +1856,16 @@ function parseUsing(t, tk, owner)
     }
 }
 
+function parseSig(start, tk, owner)
+{
+    var params = new SigParameterList(tk, owner);
+    var t = tk.get();
+    if (! t.isop('='))
+        SyntaxError("Expected '='", t);
+    var expr = parseExpr(tk, owner);
+    return new MultiAssignStatement(params, expr);
+}
+
 function parseStatement(tk, owner)
 {
     var t = tk.get();
@@ -1865,6 +1875,12 @@ function parseStatement(tk, owner)
         return new CompoundStatement(t, tk, owner);
     if (t.isop('${'))
         return new PiropStatement(t, tk, owner);
+    if (t.isop(':')) {
+        var open = tk.get();
+        if (! open.isop('('))
+            SyntaxError("Unexpected ':'", t);
+        return parseSig(t, tk, owner);
+    }
 
     switch (t.checkkeyword()) {
     case 'using':
@@ -5000,6 +5016,14 @@ class CallExpr : Expr
             call = funref.emit_get(e);
         return call;
     }
+    function emitargs(e)
+    {
+        e.print('(');
+        var args = self.args;
+        if (args != null)
+            args.emitargs(e);
+        e.say(')');
+    }
     function emit(e, result)
     {
         var funref = self.funref;
@@ -5019,10 +5043,7 @@ class CallExpr : Expr
         }
 
         e.print(call);
-        e.print('(');
-        if (args != null)
-            args.emitargs(e);
-        e.say(')');
+        self.emitargs(e);
     }
 }
 
@@ -8408,6 +8429,101 @@ class MethodStatement : FunctionStatement
         self.FunctionStatement(t, tk, owner);
     }
     function ismethod() { return true; }
+}
+
+//*********************************************
+//            MultiAssignStatement
+//*********************************************
+
+class SigParameter
+{
+    var name;
+    var modifiers;
+    var reg;
+    function SigParameter(tk, owner)
+    {
+        var name = tk.get();
+        if (! name.isidentifier())
+            SyntaxError("Identifier expected", name);
+        var t = tk.get();
+        if (t.isidentifier()) {
+            string type = typetoregcheck(name.checkkeyword());
+            name = t;
+            owner.createvar(name, type);
+            t = tk.get();
+        }
+        self.name = name;
+        var data = owner.getvar(name.getidentifier());
+        self.reg = data.getreg();
+        if (t.isop('['))
+            self.modifiers = new ParameterModifierList(tk, self);
+        else
+            tk.unget(t);
+    }
+    function emit(e)
+    {
+        e.print(self.reg);
+        var modifiers = self.modifiers;
+        if (modifiers != null) {
+            var name = self.name;
+            modifiers.emitmodifiers(e, name, name);
+        }
+    }
+}
+
+class SigParameterList
+{
+    var params;
+    function SigParameterList(tk, owner)
+    {
+        var t;
+        var params = [];
+        do {
+            var sigelem = new SigParameter(tk, owner);
+            params.push(sigelem);
+            t = tk.get();
+        } while (t.isop(','));
+        if (! t.isop(')'))
+            SyntaxError("Expected ',' or ')'", t);
+        self.params = params;
+    }
+    function emit(e)
+    {
+        e.print('(');
+        string sep = '';
+        for (var param in self.params) {
+            e.print(sep);
+            param.emit(e);
+            sep = ', ';
+        }
+        e.print(')');
+    }
+}
+
+class MultiAssignStatement
+{
+    var params;
+    var expr;
+    function MultiAssignStatement(params, expr)
+    {
+        self.params = params;
+        self.expr = expr;
+    }
+    function optimize()
+    {
+        self.expr = self.expr.optimize();
+        return self;
+    }
+    function emit(e)
+    {
+        var expr = self.expr;
+        var call = expr.emitcall(e);
+        e.print(INDENT);
+        self.params.emit(e);
+        e.print(' = ', call);
+        self.expr.emitargs(e);
+        e.say();
+    }
 }
 
 //*********************************************
