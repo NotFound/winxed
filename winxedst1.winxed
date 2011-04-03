@@ -8814,18 +8814,16 @@ function parseClass(start, tk, parent)
     var name = tk.get();
     var t = tk.get();
     if (t.isop(';') || t.isop('.')) {
-        var mnull = null; // Stage 0 doesn't handle well null arguments
-        while (t.isop('.')) {
-            parent = parent.childnamespace(name, string(name), mnull);
+        for ( ; t.isop('.'); t = tk.get()) {
+            parent = parent.declarenamespace(name, string(name));
             name = tk.get();
-            t = tk.get();
         }
         RequireOp(';', t);
-        return new DeclareClassStatement(start, name, parent);
+        parent.declareclass(new DeclareClassStatement(start, name, parent));
     }
     else {
         tk.unget(t);
-        return new ClassStatement(start, name, parent, tk);
+        parent.addclass(new ClassStatement(start, name, parent, tk));
     }
 }
 
@@ -8993,12 +8991,28 @@ class NamespaceBase : VarContainer
         }
         return null;
     }
+    function declarenamespace(var start, string name)
+    {
+        var mnull = null; // Stage 0 doesn't handle well null arguments
+        var child = new NamespaceStatement(self, start, name, mnull);
+        push(self.namespaces, child);
+        return child;
+    }
     function childnamespace(var start, string name, var modifier)
     {
         var child = new NamespaceStatement(self, start, name, modifier);
         push(self.namespaces, child);
         push(self.items, child);
         return child;
+    }
+    function declareclass(statement)
+    {
+        push(self.classes, statement);
+    }
+    function addclass(statement)
+    {
+        push(self.classes, statement);
+        push(self.items, statement);
     }
     function parsenamespace(start, tk)
     {
@@ -9038,9 +9052,7 @@ class NamespaceBase : VarContainer
                 push(items, f);
                 break;
               case 'class':
-                var c = parseClass(t, tk, self);
-                push(classes, c);
-                push(items, c);
+                parseClass(t, tk, self);
                 break;
               case 'using':
                 t = tk.get();
