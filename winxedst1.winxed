@@ -8662,19 +8662,35 @@ function parseClassSpecifier(tk, owner)
 //            ClassStatement
 //*********************************************
 
-class ClassStatement : CommonBase, VarContainer
+class ClassBase : CommonBase
+{
+    var name;
+    var classns;
+    function ClassBase(start, name, parent)
+    {
+        self.initbase(start, parent);
+        self.name = name;
+        var classns = clone(parent.getpath());
+        push(classns, self.name);
+        self.classns = classns;
+    }
+    function getclasskey()
+    {
+        return getparrotkey(self.classns);
+    }
+}
+
+class ClassStatement : ClassBase, VarContainer
 {
     var parent;
-    var name;
     var bases;
     var constants;
     var functions;
     var members;
-    var classns;
 
-    function ClassStatement(start, tk, parent)
+    function ClassStatement(start, name, parent, tk)
     {
-        self.initbase(start, parent);
+        self.ClassBase(start, name, parent);
         self.parent = parent;
         var functions = [];
         self.functions = functions;
@@ -8683,12 +8699,6 @@ class ClassStatement : CommonBase, VarContainer
         self.bases = [];
         var constants = [];
         self.constants = constants;
-
-        var name = tk.get();
-        self.name = name;
-        var classns = clone(parent.getpath());
-        push(classns, self.name);
-        self.classns = classns;
 
         var t = tk.get();
         if (t.isop(':')) {
@@ -8755,10 +8765,6 @@ class ClassStatement : CommonBase, VarContainer
         optimize_array(self.functions);
         return self;
     }
-    function getclasskey()
-    {
-        return getparrotkey(self.classns);
-    }
     function emit(var e)
     {
         var classns = self.classns;
@@ -8784,6 +8790,42 @@ class ClassStatement : CommonBase, VarContainer
         }
 
         e.say('.end');
+    }
+}
+
+class DeclareClassStatement : ClassBase
+{
+    function DeclareClassStatement(start, name, parent)
+    {
+        self.ClassBase(start, name, parent);
+        self.name = name;
+    }
+    function optimize()
+    {
+        return self;
+    }
+    function emit(e)
+    {
+    }
+}
+
+function parseClass(start, tk, parent)
+{
+    var name = tk.get();
+    var t = tk.get();
+    if (t.isop(';') || t.isop('.')) {
+        var mnull = null; // Stage 0 doesn't handle well null arguments
+        while (t.isop('.')) {
+            parent = parent.childnamespace(name, string(name), mnull);
+            name = tk.get();
+            t = tk.get();
+        }
+        RequireOp(';', t);
+        return new DeclareClassStatement(start, name, parent);
+    }
+    else {
+        tk.unget(t);
+        return new ClassStatement(start, name, parent, tk);
     }
 }
 
@@ -8951,6 +8993,13 @@ class NamespaceBase : VarContainer
         }
         return null;
     }
+    function childnamespace(var start, string name, var modifier)
+    {
+        var child = new NamespaceStatement(self, start, name, modifier);
+        push(self.namespaces, child);
+        push(self.items, child);
+        return child;
+    }
     function parsenamespace(start, tk)
     {
         var t = tk.get();
@@ -8964,9 +9013,7 @@ class NamespaceBase : VarContainer
         }
 
         RequireOp('{', t);
-        var child = new NamespaceStatement(self, start, name, modifier);
-        push(self.namespaces, child);
-        push(self.items, child);
+        var child = self.childnamespace(start, name, modifier);
         child.parse(tk);
     }
     function parse(tk)
@@ -8991,7 +9038,7 @@ class NamespaceBase : VarContainer
                 push(items, f);
                 break;
               case 'class':
-                var c = new ClassStatement(t, tk, self);
+                var c = parseClass(t, tk, self);
                 push(classes, c);
                 push(items, c);
                 break;
