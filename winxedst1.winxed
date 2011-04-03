@@ -599,12 +599,8 @@ class Tokenizer
     }
     function get_token()
     {
-        using static isspace;
-        using static isidentstart;
-        using static isdigit;
-        using static getop;
-        using static getident;
-        using static getnumber;
+        using static isspace, isidentstart, isdigit,
+                getop, getident, getnumber;
 
         if (self.stacked) {
             var t = self.stacked.pop();
@@ -1276,10 +1272,7 @@ function getpredefs()
     using predefeval_substr_l;
     using predefeval_indexof;
     using predefeval_indexof_pos;
-    using static Predef_print;
-    using static Predef_say;
-    using static Predef_cry;
-    using static Predef_invoke;
+    using static Predef_print, Predef_say, Predef_cry, Predef_invoke;
 
     var predefs = [
         new PredefFunction('int',
@@ -2179,20 +2172,28 @@ class ExternStatement : Statement
 
 class StaticStatement : Statement
 {
-    var symbol;
+    var names;
     function StaticStatement(start, tk, owner)
     {
         self.Statement(start, owner);
-        string sym = tk.get();
-        ExpectOp(';', tk);
-        self.symbol = sym;
+        var names = [];
+        var t;
+        do {
+            t = tk.get();
+            string name = t.getidentifier();
+            push(names, name);
+        } while ((t = tk.get()).isop(','));
+        RequireOp(';', t);
+        self.names = names;
     }
     function optimize() { return self; }
     function emit(e)
     {
         self.annotate(e);
-        var v = self.createvar(self.symbol, REGvar);
-        e.say(".const 'Sub' ", v.getreg(), " = '", self.symbol, "'");
+        for (string name in self.names) {
+            var v = self.createvar(name, REGvar);
+            e.say(".const 'Sub' ", v.getreg(), " = '", name, "'");
+        }
     }
 }
 
@@ -6048,8 +6049,7 @@ function parseExpr_0(tk, owner)
 
 function parseExpr_2(tk, owner)
 {
-    using static parseExpr_0;
-    using static getOpCode_2;
+    using static parseExpr_0, getOpCode_2;
 
     var subexp = parseExpr_0(tk, owner);
     var t;
@@ -6100,9 +6100,7 @@ function parseExpr_3(tk, owner)
 
 function parseExpr_4(tk, owner)
 {
-    using static parseExpr_4;
-    using static parseExpr_3;
-    using static getOpCode_4;
+    using static parseExpr_4, parseExpr_3, getOpCode_4;
 
     var t = tk.get();
     int code = getOpCode_4(t);
@@ -6133,8 +6131,7 @@ function parseExpr_4(tk, owner)
 
 function parseExpr_5(tk, owner)
 {
-    using static parseExpr_4;
-    using static getOpCode_5;
+    using static parseExpr_4, getOpCode_5;
 
     var lexpr = parseExpr_4(tk, owner);
     var t;
@@ -6209,8 +6206,7 @@ function parseExpr_7(tk, owner)
 
 function parseExpr_8(tk, owner)
 {
-    using static parseExpr_7;
-    using static getOpCode_8;
+    using static parseExpr_7, getOpCode_8;
 
     var lexpr = parseExpr_7(tk, owner);
     var rexpr;
@@ -6247,8 +6243,7 @@ function parseExpr_8(tk, owner)
 
 function parseExpr_9(tk, owner)
 {
-    using static parseExpr_8;
-    using static getOpCode_9;
+    using static parseExpr_8, getOpCode_9;
 
     var lexpr = parseExpr_8(tk, owner);
     var rexpr;
@@ -6352,8 +6347,7 @@ function parseExpr_14(tk, owner)
 
 function parseExpr_15(tk, owner)
 {
-    using static parseExpr_16;
-    using static parseExpr_14;
+    using static parseExpr_16, parseExpr_14;
 
     var econd = parseExpr_14(tk, owner);
     var t = tk.get();
@@ -6371,9 +6365,7 @@ function parseExpr_15(tk, owner)
 
 function parseExpr_16(tk, owner)
 {
-    using static parseExpr_16;
-    using static parseExpr_15;
-    using static getOpCode_16;
+    using static parseExpr_16, parseExpr_15, getOpCode_16;
 
     var lexpr = parseExpr_15(tk, owner);
     var t;
@@ -7537,8 +7529,7 @@ function newIntArray(start, owner, tk, name)
 
 function parseInt(start, tk, owner)
 {
-    using static newIntSingle;
-    using static newIntArray;
+    using static newIntSingle, newIntArray;
     return parseDeclareHelper(newIntSingle, newIntArray, start, tk, owner);
 }
 
@@ -7573,8 +7564,7 @@ function newFloatArray(start, owner, tk, name)
 
 function parseFloat(start, tk, owner)
 {
-    using static newFloatSingle;
-    using static newFloatArray;
+    using static newFloatSingle, newFloatArray;
     return parseDeclareHelper(newFloatSingle, newFloatArray, start, tk, owner);
 }
 
@@ -7609,8 +7599,7 @@ function newStringArray(start, owner, tk, name)
 
 function parseString(start, tk, owner)
 {
-    using static newStringSingle;
-    using static newStringArray;
+    using static newStringSingle, newStringArray;
     return parseDeclareHelper(newStringSingle, newStringArray, start, tk, owner);
 }
 

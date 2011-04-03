@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 31-mar-2011
+// Revision 4-apr-2011
 
 // Winxed compiler stage 0.
 
@@ -1253,18 +1253,25 @@ class StaticStatement : public BaseStatement
 public:
     StaticStatement(Block &bl, Tokenizer &tk)
     {
-        Token t = tk.get();
-        n = t.identifier();
-        bl.genlocal(n, REGvar);
-        ExpectOp(';', tk);
+        Token t;
+        do {
+            t = tk.get();
+            std::string name = t.identifier();
+            names.push_back(name);
+            bl.genlocal(name, REGvar);
+        } while ((t= tk.get()).isop(','));
+        RequireOp(';', t);
     }
 private:
     void emit (Emit &e)
     {
-        e << ".const 'Sub' " << n << " = '" << n << "'\n";
+        for (size_t i= 0; i < names.size(); ++i) {
+            std::string name = names[i];
+            e << ".const 'Sub' " << name << " = '" << name << "'\n";
+        }
     }
 
-    std::string n;
+    std::vector<std::string> names;
 };
 
 //**********************************************************************
