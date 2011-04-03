@@ -1,0 +1,10 @@
+Test dirctories:
+
+- t/basic
+Tests that must work in all stages.
+
+- t/advanced
+Tests for functionality not available in stage 0.
+
+- t
+Tests not yet classified.
