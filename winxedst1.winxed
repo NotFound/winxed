@@ -4790,7 +4790,7 @@ class ArgumentList
             string argregs[];
             string pnull = '';
             var args = self.args;
-	    if (args != null) {
+            if (args != null) {
                 int nargs = elements(args);
                 for (int i = 0; i < nargs; ++i) {
                     var a = args[i].arg;
