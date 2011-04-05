@@ -2133,21 +2133,26 @@ void ArgumentList::optimize()
 
 void ArgumentList::prepare(Emit &e)
 {
+    std::string nullreg;
     for (size_t i= 0; i < args.size(); ++i)
     {
-        if (! args[i]->issimple() )
-            argregs.push_back(args[i]->emit_get(e));
+        Expr &arg= *args[i];
+        std::string reg;
+        if (! arg.issimple() )
+            reg= arg.emit_get(e);
         else
         {
-            if (args[i]->isnull())
+            if (arg.isnull())
             {
-                std::string reg= gentemp(REGvar);
-                e << op_null(reg) << '\n';
-                argregs.push_back(reg);
+                if (nullreg.empty())
+                {
+                    nullreg= gentemp(REGvar);
+                    e << op_null(nullreg) << '\n';
+                }
+                reg= nullreg;
             }
-            else
-                argregs.push_back(std::string());
         }
+        argregs.push_back(reg);
     }
 }
 
