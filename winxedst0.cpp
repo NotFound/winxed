@@ -1470,12 +1470,20 @@ public:
 class ArgumentList : public InBlock
 {
 public:
-    ArgumentList(Block &block, Tokenizer &tk);
+    ArgumentList(BlockBase &block, Tokenizer &tk, char delimiter);
+    int numargs() const
+    {
+        return args ? args->size() : 0;
+    }
+    Expr *getfreearg(int i)
+    {
+        return args->at(i);
+    }
     void optimize();
     void prepare(Emit &e);
     void emit(Emit &e);
 private:
-    std::vector <Expr *> args;
+    std::vector <Expr *> *args;
     std::vector <std::string> argregs;
 };
 
@@ -1498,10 +1506,7 @@ public:
         if (! t.isop('}'))
         {
             tk.unget(t);
-            args = new ArgumentList(block, tk);
-            t = tk.get();
-            if (! t.isop('}'))
-               throw Expected('}', t);
+            args = new ArgumentList(block, tk, '}');
         }
         ExpectOp(';', tk);
     }
@@ -2112,60 +2117,74 @@ void GotoStatement::emit (Emit &e)
 
 //**********************************************************************
 
-ArgumentList::ArgumentList(Block &block, Tokenizer &tk) :
-    InBlock(block)
+ArgumentList::ArgumentList(BlockBase &block, Tokenizer &tk, char delimiter) :
+    InBlock(block),
+    args(0)
 {
-    Token t;
-    do
+    Token t = tk.get();
+    if (! t.isop(delimiter))
     {
-        Expr *arg= parseExpr(block, tk);
-        args.push_back(arg);
-        t= tk.get();
-    } while (t.isop(',') );
-    tk.unget(t);
+        args= new std::vector<Expr *>;
+        tk.unget(t);
+        do
+        {
+            Expr *arg= parseExpr(block, tk);
+            args->push_back(arg);
+            t= tk.get();
+        } while (t.isop(','));
+        if (! t.isop(delimiter))
+            throw SyntaxError("Unfinished argument list", t);
+    }
 }
 
 void ArgumentList::optimize()
 {
-    for (size_t i= 0; i < args.size(); ++i)
-        args[i]= args[i]->optimize();
+    if (args)
+        for (size_t i= 0; i < args->size(); ++i)
+            (*args)[i]= (*args)[i]->optimize();
 }
 
 void ArgumentList::prepare(Emit &e)
 {
     std::string nullreg;
-    for (size_t i= 0; i < args.size(); ++i)
+    if (args)
     {
-        Expr &arg= *args[i];
-        std::string reg;
-        if (! arg.issimple() )
-            reg= arg.emit_get(e);
-        else
+        for (size_t i= 0; i < args->size(); ++i)
         {
-            if (arg.isnull())
+            Expr &arg= *(*args)[i];
+            std::string reg;
+            if (! arg.issimple() )
+                reg= arg.emit_get(e);
+            else
             {
-                if (nullreg.empty())
+                if (arg.isnull())
                 {
-                    nullreg= gentemp(REGvar);
-                    e << op_null(nullreg) << '\n';
+                    if (nullreg.empty())
+                    {
+                        nullreg= gentemp(REGvar);
+                        e << op_null(nullreg) << '\n';
+                    }
+                    reg= nullreg;
                 }
-                reg= nullreg;
             }
+            argregs.push_back(reg);
         }
-        argregs.push_back(reg);
     }
 }
 
 void ArgumentList::emit(Emit &e)
 {
-    for (size_t i= 0; i < args.size(); ++i)
+    if (args)
     {
-        if (i > 0)
-            e << ", ";
-        if (argregs[i].empty() )
-            args[i]->emit(e, std::string() );
-        else
-            e << argregs[i];
+        for (size_t i= 0; i < args->size(); ++i)
+        {
+            if (i > 0)
+                e << ", ";
+            if (argregs[i].empty() )
+                (*args)[i]->emit(e, std::string() );
+            else
+                e << argregs[i];
+        }
     }
 }
 
@@ -4057,14 +4076,15 @@ private:
     const Token start;
     void emit(Emit &e, const std::string &result);
     Expr *called;
-    std::vector <Expr *> args;
+    ArgumentList *args;
 };
 
 CallExpr::CallExpr(BlockBase &block,
         Tokenizer &tk, const Token & st, Expr *function) :
     Expr(block),
     start(st),
-    called(function)
+    called(function),
+    args(0)
 {
     //std::cerr << "CallExpr::CallExpr\n";
 
@@ -4072,14 +4092,7 @@ CallExpr::CallExpr(BlockBase &block,
     if (! t.isop (')') )
     {
         tk.unget(t);
-        do
-        {
-            args.push_back(parseExpr(block, tk));
-            t= tk.get();
-        } while (t.isop(',') );
-        if (t.isop(':'))
-            throw UnsupportedInStage("argument modifiers", t);
-        RequireOp (')', t);
+        args= new ArgumentList(block, tk, ')');
     }
 
     //std::cerr << "CallExpr::CallExpr end\n";
@@ -4088,8 +4101,8 @@ CallExpr::CallExpr(BlockBase &block,
 Expr *CallExpr::optimize()
 {
     //std::cerr << "CallExpr::optimize\n";
-    for (size_t i= 0; i < args.size(); ++i)
-        optimize_branch(args[i]);
+    if (args)
+        args->optimize();
     //std::cerr << "CallExpr::optimize end\n";
     return this;
 }
@@ -4099,8 +4112,9 @@ bool CallExpr::isinteger() const
     if (called->isidentifier())
     {
         std::string name= called->getidentifier();
+        int numargs = args ? args->numargs() : 0;
         if (const PredefFunction *predef=
-                PredefFunction::find(name, args.size()))
+                PredefFunction::find(name, numargs))
         {
             return predef->resulttype() == REGint;
         }
@@ -4113,8 +4127,9 @@ bool CallExpr::isstring() const
     if (called->isidentifier())
     {
         std::string name= called->getidentifier();
+        int numargs = args ? args->numargs() : 0;
         if (const PredefFunction *predef=
-                PredefFunction::find(name, args.size()))
+                PredefFunction::find(name, numargs))
         {
             return predef->resulttype() == REGstring;
         }
@@ -4126,18 +4141,19 @@ void CallExpr::emit(Emit &e, const std::string &result)
 {
     //std::cerr << "CallExpr::emit\n";
 
+    const int numargs = args ? args->numargs() : 0;
     if (called->isidentifier())
     {
         e.annotate(called->gettoken());
         std::string name= called->getidentifier();
 
     if (const PredefFunction *predef=
-            PredefFunction::find(name, args.size()))
+            PredefFunction::find(name, numargs))
     {
         std::vector<std::string> argregs;
-        for (size_t i= 0; i < args.size(); ++i)
+        for (int i= 0; i < numargs; ++i)
         {
-            Expr &arg= * args[i];
+            Expr &arg= * (args->getfreearg(i));
             char paramtype= predef->paramtype(i);
             switch (paramtype)
             {
@@ -4204,28 +4220,8 @@ void CallExpr::emit(Emit &e, const std::string &result)
     }
     }
 
-    std::vector<std::string> argregs;
-    std::string nullreg;
-    for (size_t i= 0; i < args.size(); ++i)
-    {
-        std::string reg;
-        Expr &arg= * args[i];
-        if (! arg.issimple() )
-            reg= arg.emit_get(e);
-        else
-        {
-            if (arg.isnull())
-            {
-                if (nullreg.empty())
-                {
-                    nullreg= gentemp(REGvar);
-                    e << op_null(nullreg) << '\n';
-                }
-                reg= nullreg;
-            }
-        }
-        argregs.push_back(reg);
-    }
+    if (args)
+        args->prepare(e);
 
     std::string reg;
     if (called->isidentifier())
@@ -4258,20 +4254,9 @@ void CallExpr::emit(Emit &e, const std::string &result)
     }
 
     // Arguments
+    if (args)
+        args->emit(e);
 
-    for (size_t i= 0; i < args.size(); ++i)
-    {
-        if (i > 0)
-            e << ", ";
-        if (argregs[i].empty() )
-        {
-            args[i]->emit(e, std::string());
-        }
-        else
-        {
-            e << argregs[i];
-        }
-    }
     e << ')';
 
     if (! reg.empty() )
@@ -4345,7 +4330,7 @@ private:
     void emit(Emit &e, const std::string &result);
     unsigned int ln;
     ClassSpecifier *claspec;
-    std::vector<Expr *> init;
+    ArgumentList *init;
 };
 
 NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
@@ -4362,18 +4347,7 @@ NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
     t= tk.get();
 
     if (t.isop('('))
-    {
-        t = tk.get();
-        if (! t.isop(')') )
-        {
-            tk.unget(t);
-            do {
-                init.push_back(parseExpr(block, tk));
-                t = tk.get();
-            } while (t.isop(','));
-            RequireOp(')', t);
-        }
-    }
+        init = new ArgumentList(block, tk, ')');
     else
         tk.unget(t);
 
@@ -4382,8 +4356,8 @@ NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
 
 Expr *NewExpr::optimize()
 {
-    for (size_t i= 0; i < init.size(); ++i)
-        optimize_branch(init[i]);
+    if (init)
+        init->optimize();
     return this;
 }
 
@@ -4391,9 +4365,10 @@ void NewExpr::emit(Emit &e, const std::string &result)
 {
     std::string reg;
     std::string regnew = result;
-    size_t numinits = init.size();
+    int numinits = init ? init->numargs() : -1;
     switch (numinits)
     {
+    case -1:
     case 0:
         break;
     case 1:
@@ -4402,7 +4377,7 @@ void NewExpr::emit(Emit &e, const std::string &result)
         else
         {
             reg = gentemp(REGvar);
-            init[0]->emit(e, reg);
+            init->getfreearg(0)->emit(e, reg);
         }
         break;
     default:
@@ -4424,41 +4399,12 @@ void NewExpr::emit(Emit &e, const std::string &result)
     e << '\n';
 
     if (numinits > 1 ||
-            (numinits > 0 && claspec->reftype() == CLASSSPECIFIER_id))
+            (numinits >= 0 && claspec->reftype() == CLASSSPECIFIER_id))
     {
-        std::vector<std::string> regs;
-        std::string nullreg;
-        for (size_t i= 0; i < numinits; ++i)
-        {
-            std::string reg;
-            Expr &arg= * init[i];
-            if (!arg.issimple())
-                reg= arg.emit_get(e);
-            else
-            {
-                if (arg.isnull())
-                {
-                    if (nullreg.empty())
-                    {
-                        nullreg= gentemp(REGvar);
-                        e << op_null(nullreg) << '\n';
-                    }
-                    reg= nullreg;
-                }
-            }
-            regs.push_back(reg);
-        }
+        init->prepare(e);
 
         e << regnew << ".'" << claspec->basename() << "'(";
-        for (size_t i= 0; i < numinits; ++i)
-        {
-            if (i > 0)
-                e << ", ";
-            if (regs[i].empty())
-                init[i]->emit(e, std::string());
-            else
-                e << regs[i];
-        }
+        init->emit(e);
         e << ")\n";
         e << op_set(result, regnew) << '\n';
     }
@@ -5521,8 +5467,7 @@ ReturnStatement::ReturnStatement(Block & block, Tokenizer &tk) :
     if (!t.isop(';'))
     {
         tk.unget(t);
-        values= new ArgumentList(block, tk);
-        ExpectOp(';', tk);
+        values= new ArgumentList(block, tk, ';');
     }
 }
 
@@ -5552,8 +5497,7 @@ YieldStatement::YieldStatement(Block & block, Tokenizer &tk) :
     if (! t.isop(';') )
     {
         tk.unget(t);
-        values= new ArgumentList(block, tk);
-        ExpectOp (';', tk);
+        values= new ArgumentList(block, tk, ';');
     }
 }
 
