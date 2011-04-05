@@ -5525,33 +5525,27 @@ class NewBaseExpr : Expr
     {
         // Called with the tokenizer pointing right after the
         // opening parenthesis
-        var owner = self.owner;
-        var initializer = [];
-        var t = tk.get();
-        if (! t.isop(')')) {
-            tk.unget(t);
-            do {
-                var auxinit = parseExpr(tk, owner);
-                push(initializer, auxinit);
-            } while ((t = tk.get()).isop(','));
-            RequireOp(')', t);
-        }
-        self.initializer = initializer;
+        self.initializer = new ArgumentList(self.owner, self.start, tk, ')');
+    }
+    function optimize_initializer()
+    {
+        var initializer = self.initializer;
+        if (initializer != null)
+            self.initializer = initializer.optimize();
     }
     function optimize()
     {
-        optimize_array(self.initializer);
+        self.optimize_initializer();
         return self;
     }
     function emit_constructor(e, string regnew, string constructor)
     {
-        string argregs[];
-        for (var arg in self.initializer) {
-            string reg = arg.emit_get(e);
-            push(argregs, reg);
-        }
+        var initializer = self.initializer;
+        if (initializer != null)
+            initializer.getargvalues(e);
         e.print(INDENT, regnew, ".'", constructor, "'(");
-        e.print(join(", ", argregs));
+        if (initializer != null)
+            initializer.emitargs(e);
         e.say(")");
     }
 }
@@ -5595,8 +5589,7 @@ class NewExpr : NewBaseExpr
                     SyntaxError('*Constant value must evaluate to a string', value);
             }
         }
-
-        optimize_array(self.initializer);
+        self.optimize_initializer();
         return self;
     }
     function emit(e, result, int is_init[optional])
@@ -5604,7 +5597,7 @@ class NewExpr : NewBaseExpr
         self.annotate(e);
 
         var initializer = self.initializer;
-        int numinits = initializer == null ? -1 : elements(initializer);
+        int numinits = initializer == null ? -1 : initializer.numargs();
 
         const int BYNAME = 0, BYIDENT = 1;
         int type = self.value.isstring() ? BYNAME : 
@@ -5623,7 +5616,7 @@ class NewExpr : NewBaseExpr
                     regnew = self.tempreg(REGvar);
             }
             else {
-                var initval = initializer[0];
+                var initval = initializer.getfreearg(0);
                 reginit = initval.emit_get(e);
                 reginit = ', ' + reginit;
             }
@@ -5706,13 +5699,13 @@ class NewIndexedExpr : NewBaseExpr
     function emit(e, result)
     {
         string reginit;
-        var init = self.initializer;
-        int numinits = init == null ? 0 : elements(init);
+        var initializer = self.initializer;
+        int numinits = initializer == null ? 0 : initializer.numargs();
         switch (numinits) {
           case 0:
             break;
           case 1:
-            var initval = init[0];
+            var initval = initializer.getfreearg(0);
             reginit = initval.emit_get(e);
             break;
           default:
@@ -5751,9 +5744,9 @@ class NewQualifiedExpr : NewBaseExpr
     function emit(e, result)
     {
         string reginit;
-        var init = self.initializer;
+        var initializer = self.initializer;
 
-        int numinits = init == null ? -1 : elements(init);
+        int numinits = initializer == null ? -1 : elements(initializer);
         string regnew = result;
         if (numinits > 0)
             regnew = self.tempreg(REGvar);
@@ -8982,8 +8975,7 @@ class NamespaceBase : VarContainer
     }
     function declarenamespace(var start, string name)
     {
-        var mnull = null; // Stage 0 doesn't handle well null arguments
-        var child = new NamespaceStatement(self, start, name, mnull);
+        var child = new NamespaceStatement(self, start, name, null);
         push(self.namespaces, child);
         return child;
     }

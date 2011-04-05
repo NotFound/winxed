@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 4-apr-2011
+// Revision 5-apr-2011
 
 // Winxed compiler stage 0.
 
@@ -4200,21 +4200,26 @@ void CallExpr::emit(Emit &e, const std::string &result)
     }
 
     std::vector<std::string> argregs;
+    std::string nullreg;
     for (size_t i= 0; i < args.size(); ++i)
     {
+        std::string reg;
         Expr &arg= * args[i];
         if (! arg.issimple() )
-            argregs.push_back(arg.emit_get(e));
+            reg= arg.emit_get(e);
         else
         {
             if (arg.isnull())
             {
-                std::string reg= gentemp(REGvar);
-                e << op_null(reg) << '\n';
-                argregs.push_back(reg);
+                if (nullreg.empty())
+                {
+                    nullreg= gentemp(REGvar);
+                    e << op_null(nullreg) << '\n';
+                }
+                reg= nullreg;
             }
-            argregs.push_back(std::string());
         }
+        argregs.push_back(reg);
     }
 
     std::string reg;
@@ -4417,11 +4422,38 @@ void NewExpr::emit(Emit &e, const std::string &result)
             (numinits > 0 && claspec->reftype() == CLASSSPECIFIER_id))
     {
         std::vector<std::string> regs;
+        std::string nullreg;
         for (size_t i= 0; i < numinits; ++i)
-            regs.push_back(init[i]->emit_get(e));
-        e << regnew << ".'" << claspec->basename() << "'(" << regs[0];
-        for (size_t i= 1; i < numinits; ++i)
-            e << ", " << regs[i];
+        {
+            std::string reg;
+            Expr &arg= * init[i];
+            if (!arg.issimple())
+                reg= arg.emit_get(e);
+            else
+            {
+                if (arg.isnull())
+                {
+                    if (nullreg.empty())
+                    {
+                        nullreg= gentemp(REGvar);
+                        e << op_null(nullreg) << '\n';
+                    }
+                    reg= nullreg;
+                }
+            }
+            regs.push_back(reg);
+        }
+
+        e << regnew << ".'" << claspec->basename() << "'(";
+        for (size_t i= 0; i < numinits; ++i)
+        {
+            if (i > 0)
+                e << ", ";
+            if (regs[i].empty())
+                init[i]->emit(e, std::string());
+            else
+                e << regs[i];
+        }
         e << ")\n";
         e << op_set(result, regnew) << '\n';
     }
