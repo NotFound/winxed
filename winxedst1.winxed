@@ -4787,25 +4787,25 @@ class ArgumentList
     {
         var argregs = self.argregs;
         if (argregs == null) {
-            string regs[];
+            string argregs[];
             string pnull = '';
-            argregs = regs;
             var args = self.args;
-            int nargs = elements(args);
-            for (int i = 0; i < nargs; ++i) {
-                var a = args[i].arg;
-                string reg;
-                if (a.isnull())
-                {
-                    if (pnull == '') {
-                        pnull = self.owner.tempreg(REGvar);
-                        e.emitnull(pnull);
+	    if (args != null) {
+                int nargs = elements(args);
+                for (int i = 0; i < nargs; ++i) {
+                    var a = args[i].arg;
+                    string reg;
+                    if (a.isnull()) {
+                        if (pnull == '') {
+                            pnull = self.owner.tempreg(REGvar);
+                            e.emitnull(pnull);
+                        }
+                        reg = pnull;
                     }
-                    reg = pnull;
+                    else
+                        reg = a.emit_get(e);
+                    push(argregs, reg);
                 }
-                else
-                    reg = a.emit_get(e);
-                push(argregs, reg);
             }
             self.argregs = argregs;
         }
