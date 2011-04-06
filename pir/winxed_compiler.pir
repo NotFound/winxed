@@ -27552,6 +27552,50 @@
 .end # __private_geninclude
 
 
+.sub '__compile_internal' :method
+        .param string __ARG_1
+        .param string __ARG_2
+        .param int __ARG_3
+        .param int __ARG_4
+# Body
+# {
+.annotate 'line', 9457
+# var handlein: $P1
+    new $P1, [ 'StringHandle' ]
+.annotate 'line', 9458
+    $P1.'open'('__eval__', 'w')
+.annotate 'line', 9459
+    $P1.'puts'(__ARG_1)
+.annotate 'line', 9460
+    $P1.'close'()
+.annotate 'line', 9461
+    $P1.'open'('__eval__', 'r')
+.annotate 'line', 9462
+# var tk: $P2
+    new $P2, [ 'Tokenizer' ]
+    $P2.'Tokenizer'($P1, '__eval__')
+.annotate 'line', 9463
+# var winxed: $P3
+    new $P3, [ 'WinxedCompileUnit' ]
+.annotate 'line', 9464
+    unless __ARG_4 goto __label_0
+.annotate 'line', 9465
+    $P3.'setwarnmode'(0)
+ __label_0: # endif
+.annotate 'line', 9466
+    $P3.'parse'($P2)
+.annotate 'line', 9467
+    $P1.'close'()
+.annotate 'line', 9468
+    $P3.'optimize'()
+.annotate 'line', 9469
+    .tailcall self.'__private_compile_tail'($P3, __ARG_2, __ARG_3)
+# }
+.annotate 'line', 9470
+
+.end # __compile_internal
+
+
 .sub 'compile' :method
         .param string __ARG_1
         .param string __ARG_2 :optional :named('target')
@@ -27559,46 +27603,48 @@
         .param int __ARG_4 :optional :named('nowarn')
 # Body
 # {
-.annotate 'line', 9457
+.annotate 'line', 9476
     unless_null __ARG_2, __label_0
-.annotate 'line', 9458
+.annotate 'line', 9477
     set __ARG_2, ''
  __label_0: # endif
-.annotate 'line', 9459
-# var handlein: $P1
-    new $P1, [ 'StringHandle' ]
-.annotate 'line', 9460
-    $P1.'open'('__eval__', 'w')
-.annotate 'line', 9461
-    $P1.'puts'(__ARG_1)
-.annotate 'line', 9462
-    $P1.'close'()
-.annotate 'line', 9463
-    $P1.'open'('__eval__', 'r')
-.annotate 'line', 9464
-# var tk: $P2
-    new $P2, [ 'Tokenizer' ]
-    $P2.'Tokenizer'($P1, '__eval__')
-.annotate 'line', 9465
-# var winxed: $P3
-    new $P3, [ 'WinxedCompileUnit' ]
-.annotate 'line', 9466
-    unless __ARG_4 goto __label_1
-.annotate 'line', 9467
-    $P3.'setwarnmode'(0)
- __label_1: # endif
-.annotate 'line', 9468
-    $P3.'parse'($P2)
-.annotate 'line', 9469
-    $P1.'close'()
-.annotate 'line', 9470
-    $P3.'optimize'()
-.annotate 'line', 9471
-    .tailcall self.'__private_compile_tail'($P3, __ARG_2, __ARG_3)
+.annotate 'line', 9478
+    .tailcall self.'__compile_internal'(__ARG_1, __ARG_2, __ARG_3, __ARG_4)
 # }
-.annotate 'line', 9472
+.annotate 'line', 9479
 
 .end # compile
+
+
+.sub 'compile_withoptions' :method
+        .param string __ARG_1
+        .param pmc __ARG_2
+# Body
+# {
+.annotate 'line', 9485
+# var ptarget: $P1
+    $P1 = __ARG_2['target']
+.annotate 'line', 9486
+# target: $S1
+    if_null $P1, __label_1
+# predefined string
+    set $S1, $P1
+    goto __label_0
+ __label_1:
+    set $S1, ''
+ __label_0:
+.annotate 'line', 9487
+# noan: $I1
+    $I1 = __ARG_2['noan']
+.annotate 'line', 9488
+# nowarn: $I2
+    $I2 = __ARG_2['nowarn']
+.annotate 'line', 9489
+    .tailcall self.'__compile_internal'(__ARG_1, $S1, $I1, $I2)
+# }
+.annotate 'line', 9490
+
+.end # compile_withoptions
 
 
 .sub 'compile_from_file_to_pir' :method
@@ -27608,48 +27654,97 @@
         .param int __ARG_4 :optional :named('nowarn')
 # Body
 # {
-.annotate 'line', 9477
+.annotate 'line', 9495
 # var handlein: $P1
     new $P1, [ 'FileHandle' ]
-.annotate 'line', 9478
+.annotate 'line', 9496
     $P1.'open'(__ARG_1, 'r')
-.annotate 'line', 9479
+.annotate 'line', 9497
     $P1.'encoding'('utf8')
-.annotate 'line', 9480
+.annotate 'line', 9498
 # var tk: $P2
     new $P2, [ 'Tokenizer' ]
     $P2.'Tokenizer'($P1, __ARG_1)
-.annotate 'line', 9481
+.annotate 'line', 9499
 # var winxed: $P3
     new $P3, [ 'WinxedCompileUnit' ]
-.annotate 'line', 9482
+.annotate 'line', 9500
     unless __ARG_4 goto __label_0
-.annotate 'line', 9483
+.annotate 'line', 9501
     $P3.'setwarnmode'(0)
  __label_0: # endif
-.annotate 'line', 9484
+.annotate 'line', 9502
     $P3.'parse'($P2)
-.annotate 'line', 9485
+.annotate 'line', 9503
     $P1.'close'()
-.annotate 'line', 9486
+.annotate 'line', 9504
     $P3.'optimize'()
-.annotate 'line', 9487
+.annotate 'line', 9505
 # var emit: $P4
     new $P4, [ 'Emit' ]
     $P4.'Emit'(__ARG_2)
-.annotate 'line', 9488
+.annotate 'line', 9506
     unless __ARG_3 goto __label_1
-.annotate 'line', 9489
+.annotate 'line', 9507
     $P4.'disable_annotations'()
  __label_1: # endif
-.annotate 'line', 9490
+.annotate 'line', 9508
     $P3.'emit'($P4)
-.annotate 'line', 9491
+.annotate 'line', 9509
     $P4.'close'()
 # }
-.annotate 'line', 9492
+.annotate 'line', 9510
 
 .end # compile_from_file_to_pir
+
+
+.sub '__compile_from_file_internal' :method
+        .param string __ARG_1
+        .param string __ARG_2
+        .param int __ARG_3
+        .param int __ARG_4
+# Body
+# {
+.annotate 'line', 9516
+# var handlein: $P1
+    new $P1, [ 'FileHandle' ]
+.annotate 'line', 9517
+    $P1.'open'(__ARG_1, 'r')
+.annotate 'line', 9518
+    $P1.'encoding'('utf8')
+.annotate 'line', 9519
+# var tk: $P2
+    new $P2, [ 'Tokenizer' ]
+    $P2.'Tokenizer'($P1, __ARG_1)
+.annotate 'line', 9520
+# var winxed: $P3
+    new $P3, [ 'WinxedCompileUnit' ]
+.annotate 'line', 9521
+    unless __ARG_4 goto __label_0
+.annotate 'line', 9522
+    $P3.'setwarnmode'(0)
+ __label_0: # endif
+.annotate 'line', 9523
+    $P3.'parse'($P2)
+.annotate 'line', 9524
+    $P1.'close'()
+.annotate 'line', 9525
+    $P3.'optimize'()
+.annotate 'line', 9526
+    ne __ARG_2, 'include', __label_1
+# {
+.annotate 'line', 9527
+    .tailcall self.'__private_geninclude'($P3)
+# }
+    goto __label_2
+ __label_1: # else
+.annotate 'line', 9530
+    .tailcall self.'__private_compile_tail'($P3, __ARG_2, __ARG_3)
+ __label_2: # endif
+# }
+.annotate 'line', 9531
+
+.end # __compile_from_file_internal
 
 
 .sub 'compile_from_file' :method
@@ -27659,486 +27754,66 @@
         .param int __ARG_4 :optional :named('nowarn')
 # Body
 # {
-.annotate 'line', 9498
+.annotate 'line', 9537
     unless_null __ARG_2, __label_0
-.annotate 'line', 9499
+.annotate 'line', 9538
     set __ARG_2, ''
  __label_0: # endif
-.annotate 'line', 9500
-# var handlein: $P1
-    new $P1, [ 'FileHandle' ]
-.annotate 'line', 9501
-    $P1.'open'(__ARG_1, 'r')
-.annotate 'line', 9502
-    $P1.'encoding'('utf8')
-.annotate 'line', 9503
-# var tk: $P2
-    new $P2, [ 'Tokenizer' ]
-    $P2.'Tokenizer'($P1, __ARG_1)
-.annotate 'line', 9504
-# var winxed: $P3
-    new $P3, [ 'WinxedCompileUnit' ]
-.annotate 'line', 9505
-    unless __ARG_4 goto __label_1
-.annotate 'line', 9506
-    $P3.'setwarnmode'(0)
- __label_1: # endif
-.annotate 'line', 9507
-    $P3.'parse'($P2)
-.annotate 'line', 9508
-    $P1.'close'()
-.annotate 'line', 9509
-    $P3.'optimize'()
-.annotate 'line', 9510
-    ne __ARG_2, 'include', __label_2
-# {
-.annotate 'line', 9511
-    .tailcall self.'__private_geninclude'($P3)
+.annotate 'line', 9539
+    .tailcall self.'__compile_from_file_internal'(__ARG_1, __ARG_2, __ARG_3, __ARG_4)
 # }
-    goto __label_3
- __label_2: # else
-.annotate 'line', 9514
-    .tailcall self.'__private_compile_tail'($P3, __ARG_2, __ARG_3)
- __label_3: # endif
-# }
-.annotate 'line', 9515
+.annotate 'line', 9540
 
 .end # compile_from_file
+
+
+.sub 'compile_from_file_withoptions' :method
+        .param string __ARG_1
+        .param pmc __ARG_2
+# Body
+# {
+.annotate 'line', 9546
+# var ptarget: $P1
+    $P1 = __ARG_2['target']
+.annotate 'line', 9547
+# target: $S1
+    if_null $P1, __label_1
+# predefined string
+    set $S1, $P1
+    goto __label_0
+ __label_1:
+    set $S1, ''
+ __label_0:
+.annotate 'line', 9548
+# noan: $I1
+    $I1 = __ARG_2['noan']
+.annotate 'line', 9549
+# nowarn: $I2
+    $I2 = __ARG_2['nowarn']
+.annotate 'line', 9550
+    .tailcall self.'__compile_from_file_internal'(__ARG_1, $S1, $I1, $I2)
+# }
+.annotate 'line', 9551
+
+.end # compile_from_file_withoptions
 
 .sub Winxed_class_init :anon :load :init
     newclass $P0, [ 'WinxedHLL' ]
 .end
 .namespace [ ]
 
-.sub 'winxed_parser'
-        .param pmc __ARG_1
-        .param string __ARG_2
-        .param int __ARG_3
-        .param int __ARG_4
-        .param int __ARG_5
-# Body
-# {
-.annotate 'line', 9523
-# var winxed: $P1
-    new $P1, [ 'WinxedCompileUnit' ]
-.annotate 'line', 9524
-    not $I1, __ARG_3
-    unless $I1 goto __label_0
-.annotate 'line', 9525
-    $P1.'setwarnmode'(0)
- __label_0: # endif
-.annotate 'line', 9526
-    $P1.'parse'(__ARG_1)
-.annotate 'line', 9528
-    $P1.'optimize'()
-.annotate 'line', 9530
-# var handle: $P2
-    null $P2
-.annotate 'line', 9531
-    ne __ARG_2, '-', __label_1
-.annotate 'line', 9532
-# predefined getstdout
-    getstdout $P2
-    goto __label_2
- __label_1: # else
-.annotate 'line', 9534
-# predefined open
-    root_new $P2, ['parrot';'FileHandle']
-    $P2.'open'(__ARG_2,'w')
- __label_2: # endif
-.annotate 'line', 9535
-# var emit: $P3
-    new $P3, [ 'Emit' ]
-    $P3.'Emit'($P2)
-.annotate 'line', 9536
-    unless __ARG_4 goto __label_3
-.annotate 'line', 9537
-    $P3.'disable_annotations'()
- __label_3: # endif
-.annotate 'line', 9538
-    unless __ARG_5 goto __label_4
-.annotate 'line', 9539
-    $P1.'emitinclude'($P3)
-    goto __label_5
- __label_4: # else
-.annotate 'line', 9541
-    $P1.'emit'($P3)
- __label_5: # endif
-.annotate 'line', 9542
-    $P3.'close'()
-.annotate 'line', 9543
-    $P2.'close'()
-# }
-.annotate 'line', 9544
-
-.end # winxed_parser
-
-
 .sub 'initializer' :init :load
 # Body
 # {
-.annotate 'line', 9552
+.annotate 'line', 9560
 # var comp: $P1
     new $P1, [ 'WinxedHLL' ]
-.annotate 'line', 9553
+.annotate 'line', 9561
 # predefined compreg
     compreg 'winxed', $P1
 # }
-.annotate 'line', 9554
+.annotate 'line', 9562
 
 .end # initializer
-
-.namespace [ 'Options' ]
-
-.sub 'Options' :method
-        .param pmc __ARG_1
-# Body
-# {
-.annotate 'line', 9563
-    load_bytecode 'Getopt/Obj.pbc'
-.annotate 'line', 9564
-# var getopts: $P1
-    new $P1, [ 'Getopt'; 'Obj' ]
-.annotate 'line', 9565
-    $P1.'notOptStop'(1)
-.annotate 'line', 9566
-    $P1.'push_string'('o=s')
-.annotate 'line', 9567
-    $P1.'push_string'('e=s')
-.annotate 'line', 9568
-    $P1.'push_string'('geninclude')
-.annotate 'line', 9569
-    $P1.'push_string'('noan')
-.annotate 'line', 9570
-    $P1.'push_string'('nowarn')
-.annotate 'line', 9571
-    $P1.'notOptStop'(1)
-.annotate 'line', 9572
-    __ARG_1.'shift'()
-.annotate 'line', 9573
-# var opts: $P2
-    $P2 = $P1.'get_options'(__ARG_1)
-.annotate 'line', 9574
-    setattribute self, 'getopts', $P1
-.annotate 'line', 9575
-    setattribute self, 'opts', $P2
-# }
-.annotate 'line', 9576
-
-.end # Options
-
-
-.sub 'getbool' :method
-        .param string __ARG_1
-# Body
-# {
-.annotate 'line', 9579
-# var opts: $P1
-    getattribute $P1, self, 'opts'
-.annotate 'line', 9580
-# var value: $P2
-    $P2 = $P1[__ARG_1]
-.annotate 'line', 9581
-    isnull $I1, $P2
-    not $I1
-    .return($I1)
-# }
-.annotate 'line', 9582
-
-.end # getbool
-
-
-.sub 'getstring' :method
-        .param string __ARG_1
-        .param string __ARG_2 :optional
-# Body
-# {
-.annotate 'line', 9585
-# var opts: $P1
-    getattribute $P1, self, 'opts'
-.annotate 'line', 9586
-# var value: $P2
-    $P2 = $P1[__ARG_1]
-.annotate 'line', 9587
-    if_null $P2, __label_1
-# predefined string
-    set $S1, $P2
-    goto __label_0
- __label_1:
-    set $S1, __ARG_2
- __label_0:
-    .return($S1)
-# }
-.annotate 'line', 9588
-
-.end # getstring
-
-.sub Winxed_class_init :anon :load :init
-    newclass $P0, [ 'Options' ]
-.annotate 'line', 9558
-    addattribute $P0, 'getopts'
-.annotate 'line', 9559
-    addattribute $P0, 'opts'
-.end
-.namespace [ ]
-
-.sub 'stage1'
-        .param pmc __ARG_1
-# Body
-# {
-.annotate 'line', 9593
-# var options: $P1
-    new $P1, [ 'Options' ]
-    $P1.'Options'(__ARG_1)
-.annotate 'line', 9594
-# outputfile: $S1
-    $P4 = $P1.'getstring'('o', '')
-    null $S1
-    if_null $P4, __label_0
-    set $S1, $P4
- __label_0:
-.annotate 'line', 9595
-# expr: $S2
-    $P4 = $P1.'getstring'('e')
-    null $S2
-    if_null $P4, __label_1
-    set $S2, $P4
- __label_1:
-.annotate 'line', 9596
-# noan: $I1
-    $P4 = $P1.'getbool'('noan')
-    set $I1, $P4
-.annotate 'line', 9597
-# warn: $I2
-    $P4 = $P1.'getbool'('nowarn')
-    isfalse $I2, $P4
-.annotate 'line', 9598
-# geninclude: $I3
-    $P4 = $P1.'getbool'('geninclude')
-    set $I3, $P4
-.annotate 'line', 9600
-# argc: $I4
-    set $P4, __ARG_1
-    set $I4, $P4
-.annotate 'line', 9601
-# filename: $S3
-    null $S3
-.annotate 'line', 9602
-# var file: $P2
-    null $P2
-.annotate 'line', 9603
-    unless_null $S2, __label_2
-# {
-.annotate 'line', 9604
-    ne $I4, 0, __label_4
-# predefined Error
-.annotate 'line', 9605
-    root_new $P4, ['parrot';'Exception']
-    $P4['message'] = 'No file'
-    throw $P4
- __label_4: # endif
-.annotate 'line', 9607
-    $S3 = __ARG_1[0]
-.annotate 'line', 9608
-# predefined open
-    root_new $P2, ['parrot';'FileHandle']
-    $P2.'open'($S3)
-.annotate 'line', 9609
-    $P2.'encoding'('utf8')
-# }
-    goto __label_3
- __label_2: # else
-# {
-.annotate 'line', 9612
-    concat $S0, 'function main[main](argv){', $S2
-    concat $S0, $S0, ';}'
-    set $S2, $S0
-.annotate 'line', 9613
-    new $P2, [ 'StringHandle' ]
-.annotate 'line', 9614
-    $P2.'open'('__eval__', 'w')
-.annotate 'line', 9615
-    $P2.'puts'($S2)
-.annotate 'line', 9616
-    $P2.'close'()
-.annotate 'line', 9617
-    $P2.'open'('__eval__')
-.annotate 'line', 9618
-    set $S3, '__eval__'
-# }
- __label_3: # endif
-.annotate 'line', 9621
-# var t: $P3
-    new $P3, [ 'Tokenizer' ]
-    $P3.'Tokenizer'($P2, $S3)
-.annotate 'line', 9623
-    'winxed_parser'($P3, $S1, $I2, $I1, $I3)
-.annotate 'line', 9625
-    $P2.'close'()
-# }
-.annotate 'line', 9626
-
-.end # stage1
-
-
-.sub 'show_backtrace'
-        .param pmc __ARG_1
-# Body
-# {
-.annotate 'line', 9630
-# i: $I1
-    set $I1, 1
-.annotate 'line', 9631
-    iter $P4, __ARG_1
-    set $P4, 0
- __label_0: # for iteration
-    unless $P4 goto __label_1
-    shift $P1, $P4
-# {
-.annotate 'line', 9632
-# var sub: $P2
-    $P2 = $P1['sub']
-.annotate 'line', 9633
-# subname: $S1
-    null $S1
-.annotate 'line', 9634
-    if_null $P2, __label_2
-# {
-.annotate 'line', 9635
-    set $S1, $P2
-.annotate 'line', 9636
-# ns: $S2
-    $P5 = $P2.'get_namespace'()
-    null $S2
-    if_null $P5, __label_3
-    set $S2, $P5
- __label_3:
-.annotate 'line', 9637
-    isne $I3, $S2, ''
-    unless $I3 goto __label_5
-    isne $I3, $S2, 'parrot'
- __label_5:
-    unless $I3 goto __label_4
-.annotate 'line', 9638
-    concat $S0, $S2, '.'
-    concat $S0, $S0, $S1
-    set $S1, $S0
- __label_4: # endif
-# }
- __label_2: # endif
-.annotate 'line', 9640
-# var ann: $P3
-    $P3 = $P1['annotations']
-.annotate 'line', 9641
-# file: $S3
-    $S3 = $P3['file']
-.annotate 'line', 9642
-    eq $S3, '', __label_6
-# {
-.annotate 'line', 9643
-# line: $I2
-    $I2 = $P3['line']
-.annotate 'line', 9644
-    set $I4, $I1
-    inc $I1
-    mul $I3, 2, $I4
-    repeat $S4, ' ', $I3
-# predefined cry
-    getstderr $P0
-    print $P0, $S4
-    print $P0, "at "
-    print $P0, $S1
-    print $P0, " in '"
-    print $P0, $S3
-    print $P0, "' line "
-    print $P0, $I2
-    print $P0, "\n"
-# }
- __label_6: # endif
-# }
-    goto __label_0
- __label_1: # endfor
-# }
-.annotate 'line', 9647
-
-.end # show_backtrace
-
-
-.sub 'main' :main
-        .param pmc __ARG_1
-# Body
-# {
-.annotate 'line', 9651
-# retval: $I1
-    null $I1
-.annotate 'line', 9652
-# try: create handler
-    new $P2, 'ExceptionHandler'
-    set_label $P2, __label_0
-    $P2.'min_severity'(2)
-    $P2.'max_severity'(2)
-    $P2.'handle_types'(555, 556, 557)
-    push_eh $P2
-# try: begin
-.annotate 'line', 9658
-    'stage1'(__ARG_1)
-# try: end
-    pop_eh
-    goto __label_1
-.annotate 'line', 9652
-# catch
- __label_0:
-    .get_results($P1)
-    finalize $P1
-    pop_eh
-# {
-.annotate 'line', 9661
-# msg: $S1
-    $S1 = $P1['message']
-.annotate 'line', 9662
-# type: $I2
-    $I2 = $P1['type']
-.annotate 'line', 9663
-    set $I3, $I2
-    set $I4, 556
-    if $I3 == $I4 goto __label_4
-    set $I4, 557
-    if $I3 == $I4 goto __label_5
-    goto __label_3
-# switch
- __label_4: # case
- __label_5: # case
-.annotate 'line', 9666
-# predefined cry
-    getstderr $P0
-    print $P0, 'Error: '
-    print $P0, $S1
-    print $P0, "\n"
-.annotate 'line', 9667
-    set $I1, 1
-    goto __label_2 # break
- __label_3: # default
-.annotate 'line', 9670
-# predefined cry
-    getstderr $P0
-    print $P0, 'INTERNAL ERROR: '
-    print $P0, $S1
-    print $P0, "\n"
-.annotate 'line', 9671
-    $P2 = $P1.'backtrace'()
-    'show_backtrace'($P2)
-.annotate 'line', 9672
-    set $I1, 2
- __label_2: # switch end
-# }
-# catch end
- __label_1:
-.annotate 'line', 9675
-# predefined exit
-    exit $I1
-# }
-.annotate 'line', 9676
-
-.end # main
 
 # End generated code
