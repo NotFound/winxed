@@ -63,11 +63,6 @@ emit$(OBJEXT): emit.cpp emit.h token.h
 #    Compiler stage 1
 #-------------------------------
 
-stage1: winxedst1$(EXEEXT)
-
-winxedst1$(EXEEXT): winxedst1.pbc
-	pbc_to_exe winxedst1.pbc
-
 winxedst1.pbc: winxedst1.pir
 	parrot -o winxedst1.pbc winxedst1.pir
 
@@ -78,16 +73,11 @@ winxedst1.pir: winxedst0$(EXEEXT) winxedst1.winxed
 #    Compiler stage 2
 #-------------------------------
 
-stage2: winxedst2$(EXEEXT)
-
-winxedst2$(EXEEXT): winxedst2.pbc
-	pbc_to_exe winxedst2.pbc
-
 winxedst2.pbc: winxedst2.pir
 	parrot -o winxedst2.pbc winxedst2.pir
 
-winxedst2.pir: winxedst1.winxed winxedst1.pbc
-	parrot winxedst1.pbc -o winxedst2.pir winxedst1.winxed
+winxedst2.pir: winxedst1.winxed winxedst1.pbc $(DRIVER).pbc
+	parrot $(DRIVER).pbc --stage=1 -c -o winxedst2.pir winxedst1.winxed
 
 #-------------------------------
 #      Driver
@@ -117,16 +107,16 @@ preinstall: \
     pir/winxed_installed.pir 
 
 # Installed compiler is stage 1 built with stage 2
-pir/winxed_compiler.pir: winxedst2.pbc
-	parrot winxedst2.pbc -o pir/winxed_compiler.pir winxedst1.winxed
+pir/winxed_compiler.pir: winxedst2.pbc $(DRIVER).pbc
+	parrot $(DRIVER).pbc -c -o pir/winxed_compiler.pir winxedst1.winxed
 
 # Installed driver
-pir/winxed_installed.pir: winxed_installed.winxed winxedst2.pbc
-	parrot winxedst2.pbc -o pir/winxed_installed.pir winxed_installed.winxed
+pir/winxed_installed.pir: winxed_installed.winxed winxedst2.pbc $(DRIVER).pbc
+	parrot $(DRIVER).pbc -c -o pir/winxed_installed.pir winxed_installed.winxed
 
 # setup.pir for use from plumage
-setup.pir: setup.winxed winxedst2.pbc
-	parrot winxedst2.pbc -o setup.pir setup.winxed
+setup.pir: setup.winxed winxedst2.pbc $(DRIVER).pbc
+	parrot $(DRIVER).pbc -c -o setup.pir setup.winxed
 
 # Install
 

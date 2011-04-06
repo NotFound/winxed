@@ -9449,13 +9449,11 @@ class WinxedHLL
         handleout.close();
         return handleout.read(0);
     }
-    function compile(string code,
-            string target[named,optional],
-            int noan[named,optional],
-            int nowarn[named,optional] )
+    function __compile_internal(string code,
+            string target,
+            int noan,
+            int nowarn)
     {
-        if (target == null)
-            target = '';
         var handlein = new ['StringHandle'];
         handlein.open(EVAL_NAME, 'w');
         handlein.puts(code);
@@ -9469,6 +9467,26 @@ class WinxedHLL
         handlein.close();
         winxed.optimize();
         return self.__private_compile_tail(winxed, target, noan);
+    }
+    function compile(string code,
+            string target[named,optional],
+            int noan[named,optional],
+            int nowarn[named,optional] )
+    {
+        if (target == null)
+            target = '';
+        return self.__compile_internal(code, target, noan, nowarn);
+    }
+    // Same as compile, with named options passed as a hash.
+    // Helper for the non installed driver, not intended for
+    // generic usage.
+    function compile_withoptions(string code, var options)
+    {
+        var ptarget = options['target'];
+        string target = ptarget != null ? string(ptarget) : '';
+        int noan = options['noan'];
+        int nowarn = options['nowarn'];
+        return self.__compile_internal(code, target, noan, nowarn);
     }
     function compile_from_file_to_pir(string filename, var handleout,
             int noan[named,optional],
@@ -9490,13 +9508,11 @@ class WinxedHLL
         winxed.emit(emit);
         emit.close();
     }
-    function compile_from_file(string filename,
-            string target[named,optional],
-            int noan[named,optional],
-            int nowarn[named,optional] )
+    function __compile_from_file_internal(string filename,
+            string target,
+            int noan,
+            int nowarn)
     {
-        if (target == null)
-            target = '';
         var handlein = new ['FileHandle'];
         handlein.open(filename, 'r');
         handlein.encoding('utf8');
@@ -9513,166 +9529,36 @@ class WinxedHLL
         else
             return self.__private_compile_tail(winxed, target, noan);
     }
+    function compile_from_file(string filename,
+            string target[named,optional],
+            int noan[named,optional],
+            int nowarn[named,optional] )
+    {
+        if (target == null)
+            target = '';
+        return self.__compile_from_file_internal(filename, target, noan, nowarn);
+    }
+    // Same as compile_from_file, with named options passed as a hash.
+    // Helper for the non installed driver, not intended for
+    // generic usage.
+    function compile_from_file_withoptions(string filename, var options)
+    {
+        var ptarget = options['target'];
+        string target = ptarget != null ? string(ptarget) : '';
+        int noan = options['noan'];
+        int nowarn = options['nowarn'];
+        return self.__compile_from_file_internal(filename, target, noan, nowarn);
+    }
 }
 
 //*********************************************
-
-function winxed_parser(tk, string outputfile,
-        int warn, int noan, int geninclude)
-{
-    var winxed = new WinxedCompileUnit;
-    if (! warn)
-        winxed.setwarnmode(false);
-    winxed.parse(tk);
-
-    winxed.optimize();
-
-    var handle;
-    if (outputfile == '-')
-        handle = getstdout();
-    else
-        handle = open(outputfile, 'w');
-    var emit = new Emit(handle);
-    if (noan)
-        emit.disable_annotations();
-    if (geninclude)
-        winxed.emitinclude(emit);
-    else
-        winxed.emit(emit);
-    emit.close();
-    handle.close();
-}
-
-//*********************************************
-//            Main functions
+//            Initialization
 //*********************************************
 
 function initializer [init,load]()
 {
     var comp = new WinxedHLL;
     compreg('winxed', comp);
-}
-
-class Options
-{
-    var getopts;
-    var opts;
-
-    function Options(argv)
-    {
-        using extern Getopt.Obj;
-        var getopts = new ['Getopt','Obj'];
-        getopts.notOptStop(1);
-        getopts.push_string('o=s');
-        getopts.push_string('e=s');
-        getopts.push_string('geninclude');
-        getopts.push_string('noan');
-        getopts.push_string('nowarn');
-        getopts.notOptStop(1);
-        argv.shift();
-        var opts = getopts.get_options(argv);
-        self.getopts = getopts;
-        self.opts = opts;
-    }
-    function getbool(string option)
-    {
-        var opts = self.opts;
-        var value = opts[option];
-        return value != null;
-    }
-    function getstring(string option, string default[optional])
-    {
-        var opts = self.opts;
-        var value = opts[option];
-        return value != null ? string(value) : default;
-    }
-}
-
-function stage1(argv)
-{
-    var options = new Options(argv);
-    string outputfile = options.getstring('o', '');
-    string expr = options.getstring('e');
-    int noan  = options.getbool('noan');
-    int warn = ! options.getbool('nowarn');
-    int geninclude = options.getbool('geninclude');
-
-    int argc = argv;
-    string filename;
-    var file;
-    if (expr == null) {
-        if (argc == 0)
-            throw Error('No file');
-
-        filename = argv[0];
-        file = open(filename); // Must throw on error
-        file.encoding('utf8');
-    }
-    else {
-        expr = 'function main[main](argv){' + expr + ';}';
-        file = new ['StringHandle'];
-        file.open(EVAL_NAME, 'w');
-        file.puts(expr);
-        file.close();
-        file.open(EVAL_NAME);
-        filename = EVAL_NAME;
-    }
-
-    var t = new Tokenizer(file, filename);
-
-    winxed_parser(t, outputfile, warn, noan, geninclude);
-
-    file.close();
-}
-
-function show_backtrace(bt)
-{
-    int i = 1;
-    for (var t in bt) {
-        var sub = t['sub'];
-        string subname;
-        if (sub != null) {
-            subname = sub;
-            string ns = sub.get_namespace();
-            if (ns != '' && ns != 'parrot')
-                subname = ns + '.' + subname;
-        }
-        var ann = t['annotations'];
-        string file = ann['file'];
-        if (file != '') {
-            int line = ann['line'];
-            cry(' ' * (2 * i++), "at ", subname, " in '", file, "' line ", line);
-        }
-    }
-}
-
-function main(argv)
-{
-    int retval = 0;
-    try
-            [
-                min_severity(2),
-                max_severity(2),
-                handle_types(ERRORinternal, ERRORtokenizer, ERRORparser)
-            ]
-        stage1(argv);
-    catch (e)
-    {
-        string msg = e['message'];
-        int type = e['type'];
-        switch (type) {
-          case ERRORtokenizer:
-          case ERRORparser:
-            cry('Error: ', msg);
-            retval = 1;
-            break;
-          default:
-            cry('INTERNAL ERROR: ', msg);
-            show_backtrace(e.backtrace());
-            retval = 2;
-        }
-    }
-    exit(retval);
 }
 
 // End

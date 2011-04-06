@@ -29,13 +29,13 @@ function getOS()
         yield os;
 }
 
-class Options : ['Getopt', 'Obj']
+class WinxedDriverOptions : ['Getopt', 'Obj']
 {
     var name;
     var options;
     var opts;
 
-    function Options(argv, int unused)
+    function WinxedDriverOptions(argv, int unused)
     {
         var options = [
           [ 'stage=i',  'Compiler stage to use' ],
@@ -95,7 +95,7 @@ function main [main] (argv)
 {
     const int DEFAULT_STAGE = 2;
 
-    var options = new Options(argv, 0);
+    var options = new WinxedDriverOptions(argv, 0);
 
     int help         = options.getbool('help');
     string opt_stage = options.getstring('stage');
@@ -201,18 +201,37 @@ function main [main] (argv)
     }
 
     int retval = 0;
-    string cmd[]; // Command to execute
-
     int use_pbc = stage > 0;
 
     if (use_pbc) {
-        cmd.push('parrot');
-        if (winxedpath != null && winxedpath != '')
-            winxedbin = winxedpath + '/' + winxedbin;
-        winxedbin += '.pbc';
-        cmd.push(winxedbin);
+        try {
+            load_bytecode(winxedbin + '.pbc');
+        } catch () { }
+        var compiler = compreg('winxed');
+        if (compiler == null) {
+            if (winxedpath != null && winxedpath != '') {
+                winxedbin = winxedpath + '/' + winxedbin;
+                try {
+                    load_bytecode(winxedbin + '.pbc');
+                } catch () { }
+                compiler = compreg('winxed');
+            }
+            if (compiler == null)
+                die("Cannot load stage " + winxedbin);
+        }
+        string ctarget = targettype == TargetConst ? 'include' : 'pir';
+        var opts = { "target": ctarget, "noan": noan, "nowarn": nowarn };
+        string pircode;
+        if (eval == null)
+            pircode = compiler.compile_from_file_withoptions(srcfile, opts);
+        else
+            pircode = compiler.compile_withoptions(eval, opts);
+        var file = open(pirfile, 'w');
+        file.print(pircode);
+        file.close();
     }
     else {
+        string cmd[]; // Command to execute
         // First look in WINXED_PATH.
         // If not, simple heuristic: if the compiler is in the current
         // directory and has no extension, use it.
@@ -235,28 +254,26 @@ function main [main] (argv)
                 winxedbin = './' + winxedbin;
         }
         cmd.push(winxedbin);
-    }
 
-    if (targettype == TargetConst) {
-        if (stage == 0)
+        if (targettype == TargetConst)
             die('target include unavailable in stage 0');
-        cmd.push('--geninclude');
+
+        if (noan)
+            cmd.push('--noan');;
+        if (nowarn && stage != 0)
+            cmd.push('--nowarn');
+        if (eval != null) {
+            cmd.push('-e');
+            cmd.push(eval);
+        }
+        cmd.push('-o');
+        cmd.push(pirfile);
+        if (eval == null)
+            cmd.push(srcfile);
+        retval = spawnw(cmd);
+        retval = (retval >> 8) & 0xFF;
     }
 
-    if (noan)
-        cmd.push('--noan');;
-    if (nowarn && stage != 0)
-        cmd.push('--nowarn');
-    if (eval != null) {
-        cmd.push('-e');
-        cmd.push(eval);
-    }
-    cmd.push('-o');
-    cmd.push(pirfile);
-    if (eval == null)
-        cmd.push(srcfile);
-    retval = spawnw(cmd);
-    retval = (retval >> 8) & 0xFF;
     if (retval)
         exit(retval);
 
