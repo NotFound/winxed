@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 5-apr-2011
+// Revision 7-apr-2011
 
 // Winxed compiler stage 0.
 
@@ -59,6 +59,7 @@ char nativetype(const Token &name)
 //**********************************************************************
 
 #define INDENT "    "
+#define INDENTLABEL "  "
 
 inline
 std::string op(const char *name, const std::string &op1)
@@ -2089,7 +2090,7 @@ LabelStatement::LabelStatement(Block &block, const std::string &name) :
 
 void LabelStatement::emit (Emit &e)
 {
-    e << "  " << codename << ":"
+    e << INDENTLABEL << codename << ":"
         " # " << labelname << '\n';
 }
 
@@ -2543,10 +2544,10 @@ private:
         std::string var= getvar();
         std::string reg= gentemp(REGint);
         annotate(e);
-        e << reg << " = " << var << '\n' <<
+        e << INDENT << reg << " = " << var << '\n' <<
             op_inc(var) << '\n';
         if (! result.empty())
-            e << result << " = " << reg << '\n';
+            e << INDENT << result << " = " << reg << '\n';
     }
 };
 
@@ -3368,7 +3369,7 @@ void OpAddExpr::emit(Emit &e, const std::string &result)
         lexpr->emit(e, op1);
         rexpr->emit(e, op2);
         e << op_set(op2_s, op2) << '\n' <<
-            res << " = concat " << op1 << " , " << op2_s;
+            INDENT << res << " = concat " << op1 << " , " << op2_s;
     }
     else if (lexpr->isinteger() && rexpr->isstring())
     {
@@ -3491,7 +3492,7 @@ private:
             e.annotate(start);
             e << INDENT "if " << res << " goto " << l << '\n';
             rexpr->emit(e, res);
-            e << "  " << l << ":\n";
+            e << INDENTLABEL << l << ":\n";
         }
         if (!result.empty())
             e << '\n';
@@ -3611,7 +3612,7 @@ private:
             e.annotate(start);
             e << INDENT "unless " << res << " goto " << l << '\n';
             rexpr->emit(e, res);
-            e << "  " << l << ":\n";
+            e << INDENTLABEL << l << ":\n";
         }
         if (!result.empty())
             e << '\n';
@@ -3961,7 +3962,7 @@ public:
             reg = bl.gentemp(REGvar);
             value->emit(*e, reg);
         }
-        (*e) << r << " [" << elem.first << "] = " << reg << '\n';
+        (*e) << INDENT << r << " [" << elem.first << "] = " << reg << '\n';
     }
 private:
     Emit *e;
@@ -4403,7 +4404,7 @@ void NewExpr::emit(Emit &e, const std::string &result)
     {
         init->prepare(e);
 
-        e << regnew << ".'" << claspec->basename() << "'(";
+        e << INDENT << regnew << ".'" << claspec->basename() << "'(";
         init->emit(e);
         e << ")\n";
         e << op_set(result, regnew) << '\n';
@@ -4591,7 +4592,7 @@ void IndexExpr::emitassign(Emit &e, Expr& value, const std::string &to)
         if (! arg[i]->issimple() )
             argvalue[i]= arg[i]->emit_get(e);
     }
-    e << name << '[';
+    e << INDENT << name << '[';
     for (size_t i= 0; i < nitems; ++i)
     {
         if (i > 0) e << ';';
@@ -4644,9 +4645,9 @@ private:
         condition->emit_else(e, label_false);
         exprtrue->emit(e, result);
         e << INDENT "goto " << label_end << '\n';
-        e << "  " << label_false << ":\n";
+        e << INDENTLABEL << label_false << ":\n";
         exprfalse->emit(e, result);
-        e << "  " << label_end << ":\n";
+        e << INDENTLABEL << label_end << ":\n";
     }
     Condition *condition;
     Expr *exprtrue;
@@ -5163,7 +5164,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
             for (size_t i= 0; i < value.size(); ++i)
             {
                 value[i]->emit(e, reg);
-                e << name << '[' << i << "] = " << reg << '\n';
+                e << INDENT << name << '[' << i << "] = " << reg << '\n';
                 if (type == REGvar)
                     e << op_null(reg) << '\n';
             }
@@ -5182,7 +5183,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
         }
         e << INDENT "root_new " << name << ", ['parrot';"
                  "'Fixed" << arraytype << "Array' ]\n" <<
-            name << " = ";
+            INDENT << name << " = ";
         if (regsize.empty())
             e << vsize;
         else
@@ -5613,13 +5614,13 @@ void ForeachStatement::emit(Emit &e)
     e << INDENT ".local pmc " << iter << "\n" <<
         INDENT << iter << " = iter " << container_ << "\n" <<
         INDENT << iter << " = 0\n" << // ITERATE_FROM_START
-        "  " << continuelabel << ": # FOR IN\n" <<
+        INDENTLABEL << continuelabel << ": # FOR IN\n" <<
         INDENT "unless " << iter << " goto " << breaklabel<< "\n"
         INDENT "shift " << varname << ", " << iter << '\n'
         ;
     st->emit(e);
     e << INDENT "goto " << continuelabel << '\n' <<
-        "  " << breaklabel << ": # FOR IN END\n";
+        INDENTLABEL << breaklabel << ": # FOR IN END\n";
     freelocalregister(container_);
 }
 
@@ -5675,7 +5676,7 @@ void ForStatement::emit(Emit &e)
     if (initializer)
         initializer->emit(e);
 
-    e << "  " << l_condition << ": # for condition\n";
+    e << INDENTLABEL << l_condition << ": # for condition\n";
     if (condition)
     {
         std::string reg= condition->emit_get(e);
@@ -5685,7 +5686,7 @@ void ForStatement::emit(Emit &e)
     e << "# for body\n";
     st->emit(e);
 
-    e << "  " << continuelabel << ": # for iteration\n";
+    e << INDENTLABEL << continuelabel << ": # for iteration\n";
 
     if (iteration)
     {
@@ -5694,7 +5695,7 @@ void ForStatement::emit(Emit &e)
     }
     e << INDENT "goto " << l_condition << " # for condition\n";
 
-    e << "  " << breaklabel << ": # for end\n";
+    e << INDENTLABEL << breaklabel << ": # for end\n";
     e.comment("for loop end");
 }
 
@@ -5824,7 +5825,7 @@ void TryStatement::emit (Emit &e)
     e <<
         INDENT "pop_eh\n"
         INDENT "goto " << pasthandler << '\n' <<
-        handler << ":\n";
+        INDENTLABEL << handler << ":\n";
     if (!exname.empty() )
     {
         genlocal(exname, REGvar);
@@ -5837,7 +5838,7 @@ void TryStatement::emit (Emit &e)
         ;
 
     scatch->emit(e);
-    e << "  " << pasthandler << ":\n";
+    e << INDENTLABEL << pasthandler << ":\n";
 }
 
 //**********************************************************************
@@ -5912,11 +5913,11 @@ std::string Condition::emit(Emit &e)
             std::string reg2= reg;
             reg= gentemp(REGint);
             std::string nocase= genlocallabel();
-            e << reg << " = 0\n"
+            e << INDENT << reg << " = 0\n"
                 INDENT "if_null " << reg2 << ", " << nocase << "\n"
                 INDENT "unless " << reg2 << " goto " << nocase << "\n" <<
                 op_inc(reg) << '\n' <<
-                "  " << nocase << ":\n";
+                INDENTLABEL << nocase << ":\n";
         }
     }
     return reg;
@@ -5942,7 +5943,7 @@ void Condition::emit_if(Emit &e, const std::string &labeltrue)
     }
     e << INDENT "if " << reg << " goto " << labeltrue << '\n';
     if (!auxlabel.empty())
-        e << "  " << auxlabel << ":\n";
+        e << INDENTLABEL << auxlabel << ":\n";
 }
 
 void Condition::emit_else(Emit &e, const std::string &labelfalse)
@@ -6077,16 +6078,16 @@ void SwitchStatement::emit(Emit &e)
 
     for (size_t i= 0; i < casest.size(); ++i)
     {
-        e << "  " << caselabel[i] << ": # case\n";
+        e << INDENTLABEL << caselabel[i] << ": # case\n";
         std::vector<BaseStatement *> &cst= casest[i];
         for (size_t j= 0; j < cst.size(); ++j)
             cst[j]->emit(e);
     }
 
-    e << "  " << defaultlabel << ": # default\n";
+    e << INDENTLABEL << defaultlabel << ": # default\n";
     for (size_t i= 0; i < defaultst.size(); ++i)
         defaultst[i]->emit(e);
-    e << "  " << breaklabel << ":\n";
+    e << INDENTLABEL << breaklabel << ":\n";
     e.comment("switch end");
 }
 
@@ -6143,10 +6144,10 @@ void IfStatement::emit(Emit &e)
     if (!noelse)
     {
         e << INDENT "goto " << l_endif << '\n';
-        e << "  " << l_else << ":\n";
+        e << INDENTLABEL << l_else << ":\n";
         stelse->emit(e);
     }
-    e << "  " << l_endif << ":\n";
+    e << INDENTLABEL << l_endif << ":\n";
 }
 
 //**********************************************************************
@@ -6179,7 +6180,7 @@ void WhileStatement::emit(Emit &e)
     std::string labelcontinue= gencontinuelabel();
     std::string labelend = genbreaklabel();
     bool forever= condition->getvalue() == Condition::CVtrue;
-    e << "  " << labelcontinue << ": # WHILE\n";
+    e << INDENTLABEL << labelcontinue << ": # WHILE\n";
     std::string reg;
     if (! forever) {
         reg= condition->emit(e);
@@ -6196,7 +6197,7 @@ void WhileStatement::emit(Emit &e)
             e << INDENT "unless " << reg << " goto " << labelend << '\n';
         st->emit(e);
         e << INDENT "goto " << labelcontinue << '\n' <<
-            "  " << labelend << ": # END WHILE\n";
+            INDENTLABEL << labelend << ": # END WHILE\n";
     }
 }
 
@@ -6228,11 +6229,11 @@ void DoStatement::emit(Emit &e)
     bool forever= condition->getvalue() == Condition::CVtrue;
     bool oneshot = condition->getvalue() == Condition::CVfalse;
 
-    e << "  " << labelstart << ": # DO\n";
+    e << INDENTLABEL << labelstart << ": # DO\n";
 
     if (!st->isempty())
         st->emit(e);
-    e << "  " << labelcontinue << ": # DO CONTINUE\n";
+    e << INDENTLABEL << labelcontinue << ": # DO CONTINUE\n";
     if (! forever)
     {
         if (!oneshot)
@@ -6240,7 +6241,7 @@ void DoStatement::emit(Emit &e)
     }
     else
         e << INDENT "goto " << labelstart << '\n';
-    e << "  " << labelend << ": # END DO\n";
+    e << INDENTLABEL << labelend << ": # END DO\n";
 }
 
 //**********************************************************************
