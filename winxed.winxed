@@ -224,11 +224,18 @@ function main [main] (argv)
         string pircode;
         if (eval == null)
             pircode = compiler.compile_from_file_withoptions(srcfile, opts);
-        else
+        else {
+            eval = 'function main[main](argv){' + eval + ';}';
             pircode = compiler.compile_withoptions(eval, opts);
-        var file = open(pirfile, 'w');
-        file.print(pircode);
-        file.close();
+        }
+        if (pirfile == '-' &&
+               (targettype == TargetPir || targettype == TargetConst))
+            print(pircode);
+        else {
+            var file = open(pirfile, 'w');
+            file.print(pircode);
+            file.close();
+        }
     }
     else {
         string cmd[]; // Command to execute
