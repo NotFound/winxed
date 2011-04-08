@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 7-apr-2011
+// Revision 8-apr-2011
 
 // Winxed compiler stage 0.
 
@@ -164,6 +164,20 @@ inline
 std::string op_isnull(const std::string &res, const std::string &op1)
 {
     return op("isnull", res, op1);
+}
+
+inline
+std::string op_iseq(const std::string &res,
+    const std::string &op1, const std::string &op2)
+{
+    return op("iseq", res, op1, op2);
+}
+
+inline
+std::string op_isne(const std::string &res,
+    const std::string &op1, const std::string &op2)
+{
+    return op("isne", res, op1, op2);
 }
 
 inline
@@ -2703,7 +2717,7 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
             std::string op2= gentemp(rtype);
             lexpr->emit(e, op1);
             rexpr->emit(e, op2);
-            e << INDENT << res << " = iseq " << op1 << " , " << op2;
+            e << op_iseq(res, op1, op2);
         }
         else if (ltype == REGvar && rtype == REGstring)
         {
@@ -2713,7 +2727,7 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
             lexpr->emit(e, aux);
             rexpr->emit(e, op2);
             e << INDENT << op1 << " = " << aux << '\n';
-            e << INDENT << res << " = iseq " << op1 << " , " << op2;
+            e << op_iseq(res, op1, op2);
         }
         else if (ltype == REGstring && rtype == REGvar)
         {
@@ -2723,7 +2737,7 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
             lexpr->emit(e, op1);
             rexpr->emit(e, aux);
             e << INDENT << op2 << " = " << aux << '\n';
-            e << INDENT << res << " = iseq " << op1 << " , " << op2;
+            e << op_iseq(res, op1, op2);
         }
         else
         {
@@ -2757,7 +2771,7 @@ void OpEqualExpr::emit(Emit &e, const std::string &result)
             }
             else
                 rexpr->emit(e, op2);
-            e << INDENT << res << " = iseq " << op1 << " , " << op2;
+            e << op_iseq(res, op1, op2);
         }
     }
     if (!result.empty())
@@ -2814,7 +2828,7 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
         std::string op2= gentemp(REGint);
         lexpr->emit(e, op1);
         rexpr->emit(e, op2);
-        e << INDENT << res << " = isne " << op1 << " , " << op2;
+        e << op_isne(res, op1, op2);
     }
     else if (lexpr->isstring() && rexpr->isstring())
     {
@@ -2822,7 +2836,7 @@ void OpNotEqualExpr::emit(Emit &e, const std::string &result)
         std::string op2= gentemp(REGstring);
         lexpr->emit(e, op1);
         rexpr->emit(e, op2);
-        e << INDENT << res << " = isne " << op1 << " , " << op2;
+        e << op_isne(res, op1, op2);
     }
     else
     {
@@ -5338,7 +5352,7 @@ void VarStatement::emit (Emit &e)
             case REGstring:
                 reg = gentemp(type);
                 v.emit(e, reg);
-                e << INDENT "box " << name << ", " << reg << '\n';
+                e << op_box(name, reg) << '\n';
                 break;
             case REGvar:
                 v.emit(e, name);
@@ -5913,7 +5927,7 @@ std::string Condition::emit(Emit &e)
             std::string reg2= reg;
             reg= gentemp(REGint);
             std::string nocase= genlocallabel();
-            e << INDENT << reg << " = 0\n"
+            e << op_null(reg) << "\n"
                 INDENT "if_null " << reg2 << ", " << nocase << "\n"
                 INDENT "unless " << reg2 << " goto " << nocase << "\n" <<
                 op_inc(reg) << '\n' <<
