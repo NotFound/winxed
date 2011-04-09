@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 8-apr-2011
+// Revision 9-apr-2011
 
 // Winxed compiler stage 0.
 
@@ -4792,6 +4792,10 @@ Expr * parseExpr_4(BlockBase &block, Tokenizer &tk)
     else if (t.iskeyword("delete"))
     {
         throw UnsupportedInStage("operator delete", t);
+    }
+    else if (t.iskeyword("exists"))
+    {
+        throw UnsupportedInStage("operator exists", t);
     }
     else
     {
