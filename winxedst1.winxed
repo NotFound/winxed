@@ -3136,21 +3136,6 @@ class OpExistsExpr : OpDelExBase
         else
             SyntaxError("exists with invalid operator", self.start);
     }
-    function emit_get(e)
-    {
-        var expr = self.subexpr;
-        string reg = self.tempreg(REGint);
-        if (expr instanceof IndexExpr && expr.checkresult() != REGstring) {
-            expr.emit_prep(e);
-            self.annotate(e);
-            e.print(INDENT + 'exists ', reg, ', ');
-            expr.emit_aux(e);
-            e.say();
-            return reg;
-        }
-        else
-            SyntaxError("exists with invalid operator", self.start);
-    }
 }
 
 //*********************************************
