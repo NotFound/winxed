@@ -1396,7 +1396,8 @@ public:
     {
         Token t= tk.get();
         if (!t.isidentifier())
-                throw Expected("Modifier name", t);
+            throw Expected("Modifier name", t);
+        start = t;
         name= t.identifier();
         t= tk.get();
         if (!t.isop('('))
@@ -1411,18 +1412,29 @@ public:
         }
     }
     std::string getname() const { return name; }
+    Token getstart() const { return start; }
     void optimize()
     {
         for (size_t i= 0; i < args.size(); ++i)
             args[i]= args[i]->optimize();
     }
     size_t numargs() const { return args.size(); }
+    Expr *getarg(size_t narg) const
+    {
+        return args.at(narg);
+    }
     int getintegervalue(size_t narg) const
     {
         Expr *arg= args.at(narg);
         return arg->getintegervalue();
     }
+    std::string getstringvalue(size_t narg) const
+    {
+        Expr *arg= args.at(narg);
+        return arg->getstringvalue();
+    }
 private:
+    Token start;
     std::string name;
     std::vector <Expr *> args;
 };
@@ -1482,16 +1494,79 @@ public:
 
 //**********************************************************************
 
+class ArgumentModifierList : public ModifierList
+{
+public:
+    void emitmodifiers(Emit &e)
+    {
+        bool isflat = false, isnamed = false;
+        Expr * setname = 0;
+        for (ModList::iterator it = modifiers.begin(); it != modifiers.end();
+                ++it)
+        {
+            std::string name = it->first;
+            Modifier &modifier = it->second;
+            if (name == "flat")
+                isflat = true;
+            if (name == "named")
+            {
+                isnamed = true;
+                switch (modifier.numargs())
+                {
+                  case 0:
+                    break;
+                  case 1:
+                    setname = modifier.getarg(0);
+                    break;
+                  default:
+                    throw SyntaxError("Invalid modifier", modifier.getstart());
+                }
+            }
+        }
+        if (isflat)
+        {
+            if (isnamed)
+                e << " :flat :named";
+            else
+                e << " :flat";
+        }
+        else if (isnamed)
+        {
+            e << " :named";
+            if (setname)
+                e << '(';
+                setname->emit(e, "");
+                e << ')';
+        }
+    }
+};
+
 class Argument
 {
 public:
-    Argument(BlockBase &block, Tokenizer &tk)
+    Argument(BlockBase &block, Tokenizer &tk) :
+            modifiers(0)
     {
         expr = parseExpr(block, tk);
+        Token t = tk.get();
+        if (t.isop(':'))
+        {
+            t = tk.get();
+            if (! t.isop('['))
+                throw Expected("modifier list", t);
+            modifiers = new ArgumentModifierList();
+            modifiers->parse(block, tk);
+        }
+        else
+            tk.unget(t);
     }
     Expr *get()
     {
         return expr;
+    }
+    ArgumentModifierList *getmodifiers()
+    {
+        return modifiers;
     }
     Argument *optimize()
     {
@@ -1504,6 +1579,7 @@ public:
     }
 private:
     Expr *expr;
+    ArgumentModifierList *modifiers;
 };
 
 class ArgumentList : public InBlock
@@ -2229,6 +2305,10 @@ void ArgumentList::emit(Emit &e)
                 (*args)[i]->emit(e, std::string() );
             else
                 e << argregs[i];
+            if (ArgumentModifierList *modifiers = (*args)[i]->getmodifiers())
+            {
+                modifiers->emitmodifiers(e);
+            }
         }
     }
 }
