@@ -9420,7 +9420,7 @@ class WinxedHLL
             object = pircomp(pircode);
             break;
           default:
-            die('Invalid target');
+            die('Invalid target: ' + string(target));
         }
         return object;
     }
@@ -9451,7 +9451,11 @@ class WinxedHLL
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
-        return self.__private_compile_tail(winxed, target, noan);
+        if (target == 'include') {
+            return self.__private_geninclude(winxed);
+        }
+        else
+            return self.__private_compile_tail(winxed, target, noan);
     }
     function compile(string code,
             string target[named,optional],

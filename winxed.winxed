@@ -223,10 +223,10 @@ function main [main] (argv)
         var opts = { "target": ctarget, "noan": noan, "nowarn": nowarn };
         string pircode;
         if (eval == null)
-            pircode = compiler.compile_from_file_withoptions(srcfile, opts);
+            pircode = compiler.compile_from_file(srcfile, opts:[named,flat]);
         else {
             eval = 'function main[main](argv){' + eval + ';}';
-            pircode = compiler.compile_withoptions(eval, opts);
+            pircode = compiler.compile(eval, opts:[named,flat]);
         }
         if (pirfile == '-' &&
                (targettype == TargetPir || targettype == TargetConst))
