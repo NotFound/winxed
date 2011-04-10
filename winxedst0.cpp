@@ -2051,6 +2051,26 @@ private:
 
 //**********************************************************************
 
+class FunctionParameter
+{
+public:
+    FunctionParameter(FunctionStatement *owner, Tokenizer &tk);
+    char gettype() const { return type; }
+    std::string getname() const { return name; }
+    void emit (Emit &e);
+private:
+    //FunctionStatement *fst;
+    std::string name;
+    char type;
+    ModifierList modifiers;
+    bool has_modifier(const std::string &name) const
+    {
+        return modifiers.has_modifier(name);
+    }
+};
+
+//**********************************************************************
+
 class FunctionStatement : protected FunctionModifiers, public FunctionBlock
 {
 public:
@@ -2071,25 +2091,54 @@ private:
     const NamespaceKey ns;
     const std::string name;
     std::vector <std::string> params;
-    class ParamInfo
-    {
-    public:
-        ParamInfo() : t('\0') { }
-        ParamInfo(char type, const ModifierList &mods) :
-            t(type), modifiers(mods)
-        {}
-        char type() const { return t; }
-        bool has_modifier(const std::string &name) const
-        { return modifiers.has_modifier(name); }
-    private:
-        char t;
-        ModifierList modifiers;
-    };
-    std::map <std::string, ParamInfo> paraminfo;
+    std::map <std::string, FunctionParameter *> paraminfo;
     std::vector <std::string> loc;
     BaseStatement *body;
     Token tend;
 };
+
+//**********************************************************************
+
+FunctionParameter::FunctionParameter(FunctionStatement *owner, Tokenizer &tk) //:
+        //fst(owner)
+{
+    Token t = tk.get();
+    type= nativetype(t);
+    if (type == '\0')
+        type= REGvar;
+    else
+        t= tk.get();
+    name= t.identifier();
+    t= tk.get();
+    if (t.isop('['))
+        modifiers.parse(*owner, tk);
+    else
+        tk.unget(t);
+}
+
+void FunctionParameter::emit (Emit &e)
+{
+    e << ".param " << nameoftype(type) << ' ' <<
+            name;
+    bool isslurpy = has_modifier("slurpy");
+    bool isnamed = has_modifier("named");
+    if (isslurpy) {
+        e << " :slurpy";
+        // Special case for named slurpy
+        if (isnamed)
+            e << " :named";
+    }
+    else {
+        // Unfinished
+        if (isnamed)
+            e << " :named";
+    }
+    if (has_modifier("optional"))
+        e << " :optional";
+    if (has_modifier("opt_flag"))
+        e << " :opt_flag";
+    e << '\n';
+}
 
 //**********************************************************************
 
@@ -6388,26 +6437,12 @@ FunctionStatement::FunctionStatement(Tokenizer &tk, const Token &st,
         tk.unget(t);
         do
         {
+            FunctionParameter *pi = new FunctionParameter(this, tk);
+            const std::string paramname = pi->getname();
+            paraminfo [paramname]= pi;
+            params.push_back(paramname);
+            genlocal(paramname, pi->gettype());
             t= tk.get();
-            char ctype= nativetype(t);
-            if (ctype == '\0')
-                ctype= REGvar;
-            else
-                t= tk.get();
-            std::string name= t.identifier();
-            t= tk.get();
-            ModifierList modifiers;
-            if (t.isop('['))
-            {
-                modifiers.parse(*this, tk);
-                t= tk.get();
-            }
-
-            params.push_back(name);
-            ParamInfo pi(ctype, modifiers);
-            paraminfo [name]= pi;
-            genlocal(name, ctype);
-            
         } while (t.isop(','));
     }
     RequireOp(')', t);
@@ -6438,30 +6473,7 @@ void FunctionStatement::optimize()
 void FunctionStatement::emitparams (Emit &e)
 {
     for (size_t i= 0; i < params.size(); ++i)
-    {
-        const std::string &param= params[i];
-        const ParamInfo &info= paraminfo[param];
-        e << ".param " << nameoftype(info.type()) << ' ' <<
-                param;
-        bool isslurpy = info.has_modifier("slurpy");
-        bool isnamed = info.has_modifier("named");
-        if (isslurpy) {
-            e << " :slurpy";
-            // Special case for named slurpy
-            if (isnamed)
-                e << " :named";
-        }
-        else {
-            // Unfinished
-            if (isnamed)
-                e << " :named";
-        }
-        if (info.has_modifier("optional"))
-            e << " :optional";
-        if (info.has_modifier("opt_flag"))
-            e << " :opt_flag";
-        e << '\n';
-    }
+        paraminfo[params[i]]->emit(e);
     e << '\n';
 }
 
