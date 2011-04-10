@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 9-apr-2011
+// Revision 10-apr-2011
 
 // Winxed compiler stage 0.
 
@@ -1429,7 +1429,7 @@ private:
 
 //**********************************************************************
 
-class Modifiers
+class ModifierList
 {
 public:
     bool has_modifier(const std::string &name) const
@@ -1438,7 +1438,7 @@ public:
     }
     const Modifier * getmodifier(const std::string &name) const
     {
-        ModifierList::const_iterator it= modifiers.find(name);
+        ModList::const_iterator it= modifiers.find(name);
         if (it != modifiers.end())
             return &it->second;
         else
@@ -1456,18 +1456,18 @@ public:
     }
     void optimize()
     {
-        for (ModifierList::iterator it= modifiers.begin();
+        for (ModList::iterator it= modifiers.begin();
                 it != modifiers.end(); ++it)
            it->second.optimize();
     }
 protected:
-    typedef std::map<std::string, Modifier> ModifierList;
-    ModifierList modifiers;
+    typedef std::map<std::string, Modifier> ModList;
+    ModList modifiers;
 };
 
 //**********************************************************************
 
-class FunctionModifiers : public Modifiers
+class FunctionModifiers : public ModifierList
 {
 public:
     FunctionModifiers(BlockBase &block, Tokenizer &tk, const NamespaceKey &)
@@ -1908,6 +1908,12 @@ private:
 
 //**********************************************************************
 
+class TryModifierList: public ModifierList
+{
+public:
+    void emitmodifiers(Emit &e, const std::string &reghandler);
+};
+
 class TryStatement : public BlockStatement
 {
 public:
@@ -1916,7 +1922,7 @@ private:
     BaseStatement *optimize();
     void emit (Emit &e);
     Token start;
-    Modifiers modifiers;
+    TryModifierList modifiers;
     BaseStatement *stry;
     BaseStatement *scatch;
     std::string exname;
@@ -1948,7 +1954,7 @@ private:
     {
     public:
         ParamInfo() : t('\0') { }
-        ParamInfo(char type, const Modifiers &mods) :
+        ParamInfo(char type, const ModifierList &mods) :
             t(type), modifiers(mods)
         {}
         char type() const { return t; }
@@ -1956,7 +1962,7 @@ private:
         { return modifiers.has_modifier(name); }
     private:
         char t;
-        Modifiers modifiers;
+        ModifierList modifiers;
     };
     std::map <std::string, ParamInfo> paraminfo;
     std::vector <std::string> loc;
@@ -5766,6 +5772,33 @@ void ThrowStatement::emit (Emit &e)
 
 //**********************************************************************
 
+void TryModifierList::emitmodifiers(Emit &e, const std::string &reghandler)
+{
+    static const char * const ehattrs[] = {
+        "min_severity", "max_severity"
+    };
+    for (size_t i= 0; i < sizeof(ehattrs) / sizeof(ehattrs[0]); ++i)
+        if (const Modifier *m= getmodifier(ehattrs[i]))
+        {
+            if (m->numargs() != 1)
+                throw CompileError("Wrong args");
+            int n= m->getintegervalue(0);
+            e << INDENT << reghandler << ".'" << ehattrs[i] << "'(" << n << ")\n";
+        }
+    if (const Modifier *m= getmodifier("handle_types"))
+    {
+        size_t n= m->numargs();
+        e << INDENT << reghandler << ".'handle_types'(";
+        for (size_t i= 0; i < n; ++i)
+        {
+            int value= m->getintegervalue(i);
+            if (i > 0) e << ",";
+            e << value;
+        }
+        e << ")\n";
+    }
+}
+
 TryStatement::TryStatement(Block &block, const Token &st, Tokenizer &tk) :
     BlockStatement (block),
     start(st),
@@ -5813,29 +5846,8 @@ void TryStatement::emit (Emit &e)
     std::string reghandler= gentemp(REGvar);
     e << INDENT << reghandler << " = new 'ExceptionHandler'\n"
         INDENT "set_label " << reghandler << ", " << handler << '\n';
-    static const char * const ehattrs[] = {
-        "min_severity", "max_severity"
-    };
-    for (size_t i= 0; i < sizeof(ehattrs) / sizeof(ehattrs[0]); ++i)
-        if (const Modifier *m= modifiers.getmodifier(ehattrs[i]))
-        {
-            if (m->numargs() != 1)
-                throw CompileError("Wrong args");
-            int n= m->getintegervalue(0);
-            e << INDENT << reghandler << ".'" << ehattrs[i] << "'(" << n << ")\n";
-        }
-    if (const Modifier *m= modifiers.getmodifier("handle_types"))
-    {
-        size_t n= m->numargs();
-        e << INDENT << reghandler << ".'handle_types'(";
-        for (size_t i= 0; i < n; ++i)
-        {
-            int value= m->getintegervalue(i);
-            if (i > 0) e << ",";
-            e << value;
-        }
-        e << ")\n";
-    }
+
+    modifiers.emitmodifiers(e, reghandler);
 
     e << INDENT "push_eh " << reghandler << '\n';
 
@@ -6289,7 +6301,7 @@ FunctionStatement::FunctionStatement(Tokenizer &tk, const Token &st,
                 t= tk.get();
             std::string name= t.identifier();
             t= tk.get();
-            Modifiers modifiers;
+            ModifierList modifiers;
             if (t.isop('['))
             {
                 modifiers.parse(*this, tk);
