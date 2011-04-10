@@ -17,7 +17,7 @@ DRIVER = winxedrun
 
 default: stage0 driver winxedst1.pbc winxedst2.pbc
 
-all: stage2 driver
+all: default
 
 pbc: $(DRIVER).pbc
 
