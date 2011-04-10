@@ -1482,6 +1482,30 @@ public:
 
 //**********************************************************************
 
+class Argument
+{
+public:
+    Argument(BlockBase &block, Tokenizer &tk)
+    {
+        expr = parseExpr(block, tk);
+    }
+    Expr *get()
+    {
+        return expr;
+    }
+    Argument *optimize()
+    {
+        expr= expr->optimize();
+        return this;
+    }
+    void emit(Emit &e, const std::string &result)
+    {
+        expr->emit(e, result);
+    }
+private:
+    Expr *expr;
+};
+
 class ArgumentList : public InBlock
 {
 public:
@@ -1492,13 +1516,13 @@ public:
     }
     Expr *getfreearg(int i)
     {
-        return args->at(i);
+        return args->at(i)->get();
     }
     void optimize();
     void prepare(Emit &e);
     void emit(Emit &e);
 private:
-    std::vector <Expr *> *args;
+    std::vector <Argument *> *args;
     std::vector <std::string> argregs;
 };
 
@@ -2145,11 +2169,11 @@ ArgumentList::ArgumentList(BlockBase &block, Tokenizer &tk, char delimiter) :
     Token t = tk.get();
     if (! t.isop(delimiter))
     {
-        args= new std::vector<Expr *>;
+        args= new std::vector<Argument *>;
         tk.unget(t);
         do
         {
-            Expr *arg= parseExpr(block, tk);
+            Argument *arg= new Argument(block, tk);
             args->push_back(arg);
             t= tk.get();
         } while (t.isop(','));
@@ -2172,7 +2196,7 @@ void ArgumentList::prepare(Emit &e)
     {
         for (size_t i= 0; i < args->size(); ++i)
         {
-            Expr &arg= *(*args)[i];
+            Expr &arg= *((*args)[i]->get());
             std::string reg;
             if (! arg.issimple() )
                 reg= arg.emit_get(e);
