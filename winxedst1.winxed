@@ -945,6 +945,9 @@ const int
 //         Predefined functions
 //*********************************************
 
+// Set this to non-zero to enable sanity checks of predef definitions.
+const int __DEBUG_PREDEFS = 0;
+
 const int PREDEF_arglist = -1, PREDEF_raw1 = -2;
 
 // Invokable object generated from a string body
@@ -955,12 +958,14 @@ class Predef_frombody
     var typeresult;
     function Predef_frombody(string typeresult, string bodystr)
     {
-        // Minimal sanity check
-        int pos = indexof(bodystr, resultmark);
-        if (typeresult == REGnone && pos != -1)
-            InternalError('void predef with ' + resultmark);
-        if (typeresult != REGnone && pos == -1)
-            InternalError('non void predef without ' + resultmark);
+        if (__DEBUG_PREDEFS) {
+            // Minimal sanity check
+            int pos = indexof(bodystr, resultmark);
+            if (typeresult == REGnone && pos != -1)
+                InternalError('void predef with ' + resultmark);
+            if (typeresult != REGnone && pos == -1)
+                InternalError('non void predef without ' + resultmark);
+        }
 
         // Predecorate output
         int l = length(bodystr) - 1;
@@ -984,8 +989,7 @@ class Predef_frombody
         }
 
         var builder = new ['StringBuilder'];
-        builder.append_format(self.body,
-                result, args[0], args[1], args[2], args[3]);
+        builder.append_format(self.body, result, args:[flat]);
         e.annotate(start);
         e.say(string(builder));
     }

@@ -1801,26 +1801,47 @@ private:
 
 //**********************************************************************
 
-class ReturnStatement : public SubStatement
+class ReturnYieldStatement : public SubStatement
 {
 public:
-    ReturnStatement(Block & block, Tokenizer &tk);
+    ReturnYieldStatement(Block & block, Tokenizer &tk);
     BaseStatement *optimize();
     void emit (Emit &e);
 private:
+    virtual void emitret(Emit &e) = 0;
     ArgumentList *values;
 };
 
 //**********************************************************************
 
-class YieldStatement : public SubStatement
+class ReturnStatement : public ReturnYieldStatement
 {
 public:
-    YieldStatement(Block & block, Tokenizer &tk);
-    BaseStatement *optimize();
-    void emit (Emit &e);
+    ReturnStatement(Block & block, Tokenizer &tk) :
+            ReturnYieldStatement(block, tk)
+    {
+    }
 private:
-    ArgumentList *values;
+    void emitret(Emit &e)
+    {
+        e << INDENT ".return (";
+    }
+};
+
+//**********************************************************************
+
+class YieldStatement : public ReturnYieldStatement
+{
+public:
+    YieldStatement(Block & block, Tokenizer &tk) :
+            ReturnYieldStatement(block, tk)
+    {
+    }
+private:
+    void emitret(Emit &e)
+    {
+        e << INDENT ".yield (";
+    }
 };
 
 //**********************************************************************
@@ -5589,37 +5610,7 @@ void UsingStatement::emit (Emit &e)
 
 //**********************************************************************
 
-ReturnStatement::ReturnStatement(Block & block, Tokenizer &tk) :
-    SubStatement (block), values(0)
-{
-    Token t= tk.get();
-    if (!t.isop(';'))
-    {
-        tk.unget(t);
-        values= new ArgumentList(block, tk, ';');
-    }
-}
-
-BaseStatement *ReturnStatement::optimize()
-{
-    if (values)
-        values->optimize();
-    return this;
-}
-
-void ReturnStatement::emit (Emit &e)
-{
-    if (values)
-        values->prepare(e);
-    e << INDENT ".return (";
-    if (values)
-        values->emit(e);
-    e << " )\n";
-}
-
-//**********************************************************************
-
-YieldStatement::YieldStatement(Block & block, Tokenizer &tk) :
+ReturnYieldStatement::ReturnYieldStatement(Block & block, Tokenizer &tk) :
     SubStatement (block), values(0)
 {
     Token t= tk.get();
@@ -5630,18 +5621,18 @@ YieldStatement::YieldStatement(Block & block, Tokenizer &tk) :
     }
 }
 
-BaseStatement *YieldStatement::optimize()
+BaseStatement *ReturnYieldStatement::optimize()
 {
     if (values)
         values->optimize();
     return this;
 }
 
-void YieldStatement::emit (Emit &e)
+void ReturnYieldStatement::emit (Emit &e)
 {
     if (values)
         values->prepare(e);
-    e << INDENT ".yield (";
+    emitret(e);
     if (values)
         values->emit(e);
     e << " )\n";
