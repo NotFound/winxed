@@ -7993,6 +7993,31 @@ class FunctionParameter
 //            FunctionBase
 //*********************************************
 
+class FunctionModifierList : ModifierList
+{
+    function FunctionModifierList(var tk, var owner)
+    {
+        self.ModifierList(tk, owner);
+    }
+    function emit(e)
+    {
+        for (var m in self.getlist()) {
+            int nargmods = m.numargs();
+            e.print(' :', m.getname());
+            if (nargmods > 0) {
+                e.print('(');
+                for (int iargmod = 0; iargmod < nargmods; ++iargmod) {
+                    var argmod = m.getarg(iargmod);
+                    if (!argmod.isstringliteral())
+                        SyntaxError('Invalid modifier', argmod.start);
+                    e.print(argmod.getPirString());
+                }
+                e.print(')');
+            }
+        }
+    }
+}
+
 class FunctionBase : BlockStatement
 {
     var name;
@@ -8184,23 +8209,8 @@ class FunctionBase : BlockStatement
         if (self.ismethod())
             e.print(' :method');
         var modifiers = self.modifiers;
-        if (modifiers != null) {
-            var mlist = modifiers.getlist();
-            for (var m in mlist) {
-                int nargmods = m.numargs();
-                e.print(' :', m.getname());
-                if (nargmods > 0) {
-                    e.print('(');
-                    for (int iargmod = 0; iargmod < nargmods; ++iargmod) {
-                        var argmod = m.getarg(iargmod);
-                        if (!argmod.isstringliteral())
-                            SyntaxError('Invalid modifier', argmod.start);
-                        e.print(argmod.getPirString());
-                    }
-                    e.print(')');
-                }
-            }
-        }
+        if (modifiers != null)
+            modifiers.emit(e);
         else {
             if (name == 'main')
                 e.print(' :main');
@@ -8292,7 +8302,7 @@ class FunctionStatement : FunctionBase
         self.name = name;
         var t = tk.get();
         if (t.isop('[')) {
-            self.modifiers = new ModifierList(tk, self);
+            self.modifiers = new FunctionModifierList(tk, self);
             t = tk.get();
         }
         RequireOp('(', t);
