@@ -9434,29 +9434,6 @@ class WinxedHLL
         handleout.close();
         return handleout.read(0);
     }
-    function __compile_internal(string code,
-            string target,
-            int noan,
-            int nowarn)
-    {
-        var handlein = new ['StringHandle'];
-        handlein.open(EVAL_NAME, 'w');
-        handlein.puts(code);
-        handlein.close();
-        handlein.open(EVAL_NAME, 'r');
-        var tk = new Tokenizer(handlein, EVAL_NAME);
-        var winxed = new WinxedCompileUnit;
-        if (nowarn)
-            winxed.setwarnmode(false);
-        winxed.parse(tk);
-        handlein.close();
-        winxed.optimize();
-        if (target == 'include') {
-            return self.__private_geninclude(winxed);
-        }
-        else
-            return self.__private_compile_tail(winxed, target, noan);
-    }
     function compile(string code,
             string target[named,optional],
             int noan[named,optional],
@@ -9464,48 +9441,12 @@ class WinxedHLL
     {
         if (target == null)
             target = '';
-        return self.__compile_internal(code, target, noan, nowarn);
-    }
-    // Same as compile, with named options passed as a hash.
-    // Helper for the non installed driver, not intended for
-    // generic usage.
-    function compile_withoptions(string code, var options)
-    {
-        var ptarget = options['target'];
-        string target = ptarget != null ? string(ptarget) : '';
-        int noan = options['noan'];
-        int nowarn = options['nowarn'];
-        return self.__compile_internal(code, target, noan, nowarn);
-    }
-    function compile_from_file_to_pir(string filename, var handleout,
-            int noan[named,optional],
-            int nowarn[named,optional] )
-    {
-        var handlein = new ['FileHandle'];
-        handlein.open(filename, 'r');
-        handlein.encoding('utf8');
-        var tk = new Tokenizer(handlein, filename);
-        var winxed = new WinxedCompileUnit;
-        if (nowarn)
-            winxed.setwarnmode(false);
-        winxed.parse(tk);
+        var handlein = new ['StringHandle'];
+        handlein.open(EVAL_NAME, 'w');
+        handlein.puts(code);
         handlein.close();
-        winxed.optimize();
-        var emit = new Emit(handleout);
-        if (noan)
-            emit.disable_annotations();
-        winxed.emit(emit);
-        emit.close();
-    }
-    function __compile_from_file_internal(string filename,
-            string target,
-            int noan,
-            int nowarn)
-    {
-        var handlein = new ['FileHandle'];
-        handlein.open(filename, 'r');
-        handlein.encoding('utf8');
-        var tk = new Tokenizer(handlein, filename);
+        handlein.open(EVAL_NAME, 'r');
+        var tk = new Tokenizer(handlein, EVAL_NAME);
         var winxed = new WinxedCompileUnit;
         if (nowarn)
             winxed.setwarnmode(false);
@@ -9525,18 +9466,21 @@ class WinxedHLL
     {
         if (target == null)
             target = '';
-        return self.__compile_from_file_internal(filename, target, noan, nowarn);
-    }
-    // Same as compile_from_file, with named options passed as a hash.
-    // Helper for the non installed driver, not intended for
-    // generic usage.
-    function compile_from_file_withoptions(string filename, var options)
-    {
-        var ptarget = options['target'];
-        string target = ptarget != null ? string(ptarget) : '';
-        int noan = options['noan'];
-        int nowarn = options['nowarn'];
-        return self.__compile_from_file_internal(filename, target, noan, nowarn);
+        var handlein = new ['FileHandle'];
+        handlein.open(filename, 'r');
+        handlein.encoding('utf8');
+        var tk = new Tokenizer(handlein, filename);
+        var winxed = new WinxedCompileUnit;
+        if (nowarn)
+            winxed.setwarnmode(false);
+        winxed.parse(tk);
+        handlein.close();
+        winxed.optimize();
+        if (target == 'include') {
+            return self.__private_geninclude(winxed);
+        }
+        else
+            return self.__private_compile_tail(winxed, target, noan);
     }
 }
 
