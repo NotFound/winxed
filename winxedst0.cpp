@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 10-apr-2011
+// Revision 11-apr-2011
 
 // Winxed compiler stage 0.
 
@@ -283,12 +283,7 @@ public:
             char type0= '\0',
             char type1= '\0',
             char type2= '\0',
-            char type3= '\0') :
-        PredefFunction(name, typeresult,
-                bool(type0) +bool(type1) + bool(type2) + bool(type3) ),
-        pbody(body),
-        t0(type0), t1(type1), t2(type2), t3(type3)
-    {}
+            char type3= '\0');
 private:
     void emit(Emit &e, const std::string &result,
         const std::vector<std::string> args) const;
@@ -303,8 +298,9 @@ private:
         default: return '\0';
         }
     }
-    const std::string pbody;
     char t0, t1, t2, t3;
+    std::vector<std::string> chunks;
+    std::vector<int> marks;
 };
 
 class PredefFunctionVarargs : public PredefFunction
@@ -543,28 +539,66 @@ const PredefFunction *PredefFunction::find(const std::string &name,
     return 0;
 }
 
+PredefFunctionFixargs::PredefFunctionFixargs(const std::string &name,
+            const std::string &body,
+            char typeresult,
+            char type0, char type1, char type2, char type3) :
+        PredefFunction(name, typeresult,
+                bool(type0) +bool(type1) + bool(type2) + bool(type3) ),
+        t0(type0), t1(type1), t2(type2), t3(type3)
+{
+    const size_t ntags = 5;
+    const std::string tags[ntags] =
+        { "{res}", "{arg0}", "{arg1}", "{arg2}", "{arg3}" };
+    std::string::size_type pos[ntags];
+
+    std::string aux = body;
+
+    for (;;)
+    {
+        for (size_t i = 0; i < ntags; ++i)
+            pos[i] = aux.find(tags[i]);
+        const std::string::size_type *minp = std::min_element(pos, pos + ntags);
+        size_t minpos = minp - pos;
+        std::string::size_type mpos = pos[minpos];
+        if (mpos == std::string::npos)
+            break;
+        chunks.push_back(aux.substr(0, mpos));
+        marks.push_back(minpos);
+        aux.erase(0, mpos + tags[minpos].length());
+    }
+    if (aux.length() > 0)
+    {
+        chunks.push_back(aux);
+        marks.push_back(-1);
+    }
+}
+
 void PredefFunctionFixargs::emit(Emit &e, const std::string &result,
     const std::vector<std::string> args) const
 {
-    std::string body= pbody;
-    const size_t n= args.size();
-    size_t pos;
-    if (resulttype())
-        while ((pos= body.find("{res}")) != std::string::npos)
-            body= body.replace(pos, 5, result);
-    if (n > 0)
-        while ((pos= body.find("{arg0}")) != std::string::npos)
-            body= body.replace(pos, 6, args[0]);
-    if (n > 1)
-        while ((pos= body.find("{arg1}")) != std::string::npos)
-            body= body.replace(pos, 6, args[1]);
-    if (n > 2)
-        while ((pos= body.find("{arg2}")) != std::string::npos)
-            body= body.replace(pos, 6, args[2]);
-    if (n > 3)
-        while ((pos= body.find("{arg3}")) != std::string::npos)
-            body= body.replace(pos, 6, args[3]);
-    pos = 0;
+    std::string body;
+    size_t n = chunks.size();
+    for (size_t i = 0; i < n; ++i)
+    {
+        body+= chunks[i];
+        int m = marks[i];
+        switch (m)
+        {
+          case 0:
+            body+= result;
+            break;
+          case 1: case 2: case 3: case 4:
+            body+= args[m-1];
+            break;
+          case -1:
+            break;
+          default:
+            throw InternalError("Unexpected failure in Predef");
+        }
+    }
+
+    size_t pos = 0;
     size_t prev = 0;
     while ((pos = body.find("\n", prev)) != std::string::npos)
     {
