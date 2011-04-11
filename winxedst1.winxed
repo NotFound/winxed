@@ -691,7 +691,8 @@ function typetopirname(string regtype)
 //            Emit
 //*********************************************
 
-const string INDENT = '    ';
+const string INDENT =      '    ';
+const string INDENTLABEL = '  ';
 
 class Emit
 {
@@ -780,7 +781,7 @@ class Emit
     function emitlabel(string label, string comment [optional])
     {
         var handle = self.handle;
-        handle.print(' ');
+        handle.print(INDENTLABEL);
         handle.print(label);
         handle.print(':');
         if (comment != null) {
@@ -7981,7 +7982,7 @@ class FunctionParameter
         string paramname = self.name;
         var param = func.getvar(paramname);
         string ptype = typetopirname(param.gettype());
-        e.print('        .param ', ptype, ' ', param.getreg());
+        e.print(INDENT + INDENT + '.param ', ptype, ' ', param.getreg());
         var modarg = self.modifiers;
         if (modarg != null)
             modarg.emitmodifiers(e, func.start, paramname);
@@ -9309,7 +9310,7 @@ class RootNamespace : NamespaceBase
             someload = true;
             e.print("\n.sub initial_load_bytecode :anon :load :init\n");
             for (string name in loads)
-                e.say('    load_bytecode ', name);
+                e.say(INDENT + 'load_bytecode ', name);
             e.print(".end\n\n");
         }
         if (somelib || someload)
