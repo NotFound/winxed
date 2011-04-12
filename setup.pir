@@ -27,7 +27,7 @@
     isnull $I1, $P2
     if $I1 goto __label_1
     $I1 = $P2.'is_closed'()
- __label_1:
+  __label_1:
     unless $I1 goto __label_0
 .annotate 'line', 31
     concat $S2, "Can't open ", __ARG_1
@@ -35,7 +35,7 @@
     root_new $P4, ['parrot';'Exception']
     $P4['message'] = $S2
     throw $P4
- __label_0: # endif
+  __label_0: # endif
 .annotate 'line', 32
     $P2.'encoding'('utf8')
 .annotate 'line', 33
@@ -44,7 +44,7 @@
     null $S1
     if_null $P4, __label_2
     set $S1, $P4
- __label_2:
+  __label_2:
 .annotate 'line', 34
     $P2.'close'()
 .annotate 'line', 35
@@ -77,7 +77,7 @@
     null $S1
     if_null $P5, __label_0
     set $S1, $P5
- __label_0:
+  __label_0:
 .annotate 'line', 49
 # var opts: $P2
     $P2 = $P1.'get_options'(__ARG_1)
@@ -96,7 +96,7 @@
     if_null $P3, __label_1
 .annotate 'line', 57
     set $S2, $P3
- __label_1: # endif
+  __label_1: # endif
 .annotate 'line', 58
 # var data: $P4
     $P4 = 'loadData'($S2)
@@ -128,7 +128,7 @@
 .annotate 'line', 66
     say ''
 # }
- __label_2: # endif
+  __label_2: # endif
 .annotate 'line', 69
     load_bytecode 'distutils.pbc'
 .annotate 'line', 70
