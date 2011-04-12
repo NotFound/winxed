@@ -1126,9 +1126,12 @@ class Predef_typecast
             InternalError("Invalid Predef_typecast.invoke call");
         var rawarg = args[0];
         string argtype = rawarg.checkresult();
-        if (argtype == type || (rawarg instanceof IndexExpr))
+        switch {
+          case argtype == type:
+          case rawarg instanceof IndexExpr:
             rawarg.emit(e, result);
-        else {
+            break;
+          default:
             string arg = rawarg.emit_get(e);
             e.annotate(start);
             // Special case
@@ -1914,7 +1917,7 @@ function parseStatement(tk, owner)
     case 'break':
         return new BreakStatement(t, tk, owner);
     case 'switch':
-        return new SwitchStatement(t, tk, owner);
+        return parseSwitch(t, tk, owner);
     case 'for':
         return parseFor(t, tk, owner);
     case 'throw':
@@ -2227,11 +2230,13 @@ class UsingStatement : Statement
         var vdata = self.createvar(name, REGvar);
 
         var symbol = self.findsymbol(path);
-        if (symbol != null) {
-            if (symbol instanceof FunctionStatement) {
-                string subid = symbol.makesubid();
-                self.subid = subid;
-            }
+        switch {
+          case symbol == null:
+            break;
+          case symbol instanceof FunctionStatement:
+            string subid = symbol.makesubid();
+            self.subid = subid;
+            break;
         }
         return self;
     }
@@ -5759,16 +5764,15 @@ function parseNew(var tk, var owner, var start)
 {
     var t = tk.get();
 
-    if (t.isop('(')) {
+    switch {
+      case t.isop('('):
         // Not a new operator, but a call to a function called new.
         return new CallExpr(tk, owner, start,
                 new StringLiteral(owner, start));
-    }
-    else if (t.isop('[')) {
+      case t.isop('['):
         // Class specifier is a key
         return new NewIndexedExpr(tk, owner, start);
-    }
-    else if (t.isidentifier()) {
+      case t.isidentifier():
         // Special case here. It can be an id, a qualified id or
         // a const string
         var t2 = tk.get();
@@ -5777,12 +5781,8 @@ function parseNew(var tk, var owner, var start)
             // Qualified id
             return new NewQualifiedExpr(tk, owner, t);
         }
-        else {
-            // Let the default case handle it
-            return new NewExpr(tk, owner, start, t);
-        }
-    }
-    else {
+        // Else let the default handle it
+      default:
         // Remainig cases
         return new NewExpr(tk, owner, start, t);
     }
@@ -6002,32 +6002,33 @@ function parseExpr_0(tk, owner)
 
     var t = tk.get();
     var expr;
-    if (t.isop('(')) {
+
+    switch {
+      case t.isop('('):
         expr = parseExpr(tk, owner);
         ExpectOp(')', tk);
         return expr;
-    }
-    if (t.isop('['))
+      case t.isop('['):
         return new ArrayExpr(tk, owner, t);
-    if (t.isop('{'))
+      case t.isop('{'):
         return new HashExpr(tk, owner, t);
-    if (t.isstring())
+      case t.isstring():
         return new StringLiteral(owner, t);
-    if (t.isint())
+      case t.isint():
         return new IntegerLiteral(owner, t);
-    if (t.isfloat())
+      case t.isfloat():
         return new FloatLiteral(owner, t);
-    switch (t.checkkeyword()) {
-      case 'new':
+      case t.iskeyword('new'):
         return parseNew(tk, owner, t);
-      case 'function':
+      case t.iskeyword('function'):
         return new FunctionExpr(tk, owner, t);
-      case 'class':
+      case t.iskeyword('class'):
         return new OpClassExpr(tk, owner, t);
-    }
-    if (t.isidentifier())
+      case t.isidentifier():
         return new IdentifierExpr(owner, t);
-    SyntaxError('Expression expected', t);
+      default:
+        SyntaxError('Expression expected', t);
+    }
 }
 
 function parseExpr_2(tk, owner)
@@ -6070,12 +6071,12 @@ function parseExpr_3(tk, owner)
 
     var subexp = parseExpr_2(tk, owner);
     var t = tk.get();
-    if (t.isop('++'))
+    switch {
+      case t.isop('++'):
         return new OpPostIncExpr(owner, t, subexp);
-    else if (t.isop('--'))
+      case t.isop('--'):
         return new OpPostDecExpr(owner, t, subexp);
-    else
-    {
+      default:
         tk.unget(t);
         return subexp;
     }
@@ -6825,32 +6826,25 @@ class BreakStatement : Statement
 }
 
 //*********************************************
-//            SwitchStatement
+//            SwitchBaseStatement
 //*********************************************
 
-class SwitchStatement : Breakable, Statement
+class SwitchBaseStatement : Breakable, Statement
 {
-    var condition;
     var case_value;
     var case_st;
     var default_st;
 
-    function SwitchStatement(start, tk, owner)
+    function SwitchBaseStatement(start, owner)
     {
         self.Statement(start, owner);
-        var t = tk.get();
-        if (! t.isop('('))
-            Expected("'(' in switch", t);
-        self.condition = parseExpr(tk, self);
-        t = tk.get();
-        if (! t.isop(')'))
-            Expected("')' in switch", t);
-        t = tk.get();
-        if (! t.isop('{'))
-            Expected("'{' in switch", t);
         self.case_value = [];
         self.case_st = [];
         self.default_st = [];
+    }
+    function parse_cases(tk)
+    {
+        var t;
         while ((t = tk.get()).iskeyword('case') || t.iskeyword('default')) {
             if (t.iskeyword('case')) {
                 push(self.case_value, parseExpr(tk, self));
@@ -6876,14 +6870,42 @@ class SwitchStatement : Breakable, Statement
                 tk.unget(t);
             }
         }
+        if (! t.isop('}'))
+            Expected("'}' in switch", t);
     }
-    function optimize()
+    function optimize_cases()
     {
-        self.condition = self.condition.optimize();
         optimize_array(self.case_value);
         for (var casest in self.case_st)
             optimize_array(casest);
         optimize_array(self.default_st);
+    }
+}
+
+//*********************************************
+//            SwitchStatement
+//*********************************************
+
+class SwitchStatement : SwitchBaseStatement
+{
+    var condition;
+
+    function SwitchStatement(start, tk, owner)
+    {
+        self.SwitchBaseStatement(start, owner);
+        self.condition = parseExpr(tk, self);
+        var t = tk.get();
+        if (! t.isop(')'))
+            Expected("')' in switch", t);
+        t = tk.get();
+        if (! t.isop('{'))
+            Expected("'{' in switch", t);
+        self.parse_cases(tk);
+    }
+    function optimize()
+    {
+        self.condition = self.condition.optimize();
+        self.optimize_cases();
         return self;
     }
     function emit(e)
@@ -6908,6 +6930,7 @@ class SwitchStatement : Breakable, Statement
         if (type == '')
             type = condtype;
 
+        e.comment('switch');
         string reg = self.tempreg(type);
         if (condtype == type)
             condition.emit(e, reg);
@@ -6930,7 +6953,6 @@ class SwitchStatement : Breakable, Statement
         e.emitgoto(defaultlabel);
 
         // Emit cases
-        e.comment('switch');
         self.annotate(e);
         var case_st = self.case_st;
         int n = case_st;
@@ -6948,6 +6970,72 @@ class SwitchStatement : Breakable, Statement
 
         e.emitlabel(self.getbreaklabel(self.start), 'switch end');
     }
+}
+
+//*********************************************
+//            SwitchCaseStatement
+//*********************************************
+
+class SwitchCaseStatement : SwitchBaseStatement
+{
+
+    function SwitchCaseStatement(start, tk, owner)
+    {
+        self.SwitchBaseStatement(start, owner);
+        self.parse_cases(tk);
+    }
+    function optimize()
+    {
+        self.optimize_cases();
+        return self;
+    }
+    function emit(e)
+    {
+        // Prpeare labels and check values
+        self.genbreaklabel();
+        string defaultlabel = self.genlabel();
+        string caselabel[];
+
+        e.comment('switch-case');
+        string reg = self.tempreg(REGint);
+        for (var caseval in self.case_value) {
+            string label = self.genlabel();
+            push(caselabel, label);
+            caseval.emit(e, reg);
+            e.say(INDENT, 'if ', reg, ' goto ', label);
+        }
+        e.emitgoto(defaultlabel);
+
+        // Emit cases
+        self.annotate(e);
+        var case_st = self.case_st;
+        int n = case_st;
+        for (int i = 0; i < n; ++i) {
+            string l = caselabel[i];
+            e.emitlabel(l, 'case');
+            var casest = case_st[i];
+            for (var st in casest)
+                st.emit(e);
+        }
+        // Emit default
+        e.emitlabel(defaultlabel, 'default');
+        for (var dst in self.default_st)
+            dst.emit(e);
+
+        e.emitlabel(self.getbreaklabel(self.start), 'switch end');
+    }
+}
+
+//*********************************************
+
+function parseSwitch(start, tk, owner)
+{
+    var t = tk.get();
+    if (t.isop('('))
+        return new SwitchStatement(start, tk, owner);
+    if (t.isop('{'))
+        return new SwitchCaseStatement(start, tk, owner);
+    Expected("'(' in switch", t);
 }
 
 //*********************************************

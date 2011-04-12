@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 11-apr-2011
+// Revision 12-apr-2011
 
 // Winxed compiler stage 0.
 
@@ -1962,7 +1962,18 @@ private:
 
 //**********************************************************************
 
-class SwitchStatement : public BreakableStatement
+class SwitchBaseStatement : public BreakableStatement
+{
+protected:
+    SwitchBaseStatement(Block &block);
+    void parse_cases(Tokenizer &tk);
+    std::vector<Expr *> casevalue;
+    std::vector<std::vector<BaseStatement *> > casest;
+    std::vector<BaseStatement *> defaultst;
+    BaseStatement *optimize();
+};
+
+class SwitchStatement : public SwitchBaseStatement
 {
 public:
     SwitchStatement(Block &block, Tokenizer &tk);
@@ -1970,9 +1981,14 @@ private:
     BaseStatement *optimize();
     void emit (Emit &e);
     Expr *condition;
-    std::vector<Expr *> casevalue;
-    std::vector<std::vector<BaseStatement *> > casest;
-    std::vector<BaseStatement *> defaultst;
+};
+
+class SwitchCaseStatement : public SwitchBaseStatement
+{
+public:
+    SwitchCaseStatement(Block &block, Tokenizer &tk);
+private:
+    void emit (Emit &e);
 };
 
 //**********************************************************************
@@ -2229,6 +2245,16 @@ BaseStatement *parseFor(Block &block, Tokenizer &tk)
         throw Expected("for condition", t1);
 }
 
+BaseStatement *parseSwitch(Block &block, Tokenizer &tk)
+{
+    Token t = tk.get();
+    if (t.isop('('))
+        return new SwitchStatement(block, tk);
+    if (t.isop('{'))
+        return new SwitchCaseStatement(block, tk);
+    throw Expected("'(' o '{' after switch", t);
+}
+
 BaseStatement *parseStatement(Block &block, Tokenizer &tk)
 {
     Token t= tk.get();
@@ -2272,7 +2298,7 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
     if (t.iskeyword("if"))
         return new IfStatement(block, tk);
     if (t.iskeyword("switch"))
-        return new SwitchStatement(block, tk);
+        return parseSwitch(block, tk);
     if (t.iskeyword("while"))
         return new WhileStatement(block, tk);
     if (t.iskeyword("do"))
@@ -6174,15 +6200,13 @@ void Condition::emit_else(Emit &e, const std::string &labelfalse)
 
 //**********************************************************************
 
-SwitchStatement::SwitchStatement(Block &block, Tokenizer &tk) :
-    BreakableStatement (block),
-    condition(0)
+SwitchBaseStatement::SwitchBaseStatement(Block &block) :
+    BreakableStatement (block)
 {
-    ExpectOp ('(', tk);
-    condition= parseExpr(*this, tk);
-    ExpectOp(')', tk);
-    ExpectOp('{', tk);
+}
 
+void SwitchBaseStatement::parse_cases(Tokenizer &tk)
+{
 more:
     Token t= tk.get();
     if (t.iskeyword("case"))
@@ -6226,9 +6250,8 @@ more:
     else throw Expected("case, default or block end", t);
 }
 
-BaseStatement *SwitchStatement::optimize()
+BaseStatement *SwitchBaseStatement::optimize()
 {
-    optimize_branch(condition);
     for (size_t i= 0; i < casevalue.size(); ++i)
         optimize_branch(casevalue[i]);
     for (size_t i= 0; i < casest.size(); ++i)
@@ -6239,6 +6262,26 @@ BaseStatement *SwitchStatement::optimize()
     }
     for (size_t j= 0; j < defaultst.size(); ++j)
         optimize_branch(defaultst[j]);
+    return this;
+}
+
+//**********************************************************************
+
+SwitchStatement::SwitchStatement(Block &block, Tokenizer &tk) :
+    SwitchBaseStatement (block),
+    condition(0)
+{
+    condition= parseExpr(*this, tk);
+    ExpectOp(')', tk);
+    ExpectOp('{', tk);
+
+    parse_cases(tk);
+}
+
+BaseStatement *SwitchStatement::optimize()
+{
+    optimize_branch(condition);
+    SwitchBaseStatement::optimize();
     return this;
 }
 
@@ -6281,6 +6324,45 @@ void SwitchStatement::emit(Emit &e)
         casevalue[i]->emit(e, value);
         e << INDENT "if " << reg << " == " << value <<
                 " goto " << label << '\n';
+    }
+    e << INDENT "goto " << defaultlabel << '\n';
+
+    for (size_t i= 0; i < casest.size(); ++i)
+    {
+        e << INDENTLABEL << caselabel[i] << ": # case\n";
+        std::vector<BaseStatement *> &cst= casest[i];
+        for (size_t j= 0; j < cst.size(); ++j)
+            cst[j]->emit(e);
+    }
+
+    e << INDENTLABEL << defaultlabel << ": # default\n";
+    for (size_t i= 0; i < defaultst.size(); ++i)
+        defaultst[i]->emit(e);
+    e << INDENTLABEL << breaklabel << ":\n";
+    e.comment("switch end");
+}
+
+//**********************************************************************
+
+SwitchCaseStatement::SwitchCaseStatement(Block &block, Tokenizer &tk) :
+    SwitchBaseStatement (block)
+{
+    parse_cases(tk);
+}
+
+void SwitchCaseStatement::emit(Emit &e)
+{
+    e.comment("switch-case");
+    std::string defaultlabel= genlabel();
+    std::string breaklabel= genbreaklabel();
+    std::vector<std::string> caselabel;
+    std::string reg= gentemp(REGint);
+    for (size_t i= 0; i < casest.size(); ++i)
+    {
+        std::string label= genlabel();
+        caselabel.push_back(label);
+        casevalue[i]->emit(e, reg);
+        e << INDENT "if " << reg << " goto " << label << '\n';
     }
     e << INDENT "goto " << defaultlabel << '\n';
 
