@@ -12,10 +12,13 @@ function main()
     say('Source:');
     print(source);
 
-    var nqp = load_language('nqp', 'NQP');
+    load_bytecode('nqp-rx.pbc');
+    var nqp = compreg('NQP-rx');
     var code= nqp.compile(source);
     var hello=code();
 
     say("Executing: \"hello('winxed world');\"");
     hello('winxed world');
 }
+
+// End
