@@ -1698,9 +1698,16 @@ class SimpleArgList
 {
     var args;
 
-    function init[vtable]()
+    function SimpleArgList(var tk, var owner, string oper_end)
     {
-        self.args = [];
+        var args = [];
+        var t;
+        do {
+            var value = parseExpr(tk, owner);
+            push(args, value);
+        } while ((t = tk.get()).isop(','));
+        RequireOp(oper_end, t);
+        self.args = args;
     }
 
     function numargs()
@@ -1711,17 +1718,6 @@ class SimpleArgList
     {
         var args = self.args;
         return args[i];
-    }
-
-    function parseargs(var tk, var owner, string oper_end)
-    {
-        var args = self.args;
-        var t;
-        do {
-            var value = parseExpr(tk, owner);
-            push(args, value);
-        } while ((t = tk.get()).isop(','));
-        RequireOp(oper_end, t);
     }
 
     function optimizeargs()
@@ -1753,7 +1749,8 @@ class Modifier
     function getname() { return self.name; }
     function numargs()
     {
-        int nargs = self.args.numargs();
+        var args = self.args;
+        int nargs = args == null ? 0 : args.numargs();
         return nargs;
     }
     function getarg(int argnum)
@@ -1787,9 +1784,9 @@ class ModifierList
             t = tk.get();
             string name = t.getidentifier();
             t = tk.get();
-            var args = new SimpleArgList;
+            var args;
             if (t.isop('(')) {
-                args.parseargs(tk, owner, ')');
+                args = new SimpleArgList(tk, owner, ')');
                 t = tk.get();
             }
             push(list, new Modifier(name, args));
@@ -5204,17 +5201,18 @@ class MemberRefExpr : MemberExprBase
 
 //*********************************************
 
-class IndexExpr : Expr, SimpleArgList
+class IndexExpr : Expr
 {
     var left;
     var regleft;
+    var args;
     var argregs;
 
     function IndexExpr(tk, owner, start, subexp)
     {
         self.Expr(owner, start);
         self.left = subexp;
-        self.parseargs(tk, owner, ']');
+        self.args = new SimpleArgList(tk, owner, ']');
     }
     function checkresult()
     {
@@ -5227,12 +5225,13 @@ class IndexExpr : Expr, SimpleArgList
     {
         var left = self.left.optimize();
         self.left = left;
-        self.optimizeargs();
+        var args = self.args;
+        args.optimizeargs();
 
         // Optimize case of string constant indexed with int constant
         // evaluating it at compile time.
-        if (left.isstringliteral() && self.numargs() == 1) {
-            var arg = self.getarg(0);
+        if (left.isstringliteral() && args.numargs() == 1) {
+            var arg = args.getarg(0);
             if (arg.isintegerliteral()) {
                 int ival = arg.getIntegerValue();
                 string sval = left.get_value();
@@ -5254,7 +5253,7 @@ class IndexExpr : Expr, SimpleArgList
         else
             regleft = self.left.emit_get(e);
         self.regleft = regleft;
-        argregs = self.getargvalues(e);
+        argregs = self.args.getargvalues(e);
         self.argregs = argregs;
     }
     function emit_aux(e)
