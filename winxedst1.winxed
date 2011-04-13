@@ -1847,11 +1847,12 @@ function getparrotnamespacekey(var path)
 function parseUsing(t, tk, owner)
 {
     var taux = tk.get();
-    if (taux.iskeyword('extern'))
+    switch {
+      case taux.iskeyword('extern'):
         return new ExternStatement(t, tk, owner);
-    else if (taux.iskeyword('static'))
+      case taux.iskeyword('static'):
         return new StaticStatement(t, tk, owner);
-    else {
+      default:
         tk.unget(taux);
         return new UsingStatement(t, tk, owner);
     }
@@ -2949,15 +2950,17 @@ class LexicalVolatileExpr : Expr
     function emit_assign_get(e, expr)
     {
         string lreg = self.owner.tempreg(REGvar);
-        if (expr.isnull())
+        switch {
+          case expr.isnull():
             e.emitnull(lreg);
-        else if (expr instanceof IndexExpr)
+            break;
+          case expr instanceof IndexExpr:
             expr.emit(e, lreg);
-        else {
+            break;
+          default:
             string typeright = expr.checkresult();
-            if (REGvar == typeright) {
+            if (REGvar == typeright)
                 expr.emit(e, lreg);
-            }
             else {
                 string rreg = expr.emit_get(e);
                 self.annotate(e);
@@ -3587,38 +3590,37 @@ class ComparatorBaseExpr : OpBinaryExpr
         string regr = self.rexpr.emit_get(e);
         self.annotate(e);
         string aux;
-        if (rl == REGfloat || rr == REGfloat)
-        {
-            if (rl == REGint) {
-                aux = self.tempreg(REGfloat);
-                e.emitset(aux, regl);
-                regl = aux;
-            }
-            if (rr == REGint) {
-                aux = self.tempreg(REGfloat);
-                e.emitset(aux, regr);
-                regr = aux;
-            }
-        }
-        else if (rr == REGint && rl == REGvar) {
+        switch {
+          case rl == REGint && rr == REGfloat:
+            aux = self.tempreg(REGfloat);
+            e.emitset(aux, regl);
+            regl = aux;
+            break;
+          case rl == REGfloat && rr == REGint:
+            aux = self.tempreg(REGfloat);
+            e.emitset(aux, regr);
+            regr = aux;
+            break;
+          case rr == REGint && rl == REGvar:
             aux = self.tempreg(REGint);
             e.emitset( aux, regl);
             regl = aux;
-        }
-        else if (rr == REGvar && rl == REGint) {
+            break;
+          case rr == REGvar && rl == REGint:
             aux = self.tempreg(REGint);
             e.emitset(aux, regr);
             regr = aux;
-        }
-        else if (rr == REGstring && rl == REGvar) {
+            break;
+          case rr == REGstring && rl == REGvar:
             aux = self.tempreg(REGstring);
             e.emitset(aux, regl);
             regl = aux;
-        }
-        else if (rr == REGvar && rl == REGstring) {
+            break;
+          case rr == REGvar && rl == REGstring:
             aux = self.tempreg(REGstring);
             e.emitset(aux, regr);
             regr = aux;
+            break;
         }
 
         switch (doifelse) {
@@ -4131,19 +4133,21 @@ class ConcatString : Expr
     function ConcatString(owner, start, lexpr, rexpr)
     {
         self.Expr(owner, start);
-        if (lexpr instanceof ConcatString) {
+        switch {
+          case lexpr instanceof ConcatString:
             self.values = lexpr.values;
             if (rexpr instanceof ConcatString)
                 self.values.append(rexpr.values);
             else
                 push(self.values, rexpr);
-        }
-        else if (rexpr instanceof ConcatString) {
+            break;
+          case rexpr instanceof ConcatString:
             self.values = rexpr.values;
             self.values.unshift(lexpr);
-        }
-        else
+            break;
+          default:
             self.values = [lexpr, rexpr];
+        }
     }
     function checkresult() { return REGstring; }
     function getregs(e)
@@ -4665,10 +4669,11 @@ class ArgumentModifierList : ModifierList
         int isflat = 0, isnamed = 0;
         string setname = '';
         for (var modif in self.getlist()) {
-            string name = modif.getname();
-            if (name == 'flat')
+            switch (modif.getname()) {
+              case 'flat':
                 isflat = 1;
-            if (name == 'named') {
+                break;
+              case 'named':
                 isnamed = 1;
                 switch (modif.numargs()) {
                   case 0: 
