@@ -4,10 +4,12 @@
 
 function main()
 {
-    string source =
-        "sub hello($msg) {\n" +
-        "    say('Hi from nqp, ', $msg);\n" +
-        "}\n"
+    string source = <<:
+# nqp code
+sub hello($msg) {
+    say('Hi from nqp, ', $msg);
+}
+:>>
     ;
     say('Source:');
     print(source);
