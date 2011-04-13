@@ -1730,20 +1730,14 @@ class SimpleArgList
     }
     function getargvalues(var e)
     {
-        var args = self.args;
         var argreg = [];
-        int nargs = elements(args);
-        for (int i = 0; i < nargs; ++i) {
-            var a = args[i];
-            string reg = a.emit_get(e);
-            push(argreg, reg);
-        }
+        for (var a in self.args)
+            push(argreg, a.emit_get(e));
         return argreg;
     }
     function emitargs(var e)
     {
-        var argreg = self.getargvalues(e);
-        e.print(join(', ', argreg));
+        e.print(join(', ', self.getargvalues(e)));
     }
 }
 
@@ -1765,10 +1759,9 @@ class Modifier
     function getarg(int argnum)
     {
         var args = self.args;
-        if (argnum < args.numargs())
-            return args.getarg(argnum);
-        else
+        if (argnum >= args.numargs())
             InternalError('Wrong modifier arg number');
+        return args.getarg(argnum);
     }
     function Modifier(string name, var args)
     {
@@ -1806,19 +1799,15 @@ class ModifierList
     }
     function optimize()
     {
-        for (var arg in self.list)
-            arg.optimize();
+        for (var mod in self.list)
+            mod.optimize();
     }
     function getlist() { return self.list; }
     function pick(string name)
     {
-        var list = self.list;
-        int n = elements(list);
-        for (int i = 0; i < n; ++i) {
-            var mod = list[i];
-            if (mod.getname() == name) {
+        for (var mod in self.list) {
+            if (mod.getname() == name)
                 return mod;
-            }
         }
         return null;
     }
@@ -2139,12 +2128,8 @@ class PiropStatement : Statement
             e.say(opname);
         else {
             var argreg = [];
-            int nargs = elements(args);
-            for (int i = 0; i < nargs; ++i) {
-                var a = args[i];
-                string reg = a.emit_get(e);
-                push(argreg, reg);
-            }
+            for (var a in  args)
+                push(argreg, a.emit_get(e));
             e.say(opname, ' ', join(', ', argreg));
         }
     }
@@ -2647,9 +2632,7 @@ class StringLiteral : Literal
                 }
             }
             string result = '';
-            int l = length(str);
-            for (int i = 0; i < l; ++i) {
-                string c = substr(str, i, 1);
+            for (string c in str) {
                 int n = ord(c);
                 if (n > 127) {
                     string h = n.get_as_base(16);
@@ -4819,8 +4802,7 @@ class ArgumentList
         string sep = '';
         int n = self.numargs();
         for (int i = 0; i < n; ++i) {
-            string a = argreg[i];
-            e.print(sep, a);
+            e.print(sep, argreg[i]);
             var modifiers = args[i].modifiers;
             if (modifiers != null)
                 modifiers.emitmodifiers(e);
@@ -5476,13 +5458,14 @@ class HashExpr : Expr
 
             var value = values[i];
             string itemreg;
-            if (value.isnull()) {
+            switch {
+              case value.isnull():
                 if (result != '') {
                     itemreg = self.tempreg(REGvar);
                     e.emitnull(itemreg);
                 }
-            }
-            else if (value.isidentifier()) {
+                break;
+              case value.isidentifier():
                 string s = value.checkIdentifier();
                 if (s != null && s != '')
                     itemreg = s;
@@ -5495,9 +5478,10 @@ class HashExpr : Expr
                     else
                         itemreg = value.emit_get(e);
                 }
-            }
-            else
+                break;
+              default:
                 itemreg = value.emit_get(e);
+            }
             if (result != '')
                 e.say(INDENT, result, '[', item, '] = ', itemreg);
         }
@@ -8015,35 +7999,35 @@ class ParameterModifierList : ModifierList
                 e.print(' :', modname);
             }
         }
-        if (named != null && slurpy != null) {
+        switch {
+          case named != null && slurpy != null:
             // Special case for named slurpy: named refers
             // to the slurpy content, not to the param himself.
             // TODO: check that named has no arguments,
             // or use a different way.
             e.print(" :named :slurpy");
-        }
-        else {
-            if (named != null) {
-                string setname;
-                int nargs = named.numargs();
-                switch (nargs) {
-                  case 0:
-                    setname = "'" + paramname + "'";
-                    break;
-                  case 1:
-                    var argmod = named.getarg(0);
-                    if (! argmod.isstringliteral())
-                        SyntaxError('Invalid modifier', start);
-                    setname = argmod.getPirString();
-                    break;
-                  default:
+            break;
+          case named != null:
+            string setname;
+            int nargs = named.numargs();
+            switch (nargs) {
+              case 0:
+                setname = "'" + paramname + "'";
+                break;
+              case 1:
+                var argmod = named.getarg(0);
+                if (! argmod.isstringliteral())
                     SyntaxError('Invalid modifier', start);
-                }
-                e.print(" :named(", setname, ")");
+                setname = argmod.getPirString();
+                break;
+              default:
+                SyntaxError('Invalid modifier', start);
             }
-            else if (slurpy != null) {
-                e.print(" :slurpy");
-            }
+            e.print(" :named(", setname, ")");
+            break;
+          case slurpy != null:
+            e.print(" :slurpy");
+            break;
         }
     }
 }
@@ -8346,10 +8330,8 @@ class FunctionBase : BlockStatement
         // Local functions
         var localfun = self.localfun;
         if (localfun != null) {
-            for (int ifn = 0; ifn < elements(localfun); ++ifn) {
-                var fn = localfun[ifn];
+            for (var fn in localfun)
                 fn.emit(e);
-            }
         }
     }
 }
@@ -8778,12 +8760,9 @@ class ClassStatement : ClassBase, VarContainer
         var t = tk.get();
         if (t.isop(':')) {
             var bases = self.bases;
-            for (;;) {
-                var base = parseClassSpecifier(tk, self);
-                push(bases, base);
-                t = tk.get();
-                if (!t.isop(',')) break;
-            }
+            do {
+                push(bases, parseClassSpecifier(tk, self));
+            } while((t = tk.get()).isop(','));
         }
         RequireOp('{', t);
         for (t = tk.get(); !t.isop('}'); t = tk.get()) {
