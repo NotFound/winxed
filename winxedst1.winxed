@@ -422,11 +422,9 @@ function getheredoc(tk, string start, int linenum)
 function getident(tk, string start, int line)
 {
     string s = start;
-    string c = tk.getchar();
-    while (isident(c)) {
+    string c;
+    for (c = tk.getchar(); isident(c); c = tk.getchar())
         s += c;
-        c = tk.getchar();
-    }
     tk.ungetchar(c);
     return new TokenIdentifier(tk.filename, line, s);
 }
@@ -441,11 +439,9 @@ function getnumber(tk, string start, int line)
     } while (isdigit(c));
     if (s == '0' && (c == 'x' || c == 'X')) {
         int hexval = 0, h;
-        c = tk.getchar();
-        while ((h = hexdigit(c)) >= 0) {
+        for (c = tk.getchar(); (h = hexdigit(c)) >= 0; c = tk.getchar()) {
             hexval = hexval * 16 + h;
             s += c;
-            c = tk.getchar();
         }
         tk.ungetchar(c);
         s = hexval;
@@ -462,10 +458,8 @@ function getnumber(tk, string start, int line)
                 s += c;
                 c = tk.getchar();
             }
-            while (isdigit(c)) {
+            for ( ; isdigit(c); c = tk.getchar())
                 s += c;
-                c = tk.getchar();
-            }
         }
         tk.ungetchar(c);
         return new TokenFloat(tk.filename, line, s);
@@ -477,10 +471,8 @@ function getnumber(tk, string start, int line)
                 s += c;
                 c = tk.getchar();
             }
-            while (isdigit(c)) {
+            for ( ; isdigit(c); c = tk.getchar())
                 s += c;
-                c = tk.getchar();
-            }
             tk.ungetchar(c);
             return new TokenFloat(tk.filename, line, s);
         }
@@ -494,11 +486,9 @@ function getnumber(tk, string start, int line)
 function getlinecomment(tk, string start, int line)
 {
     string s = start;
-    string c = tk.getchar();
-    while (c != '' && c != "\n") {
+    
+    for (string c = tk.getchar(); c != '' && c != "\n"; c = tk.getchar())
         s += c;
-        c = tk.getchar();
-    }
     return new TokenComment(tk.filename, line, s);
 }
 
@@ -507,10 +497,8 @@ function getcomment(tk, string start, int line)
     string s = start;
     string c = tk.getchar();
     do {
-        while (c != '' && c != '*') {
+       for ( ; c != '' && c != '*'; c = tk.getchar())
             s += c;
-            c = tk.getchar();
-        }
         if (c == '')
             TokenError("Unclosed comment", tk, line);
         s += c;
