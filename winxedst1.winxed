@@ -1148,18 +1148,16 @@ function Predef_cry(e, start, string result, args)
 {
     e.annotate(start);
     e.say(INDENT, "getstderr $P0");
-    int n = elements(args);
-    for (int i = 0; i < n; ++i)
-        e.say(INDENT, "print $P0, ", args[i]);
+    for (string arg in args)
+        e.say(INDENT, "print $P0, ", arg);
     e.say(INDENT, "print $P0, \"\\n\"");
 }
 
 function Predef_print(e, start, string result, args)
 {
     e.annotate(start);
-    int n = elements(args);
-    for (int i = 0; i < n; ++i)
-        e.emitprint(args[i]);
+    for (string arg in args)
+        e.emitprint(arg);
 }
 
 // invoke is a quick & dirty way to allow use of multiple return values.
