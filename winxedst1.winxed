@@ -1622,6 +1622,22 @@ function parseDotted(tk)
     return list;
 }
 
+function parseList(tk, owner, fn)
+/*
+  Parse a comma separated list of items.
+  Calls the passed fn to parse each item.
+*/
+{
+    var list = [];
+    var t;
+    do {
+        var value = fn(tk, owner);
+        push(list, value);
+    } while ((t = tk.get()).isop(','));
+    tk.unget(t);
+    return list;
+}
+
 function toIdentifierList(var tlist)
 {
     string list[];
@@ -1686,13 +1702,9 @@ class SimpleArgList
 
     function SimpleArgList(var tk, var owner, string oper_end)
     {
-        var args = [];
-        var t;
-        do {
-            var value = parseExpr(tk, owner);
-            push(args, value);
-        } while ((t = tk.get()).isop(','));
-        RequireOp(oper_end, t);
+        using static parseExpr;
+        var args = parseList(tk, owner, parseExpr);
+        ExpectOp(oper_end, tk);
         self.args = args;
     }
 
@@ -1758,26 +1770,29 @@ class Modifier
     }
 }
 
+function parseModifier(tk, owner)
+{
+    var t = tk.get();
+    string name = t.getidentifier();
+    t = tk.get();
+    var args;
+    if (t.isop('('))
+        args = new SimpleArgList(tk, owner, ')');
+    else
+        tk.unget(t);
+    return new Modifier(name, args);
+}
+
+
 class ModifierList
 {
     var list;
 
     function ModifierList(var tk, var owner)
     {
-        var list = [];
-        var t;
-        do {
-            t = tk.get();
-            string name = t.getidentifier();
-            t = tk.get();
-            var args;
-            if (t.isop('(')) {
-                args = new SimpleArgList(tk, owner, ')');
-                t = tk.get();
-            }
-            push(list, new Modifier(name, args));
-        } while (t.isop(','));
-        RequireOp(']', t);
+        using static parseModifier;
+        var list = parseList(tk, owner, parseModifier);
+        ExpectOp(']', tk);
         self.list = list;
     }
     function optimize()
@@ -2056,6 +2071,22 @@ function addtomulti(var multi, var newst)
 //           PiropStatement
 //*********************************************
 
+function parsePiropArg(tk, owner)
+{
+    var arg;
+    var t = tk.get();
+    if (t.isop(':')) {
+        t = tk.get();
+        string label = t.getidentifier();
+        arg = new Reflabel(owner, label);
+    }
+    else {
+        tk.unget(t);
+        arg = parseExpr(tk, owner);
+    }
+    return arg;
+}
+
 class PiropStatement : Statement
 {
     var opname;
@@ -2075,22 +2106,9 @@ class PiropStatement : Statement
         t = tk.get();
         if (! t.isop('}')) {
             tk.unget(t);
-            var args = [];
-            do {
-                var arg;
-                t = tk.get();
-                if (t.isop(':')) {
-                    t = tk.get();
-                    string label = t.getidentifier();
-                    arg = new Reflabel(owner, label);
-                }
-                else {
-                    tk.unget(t);
-                    arg = parseExpr(tk, owner);
-                }
-                push(args, arg);
-            } while ((t = tk.get()).isop(','));
-            RequireOp('}', t);
+            using static parsePiropArg;
+            var args = parseList(tk, owner, parsePiropArg);
+            ExpectOp('}', tk);
             self.args = args;
         }
         ExpectOp(';', tk);
@@ -4689,6 +4707,24 @@ class Argument
     }
 }
 
+function parseArgument(tk, owner)
+{
+    var modifier = null;
+    var expr = parseExpr(tk, owner);
+    var t = tk.get();
+    if (t.isop(':')) {
+        t = tk.get();
+        if (t.isop('[')) {
+            modifier = new ArgumentModifierList(tk, owner);
+        }
+        else
+            Expected('modifier list', t);
+    }
+    else
+        tk.unget(t);
+    return new Argument(expr, modifier);
+}
+
 class ArgumentList
 {
     var owner;
@@ -4700,29 +4736,15 @@ class ArgumentList
     {
         self.owner = owner;
         self.start = start;
-        var args = [];
         var t = tk.get();
         if (! t.isop(delimiter)) {
             tk.unget(t);
-            do {
-                var modifier = null;
-                var expr = parseExpr(tk, owner);
-                t = tk.get();
-                if (t.isop(':')) {
-                    t = tk.get();
-                    if (t.isop('[')) {
-                        modifier = new ArgumentModifierList(tk, owner);
-                        t = tk.get();
-                    }
-                    else
-                        Expected('modifier list', t);
-                }
-                push(args, new Argument(expr, modifier));
-            } while (t.isop(','));
+            using static parseArgument;
+            var args = parseList(tk, owner, parseArgument);
+            t = tk.get();
             if (! t.isop(delimiter))
                 SyntaxError("Unfinished argument list", t);
-            if (elements(args) > 0)
-                self.args = args;
+            self.args = args;
         }
     }
     function numargs()
@@ -5307,17 +5329,17 @@ class ArrayExpr : Expr
     function ArrayExpr(tk, owner, start)
     {
         self.Expr(owner, start);
-        self.values = [];
         var t = tk.get();
         if (! t.isop(']')) {
             tk.unget(t);
-            do {
-                var item = parseExpr(tk, owner);
-                push(self.values, item);
-            } while ((t = tk.get()).isop(','));
+            using static parseExpr;
+            self.values = parseList(tk, owner, parseExpr);
+            t = tk.get();
             if (!t.isop(']'))
                 Expected("']' or ','", t);
         }
+        else
+            self.values = [];
     }
     function checkresult() { return REGvar; }
     function optimize()
@@ -7460,17 +7482,17 @@ class DeclareArrayStatement : DeclareBase
             t = tk.get();
             if (! t.isop('['))
                 Expected("array initializer", t);
-            self.initarray = [];
             t = tk.get();
             if (! t.isop(']')) {
                 tk.unget(t);
-                do {
-                    var item = parseExpr(tk, self);
-                    push(self.initarray, item);
-                } while ((t = tk.get()).isop(','));
+                using static parseExpr;
+                self.initarray = parseList(tk, self, parseExpr);
+                t = tk.get();
                 if (! t.isop(']'))
                     Expected("',' or ']'", t);
             }
+            else
+                self.initarray = [];
         }
         else
             tk.unget(t);
