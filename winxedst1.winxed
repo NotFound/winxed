@@ -5004,6 +5004,12 @@ class CallExpr : Expr
             call = funref.emit_get(e);
         return call;
     }
+    function prepareargs(e)
+    {
+        var args = self.args;
+        if (args != null)
+            args.getargvalues(e);
+    }
     function emitargs(e)
     {
         e.print('(');
@@ -8582,10 +8588,11 @@ class MultiAssignStatement
     {
         var expr = self.expr;
         var call = expr.emitcall(e);
+        expr.prepareargs(e);
         e.print(INDENT);
         self.params.emit(e);
         e.print(' = ', call);
-        self.expr.emitargs(e);
+        expr.emitargs(e);
         e.say();
     }
 }
