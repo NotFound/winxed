@@ -5020,11 +5020,8 @@ class CallExpr : Expr
     }
     function emit(e, result)
     {
-        var funref = self.funref;
         string call = self.emitcall(e);
-        var args = self.args;
-        if (args != null)
-            args.getargvalues(e);
+        self.prepareargs(e);
 
         self.annotate(e);
 
