@@ -5740,7 +5740,7 @@ class NewQualifiedExpr : NewBaseExpr
         string reginit;
         var initializer = self.initializer;
 
-        int numinits = initializer == null ? -1 : elements(initializer);
+        int numinits = initializer == null ? -1 : initializer.numargs();
         string regnew = result;
         if (numinits > 0)
             regnew = self.tempreg(REGvar);
