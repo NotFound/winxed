@@ -8314,14 +8314,12 @@ class FunctionBase : BlockStatement
         if (lexicals != null || usedlexicals != null) {
             e.annotate(self.start);
             // lexicals declared in this function and its inner scopes
-            if (lexicals != null)
-            {
+            if (lexicals != null) {
                 for (string l in lexicals)
                     e.say(".lex '", lexicals[l], "', ", l);
             }
             // lexicals from outers used inside
-            if (usedlexicals != null)
-            {
+            if (usedlexicals != null) {
                 for (string l in usedlexicals)
                     e.emitfind_lex(l, usedlexicals[l]);
             }
@@ -9320,19 +9318,15 @@ class RootNamespace : NamespaceBase
     function addlib(string libname)
     {
         var libs = self.libs;
-        if (libs == null) {
-            libs = {};
-            self.libs = libs;
-        }
+        if (libs == null)
+            self.libs = libs = {};
         libs[libname] = 1;
     }
     function addload(string name)
     {
         var loads = self.loads;
-        if (loads == null) {
-            loads = {};
-            self.loads = loads;
-        }
+        if (loads == null)
+            self.loads = loads = {};
         loads[name] = 1;
     }
     function checkclass(string name)
@@ -9551,9 +9545,8 @@ class WinxedHLL
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
-        if (target == 'include') {
+        if (target == 'include')
             return self.__private_geninclude(winxed);
-        }
         else
             return self.__private_compile_tail(winxed, target, noan);
     }
@@ -9574,9 +9567,8 @@ class WinxedHLL
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
-        if (target == 'include') {
+        if (target == 'include')
             return self.__private_geninclude(winxed);
-        }
         else
             return self.__private_compile_tail(winxed, target, noan);
     }
