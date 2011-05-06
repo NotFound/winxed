@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 12-apr-2011
+// Revision 7-may-2011
 
 // Winxed compiler stage 0.
 
@@ -7038,9 +7038,9 @@ void ClassStatement::emit (Emit &e)
         ClassSpecifier & parent= *parents[i];
         parent.annotate(e);
         std::ostringstream oss;
-        oss << INDENT "$P" << i + 1;
+        oss << "$P" << i + 1;
         std::string p= oss.str();
-        e << p << " = get_class ";
+        e << INDENT << p << " = get_class ";
         parent.emit(e);
         e << "\n"
             INDENT "addparent $P0, " << p << "\n";
