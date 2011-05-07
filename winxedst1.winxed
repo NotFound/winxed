@@ -93,6 +93,11 @@ function Expected(string msg, var t)
     SyntaxError("Expected " + msg, t);
 }
 
+function Unexpected(string msg, var t)
+{
+    SyntaxError("Unexpected " + msg, t);
+}
+
 function ExpectedIdentifier(var t)
 {
     SyntaxError("Expected identifier", t);
@@ -1845,7 +1850,7 @@ function parseSig(start, tk, owner)
     var params = new SigParameterList(tk, owner);
     var t = tk.get();
     if (! t.isop('='))
-        SyntaxError("Expected '='", t);
+        Expected("'='", t);
     var expr = parseExpr(tk, owner);
     return new MultiAssignStatement(params, expr);
 }
@@ -1862,7 +1867,7 @@ function parseStatement(tk, owner)
     if (t.isop(':')) {
         var open = tk.get();
         if (! open.isop('('))
-            SyntaxError("Unexpected ':'", t);
+            Unexpected("':'", t);
         return parseSig(t, tk, owner);
     }
 
@@ -2475,7 +2480,7 @@ class FunctionExpr : Expr
         self.Expr(owner, start);
         var t = tk.get();
         if (!t.isop('('))
-            SyntaxError('anonymous function expected', t);
+            Expected('anonymous function', t);
         self.fn = new LocalFunctionStatement(start, tk, owner);
     }
     function checkresult() { return REGvar; }
@@ -6004,7 +6009,7 @@ function parseExpr_0(tk, owner)
       case t.isidentifier():
         return new IdentifierExpr(owner, t);
       default:
-        SyntaxError('Expression expected', t);
+        Expected('expression', t);
     }
 }
 
@@ -8465,7 +8470,7 @@ class SigParameter
     {
         var name = tk.get();
         if (! name.isidentifier())
-            SyntaxError("Identifier expected", name);
+            ExpectedIdentifier(name);
         var t = tk.get();
         if (t.isidentifier()) {
             string type = typetoregcheck(name.checkkeyword());
@@ -8505,7 +8510,7 @@ class SigParameterList
             t = tk.get();
         } while (t.isop(','));
         if (! t.isop(')'))
-            SyntaxError("Expected ',' or ')'", t);
+            Expected("',' or ')'", t);
         self.params = params;
     }
     function emit(e)
@@ -8609,7 +8614,7 @@ class ClassSpecifierParrotKey : ClassSpecifier
               case ',':
                 break;
               default:
-                SyntaxError('Unexpected token in class key', t);
+                Unexpected('token in class key', t);
             }
             do {
                 t = tk.get();
@@ -8750,7 +8755,7 @@ class ClassStatement : ClassBase, VarContainer
                 push(constants, cst);
                 break;
               default:
-                SyntaxError("Unexpected item in class", t);
+                Unexpected("item in class", t);
             }
         }
     }
@@ -9101,7 +9106,7 @@ class NamespaceBase : VarContainer
                 self.addlib((new StringLiteral(self, t)).getPirString());
                 break;
               default:
-                SyntaxError("Unexpected token", t);
+                Unexpected("token", t);
             }
         }
         if (t)
