@@ -590,10 +590,9 @@ class Tokenizer
         using static isspace, isidentstart, isdigit,
                 getop, getident, getnumber;
 
-        if (self.stacked) {
-            var t = self.stacked.pop();
-            return t;
-        }
+        if (self.stacked)
+            return self.stacked.pop();
+
         string c = self.getchar();
         while (isspace(c))
                 c = self.getchar();
@@ -772,9 +771,8 @@ class Emit
         handle.print(INDENTLABEL);
         handle.print(label);
         handle.print(':');
-        if (comment != null) {
+        if (comment != null)
             handle.print(' # ' + comment);
-        }
         handle.print("\n");
     }
     function emitgoto(string label, string comment [optional])
@@ -782,10 +780,8 @@ class Emit
         var handle = self.handle;
         handle.print(INDENT + 'goto ');
         handle.print(label);
-        if (comment != null) {
-            handle.print(' # ');
-            handle.print(comment);
-        }
+        if (comment != null)
+            handle.print(' # ' + comment);
         handle.print("\n");
     }
 
@@ -1791,9 +1787,8 @@ class ModifierList
     function ModifierList(var tk, var owner)
     {
         using static parseModifier;
-        var list = parseList(tk, owner, parseModifier);
+        self.list = parseList(tk, owner, parseModifier);
         ExpectOp(']', tk);
-        self.list = list;
     }
     function optimize()
     {
@@ -2096,11 +2091,9 @@ class PiropStatement : Statement
     {
         self.Statement(start, owner);
         var t = tk.get();
-        int dotted = false;
-        if (t.isop('.')) {
-            dotted = true;
+        int dotted = t.isop('.');
+        if (dotted)
             t = tk.get();
-        }
         string opname = t.getidentifier();
         self.opname = (dotted ? '.' : '') + opname;
         t = tk.get();
@@ -2696,8 +2689,7 @@ class IntegerLiteral : Literal
     function getIntegerValue()
     {
         string aux = self.numval;
-        int i = aux;
-        return i;
+        return int(aux);
     }
     function emit(e, result)
     {
@@ -2862,8 +2854,7 @@ class IdentifierExpr : SimpleExpr
     function emit_get(e)
     {
         self.annotate(e);
-        string id = self.emit_getid(e);
-        return id;
+        return self.emit_getid(e);
     }
     function emit_assign_get(e, expr)
     {
@@ -3047,13 +3038,11 @@ class OpBinaryExpr : OpExpr
     }
     function emit_intleft(e)
     {
-        string reg = self.lexpr.emit_getint(e);
-        return reg;
+        return self.lexpr.emit_getint(e);
     }
     function emit_intright(e)
     {
-        string reg = self.rexpr.emit_getint(e);
-        return reg;
+        return self.rexpr.emit_getint(e);
     }
 }
 
@@ -4673,16 +4662,18 @@ class ArgumentModifierList : ModifierList
                 }
             }
         }
-        if (isflat) {
-            if (isnamed)
-                e.print(' :flat :named');
-            else
-                e.print(' :flat');
-        }
-        else if (isnamed) {
+        switch {
+          case isflat && isnamed:
+            e.print(' :flat :named');
+            break;
+          case isflat:
+            e.print(' :flat');
+            break;
+          case isnamed:
             e.print(' :named');
             if (setname != '')
                 e.print("(", setname, ")");
+            break;
         }
     }
 }
@@ -5566,8 +5557,7 @@ class NewExpr : NewBaseExpr
         if ((value instanceof Token) && value.isidentifier()) {
             // The identifier can be a string constant, check for that case
             // and obtain the string value.
-            var name = value.getidentifier();
-            var desc = self.owner.getvar(name);
+            var desc = self.owner.getvar(value.getidentifier());
             if (desc != null && desc.isconst()) {
                 if (desc.getid() == null) {
                     value = desc.getvalue();
@@ -5806,11 +5796,7 @@ class OpInstanceOfExpr : Expr
     {
         var checked = self.checked;
 
-        string r;
-        if (result == '')
-            r = self.tempreg(REGint);
-        else
-            r = result;
+        string r = result == '' ? self.tempreg(REGint) : result;
         string check = self.lexpr.emit_get(e);
         self.annotate(e);
         e.print(INDENT + 'isa ', r, ', ', check, ', ');
@@ -7304,13 +7290,9 @@ class TryStatement : BlockStatement
         string reghandler = self.tempreg(REGvar);
         string labelhandler = self.genlabel();
         string labelpasthandler = self.genlabel();
-        string exreg;
-        if (self.exname != null) {
-            var exname = self.getvar(self.exname);
-            exreg = exname.getreg();
-        }
-        else
-            exreg = self.tempreg(REGvar);
+        string exreg = self.exname != null ?
+            self.getvar(self.exname).getreg() :
+            self.tempreg(REGvar);
 
         self.annotate(e);
         e.comment('try: create handler');
@@ -7800,9 +7782,8 @@ class ResizableVarStatement : VarStatement
     function emit(var e)
     {
         self.annotate(e);
-        string name =  self.name;
         string reg = self.reg;
-        e.comment('var ' + name + '[] : ' + reg);
+        e.comment('var ' + string(self.name) + '[] : ' + reg);
         e.say(INDENT, 'new ', reg, ", 'ResizablePMCArray'");
     }
 }
@@ -7827,9 +7808,8 @@ class FixedVarStatement : VarStatement
     {
         string regsize = self.exprsize.emit_get(e);
         self.annotate(e);
-        string name =  self.name;
         string reg = self.reg;
-        e.comment('var ' + name + '[] : ' + reg);
+        e.comment('var ' + string(self.name) + '[] : ' + reg);
         e.say(INDENT, 'new ', reg, ", 'FixedPMCArray', ", regsize);
     }
 }
