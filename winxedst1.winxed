@@ -1867,47 +1867,47 @@ function parseStatement(tk, owner)
     }
 
     switch (t.checkkeyword()) {
-    case 'using':
+      case 'using':
         return parseUsing(t, tk, owner);
-    case 'const':
+      case 'const':
         return parseConst(t, tk, owner);
         break;
-    case 'volatile':
+      case 'volatile':
         return parseVolatile(t, tk, owner);
         break;
-    case 'var':
+      case 'var':
         return parseVar(t, tk, owner);
-    case 'string':
+      case 'string':
         return parseString(t, tk, owner);
-    case 'int':
+      case 'int':
         return parseInt(t, tk, owner);
-    case 'float':
+      case 'float':
         return parseFloat(t, tk, owner);
-    case 'return':
+      case 'return':
         return new ReturnStatement(t, tk, owner);
-    case 'yield':
+      case 'yield':
         return new YieldStatement(t, tk, owner);
-    case 'goto':
+      case 'goto':
         return new GotoStatement(t, tk, owner);
-    case 'if':
+      case 'if':
         return new IfStatement(t, tk, owner);
-    case 'while':
+      case 'while':
         return new WhileStatement(t, tk, owner);
-    case 'do':
+      case 'do':
         return new DoStatement(t, tk, owner);
-    case 'continue':
+      case 'continue':
         return new ContinueStatement(t, tk, owner);
-    case 'break':
+      case 'break':
         return new BreakStatement(t, tk, owner);
-    case 'switch':
+      case 'switch':
         return parseSwitch(t, tk, owner);
-    case 'for':
+      case 'for':
         return parseFor(t, tk, owner);
-    case 'throw':
+      case 'throw':
         return new ThrowStatement(t, tk, owner);
-    case 'try':
+      case 'try':
         return new TryStatement(t, tk, owner);
-    default:
+      default:
         if (t.isidentifier()) {
             var t2 = tk.get();
             if (t2.isop(':'))
@@ -2234,10 +2234,10 @@ class UsingStatement : Statement
             e.print(INDENT + 'get_hll_global ', vdata.getreg(), ', ');
             path.pop();
             switch (elements(path)) {
-            case 0:
+              case 0:
                 e.say("'", name, "'");
                 break;
-            default:
+              default:
                 e.say(getparrotkey(path), " , '", name, "'");
             }
         }
@@ -2524,7 +2524,7 @@ class Condition
         var condexpr = self.condexpr;
         if (condexpr.isliteral()) {
             switch (condexpr.checkresult()) {
-            case REGint:
+              case REGint:
                int n = condexpr.getIntegerValue();
                 if (n == 0)
                     return CONDisfalse;
@@ -2543,8 +2543,7 @@ class Condition
             condexpr.emit_if(e, labeltrue);
         else {
             string reg = condexpr.emit_get(e);
-            string type = condexpr.checkresult();
-            switch(type) {
+            switch (condexpr.checkresult()) {
               case REGstring:
               case REGvar:
                 e.emitif_null(reg, labelfalse);
@@ -2566,8 +2565,7 @@ class Condition
             condexpr.emit_else(e, labelfalse);
         else {
             string reg = condexpr.emit_get(e);
-            string type = condexpr.checkresult();
-            switch(type) {
+            switch (condexpr.checkresult()) {
               case REGstring:
               case REGvar:
                 e.emitif_null(reg, labelfalse);
@@ -2766,10 +2764,10 @@ class IdentifierExpr : SimpleExpr
             return desc.gettype();
         else {
             switch (self.name) {
-            case SELF:
-            case NULL:
+              case SELF:
+              case NULL:
                 return REGvar;
-            default:
+              default:
                 return '';
             }
         }
@@ -2789,11 +2787,11 @@ class IdentifierExpr : SimpleExpr
         if (desc == null) {
             string sname = name;
             switch (sname) {
-            case SELF:
+              case SELF:
                 s = SELF; break;
-            case NULL:
+              case NULL:
                 s = NULL; break;
-            default:
+              default:
                 s = '';
             }
         }
@@ -2864,12 +2862,12 @@ class IdentifierExpr : SimpleExpr
         string typeleft = self.checkresult();
         string lreg = self.getIdentifier();
         if (expr.isnull()) {
-            switch(typeleft) {
-            case REGstring:
-            case REGvar:
+            switch (typeleft) {
+              case REGstring:
+              case REGvar:
                 e.emitnull(lreg);
                 break;
-            default:
+              default:
                 SyntaxError("Can't assign null to that type", self.start);
             }
         }
@@ -3203,17 +3201,17 @@ class OpNotExpr : OpUnaryExpr
     }
     function emit(e, result)
     {
-        string reg = self.subexpr.emit_get(e);
+        var subexpr = self.subexpr;
+        string reg = subexpr.emit_get(e);
         self.annotate(e);
-        string type = self.subexpr.checkresult();
-        switch (type) {
-        case REGint:
+        switch (subexpr.checkresult()) {
+          case REGint:
             e.emitarg2('not', result, reg);
             break;
-        case REGvar:
+          case REGvar:
             e.emitarg2('isfalse', result, reg);
             break;
-        default:
+          default:
             e.emitarg2('isfalse', result, reg);
         }
     }
@@ -4394,10 +4392,10 @@ class OpMulExpr : OpBinaryExpr
             rreg = rexpr.emit_get(e);
             string rval;
             switch (rtype) {
-            case REGint:
+              case REGint:
                 rval = rreg;
                 break;
-            default:
+              default:
                 rval = self.tempreg(REGint);
                 e.emitset(rval, rreg);
             }
@@ -4419,15 +4417,15 @@ class OpMulExpr : OpBinaryExpr
             rreg = rexpr.emit_get(e);
             string rval;
             switch (rtype) {
-            case REGint:
+              case REGint:
                 rval = self.tempreg(REGfloat);
                 e.emitset(rval, rreg);
                 rval = rreg;
                 break;
-            case REGfloat:
+              case REGfloat:
                 rval = rreg;
                 break;
-            default:
+              default:
                 rval = self.tempreg(REGfloat);
                 e.emitset(rval, rreg);
             }
@@ -4838,9 +4836,8 @@ class CallPredefExpr : Expr
         var args = self.args;
         string argreg[];
         var arg;
-        int np = predef.params();
         string pnull = '';
-        switch (np) {
+        switch (predef.params()) {
           case PREDEF_arglist:
             for (arg in args) {
                 string reg = arg.arg.emit_get(e);
@@ -5366,16 +5363,15 @@ class ArrayExpr : Expr
             it_p = self.tempreg(REGvar);
         }
         for (var item in self.values) {
-            string type = item.checkresult();
-            switch (type) {
-            case REGint: case REGfloat: case REGstring:
+            switch (item.checkresult()) {
+              case REGint: case REGfloat: case REGstring:
                 string aux = item.emit_get(e);
                 if (container != '') {
                     e.emitbox(it_p, aux);
                     itemreg = it_p;
                 }
                 break;
-            default:
+              default:
                 if (item.isnull()) {
                     if (container != '') {
                         itemreg = self.tempreg(REGvar);
@@ -5829,11 +5825,11 @@ class OpConditionalExpr : Expr
     {
         self.condition = self.condition.optimize();
         switch (self.condition.getvalue()) {
-        case CONDistrue:
+          case CONDistrue:
             return self.etrue.optimize();
-        case CONDisfalse:
+          case CONDisfalse:
             return self.efalse.optimize();
-        default:
+          default:
             self.etrue = self.etrue.optimize();
             self.efalse = self.efalse.optimize();
             return self;
@@ -6022,13 +6018,13 @@ function parseExpr_2(tk, owner)
     int code;
     while ((code = getOpCode_2(t = tk.get())) != Code_none ) {
         switch(code) {
-        case Code_paren:
+          case Code_paren:
             subexp = new CallExpr(tk, owner, t, subexp);
             break;
-        case Code_bracket:
+          case Code_bracket:
             subexp = new IndexExpr(tk, owner, t, subexp);
             break;
-        case Code_dot:
+          case Code_dot:
             start = t;
             t = tk.get();
             if (t.isop('*')) {
@@ -6038,7 +6034,7 @@ function parseExpr_2(tk, owner)
             else
                 subexp = new MemberExpr(owner, start, subexp, t);
             break;
-        default:
+          default:
             InternalError('Unexpected code in parseExpr_2');
         }
     }
@@ -6072,19 +6068,19 @@ function parseExpr_4(tk, owner)
     if (code != Code_none) {
         var subexpr = parseExpr_4(tk, owner);
         switch (code) {
-        case Code_minus:
+          case Code_minus:
             return new OpUnaryMinusExpr(owner, t, subexpr);
-        case Code_not:
+          case Code_not:
             return new OpNotExpr(owner, t, subexpr);
-        case Code_inc:
+          case Code_inc:
             return new OpPreIncExpr(owner, t, subexpr);
-        case Code_dec:
+          case Code_dec:
             return new OpPreDecExpr(owner, t, subexpr);
-        case Code_delete:
+          case Code_delete:
             return new OpDeleteExpr(owner, t, subexpr);
-        case Code_exists:
+          case Code_exists:
             return new OpExistsExpr(owner, t, subexpr);
-        default:
+          default:
             InternalError('Invalid code in parseExpr_4', t);
         }
     }
@@ -6104,19 +6100,19 @@ function parseExpr_5(tk, owner)
     while ((code = getOpCode_5(t = tk.get())) != Code_none) {
         var rexpr = parseExpr_4(tk, owner);
         switch (code) {
-        case Code_mul:
+          case Code_mul:
             lexpr = new OpMulExpr(owner, t, lexpr, rexpr);
             break;
-        case Code_div:
+          case Code_div:
             lexpr = new OpDivExpr(owner, t, lexpr, rexpr);
             break;
-        case Code_mod:
+          case Code_mod:
             lexpr = new OpModExpr(owner, t, lexpr, rexpr);
             break;
-        case Code_cmod:
+          case Code_cmod:
             lexpr = new OpCModExpr(owner, t, lexpr, rexpr);
             break;
-        default:
+          default:
             InternalError('Invalid code in parseExpr_5', t);
         }
     }
@@ -6161,7 +6157,7 @@ function parseExpr_7(tk, owner)
             rexpr = parseExpr_6(tk, owner);
             lexpr = new OpShiftrightExpr(owner, t, lexpr, rexpr);
             break;
-        default:
+          default:
             InternalError('Invalid code in parseExpr_7', t);
         }
     }
@@ -6616,13 +6612,12 @@ class IfStatement : ConditionalStatement
     function optimize()
     {
         self.optimize_condition();
-        int checkvalue = self.getvalue();
         self.truebranch = self.truebranch.optimize();
         self.falsebranch = self.falsebranch.optimize();
-        switch (checkvalue) {
-        case CONDistrue:
+        switch (self.getvalue()) {
+          case CONDistrue:
             return self.truebranch;
-        case CONDisfalse:
+          case CONDisfalse:
             return self.falsebranch;
         }
         return self;
@@ -6696,13 +6691,13 @@ class WhileStatement : LoopStatement, ConditionalStatement
     function emit(e)
     {
         switch (self.getvalue()) {
-        case CONDistrue:
+          case CONDistrue:
             self.emit_infinite(e);
             break;
-        case CONDisfalse:
+          case CONDisfalse:
             e.comment('while(false) optimized out');
             break;
-        default:
+          default:
             string breaklabel = self.genbreaklabel();
             string continuelabel = self.gencontinuelabel();
 
@@ -6743,10 +6738,10 @@ class DoStatement : LoopStatement, ConditionalStatement
         var body = self.body;
         int condvalue = self.getvalue();
         switch (condvalue) {
-        case CONDistrue:
+          case CONDistrue:
             self.emit_infinite(e);
             break;
-        default:
+          default:
             string looplabel = self.genlabel();
             string breaklabel = self.genbreaklabel();
             string continuelabel = self.gencontinuelabel();
@@ -7747,23 +7742,22 @@ class VarStatement : VarBaseStatement
             if (init.isnull())
                 init = null;
         if (init != null) {
-            string type = init.checkresult();
-            switch (type) {
-            case REGvar:
+            switch (init.checkresult()) {
+              case REGvar:
                 if ((init instanceof MemberExpr) || (init instanceof ArrayExpr) || (init instanceof NewExpr))
                     init.emit_init(e, reg);
                 else
                     init.emit(e, reg);
                 break;
-            case REGstring:
-            case REGint:
-            case REGfloat:
+              case REGstring:
+              case REGint:
+              case REGfloat:
                 string value = init.emit_get(e);
                 e.emitbox(reg, value);
                 break;
-            case REGnone:
+              case REGnone:
                 SyntaxError("Can't use void function as initializer", self.name);
-            default:
+              default:
                 SyntaxError("Invalid var initializer", self.name);
             }
         }
@@ -7989,8 +7983,7 @@ class ParameterModifierList : ModifierList
             break;
           case named != null:
             string setname;
-            int nargs = named.numargs();
-            switch (nargs) {
+            switch (named.numargs()) {
               case 0:
                 setname = "'" + paramname + "'";
                 break;
@@ -8184,16 +8177,16 @@ class FunctionBase : BlockStatement
     function createreg(string type)
     {
         var store;
-        switch(type) {
-        case REGint:
+        switch (type) {
+          case REGint:
             store = self.regstI; break;
-        case REGfloat:
+          case REGfloat:
             store = self.regstN; break;
-        case REGstring:
+          case REGstring:
             store = self.regstS; break;
-        case REGvar:
+          case REGvar:
             store = self.regstP; break;
-        default:
+          default:
             InternalError('Invalid type in createreg: ' + type);
         }
         string reg = store.createreg();
@@ -8202,16 +8195,16 @@ class FunctionBase : BlockStatement
     function tempreg(string type)
     {
         var store;
-        switch(type) {
-        case REGint:
+        switch (type) {
+          case REGint:
             store = self.regstI; break;
-        case REGfloat:
+          case REGfloat:
             store = self.regstN; break;
-        case REGstring:
+          case REGstring:
             store = self.regstS; break;
-        case REGvar:
+          case REGvar:
             store = self.regstP; break;
-        default:
+          default:
             InternalError("Invalid type '" + type + "' in tempreg");
         }
         string reg = store.tempreg();
