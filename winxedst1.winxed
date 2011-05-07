@@ -1623,7 +1623,7 @@ function parseDotted(tk)
     return list;
 }
 
-function parseList(tk, owner, fn)
+function parseList(tk, owner, fn, string oper_end)
 /*
   Parse a comma separated list of items.
   Calls the passed fn to parse each item.
@@ -1635,7 +1635,8 @@ function parseList(tk, owner, fn)
         var value = fn(tk, owner);
         push(list, value);
     } while ((t = tk.get()).isop(','));
-    tk.unget(t);
+    if (! t.isop(oper_end))
+        SyntaxError("Unfinished argument list", t);
     return list;
 }
 
@@ -1704,9 +1705,7 @@ class SimpleArgList
     function SimpleArgList(var tk, var owner, string oper_end)
     {
         using static parseExpr;
-        var args = parseList(tk, owner, parseExpr);
-        ExpectOp(oper_end, tk);
-        self.args = args;
+        self.args = parseList(tk, owner, parseExpr, oper_end);
     }
 
     function numargs()
@@ -1792,8 +1791,7 @@ class ModifierList
     function ModifierList(var tk, var owner)
     {
         using static parseModifier;
-        self.list = parseList(tk, owner, parseModifier);
-        ExpectOp(']', tk);
+        self.list = parseList(tk, owner, parseModifier, ']');
     }
     function optimize()
     {
@@ -2105,9 +2103,7 @@ class PiropStatement : Statement
         if (! t.isop('}')) {
             tk.unget(t);
             using static parsePiropArg;
-            var args = parseList(tk, owner, parsePiropArg);
-            ExpectOp('}', tk);
-            self.args = args;
+            self.args = parseList(tk, owner, parsePiropArg, '}');
         }
         ExpectOp(';', tk);
     }
@@ -4734,11 +4730,7 @@ class ArgumentList
         if (! t.isop(delimiter)) {
             tk.unget(t);
             using static parseArgument;
-            var args = parseList(tk, owner, parseArgument);
-            t = tk.get();
-            if (! t.isop(delimiter))
-                SyntaxError("Unfinished argument list", t);
-            self.args = args;
+            self.args = parseList(tk, owner, parseArgument, delimiter);
         }
     }
     function numargs()
@@ -5325,10 +5317,7 @@ class ArrayExpr : Expr
         if (! t.isop(']')) {
             tk.unget(t);
             using static parseExpr;
-            self.values = parseList(tk, owner, parseExpr);
-            t = tk.get();
-            if (!t.isop(']'))
-                Expected("']' or ','", t);
+            self.values = parseList(tk, owner, parseExpr, ']');
         }
         else
             self.values = [];
@@ -7464,10 +7453,7 @@ class DeclareArrayStatement : DeclareBase
             if (! t.isop(']')) {
                 tk.unget(t);
                 using static parseExpr;
-                self.initarray = parseList(tk, self, parseExpr);
-                t = tk.get();
-                if (! t.isop(']'))
-                    Expected("',' or ']'", t);
+                self.initarray = parseList(tk, self, parseExpr, ']');
             }
             else
                 self.initarray = [];
