@@ -5255,17 +5255,13 @@ class IndexExpr : Expr
     }
     function emit_prep(e)
     {
-        var regleft = self.regleft;
-        var argregs = self.argregs;
-        if (regleft != null || argregs != null)
+        if (self.regleft != null || self.argregs != null)
             InternalError('wrong call to IndexExpr.emit_args', self.start);
-        if (self.left.isidentifier())
-            regleft = self.left.getIdentifier();
-        else
-            regleft = self.left.emit_get(e);
-        self.regleft = regleft;
-        argregs = self.args.getargvalues(e);
-        self.argregs = argregs;
+        var left = self.left;
+        self.regleft = left.isidentifier() ?
+            left.getIdentifier() :
+            left.emit_get(e);
+        self.argregs = self.args.getargvalues(e);
     }
     function emit_aux(e)
     {
@@ -5274,7 +5270,7 @@ class IndexExpr : Expr
         if (regleft == null || argregs == null)
             InternalError('wrong call to IndexExpr.emit_aux', self.start);
         e.print(self.regleft, '[');
-        e.print(join('; ', self.argregs));
+        e.print(join('; ', argregs));
         e.print(']');
     }
     function emit(e, result)
@@ -5283,7 +5279,7 @@ class IndexExpr : Expr
         string type = self.checkresult();
         if (type == REGstring) {
             var argregs = self.argregs;
-            int nargs = elements(self.argregs);
+            int nargs = elements(argregs);
             if (nargs != 1)
                SyntaxError('Bad string index', self.start);
             if (result == '')
@@ -6533,16 +6529,13 @@ class LabelStatement : Statement
     {
         self.Statement(n, owner);
         self.name = n;
-        string value = self.owner.createlabel(n);
-        self.value = value;
+        self.value = self.owner.createlabel(n);
     }
     function optimize() { return self; }
     function emit(e)
     {
         self.annotate(e);
-        string name = self.name;
-        string comment = 'label ' + name;
-        e.emitlabel(self.value, comment);
+        e.emitlabel(self.value, 'label ' + string(self.name));
     }
 }
 
@@ -7711,8 +7704,7 @@ class ConstStatement : Statement
     }
     function emit(e)
     {
-        string name = self.name;
-        e.comment('Constant ' + name + ' evaluated at compile time');
+        e.comment('Constant ' + string(self.name) + ' evaluated at compile time');
     }
 }
 
@@ -7952,9 +7944,7 @@ class RegisterStore
         int i = n;
         string reg = i++;
         n =: i;
-        string type = self.type;
-        reg = '$' + type + reg;
-        return reg;
+        return '$' + string(self.type) + reg;
     }
     function tempreg()
     {
@@ -8139,10 +8129,8 @@ class FunctionBase : BlockStatement
     {
         // Return the subid for this function, creating if it doesn't have one
         var subid = self.subid;
-        if (subid == null) {
-            subid = self.generatesubid();
-            self.subid = subid;
-        }
+        if (subid == null)
+            self.subid = subid = self.generatesubid();
         return subid;
     }
 
@@ -8184,19 +8172,15 @@ class FunctionBase : BlockStatement
     function setusedlex(string lexname, string localname)
     {
         var lexicals = self.usedlexicals;
-        if (lexicals == null) {
-            lexicals = {};
-            self.usedlexicals = lexicals;
-        }
+        if (lexicals == null)
+            self.usedlexicals = lexicals = {};
         lexicals[localname] = lexname;
     }
     function setlex(string lexname, string localname)
     {
         var lexicals = self.lexicals;
-        if (lexicals == null) {
-            lexicals = {};
-            self.lexicals = lexicals;
-        }
+        if (lexicals == null)
+            self.lexicals = lexicals = {};
         lexicals[localname] = lexname;
     }
     function createlex(vardata)
@@ -8261,10 +8245,9 @@ class FunctionBase : BlockStatement
     function genlabel()
     {
         var nlabel = self.nlabel;
-        int n = nlabel;
-        string s = '__label_' + n++;
+        int n = int(nlabel) + 1;
         nlabel =: n;
-        return s;
+        return '__label_' + string(n);
     }
     function getbreaklabel(pos)
     {
@@ -9254,10 +9237,8 @@ class NamespaceStatement : NamespaceBase
     function optimize()
     {
         var modifier = self.modifier;
-        if (modifier != null) {
-            modifier = modifier.optimize();
-            self.modifier = modifier;
-        }
+        if (modifier != null)
+            self.modifier = modifier.optimize();
         self.optimize_base();
         return self;
     }
@@ -9308,11 +9289,9 @@ class RootNamespace : NamespaceBase
     function generatesubid()
     {
         var subidgen = self.subidgen;
-        int idgen = subidgen;
-        ++idgen;
+        int idgen = int(subidgen) + 1;
         subidgen =: idgen;
-        string id = 'WSubId_' + string(idgen);
-        return id;
+        return 'WSubId_' + string(idgen);
     }
 
     function addlib(string libname)
