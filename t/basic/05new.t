@@ -7,10 +7,11 @@ $load 'Test/More.pbc';
 function main()
 {
     using Test.More.plan;
+    using Test.More.ok;
     using Test.More.is;
     using Test.More.is_null;
 
-    plan(6);
+    plan(10);
 
     var obj;
 
@@ -31,8 +32,21 @@ function main()
     is_null(obj.b, 'constructor is not invoked');
 
     obj = new Bar();
-    is(obj instanceof Bar, true, 'new with empty argument list with constructor');
+    ok(obj instanceof Bar, 'new with empty argument list with constructor');
     is(obj.b, 'Hi', 'constructor is invoked');
+
+    obj = null;
+    obj = new Hill.Fool;
+    ok(obj != null && obj.attr == null, 'new dotted without arguments');
+
+    obj = new Hill.Fool();
+    is(obj.attr, 42, 'new dotted with empty argument list');
+
+    obj = new 'String';
+    ok(obj instanceof 'String', 'new with string literal');
+
+    obj = new ['Integer'];
+    ok(obj instanceof 'Integer', 'new with key');
 }
 
 class Foo
@@ -46,6 +60,20 @@ class Bar
     {
         self.b = 'Hi';
     }
+}
+
+namespace Hill
+{
+
+class Fool
+{
+    var attr;
+    function Fool()
+    {
+        self.attr = 42;
+    }
+}
+
 }
 
 // End
