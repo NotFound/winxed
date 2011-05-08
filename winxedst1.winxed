@@ -1631,7 +1631,7 @@ function parseDotted(tk)
     return list;
 }
 
-function parseList(tk, owner, fn, string oper_end)
+function parseList(tk, owner, fn, string oper_end[optional])
 /*
   Parse a comma separated list of items.
   Calls the passed fn to parse each item.
@@ -1643,9 +1643,18 @@ function parseList(tk, owner, fn, string oper_end)
         var value = fn(tk, owner);
         push(list, value);
     } while ((t = tk.get()).isop(','));
-    if (! t.isop(oper_end))
-        SyntaxError("Unfinished argument list", t);
+    if (oper_end == null)
+        tk.unget(t);
+    else
+        if (! t.isop(oper_end))
+            SyntaxError("Unfinished argument list", t);
     return list;
+}
+
+// Helper to parse identifier lists using parseList
+function parseIdentifier(tk, unused)
+{
+    return tk.get().getidentifier();
 }
 
 function toIdentifierList(var tlist)
@@ -2171,15 +2180,8 @@ class StaticStatement : Statement
     function StaticStatement(start, tk, owner)
     {
         self.Statement(start, owner);
-        var names = [];
-        var t;
-        do {
-            t = tk.get();
-            string name = t.getidentifier();
-            push(names, name);
-        } while ((t = tk.get()).isop(','));
-        RequireOp(';', t);
-        self.names = names;
+        using parseIdentifier;
+        self.names = parseList(tk, null, parseIdentifier, ';');
     }
     function optimize() { return self; }
     function emit(e)
@@ -8703,16 +8705,14 @@ class ClassStatement : ClassBase, VarContainer
         self.functions = functions;
         var members = [];
         self.members = members;
-        self.bases = [];
         var constants = [];
         self.constants = constants;
 
         var t = tk.get();
         if (t.isop(':')) {
-            var bases = self.bases;
-            do {
-                push(bases, parseClassSpecifier(tk, self));
-            } while((t = tk.get()).isop(','));
+            using parseClassSpecifier;
+            self.bases = parseList(tk, self, parseClassSpecifier);
+            t = tk.get();
         }
         RequireOp('{', t);
         for (t = tk.get(); !t.isop('}'); t = tk.get()) {
@@ -8779,13 +8779,16 @@ class ClassStatement : ClassBase, VarContainer
 
         e.say(INDENT, 'newclass $P0, ', self.getclasskey() );
         int n = 1;
-        for (var base in self.bases) {
-            base.annotate(e);
-            string reg = "$P" + n++;
-            e.print(INDENT, 'get_class ', reg, ', ');
-            base.emit(e, self.parent);
-            e.say();
-            e.say(INDENT, 'addparent $P0, ', reg);
+        var bases = self.bases;
+        if (bases != null) {
+            for (var base in self.bases) {
+                base.annotate(e);
+                string reg = "$P" + n++;
+                e.print(INDENT, 'get_class ', reg, ', ');
+                base.emit(e, self.parent);
+                e.say();
+                e.say(INDENT, 'addparent $P0, ', reg);
+            }
         }
         for (var member in self.members) {
             e.annotate(member);
@@ -8923,12 +8926,8 @@ function parsensUsing(start, tk, ns)
         t = tk.get();
         if (! t.isop(';')) {
             tk.unget(t);
-            string names[];
-            do {
-                t = tk.get();
-                push(names, t.getidentifier());
-            } while ((t = tk.get()).isop(','));
-            RequireOp(';', t);
+            using parseIdentifier;
+            var names = parseList(tk, null, parseIdentifier, ';');
             ns.addextern(module, names);
         }
         string reqmodule = '"' + join('/', module) + '.pbc"';
