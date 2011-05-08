@@ -1608,6 +1608,14 @@ function optimize_array(var arr)
     }
 }
 
+function emit_array(e, arr)
+{
+    if (arr != null) {
+        for (var item in arr)
+            item.emit(e);
+    }
+}
+
 function parseDotted(tk)
 {
     var list = [];
@@ -1795,8 +1803,7 @@ class ModifierList
     }
     function optimize()
     {
-        for (var mod in self.list)
-            mod.optimize();
+        optimize_array(self.list);
     }
     function getlist() { return self.list; }
     function pick(string name)
@@ -2050,8 +2057,7 @@ class MultiStatement : MultiStatementBase
     }
     function emit(e)
     {
-        for (var statement in self.statements)
-            statement.emit(e);
+        emit_array(e, self.statements);
     }
 }
 
@@ -4765,11 +4771,10 @@ class ArgumentList
             string pnull = '';
             var args = self.args;
             if (args != null) {
-                int nargs = elements(args);
-                for (int i = 0; i < nargs; ++i) {
-                    var a = args[i].arg;
+                for (var argitem in args) {
+                    var arg = argitem.arg;
                     string reg;
-                    if (a.isnull()) {
+                    if (arg.isnull()) {
                         if (pnull == '') {
                             pnull = self.owner.tempreg(REGvar);
                             e.emitnull(pnull);
@@ -4777,7 +4782,7 @@ class ArgumentList
                         reg = pnull;
                     }
                     else
-                        reg = a.emit_get(e);
+                        reg = arg.emit_get(e);
                     push(argregs, reg);
                 }
             }
@@ -5319,8 +5324,6 @@ class ArrayExpr : Expr
             using static parseExpr;
             self.values = parseList(tk, owner, parseExpr, ']');
         }
-        else
-            self.values = [];
     }
     function checkresult() { return REGvar; }
     function optimize()
@@ -5356,28 +5359,31 @@ class ArrayExpr : Expr
             e.say(INDENT, 'root_new ', container, ", ['parrot';'ResizablePMCArray']");
             it_p = self.tempreg(REGvar);
         }
-        for (var item in self.values) {
-            switch (item.checkresult()) {
-              case REGint: case REGfloat: case REGstring:
-                string aux = item.emit_get(e);
-                if (container != '') {
-                    e.emitbox(it_p, aux);
-                    itemreg = it_p;
-                }
-                break;
-              default:
-                if (item.isnull()) {
+        var values = self.values;
+        if (values != null) {
+            for (var item in values) {
+                switch (item.checkresult()) {
+                  case REGint: case REGfloat: case REGstring:
+                    string aux = item.emit_get(e);
                     if (container != '') {
-                        itemreg = self.tempreg(REGvar);
-                        e.emitnull(itemreg);
+                        e.emitbox(it_p, aux);
+                        itemreg = it_p;
                     }
+                    break;
+                  default:
+                    if (item.isnull()) {
+                        if (container != '') {
+                            itemreg = self.tempreg(REGvar);
+                            e.emitnull(itemreg);
+                        }
+                    }
+                    else
+                        itemreg = item.emit_get(e);
                 }
-                else
-                    itemreg = item.emit_get(e);
-            }
-            if (container != '') {
-                self.annotate(e);
-                e.emitarg2('push', container, itemreg);
+                if (container != '') {
+                    self.annotate(e);
+                    e.emitarg2('push', container, itemreg);
+                }
             }
         }
     }
@@ -6924,16 +6930,12 @@ class SwitchStatement : SwitchBaseStatement
         var case_st = self.case_st;
         int n = case_st;
         for (int i = 0; i < n; ++i) {
-            string l = caselabel[i];
-            e.emitlabel(l, 'case');
-            var casest = case_st[i];
-            for (var st in casest)
-                st.emit(e);
+            e.emitlabel(caselabel[i], 'case');
+            emit_array(e, case_st[i]);
         }
         // Emit default
         e.emitlabel(defaultlabel, 'default');
-        for (var dst in self.default_st)
-            dst.emit(e);
+        emit_array(e, self.default_st);
 
         e.emitlabel(self.getbreaklabel(self.start), 'switch end');
     }
@@ -6978,16 +6980,12 @@ class SwitchCaseStatement : SwitchBaseStatement
         var case_st = self.case_st;
         int n = case_st;
         for (int i = 0; i < n; ++i) {
-            string l = caselabel[i];
-            e.emitlabel(l, 'case');
-            var casest = case_st[i];
-            for (var st in casest)
-                st.emit(e);
+            e.emitlabel(caselabel[i], 'case');
+            emit_array(e, case_st[i]);
         }
         // Emit default
         e.emitlabel(defaultlabel, 'default');
-        for (var dst in self.default_st)
-            dst.emit(e);
+        emit_array(e, self.default_st);
 
         e.emitlabel(self.getbreaklabel(self.start), 'switch end');
     }
@@ -7455,8 +7453,6 @@ class DeclareArrayStatement : DeclareBase
                 using static parseExpr;
                 self.initarray = parseList(tk, self, parseExpr, ']');
             }
-            else
-                self.initarray = [];
         }
         else
             tk.unget(t);
@@ -7998,10 +7994,12 @@ class ParameterModifierList : ModifierList
 
 class FunctionParameter
 {
+    var func;
     var name;
     var modifiers;
     function FunctionParameter(func, tk)
     {
+        self.func = func;
         var t = tk.get();
         string type = typetoregcheck(t.checkkeyword());
         if (type != '')
@@ -8018,8 +8016,9 @@ class FunctionParameter
         else
             tk.unget(t);
     }
-    function emit(func, e)
+    function emit(e)
     {
+        var func = self.func;
         string paramname = self.name;
         var param = func.getvar(paramname);
         string ptype = typetopirname(param.gettype());
@@ -8029,6 +8028,11 @@ class FunctionParameter
             modarg.emitmodifiers(e, func.start, paramname);
         e.say('');
     }
+}
+
+function parseParameter(tk, owner)
+{
+    return new FunctionParameter(owner, tk);
 }
 
 //*********************************************
@@ -8080,7 +8084,6 @@ class FunctionBase : BlockStatement
     function FunctionBase(start, owner)
     {
         self.Statement(start, owner);
-        self.params = [];
         self.nlabel = 0;
         self.regstI = new RegisterStore(REGint);
         self.regstN = new RegisterStore(REGfloat);
@@ -8105,16 +8108,11 @@ class FunctionBase : BlockStatement
     }
     function parse_parameters(tk)
     {
-        var params = self.params;
         var t = tk.get();
         if (! t.isop(')')) {
             tk.unget(t);
-            do {
-                push(params, new FunctionParameter(self, tk));
-                t = tk.get();
-            } while (t.isop(','));
-            if (!t.isop(')'))
-                Expected("')' or ','", t);
+            using static parseParameter;
+            self.params = parseList(tk, self, parseParameter, ')');
         }
     }
 
@@ -8253,8 +8251,7 @@ class FunctionBase : BlockStatement
         e.say();
 
         // Parameters
-        for (var param in self.params)
-            param.emit(self, e);
+        emit_array(e, self.params);
 
         var lexicals = self.lexicals;
         var usedlexicals = self.usedlexicals;
@@ -8483,21 +8480,18 @@ class SigParameter
     }
 }
 
+function parseSigParameter(tk, owner)
+{
+    return new SigParameter(tk, owner);
+}
+
 class SigParameterList
 {
     var params;
     function SigParameterList(tk, owner)
     {
-        var t;
-        var params = [];
-        do {
-            var sigelem = new SigParameter(tk, owner);
-            params.push(sigelem);
-            t = tk.get();
-        } while (t.isop(','));
-        if (! t.isop(')'))
-            Expected("',' or ')'", t);
-        self.params = params;
+        using static parseSigParameter;
+        self.params = parseList(tk, owner, parseSigParameter, ')');
     }
     function emit(e)
     {
@@ -8779,8 +8773,7 @@ class ClassStatement : ClassBase, VarContainer
     {
         var classns = self.classns;
         e.say(getparrotnamespacekey(classns));
-        for (var f in self.functions)
-            f.emit(e);
+        emit_array(e, self.functions);
 
         e.say('.sub Winxed_class_init :anon :load :init');
 
