@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 7-may-2011
+// Revision 8-may-2011
 
 // Winxed compiler stage 0.
 
@@ -6627,6 +6627,47 @@ void FunctionStatement::emit (Emit &e)
 
 //**********************************************************************
 
+class External
+{
+public:
+    External(NamespaceKey namespacekey,
+            std::vector<std::string> module, std::vector<std::string> names) :
+        nskey(namespacekey),
+        mod(module),
+        n(names)
+    {
+    }
+    void emit(Emit &e)
+    {
+        nskey.emit(e);
+        e <<
+".sub 'importextern' :anon :load :init\n"
+"    .local pmc ex, curns, srcns, symbols\n"
+"    ex = new ['Exporter']\n"
+"    curns = get_namespace\n"
+"    symbols = new ['ResizableStringArray']\n"
+        ;
+
+        e << INDENT "srcns = get_root_namespace ['parrot'; '";
+        e << mod[0];
+        for (size_t i = 1; i < mod.size(); ++i)
+            e << "'; '" << mod[i];
+        e << "']\n";
+        for (size_t i = 0; i < n.size(); ++i)
+            e << INDENT "push symbols, '" << n[i] << "'\n";
+
+        e <<
+"    ex.'destination'(curns)\n"
+"    ex.'import'(srcns :named('source'), curns :named('destination'), symbols :named('globals'))\n"
+".end\n"
+       ;
+    }
+private:
+    NamespaceKey nskey;
+    std::vector<std::string> mod;
+    std::vector<std::string> n;
+};
+
 class NamespaceBlock;
 
 class NamespaceBlockBase : public Block
@@ -6656,11 +6697,20 @@ public:
     }
     void emit (Emit &e) const
     {
+        for (std::vector<External *>::const_iterator it = externals.begin();
+                it != externals.end(); ++it)
+            (*it)->emit(e);
         emit_group(constants, e);
     }
     virtual NamespaceBlockBase *getparent () { return 0; }
     ClassStatement *findclass_base(const ClassKey &classkey);
     virtual ClassStatement *findclass(const ClassKey &classkey) = 0;
+    virtual void addload(const std::string &loadname) = 0;
+    void addextern(NamespaceKey nskey, std::vector<std::string> module,
+            std::vector<std::string> names)
+    {
+        externals.push_back(new External(nskey, module, names));
+    }
 private:
     std::string genlocallabel()
     { throw InternalError("No Namespace labels"); }
@@ -6679,6 +6729,7 @@ private:
     std::vector <BaseStatement *> constants;
     std::vector <NamespaceBlock *> namespaces;
     std::vector <ClassStatement *> classes;
+    std::vector <External *> externals;
 };
 
 class RootNamespaceBlock : public NamespaceBlockBase
@@ -6714,6 +6765,18 @@ class RootNamespaceBlock : public NamespaceBlockBase
         else throw InternalError("No such constant");
     }
     ClassStatement *findclass(const ClassKey &classkey);
+    void addload(const std::string &loadname)
+    {
+        loads.push_back(loadname);
+    }
+public:
+    void emitloads(Emit &e)
+    {
+        for (size_t i = 0; i < loads.size(); ++i)
+            e << "  load_bytecode '" << loads[i] << "'\n";
+    }
+private:
+    std::vector <std::string> loads;
 };
 
 class NamespaceBlock : public NamespaceBlockBase
@@ -6725,7 +6788,7 @@ public:
         parent(parentns)
     {
     }
-    const std::string &getname() const { return nsname; }
+    std::string getname() const { return nsname; }
     char checkconstant(const std::string &name) const
     {
         char c= Block::checkconstant(name);
@@ -6742,6 +6805,10 @@ public:
     }
     NamespaceBlockBase *getparent () { return &parentnbb; }
     ClassStatement *findclass(const ClassKey &classkey);
+    void addload(const std::string &loadname)
+    {
+        parentnbb.addload(loadname);
+    }
 private:
     const std::string nsname;
     NamespaceBlockBase &parentnbb;
@@ -7059,6 +7126,47 @@ void ClassStatement::emit (Emit &e)
 
 //**********************************************************************
 
+void parsensUsing(const Token &start, Tokenizer &tk,
+        NamespaceBlockBase &ns, NamespaceKey nskey)
+{
+    Token t = tk.get();
+    if (!t.iskeyword("extern"))
+        throw UnsupportedInStage(start.str(), start);
+    t = tk.get();
+    if (t.isliteralstring())
+        throw UnsupportedInStage(t.str(), t);
+    if (! t.isidentifier())
+        throw Expected("string literal or identifier", t);
+    std::vector<std::string> module;
+    module.push_back(t.identifier());
+    while ((t = tk.get()).isop('.'))
+    {
+        t = tk.get();
+        module.push_back(t.identifier());
+    }
+    if (! t.isop(';'))
+    {
+        std::vector<std::string> names;
+        tk.unget(t);
+        do {
+            t = tk.get();
+            names.push_back(t.identifier());
+        } while ((t = tk.get()).isop(','));
+        RequireOp(';', t);
+        ns.addextern(nskey, module, names);
+    }
+    std::string reqmodule = module[0];
+    for (size_t i = 1; i < module.size(); ++i)
+    {
+        reqmodule += '/';
+        reqmodule += module[i];
+    }
+    reqmodule += ".pbc";
+    ns.addload(reqmodule);
+}
+
+//**********************************************************************
+
 class Winxed
 {
 public:
@@ -7077,7 +7185,6 @@ private:
     std::vector <NamespaceBlockBase *> namespaces;
     std::vector <ClassStatement *> classes;
     std::vector <FunctionStatement *> functions;
-    std::vector <std::string> loads;
 };
 
 void Winxed::parse (Tokenizer &tk)
@@ -7122,6 +7229,8 @@ void Winxed::parse (Tokenizer &tk)
                     (tk, t, *cur_nsblock, cur_namespace, fname.identifier());
             functions.push_back(f);
         }
+        else if (t.iskeyword("using"))
+            parsensUsing(t, tk, *cur_nsblock, cur_namespace);
         else if (t.iskeyword("$include_const") || t.iskeyword("$loadlib"))
             throw UnsupportedInStage(t.str(), t);
         else if (t.iskeyword("$load"))
@@ -7130,7 +7239,7 @@ void Winxed::parse (Tokenizer &tk)
             if (! loadname.isliteralstring() )
                 throw Expected("filename", loadname);
             ExpectOp(';', tk);
-            loads.push_back(loadname.str());
+            cur_nsblock->addload(loadname.str());
         }
         else if (t.isop('}'))
         {
@@ -7177,8 +7286,7 @@ void Winxed::emit (Emit &e)
         ".sub 'initialize' :load :init :anon\n"
         "  load_bytecode 'String/Utils.pbc'\n";
 
-    for (size_t i = 0; i < loads.size(); ++i)
-        e << "  load_bytecode '" << loads[i] << "'\n";
+    root_ns.emitloads(e);
 
     e <<
         ".end\n";
