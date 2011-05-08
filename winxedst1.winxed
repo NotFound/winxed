@@ -8904,9 +8904,85 @@ function include_parrot(var start, var tk, var ns)
 
 //*********************************************
 
+function parsensUsing(start, tk, ns)
+{
+    var t = tk.get();
+    if (! t.iskeyword('extern'))
+        SyntaxError('Unsupported at namespace level', t);
+    t = tk.get();
+    switch {
+      case t.isstring():
+        // This usage will be deprecated, use $loadlib instead.
+        string reqlib = t;
+        ns.addlib(reqlib);
+        ExpectOp(';', tk);
+        break;
+      case t.isidentifier():
+        tk.unget(t);
+        var module = parseDotted(tk);
+        t = tk.get();
+        if (! t.isop(';')) {
+            tk.unget(t);
+            string names[];
+            do {
+                t = tk.get();
+                push(names, t.getidentifier());
+            } while ((t = tk.get()).isop(','));
+            RequireOp(';', t);
+            ns.addextern(module, names);
+        }
+        string reqmodule = '"' + join('/', module) + '.pbc"';
+        ns.addload(reqmodule);
+        break;
+      default:
+        Expected('string literal or identifier', t);
+    }
+}
+
+//*********************************************
+
+class External
+{
+    var module;
+    var names;
+    function External(module, names)
+    {
+        self.module = module;
+        self.names = names;
+    }
+    function emit(e)
+    {
+        // Import external symbols in the current namespace
+
+        e.say(<<:
+.sub 'importextern' :anon :load :init
+    .local pmc ex, curns, srcns, symbols
+    ex = new ['Exporter']
+    curns = get_namespace
+    symbols = new ['ResizableStringArray']
+:>>
+        );
+        e.print(INDENT + "srcns = get_root_namespace ['parrot'; '");
+        e.print(join("'; '", self.module));
+        e.say("']");
+        for (string name in self.names)
+            e.say(INDENT + "push symbols, '", name, "'");
+        e.say(<<:
+    ex.'destination'(curns)
+    ex.'import'(srcns :named('source'), curns :named('destination'), symbols :named('globals'))
+    say 'done'
+.end
+:>>
+        );
+    }
+}
+
+//*********************************************
+
 class NamespaceBase : VarContainer
 {
     var nspath;
+    var externals;
     var namespaces;
     var classes;
     var functions;
@@ -8925,6 +9001,17 @@ class NamespaceBase : VarContainer
     {
         return self.nspath;
     }
+
+    function addextern(module, names)
+    {
+        var ext = new External(module, names);
+        var externals = self.externals;
+        if (externals == null)
+            self.externals = externals = [ ext ];
+        else
+            push(externals, ext);
+    }
+
     function checkclass_base(string name)
     {
         var classes = self.classes;
@@ -9057,15 +9144,7 @@ class NamespaceBase : VarContainer
                 parseClass(t, tk, self);
                 break;
               case 'using':
-                t = tk.get();
-                if (! t.iskeyword('extern'))
-                    SyntaxError('Unsupported at namespace level', t);
-                t = tk.get();
-                if (! t.isstring())
-                    Expected('string literal', t);
-                string reqlib = t;
-                self.addlib(reqlib);
-                ExpectOp(';', tk);
+                parsensUsing(t, tk, self);
                 break;
               case '$include_const':
                 include_parrot(t, tk, self);
@@ -9103,6 +9182,14 @@ class NamespaceBase : VarContainer
         string s = getparrotnamespacekey(path);
 
         int activate = 1;
+
+        var externals = self.externals;
+        if (externals != null) {
+            e.say(s);
+            activate = 0;
+            emit_array(e, externals);
+        }
+
         for (var item in self.items) {
             if ((item instanceof NamespaceStatement) || 
                     (item instanceof ClassStatement))
