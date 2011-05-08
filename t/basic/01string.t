@@ -2,12 +2,10 @@
 
 // Basic tests: string type
 
+using extern Test.More plan, is;
+
 function main()
 {
-    using extern Test.More;
-    using Test.More.plan;
-    using Test.More.is;
-
     plan(9);
 
     string r;

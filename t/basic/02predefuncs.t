@@ -2,12 +2,10 @@
 
 // Basic tests for predefined functions
 
+using extern Test.More plan, is;
+
 function main()
 {
-    using extern Test.More;
-    using Test.More.plan;
-    using Test.More.is;
-
     plan (3);
 
     // ord and chr

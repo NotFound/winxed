@@ -2,15 +2,10 @@
 
 // new operator and constructors
 
-$load 'Test/More.pbc';
+using extern Test.More plan, ok, is, is_null;
 
 function main()
 {
-    using Test.More.plan;
-    using Test.More.ok;
-    using Test.More.is;
-    using Test.More.is_null;
-
     plan(10);
 
     var obj;

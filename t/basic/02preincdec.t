@@ -1,12 +1,11 @@
 #! winxed
 
-# Basic tests for (prefix) int ++ and -- operator
+// Basic tests for (prefix) int ++ and -- operator
+
+using extern Test.More plan, is;
 
 function main()
 {
-    using extern Test.More;
-    using Test.More.plan;
-    using Test.More.is;
     plan (4);
 
     int a = 69;

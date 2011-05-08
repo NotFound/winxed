@@ -2,12 +2,10 @@
 
 // Test return with multiple values
 
+using extern Test.More plan, is;
+
 function main()
 {
-    using extern Test.More;
-    using Test.More.plan;
-    using Test.More.is;
-
     plan(5);
 
     :(int i, int j) = ret2();
