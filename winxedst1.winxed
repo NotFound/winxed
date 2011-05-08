@@ -9162,7 +9162,7 @@ class NamespaceStatement : NamespaceBase
     {
         self.parent.addlib(libname);
     }
-    function addlib(string loadname)
+    function addload(string loadname)
     {
         self.parent.addload(loadname);
     }
