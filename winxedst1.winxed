@@ -8970,7 +8970,6 @@ class External
         e.say(<<:
     ex.'destination'(curns)
     ex.'import'(srcns :named('source'), curns :named('destination'), symbols :named('globals'))
-    say 'done'
 .end
 :>>
         );
