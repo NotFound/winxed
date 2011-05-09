@@ -578,11 +578,8 @@ class Tokenizer
         else {
             var h = self.h;
             c = h.read(1);
-            if (c == "\n") {
-                int l = self.line;
-                ++l;
-                self.line = l;
-            }
+            if (c == "\n")
+                ++self.line;
         }
         return c;
     }
@@ -8184,9 +8181,7 @@ class FunctionBase : BlockStatement
     }
     function genlabel()
     {
-        var nlabel = self.nlabel;
-        int n = int(nlabel) + 1;
-        nlabel =: n;
+        int n = ++self.nlabel;
         return '__label_' + string(n);
     }
     function getbreaklabel(pos)
@@ -8287,18 +8282,12 @@ class FunctionStatement : FunctionBase
     function getparamnum()
     {
         // Get a number to assign unique internal names to params.
-        var paramnum = self.paramnum;
-        int n = paramnum + 1;
-        paramnum =: n;
-        return n;
+        return int(++self.paramnum);
     }
     function getlexnum()
     {
         // Get a number to assign unique internal names to lexicals.
-        var lexnum = self.lexnum;
-        int n = lexnum + 1;
-        lexnum =: n;
-        return n;
+        return int(++self.lexnum);
     }
     function ismethod() { return false; }
 
@@ -9306,9 +9295,7 @@ class RootNamespace : NamespaceBase
 
     function generatesubid()
     {
-        var subidgen = self.subidgen;
-        int idgen = int(subidgen) + 1;
-        subidgen =: idgen;
+        int idgen = ++self.subidgen;
         return 'WSubId_' + string(idgen);
     }
 
