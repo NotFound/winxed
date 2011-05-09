@@ -2763,7 +2763,7 @@ private:
         annotate(e);
         e << op_inc(var) << '\n';
         if (! result.empty())
-            e << result << " = " << var << '\n';
+            e << INDENT << result << " = " << var << '\n';
     }
     std::string emit_get(Emit &e)
     {
@@ -2798,7 +2798,7 @@ private:
         annotate(e);
         e << op_dec(var) << '\n';
         if (! result.empty())
-            e << result << " = " << var << '\n';
+            e << INDENT << result << " = " << var << '\n';
     }
     std::string emit_get(Emit &e)
     {
