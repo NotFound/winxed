@@ -491,7 +491,6 @@ function getnumber(tk, string start, int line)
 function getlinecomment(tk, string start, int line)
 {
     string s = start;
-    
     for (string c = tk.getchar(); c != '' && c != "\n"; c = tk.getchar())
         s += c;
     return new TokenComment(tk.filename, line, s);
@@ -4628,7 +4627,7 @@ class ArgumentModifierList : ModifierList
               case 'named':
                 isnamed = 1;
                 switch (modif.numargs()) {
-                  case 0: 
+                  case 0:
                     break;
                   case 1:
                     var argmod = modif.getarg(0);
@@ -5551,7 +5550,7 @@ class NewExpr : NewBaseExpr
         int numinits = initializer == null ? -1 : initializer.numargs();
 
         const int BYNAME = 0, BYIDENT = 1;
-        int type = self.value.isstring() ? BYNAME : 
+        int type = self.value.isstring() ? BYNAME :
                 self.value.isidentifier() ? BYIDENT : -1;
 
         string reginit = '';
@@ -5811,18 +5810,30 @@ class OpConditionalExpr : Expr
         }
     }
     function checkresult()
-    { 
-        return self.etrue.checkresult();
+    {
+        var etrue = self.etrue;
+        if (etrue.isnull())
+            return self.efalse.checkresult();
+        else
+            return etrue.checkresult();
     }
     function emit(e, result)
     {
         string cond_end = self.owner.genlabel();
         string cond_false = self.owner.genlabel();
         self.condition.emit_else(e, cond_false);
-        self.etrue.emit(e, result);
+        var etrue = self.etrue;
+        if (etrue.isnull())
+            e.emitnull(result);
+        else
+            etrue.emit(e, result);
         e.emitgoto(cond_end);
         e.emitlabel(cond_false);
-        self.efalse.emit(e, result);
+        var efalse = self.efalse;
+        if (efalse.isnull())
+            e.emitnull(result);
+        else
+            efalse.emit(e, result);
         e.emitlabel(cond_end);
     }
 }
@@ -7778,10 +7789,10 @@ function parseVar(start, tk, owner, int flags[optional])
     if (t.isop('[')) {
         t = tk.get();
         if (t.isop(']'))
-            return new ResizableVarStatement(start, tk, owner, name); 
+            return new ResizableVarStatement(start, tk, owner, name);
         else {
             tk.unget(t);
-            return new FixedVarStatement(start, tk, owner, name); 
+            return new FixedVarStatement(start, tk, owner, name);
         }
     }
     else {
@@ -9154,7 +9165,7 @@ class NamespaceBase : VarContainer
         }
 
         for (var item in self.items) {
-            if ((item instanceof NamespaceStatement) || 
+            if ((item instanceof NamespaceStatement) ||
                     (item instanceof ClassStatement))
                 activate = 1;
             else
