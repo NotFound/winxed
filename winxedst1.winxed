@@ -5120,13 +5120,16 @@ class MemberExpr : MemberExprBase
     {
         return self.right;
     }
+    function __emit_assign_aux(e, string obj, string value)
+    {
+        string ident = self.right.getidentifier();
+        self.annotate(e);
+        e.say(INDENT, "setattribute ", obj, ", '", ident, "', ", value);
+    }
     function emit_get(e)
     {
-        string obj = self.left.emit_get(e);
-        string ident = self.right.getidentifier();
         string result = self.tempreg(REGvar);
-        self.annotate(e);
-        e.say(INDENT, 'getattribute ', result, ', ', obj, ", '", ident, "'");
+        self.emit(e, result);
         return result;
     }
     function emit(e, result)
@@ -5143,7 +5146,6 @@ class MemberExpr : MemberExprBase
     function emit_assign(e, string typeright, string rreg)
     {
         string obj = self.left.emit_get(e);
-        string ident = self.right.getidentifier();
         string value;
         if (typeright == REGvar) {
             // Special case temporarily
@@ -5157,12 +5159,11 @@ class MemberExpr : MemberExprBase
             value = self.tempreg(REGvar);
             e.emitbox(value, rreg);
         }
-        e.say(INDENT, "setattribute ", obj, ", '", ident, "', ", value);
+        self.__emit_assign_aux(e, obj, value);
     }
     function emit_assign_get(e, expr)
     {
         string obj = self.left.emit_get(e);
-        string ident = self.right.getidentifier();
         string value = self.tempreg(REGvar);
         if (expr.isnull())
             e.emitnull(value);
@@ -5173,7 +5174,7 @@ class MemberExpr : MemberExprBase
             else
                 value = rreg;
         }
-        e.say(INDENT, "setattribute ", obj, ", '", ident, "', ", value);
+        self.__emit_assign_aux(e, obj, value);
         return value;
     }
 }
