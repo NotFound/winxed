@@ -3228,27 +3228,31 @@ class OpNotExpr : OpUnaryExpr
 
 //*********************************************
 
-class OpPreIncExpr : OpUnaryExpr
+class OpIncDec : OpUnaryExpr
 {
-    function OpPreIncExpr(owner, start, subexpr)
-    {
-        self.OpUnaryExpr(owner, start, subexpr);
-    }
     function checkresult()
     {
         return self.subexpr.checkresult();
     }
-    function set(owner, t, subexpr)
-    {
-        self.OpUnaryExpr(owner, t, subexpr);
-        self.subexpr = subexpr;
-        return self;
-    }
+}
+
+//*********************************************
+
+class OpPreIncDec : OpIncDec
+{
     function emit(e, result)
     {
         string reg = self.emit_get(e);
         if (result != '')
             e.emitset(result, reg);
+    }
+}
+
+class OpPreIncExpr : OpPreIncDec
+{
+    function OpPreIncExpr(owner, start, subexpr)
+    {
+        self.OpUnaryExpr(owner, start, subexpr);
     }
     function emit_get(e)
     {
@@ -3259,52 +3263,11 @@ class OpPreIncExpr : OpUnaryExpr
     }
 }
 
-//*********************************************
-
-class OpPostIncExpr : OpUnaryExpr
-{
-    function OpPostIncExpr(owner, t, subexpr)
-    {
-        self.OpUnaryExpr(owner, t, subexpr);
-        return self;
-    }
-    function checkresult()
-    {
-        return self.subexpr.checkresult();
-    }
-    function emit(e, result)
-    {
-        string reg = self.subexpr.emit_get(e);
-        self.annotate(e);
-        if (result != '')
-            e.emitset(result, reg);
-        e.emitinc(reg);
-        return reg;
-    }
-}
-
-//*********************************************
-
-class OpPreDecExpr : OpUnaryExpr
+class OpPreDecExpr : OpPreIncDec
 {
     function OpPreDecExpr(owner, start, subexpr)
     {
         self.OpUnaryExpr(owner, start, subexpr);
-    }
-    function checkresult()
-    {
-        return self.subexpr.checkresult();
-    }
-    function set(owner, t, subexpr)
-    {
-        self.OpUnaryExpr(owner, t, subexpr);
-        return self;
-    }
-    function emit(e, result)
-    {
-        string reg = self.emit_get(e);
-        if (result != '')
-            e.emitset(result, reg);
     }
     function emit_get(e)
     {
@@ -3317,16 +3280,28 @@ class OpPreDecExpr : OpUnaryExpr
 
 //*********************************************
 
-class OpPostDecExpr : OpUnaryExpr
+class OpPostIncExpr : OpIncDec
 {
-    function OpPostDecExpr(owner, t, subexpr)
+    function OpPostIncExpr(owner, start, subexpr)
     {
-        self.OpUnaryExpr(owner, t, subexpr);
-        return self;
+        self.OpUnaryExpr(owner, start, subexpr);
     }
-    function checkresult()
+    function emit(e, result)
     {
-        return self.subexpr.checkresult();
+        string reg = self.subexpr.emit_get(e);
+        self.annotate(e);
+        if (result != '')
+            e.emitset(result, reg);
+        e.emitinc(reg);
+        return reg;
+    }
+}
+
+class OpPostDecExpr : OpIncDec
+{
+    function OpPostDecExpr(owner, start, subexpr)
+    {
+        self.OpUnaryExpr(owner, start, subexpr);
     }
     function emit(e, result)
     {

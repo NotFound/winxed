@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 8-may-2011
+// Revision 9-may-2011
 
 // Winxed compiler stage 0.
 
@@ -2755,11 +2755,26 @@ public:
 private:
     void emit(Emit &e, const std::string &result)
     {
-        std::string var= getvar();
+        std::string var;
+        if (expr->isidentifier())
+            var = getvar();
+        else
+            var = expr->emit_get(e);
         annotate(e);
         e << op_inc(var) << '\n';
         if (! result.empty())
             e << result << " = " << var << '\n';
+    }
+    std::string emit_get(Emit &e)
+    {
+        std::string var;
+        if (expr->isidentifier())
+            var = getvar();
+        else
+            var = expr->emit_get(e);
+        annotate(e);
+        e << op_inc(var) << '\n';
+        return var;
     }
 };
 
@@ -2775,11 +2790,26 @@ public:
 private:
     void emit(Emit &e, const std::string &result)
     {
-        std::string var= getvar();
+        std::string var;
+        if (expr->isidentifier())
+            var = getvar();
+        else
+            var = expr->emit_get(e);
         annotate(e);
         e << op_dec(var) << '\n';
         if (! result.empty())
             e << result << " = " << var << '\n';
+    }
+    std::string emit_get(Emit &e)
+    {
+        std::string var;
+        if (expr->isidentifier())
+            var = getvar();
+        else
+            var = expr->emit_get(e);
+        annotate(e);
+        e << op_dec(var) << '\n';
+        return var;
     }
 };
 
