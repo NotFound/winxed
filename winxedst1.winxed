@@ -5017,6 +5017,27 @@ class CallMemberExpr : CallExpr
     function emitcall(e)
     {
         var funref = self.funref;
+        var first = funref.left;
+
+        // Check if the first element of the member expression
+        // is an identfier. In that case, if it's not in scope
+        // look for a function in accessible namespaces.
+        while (first instanceof MemberExpr)
+            first = first.left;
+        if (first instanceof IdentifierExpr) {
+            var idfirst = first.checkIdentifier();
+            if (idfirst == null || idfirst == '') {
+                var key = [ ];
+                funref.buildkey(key);
+                var sym = self.findsymbol(key);
+                if (sym != null) {
+                    string reg = self.owner.createreg(REGvar);
+                    string id = sym.makesubid();
+                    e.say(".const 'Sub' " + reg + " = '" + id + "'");
+                    return reg;
+                }
+            }
+        }
         return join("", [ funref.emit_left_get(e),
                 ".'", funref.get_member(), "'" ] );
     }
@@ -5086,6 +5107,15 @@ class MemberExpr : MemberExprBase
     {
         self.left = self.left.optimize();
         return self;
+    }
+    function buildkey(key)
+    {
+        var left = self.left;
+        if (left instanceof IdentifierExpr)
+            push(key, left.getName());
+        else
+            left.buildkey(key);
+        push(key, self.right.getidentifier());
     }
     function get_member()
     {
