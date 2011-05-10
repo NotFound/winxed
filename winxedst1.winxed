@@ -4899,6 +4899,7 @@ class CallExpr : Expr
 {
     var funref;
     var args;
+    var subid;
 
     function CallExpr(tk, owner, start, subexp)
     {
@@ -4928,10 +4929,10 @@ class CallExpr : Expr
 
         // Check for predefined functions
         if (funref.isidentifier()) {
-            string call = funref.getName();
-            var predef = findpredef(call, nargs);
+            string callname = funref.getName();
+            var predef = findpredef(callname, nargs);
             if (predef != null) {
-                self.use_predef(call);
+                self.use_predef(callname);
                 var rawargs = nargs == 0 ? [] : args.getrawargs();
 
                 // Check for compile time evaluation.
@@ -4943,6 +4944,15 @@ class CallExpr : Expr
                 }
 
                 return new CallPredefExpr(self.owner, self.start, predef, rawargs);
+            }
+            string call = funref.checkIdentifier();
+            if (call == '') {
+                string key[] = [ callname ];
+                var sym = self.findsymbol(key);
+                if (sym != null) {
+                    string id = sym.makesubid();
+                    self.subid = id;
+                }
             }
         }
 
@@ -4956,6 +4966,11 @@ class CallExpr : Expr
     }
     function emitcall(e)
     {
+        if (self.subid) {
+            string reg = self.owner.createreg(REGvar);
+            e.say(".const 'Sub' " + reg + " = '" + string(self.subid) + "'");
+            return reg;
+        }
         var funref = self.funref;
         string call;
         if (funref.isidentifier()) {
@@ -9067,7 +9082,7 @@ class NamespaceBase : VarContainer
             for (var s in self.functions)
                 if (s.name == name)
                     return s;
-            return null;
+            break;
           default:
             // The key is multi: look for a child namespace named
             // as the first key item, and look into it with the
@@ -9083,6 +9098,9 @@ class NamespaceBase : VarContainer
                 }
             }
         }
+        // Not found here, search the parent
+        if (self.owner != null)
+            return self.owner.findsymbol(classkey);
         return null;
     }
     function declarenamespace(var start, string name)
