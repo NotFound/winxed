@@ -5815,10 +5815,14 @@ class OpInstanceOfExpr : Expr
     function checkresult() { return REGint; }
     function emit(e, result)
     {
+        var lexpr = self.lexpr;
+        string ltype = lexpr.checkresult();
+        if (ltype != REGvar)
+            SyntaxError('Invalid instanceof left operand', lexpr.start);
         var checked = self.checked;
 
         string r = result == '' ? self.tempreg(REGint) : result;
-        string check = self.lexpr.emit_get(e);
+        string check = lexpr.emit_get(e);
         self.annotate(e);
         e.print(INDENT + 'isa ', r, ', ', check, ', ');
         checked.emit(e, self.owner);
