@@ -7439,9 +7439,13 @@ class DeclareSingleStatement : DeclareBase
                 }
                 else {
                     string ireg;
-                    if (itype == '')
+                    switch (itype) {
+                      case REGnone:
+                        SyntaxError('Invalid initialization from void value', self.start);
+                      case '':
                         ireg = init.emit_get(e);
-                    else {
+                        break;
+                      default:
                         ireg = self.tempreg(itype);
                         init.emit(e, ireg);
                     }
