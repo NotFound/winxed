@@ -4895,6 +4895,24 @@ class CallPredefExpr : Expr
 
 //*********************************************
 
+function genpredefcallexpr(owner, predef, args)
+{
+    string callname = predef.name();
+    owner.use_predef(callname);
+    int nargs = args == null ? 0 : args.numargs();
+    var rawargs = nargs == 0 ? [] : args.getrawargs();
+
+    // Check for compile time evaluation.
+    if (predef instanceof PredefFunctionEval) {
+        if (arglist_hascompilevalue(rawargs)) {
+            var evalfun = predef.evalfun;
+            return evalfun(owner.owner, owner.start, rawargs);
+        }
+    }
+
+    return new CallPredefExpr(owner.owner, owner.start, predef, rawargs);
+}
+
 class CallExpr : Expr
 {
     var funref;
@@ -4931,20 +4949,8 @@ class CallExpr : Expr
         if (funref.isidentifier()) {
             string callname = funref.getName();
             var predef = findpredef(callname, nargs);
-            if (predef != null) {
-                self.use_predef(callname);
-                var rawargs = nargs == 0 ? [] : args.getrawargs();
-
-                // Check for compile time evaluation.
-                if (predef instanceof PredefFunctionEval) {
-                    if (arglist_hascompilevalue(rawargs)) {
-                        var evalfun = predef.evalfun;
-                        return evalfun(self.owner, self.start, rawargs);
-                    }
-                }
-
-                return new CallPredefExpr(self.owner, self.start, predef, rawargs);
-            }
+            if (predef != null)
+                return genpredefcallexpr(self.owner, predef, args);
             string call = funref.checkIdentifier();
             if (call == '') {
                 string key[] = [ callname ];
