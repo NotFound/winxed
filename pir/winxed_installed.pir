@@ -95,14 +95,14 @@
 .annotate 'line', 33
     iter $P22, $P1
     set $P22, 0
-  __label_0: # for iteration
-    unless $P22 goto __label_1
+  __label_1: # for iteration
+    unless $P22 goto __label_2
     shift $P2, $P22
 .annotate 'line', 34
     $P3 = $P2[0]
     self.'push_string'($P3)
-    goto __label_0
-  __label_1: # endfor
+    goto __label_1
+  __label_2: # endfor
 .annotate 'line', 35
     self.'notOptStop'(1)
 .annotate 'line', 36
@@ -147,10 +147,10 @@
 # result: $S1
     null $S1
 .annotate 'line', 48
-    if_null $P1, __label_0
+    if_null $P1, __label_1
 .annotate 'line', 49
     set $S1, $P1
-  __label_0: # endif
+  __label_1: # endif
 .annotate 'line', 50
     .return($S1)
 # }
@@ -184,8 +184,8 @@
     getattribute $P2, self, 'options'
     iter $P3, $P2
     set $P3, 0
-  __label_0: # for iteration
-    unless $P3 goto __label_1
+  __label_1: # for iteration
+    unless $P3 goto __label_2
     shift $P1, $P3
 # {
 .annotate 'line', 60
@@ -195,18 +195,18 @@
     length $I3, $S2
     add $I2, $I3, 4
 .annotate 'line', 61
-    le $I2, $I1, __label_2
+    le $I2, $I1, __label_3
     set $I1, $I2
-  __label_2: # endif
+  __label_3: # endif
 # }
-    goto __label_0
-  __label_1: # endfor
+    goto __label_1
+  __label_2: # endfor
 .annotate 'line', 63
     getattribute $P2, self, 'options'
     iter $P5, $P2
     set $P5, 0
-  __label_3: # for iteration
-    unless $P5 goto __label_4
+  __label_4: # for iteration
+    unless $P5 goto __label_5
     shift $P1, $P5
 # {
 .annotate 'line', 64
@@ -216,21 +216,21 @@
 # predefined length
     length $I4, $S1
     isgt $I3, $I4, 1
-    unless $I3 goto __label_7
+    unless $I3 goto __label_8
 # predefined substr
     substr $S2, $S1, 1, 1
     isne $I3, $S2, '='
-  __label_7:
-    unless $I3 goto __label_5
+  __label_8:
+    unless $I3 goto __label_6
 .annotate 'line', 66
     concat $S0, '--', $S1
     set $S1, $S0
-    goto __label_6
-  __label_5: # else
+    goto __label_7
+  __label_6: # else
 .annotate 'line', 68
     concat $S0, '-', $S1
     set $S1, $S0
-  __label_6: # endif
+  __label_7: # endif
 .annotate 'line', 69
 # predefined length
     length $I3, $S1
@@ -245,8 +245,8 @@
     print '->  '
     say $P2
 # }
-    goto __label_3
-  __label_4: # endfor
+    goto __label_4
+  __label_5: # endfor
 # }
 .annotate 'line', 72
 
@@ -266,7 +266,7 @@
 .end
 .namespace [ ]
 
-.sub 'extname'
+.sub 'extname' :subid('WSubId_1')
         .param string __ARG_1
         .param string __ARG_2
 # Body
@@ -280,24 +280,24 @@
     length $I1, __ARG_1
 .annotate 'line', 82
     isgt $I2, $I1, 7
-    unless $I2 goto __label_2
+    unless $I2 goto __label_3
 # predefined substr
     substr $S2, __ARG_1, -7
     iseq $I2, $S2, '.winxed'
-  __label_2:
-    unless $I2 goto __label_0
+  __label_3:
+    unless $I2 goto __label_1
 .annotate 'line', 83
     sub $I3, $I1, 7
 # predefined substr
     substr $S3, __ARG_1, 0, $I3
     concat $S0, $S3, __ARG_2
     set $S1, $S0
-    goto __label_1
-  __label_0: # else
+    goto __label_2
+  __label_1: # else
 .annotate 'line', 85
     concat $S0, __ARG_1, __ARG_2
     set $S1, $S0
-  __label_1: # endif
+  __label_2: # endif
 .annotate 'line', 86
     .return($S1)
 # }
@@ -326,37 +326,37 @@
 # target: $S1
     $P15 = $P1.'getstring'('target')
     null $S1
-    if_null $P15, __label_0
+    if_null $P15, __label_1
     set $S1, $P15
-  __label_0:
+  __label_1:
 .annotate 'line', 96
 # eval: $S2
     $P15 = $P1.'getstring'('e')
     null $S2
-    if_null $P15, __label_1
+    if_null $P15, __label_2
     set $S2, $P15
-  __label_1:
+  __label_2:
 .annotate 'line', 97
 # objectname: $S3
     $P15 = $P1.'getstring'('o')
     null $S3
-    if_null $P15, __label_2
+    if_null $P15, __label_3
     set $S3, $P15
-  __label_2:
+  __label_3:
 .annotate 'line', 98
 # opt_L: $S4
     $P15 = $P1.'getstring'('L')
     null $S4
-    if_null $P15, __label_3
+    if_null $P15, __label_4
     set $S4, $P15
-  __label_3:
+  __label_4:
 .annotate 'line', 99
 # opt_I: $S5
     $P15 = $P1.'getstring'('I')
     null $S5
-    if_null $P15, __label_4
+    if_null $P15, __label_5
     set $S5, $P15
-  __label_4:
+  __label_5:
 .annotate 'line', 100
 # nowarn: $I3
     $P15 = $P1.'getbool'('nowarn')
@@ -366,7 +366,7 @@
     $P15 = $P1.'getbool'('noan')
     set $I4, $P15
 .annotate 'line', 103
-    unless $I1 goto __label_5
+    unless $I1 goto __label_6
 # {
 .annotate 'line', 104
     $P1.'showhelp'()
@@ -374,9 +374,9 @@
 .annotate 'line', 105
     exit 0
 # }
-  __label_5: # endif
+  __label_6: # endif
 .annotate 'line', 108
-    if_null $S4, __label_6
+    if_null $S4, __label_7
 # {
 .annotate 'line', 109
 # var interp: $P2
@@ -395,9 +395,9 @@
     set $S10, $S4
     $P4.'push'($S10)
 # }
-  __label_6: # endif
+  __label_7: # endif
 .annotate 'line', 115
-    if_null $S5, __label_7
+    if_null $S5, __label_8
 # {
 .annotate 'line', 116
 # var interp: $P5
@@ -416,81 +416,81 @@
     set $S10, $S5
     $P7.'push'($S10)
 # }
-  __label_7: # endif
+  __label_8: # endif
 .annotate 'line', 123
 # var compileoptions: $P8
     root_new $P8, ['parrot';'Hash']
     $P8["noan"] = $I4
     $P8["nowarn"] = $I3
 .annotate 'line', 124
-    unless $I2 goto __label_8
+    unless $I2 goto __label_9
 # {
 .annotate 'line', 125
-    if_null $S1, __label_10
+    if_null $S1, __label_11
 # predefined die
 .annotate 'line', 126
     die "options -c and --target can't be used together"
-  __label_10: # endif
+  __label_11: # endif
 .annotate 'line', 127
     $P8["target"] = "pir"
 # }
-    goto __label_9
-  __label_8: # else
+    goto __label_10
+  __label_9: # else
 # {
 .annotate 'line', 130
-    unless_null $S1, __label_11
+    unless_null $S1, __label_12
 .annotate 'line', 131
     set $S1, ''
-  __label_11: # endif
+  __label_12: # endif
 # switch
 .annotate 'line', 132
     set $S10, $S1
     set $S11, ''
-    if $S10 == $S11 goto __label_14
-    set $S11, 'run'
     if $S10 == $S11 goto __label_15
-    set $S11, 'pir'
+    set $S11, 'run'
     if $S10 == $S11 goto __label_16
-    set $S11, 'include'
+    set $S11, 'pir'
     if $S10 == $S11 goto __label_17
-    goto __label_13
-  __label_14: # case
+    set $S11, 'include'
+    if $S10 == $S11 goto __label_18
+    goto __label_14
   __label_15: # case
-    goto __label_12 # break
   __label_16: # case
+    goto __label_13 # break
   __label_17: # case
+  __label_18: # case
 .annotate 'line', 138
     set $I2, 1
 .annotate 'line', 139
     $P8["target"] = $S1
-    goto __label_12 # break
-  __label_13: # default
+    goto __label_13 # break
+  __label_14: # default
 .annotate 'line', 142
     concat $S12, "Invalid target '", $S1
     concat $S12, $S12, "'"
 # predefined die
     die $S12
-  __label_12: # switch end
+  __label_13: # switch end
 # }
-  __label_9: # endif
+  __label_10: # endif
 .annotate 'line', 146
     isnull $I8, $S3
     not $I8
-    unless $I8 goto __label_19
+    unless $I8 goto __label_20
     not $I8, $I2
-  __label_19:
-    unless $I8 goto __label_18
+  __label_20:
+    unless $I8 goto __label_19
 # predefined die
 .annotate 'line', 147
     die '-o without -c or --target is not supported yet'
-  __label_18: # endif
+  __label_19: # endif
 .annotate 'line', 149
 # var compiler: $P9
     null $P9
 .annotate 'line', 150
 # try: create handler
     new $P15, 'ExceptionHandler'
-    set_label $P15, __label_20
+    set_label $P15, __label_21
     push_eh $P15
 # try: begin
 .annotate 'line', 151
@@ -499,23 +499,23 @@
     compreg $P9, 'winxed'
 # try: end
     pop_eh
-    goto __label_21
+    goto __label_22
 .annotate 'line', 150
 # catch
-  __label_20:
+  __label_21:
     .get_results($P16)
     finalize $P16
     pop_eh
 # catch end
-  __label_21:
+  __label_22:
 .annotate 'line', 154
-    unless_null $P9, __label_22
+    unless_null $P9, __label_23
 # {
 # predefined die
 .annotate 'line', 162
     die "winxed: Cannot load language"
 # }
-  __label_22: # endif
+  __label_23: # endif
 .annotate 'line', 165
 # var code: $P10
     null $P10
@@ -523,12 +523,12 @@
 # outfilename: $S6
     null $S6
 .annotate 'line', 167
-    unless_null $S2, __label_23
+    unless_null $S2, __label_24
 # {
 .annotate 'line', 168
 # predefined elements
     elements $I8, __ARG_1
-    ge $I8, 1, __label_25
+    ge $I8, 1, __label_26
 # {
 # predefined say
 .annotate 'line', 169
@@ -539,25 +539,26 @@
 .annotate 'line', 171
     exit 1
 # }
-  __label_25: # endif
+  __label_26: # endif
 .annotate 'line', 173
 # srcfilename: $S7
     $S7 = __ARG_1[0]
 .annotate 'line', 174
     set $I8, $I2
-    unless $I8 goto __label_27
+    unless $I8 goto __label_28
     isnull $I8, $S3
-  __label_27:
-    unless $I8 goto __label_26
+  __label_28:
+    unless $I8 goto __label_27
 .annotate 'line', 175
-    $P15 = 'extname'($S7, '.pir')
+.const 'Sub' $P17 = 'WSubId_1'
+    $P15 = $P17($S7, '.pir')
     set $S6, $P15
-  __label_26: # endif
+  __label_27: # endif
 .annotate 'line', 176
     $P10 = $P9.'compile_from_file'($S7, $P8 :flat :named)
 # }
-    goto __label_24
-  __label_23: # else
+    goto __label_25
+  __label_24: # else
 # {
 .annotate 'line', 180
 # expr: $S8
@@ -567,50 +568,50 @@
     $P10 = $P9.'compile'($S8, $P8 :flat :named)
 .annotate 'line', 183
     not $I8, $I2
-    unless $I8 goto __label_28
+    unless $I8 goto __label_29
 .annotate 'line', 184
     __ARG_1.'unshift'('__EVAL__')
-  __label_28: # endif
+  __label_29: # endif
 # }
-  __label_24: # endif
+  __label_25: # endif
 .annotate 'line', 187
-    unless $I2 goto __label_29
+    unless $I2 goto __label_30
 # {
 .annotate 'line', 188
-    unless_null $S6, __label_30
+    unless_null $S6, __label_31
 .annotate 'line', 189
     set $S6, $S3
-  __label_30: # endif
+  __label_31: # endif
 .annotate 'line', 190
 # create: $I5
     isnull $I5, $S6
     not $I5
-    unless $I5 goto __label_31
+    unless $I5 goto __label_32
     isne $I5, $S6, "-"
-  __label_31:
+  __label_32:
 .annotate 'line', 191
 # var outfile: $P11
-    unless $I5 goto __label_33
+    unless $I5 goto __label_34
 # predefined open
     root_new $P11, ['parrot';'FileHandle']
     $P11.'open'($S6,'w')
-    goto __label_32
-  __label_33:
+    goto __label_33
+  __label_34:
 # predefined getstdout
     getstdout $P11
-  __label_32:
+  __label_33:
 .annotate 'line', 192
     $P11.'print'($P10)
 .annotate 'line', 193
-    unless $I5 goto __label_34
+    unless $I5 goto __label_35
 .annotate 'line', 194
     $P11.'close'()
-  __label_34: # endif
+  __label_35: # endif
 # predefined exit
 .annotate 'line', 195
     exit 0
 # }
-  __label_29: # endif
+  __label_30: # endif
 .annotate 'line', 199
 # var sub: $P12
     null $P12
@@ -618,33 +619,33 @@
 .annotate 'line', 200
 # i: $I6
     null $I6
-  __label_37: # for condition
+  __label_38: # for condition
 # {
 .annotate 'line', 201
     $P12 = $P10[$I6]
 .annotate 'line', 202
-    unless_null $P12, __label_38
-    goto __label_36 # break
-  __label_38: # endif
+    unless_null $P12, __label_39
+    goto __label_37 # break
+  __label_39: # endif
 .annotate 'line', 203
 # predefined string
     set $S10, $P12
-    ne $S10, 'main', __label_39
-    goto __label_36 # break
-  __label_39: # endif
+    ne $S10, 'main', __label_40
+    goto __label_37 # break
+  __label_40: # endif
 # }
-  __label_35: # for iteration
+  __label_36: # for iteration
 .annotate 'line', 200
     inc $I6
-    goto __label_37
-  __label_36: # for end
+    goto __label_38
+  __label_37: # for end
 .annotate 'line', 206
 # retval: $I7
     null $I7
 .annotate 'line', 207
 # try: create handler
     new $P15, 'ExceptionHandler'
-    set_label $P15, __label_40
+    set_label $P15, __label_41
     $P15.'handle_types_except'(64)
     push_eh $P15
 # try: begin
@@ -653,17 +654,17 @@
 # var retvalp: $P13
     $P13 = $P12(__ARG_1)
 .annotate 'line', 209
-    if_null $P13, __label_42
+    if_null $P13, __label_43
 .annotate 'line', 210
     set $I7, $P13
-  __label_42: # endif
+  __label_43: # endif
 # }
 # try: end
     pop_eh
-    goto __label_41
+    goto __label_42
 .annotate 'line', 207
 # catch
-  __label_40:
+  __label_41:
     .get_results($P14)
     finalize $P14
     pop_eh
@@ -674,21 +675,21 @@
 .annotate 'line', 214
     isnull $I8, $S9
     not $I8
-    unless $I8 goto __label_44
+    unless $I8 goto __label_45
     isne $I8, $S9, ''
-  __label_44:
-    unless $I8 goto __label_43
+  __label_45:
+    unless $I8 goto __label_44
 .annotate 'line', 215
 # predefined cry
     getstderr $P0
     print $P0, $S9
     print $P0, "\n"
-  __label_43: # endif
+  __label_44: # endif
 .annotate 'line', 216
     set $I7, 1
 # }
 # catch end
-  __label_41:
+  __label_42:
 .annotate 'line', 218
 # predefined exit
     exit $I7

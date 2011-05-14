@@ -8,7 +8,7 @@
 # end libs
 .namespace [ ]
 
-.sub 'loadData'
+.sub 'loadData' :subid('WSubId_1')
         .param string __ARG_1
 # Body
 # {
@@ -25,26 +25,26 @@
     $P2.'open'(__ARG_1)
 .annotate 'line', 30
     isnull $I1, $P2
-    if $I1 goto __label_1
+    if $I1 goto __label_2
     $I1 = $P2.'is_closed'()
-  __label_1:
-    unless $I1 goto __label_0
+  __label_2:
+    unless $I1 goto __label_1
 .annotate 'line', 31
     concat $S2, "Can't open ", __ARG_1
 # predefined Error
     root_new $P4, ['parrot';'Exception']
     $P4['message'] = $S2
     throw $P4
-  __label_0: # endif
+  __label_1: # endif
 .annotate 'line', 32
     $P2.'encoding'('utf8')
 .annotate 'line', 33
 # jsondata: $S1
     $P4 = $P2.'readall'()
     null $S1
-    if_null $P4, __label_2
+    if_null $P4, __label_3
     set $S1, $P4
-  __label_2:
+  __label_3:
 .annotate 'line', 34
     $P2.'close'()
 .annotate 'line', 35
@@ -75,9 +75,9 @@
 # progname: $S1
     $P5 = __ARG_1.'shift'()
     null $S1
-    if_null $P5, __label_0
+    if_null $P5, __label_1
     set $S1, $P5
-  __label_0:
+  __label_1:
 .annotate 'line', 49
 # var opts: $P2
     $P2 = $P1.'get_options'(__ARG_1)
@@ -93,15 +93,16 @@
 # filename: $S2
     set $S2, 'setup.json'
 .annotate 'line', 56
-    if_null $P3, __label_1
+    if_null $P3, __label_2
 .annotate 'line', 57
     set $S2, $P3
-  __label_1: # endif
+  __label_2: # endif
 .annotate 'line', 58
 # var data: $P4
-    $P4 = 'loadData'($S2)
+.const 'Sub' $P6 = 'WSubId_1'
+    $P4 = $P6($S2)
 .annotate 'line', 60
-    unless $I1 goto __label_2
+    unless $I1 goto __label_3
 # {
 .annotate 'line', 61
 # description: $S3
@@ -128,7 +129,7 @@
 .annotate 'line', 66
     say ''
 # }
-  __label_2: # endif
+  __label_3: # endif
 .annotate 'line', 69
     load_bytecode 'distutils.pbc'
 .annotate 'line', 70
