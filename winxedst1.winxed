@@ -1850,6 +1850,8 @@ function parseUsing(t, tk, owner)
         return new ExternStatement(t, tk, owner);
       case taux.iskeyword('static'):
         return new StaticStatement(t, tk, owner);
+      case taux.iskeyword('namespace'):
+        return new UsingNamespaceStatement(taux, tk, owner);
       default:
         tk.unget(taux);
         return new UsingStatement(t, tk, owner);
@@ -1987,6 +1989,14 @@ class Statement : CommonBase
     function checkclass(string name)
     {
         return self.owner.checkclass(name);
+    }
+    function findns(nskey)
+    {
+        return self.owner.findns(nskey);
+    }
+    function usenamespace(ns)
+    {
+        self.owner.usenamespace(ns);
     }
 
     function getouter()
@@ -2251,6 +2261,36 @@ class UsingStatement : Statement
 }
 
 //*********************************************
+//            UsingNamespaceStatement
+//*********************************************
+
+class UsingNamespaceStatement : Statement
+{
+    function UsingNamespaceStatement(start, tk, owner)
+    {
+        self.Statement(tk, owner);
+        var nskey = parseDotted(tk);
+        int nlems = elements(nskey);
+        if (nlems < 1)
+            Expected('namespace identifier', start);
+        var nssym = owner.findns(toIdentifierList(nskey));
+
+        if (nssym == null)
+            SyntaxError('unknow namespace', start);
+        owner.usenamespace(nssym);
+
+        ExpectOp(';', tk);
+    }
+    function optimize()
+    {
+        return self;
+    }
+    function emit(e)
+    {
+    }
+}
+
+//*********************************************
 //            ExprStatement
 //*********************************************
 
@@ -2331,6 +2371,7 @@ class ConstantInternalFail
 class VarContainer
 {
     var locals;
+
     function init [vtable] ()
     {
         self.locals = {};
@@ -8127,6 +8168,7 @@ class FunctionBase : BlockStatement
     var lexicals;
     var usedlexicals;
     var outer;
+    var usedns;
 
     function FunctionBase(start, owner)
     {
@@ -8170,6 +8212,27 @@ class FunctionBase : BlockStatement
             self.localfun = [ fn ];
         else
             push(localfun, fn);
+    }
+    function usenamespace(ns)
+    {
+        var usedns = self.usedns;
+        if (usedns == null)
+            self.usedns = [ ns ];
+        else
+            push(usedns, ns);
+    }
+    function findsymbol(key)
+    {
+        var usedns = self.usedns;
+        if (usedns != null) {
+            var found;
+            for (var ns in usedns) {
+                found = ns.findsymbol(key);
+                if (found != null)
+                    return found;
+            }
+        }
+        return self.owner.findsymbol(key);
     }
 
     function optimize()
@@ -9157,38 +9220,36 @@ class NamespaceBase : VarContainer
 
         return null;
     }
-    function findlocalns(string name)
+    function getlocalns(string name)
     {
         for (var ns in self.namespaces)
             if (ns.name == name)
                 return ns;
         return null;
     }
-    function findns(nskey)
+    function findlocalns(nskey, int offset)
     {
-        switch (elements(nskey)) {
+        int nelems = elements(nskey);
+        switch (nelems - offset) {
           case 0:
             return null;
           case 1:
-            string name = nskey[0];
+            string name = nskey[nelems - 1];
             for (var ns in self.namespaces) {
-                if (ns.name = name)
+                if (ns.name == name)
                     return ns;
             }
             break;
           default:
-            var childkey = clone(nskey);
-            string nsname = childkey.shift();
+            string nsname = nskey[offset];
             for (var usedns in self.namespaces) {
                 if (usedns.name == nsname) {
-                    var found = usedns.findns(childkey);
+                    var found = usedns.findlocalns(nskey, offset + 1);
                     if (found != null)
                         return found;
                 }
             }
         }
-        if (self.owner != null)
-            return self.owner.findns(nskey);
         return null;
     }
     function declarenamespace(var start, string name)
@@ -9199,7 +9260,7 @@ class NamespaceBase : VarContainer
     }
     function childnamespace(var start, string name, var modifier)
     {
-        var existns = self.findlocalns(name);
+        var existns = self.getlocalns(name);
         var child = new NamespaceStatement(self, start, existns, name, modifier);
         push(self.namespaces, child);
         push(self.items, child);
@@ -9369,8 +9430,7 @@ class NamespaceStatement : NamespaceBase
         var cl = self.checkclass_base(name);
         if (cl == null)
             return self.parent.checkclass(name);
-        else
-            return cl;
+        return cl;
     }
     function findclasskey(classkey)
     {
@@ -9378,15 +9438,22 @@ class NamespaceStatement : NamespaceBase
         // If not found, look in the parent namespace.
         var cl = self.findclasskey_base(classkey);
         if (cl == null)
-            cl = self.parent.findclasskey(classkey);
+            return self.parent.findclasskey(classkey);
         return cl;
     }
     function findsymbol(classkey, int offset[optional])
     {
         var sym = self.findlocalsymbol(classkey, offset);
         if (sym == null && offset <= 0)
-            sym = self.parent.findsymbol(classkey, offset);
+            return self.parent.findsymbol(classkey, offset);
         return sym;
+    }
+    function findns(nskey, int offset[optional])
+    {
+        var ns = self.findlocalns(nskey, offset);
+        if (ns == null && offset <= 0)
+            return self.parent.findns(nskey, offset);
+        return ns;
     }
     function unclosed_ns()
     {
@@ -9480,6 +9547,10 @@ class RootNamespace : NamespaceBase
     function findsymbol(classkey, int offset[optional])
     {
         return self.findlocalsymbol(classkey, offset);
+    }
+    function findns(nskey, int offset[optional])
+    {
+        return self.findlocalns(nskey, offset);
     }
     function unclosed_ns()
     {
