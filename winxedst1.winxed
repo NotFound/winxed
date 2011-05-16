@@ -5035,15 +5035,11 @@ class CallMemberExpr : CallExpr
         self.Expr(callst.owner, callst.start);
         self.funref = funref;
         self.args = args;
-    }
-    function emitcall(e)
-    {
-        var funref = self.funref;
-        var first = funref.left;
 
         // Check if the first element of the member expression
         // is an identfier. In that case, if it's not in scope
         // look for a function in accessible namespaces.
+        var first = funref.left;
         while (first instanceof MemberExpr)
             first = first.left;
         if (first instanceof IdentifierExpr) {
@@ -5052,14 +5048,19 @@ class CallMemberExpr : CallExpr
                 var key = [ ];
                 funref.buildkey(key);
                 var sym = self.findsymbol(key);
-                if (sym != null) {
-                    string reg = self.owner.createreg(REGvar);
-                    string id = sym.makesubid();
-                    e.say(".const 'Sub' " + reg + " = '" + id + "'");
-                    return reg;
-                }
+                if (sym != null)
+                    self.subid = sym.makesubid();
             }
         }
+    }
+    function emitcall(e)
+    {
+        if (self.subid != null) {
+            string reg = self.owner.createreg(REGvar);
+            e.say(".const 'Sub' " + reg + " = '" + string(self.subid) + "'");
+            return reg;
+        }
+        var funref = self.funref;
         return join("", [ funref.emit_left_get(e),
                 ".'", funref.get_member(), "'" ] );
     }
@@ -8870,7 +8871,7 @@ function parseClass(start, tk, parent)
 }
 
 //*********************************************
-//            NamespaceBase
+//        Namespace classes and functions
 //*********************************************
 
 function include_parrot(var start, var tk, var ns)
@@ -8946,8 +8947,30 @@ function include_parrot(var start, var tk, var ns)
 function parsensUsing(start, tk, ns)
 {
     var t = tk.get();
-    if (! t.iskeyword('extern'))
-        SyntaxError('Unsupported at namespace level', t);
+    if (t.iskeyword('namespace')) {
+        var nskey = parseDotted(tk);
+        int nelems = elements(nskey);
+        if (nelems < 1)
+            SyntaxError('Unsupported', t);
+        ExpectOp(';', tk);
+        var nssym = ns.findns(nskey);
+        if (nssym == null)
+            SyntaxError('unknown namespace', t);
+        push(ns.usednamespaces, nssym);
+        return;
+    }
+    if (! t.iskeyword('extern')) {
+        tk.unget(t);
+        var key = parseDotted(tk);
+        int nelems = elements(key);
+        if (nelems < 1)
+            SyntaxError('Unsupported at namespace level', t);
+        ExpectOp(';', tk);
+        var sym = ns.findsymbol(key);
+        if (sym != null && (sym instanceof FunctionStatement))
+            push(ns.functions, sym);
+        return;
+    }
     t = tk.get();
     switch {
       case t.isstring():
@@ -9012,23 +9035,35 @@ class External
 }
 
 //*********************************************
+//            NamespaceBase
+//*********************************************
 
 class NamespaceBase : VarContainer
 {
     var nspath;
     var externals;
     var namespaces;
+    var usednamespaces;
     var classes;
     var functions;
     var items;
     var owner;
 
-    function NamespaceBase(nspath)
+    function NamespaceBase(nspath, previous)
     {
         self.nspath = nspath;
-        self.namespaces = [];
-        self.classes = [];
-        self.functions = [];
+        if (previous == null) {
+            self.namespaces = [];
+            self.usednamespaces = [];
+            self.classes = [];
+            self.functions = [];
+        }
+        else {
+            self.namespaces = previous.namespaces;
+            self.usednamespaces = previous.usednamespaces;
+            self.classes = previous.classes;
+            self.functions = previous.functions;
+        }
         self.items = [];
     }
     function getpath()
@@ -9081,15 +9116,16 @@ class NamespaceBase : VarContainer
         }
         return null;
     }
-    function findsymbol(classkey)
+    function findlocalsymbol(classkey, int offset)
     {
         // Look for a symbol by its key in this namespace
         // and its childs.
-        switch (elements(classkey)) {
+        int nelems = elements(classkey);
+        switch (nelems - offset) {
           case 0:
             return null;
           case 1:
-            string name = classkey[0];
+            string name = classkey[nelems - 1];
             // The key contains the name, look by name
             var sym = self.checkclass_base(name);
             if (sym != null)
@@ -9103,30 +9139,68 @@ class NamespaceBase : VarContainer
             // as the first key item, and look into it with the
             // remaining.
             var namespaces = self.namespaces;
-            var childkey = clone(classkey);
-            string basename = childkey.shift();
+            string basename = classkey[offset];
             for (var ns in namespaces) {
                 if (ns.name == basename) {
-                    var found = ns.findsymbol(childkey);
+                    var found = ns.findlocalsymbol(classkey, offset + 1);
                     if (found != null)
                         return found;
                 }
             }
         }
-        // Not found here, search the parent
+
+        for (var used in self.usednamespaces) {
+            var found = used.findlocalsymbol(classkey, offset);
+            if (found != null)
+                return found;
+        }
+
+        return null;
+    }
+    function findlocalns(string name)
+    {
+        for (var ns in self.namespaces)
+            if (ns.name == name)
+                return ns;
+        return null;
+    }
+    function findns(nskey)
+    {
+        switch (elements(nskey)) {
+          case 0:
+            return null;
+          case 1:
+            string name = nskey[0];
+            for (var ns in self.namespaces) {
+                if (ns.name = name)
+                    return ns;
+            }
+            break;
+          default:
+            var childkey = clone(nskey);
+            string nsname = childkey.shift();
+            for (var usedns in self.namespaces) {
+                if (usedns.name == nsname) {
+                    var found = usedns.findns(childkey);
+                    if (found != null)
+                        return found;
+                }
+            }
+        }
         if (self.owner != null)
-            return self.owner.findsymbol(classkey);
+            return self.owner.findns(nskey);
         return null;
     }
     function declarenamespace(var start, string name)
     {
-        var child = new NamespaceStatement(self, start, name, null);
+        var child = new NamespaceStatement(self, start, null, name, null);
         push(self.namespaces, child);
         return child;
     }
     function childnamespace(var start, string name, var modifier)
     {
-        var child = new NamespaceStatement(self, start, name, modifier);
+        var existns = self.findlocalns(name);
+        var child = new NamespaceStatement(self, start, existns, name, modifier);
         push(self.namespaces, child);
         push(self.items, child);
         return child;
@@ -9253,12 +9327,12 @@ class NamespaceStatement : NamespaceBase
     var modifier;
     var hll;
 
-    function NamespaceStatement(var parent, var start,
+    function NamespaceStatement(var parent, var start, var previous,
             string name, var modifier)
     {
         var nspath = clone(parent.getpath());
         push(nspath, name);
-        self.NamespaceBase(nspath);
+        self.NamespaceBase(nspath, previous);
 
         self.parent = parent;
         self.start = start;
@@ -9307,6 +9381,13 @@ class NamespaceStatement : NamespaceBase
             cl = self.parent.findclasskey(classkey);
         return cl;
     }
+    function findsymbol(classkey, int offset[optional])
+    {
+        var sym = self.findlocalsymbol(classkey, offset);
+        if (sym == null && offset <= 0)
+            sym = self.parent.findsymbol(classkey, offset);
+        return sym;
+    }
     function unclosed_ns()
     {
        SyntaxError('unclosed namespace', self.start);
@@ -9351,7 +9432,7 @@ class RootNamespace : NamespaceBase
     function RootNamespace(unit)
     {
         string nspath[];
-        self.NamespaceBase(nspath);
+        self.NamespaceBase(nspath, null);
         self.unit = unit;
         self.predefs_used = {};
         self.subidgen = 0;
@@ -9395,6 +9476,10 @@ class RootNamespace : NamespaceBase
     {
         // Look for a class by its key in the root namespace.
         return self.findclasskey_base(classkey);
+    }
+    function findsymbol(classkey, int offset[optional])
+    {
+        return self.findlocalsymbol(classkey, offset);
     }
     function unclosed_ns()
     {
