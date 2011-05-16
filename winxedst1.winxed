@@ -5921,6 +5921,7 @@ class OpConditionalExpr : Expr
         string cond_false = self.owner.genlabel();
         self.condition.emit_else(e, cond_false);
         var etrue = self.etrue;
+        string tres = self.checkresult();
         if (etrue.isnull())
             e.emitnull(result);
         else
@@ -5930,8 +5931,15 @@ class OpConditionalExpr : Expr
         var efalse = self.efalse;
         if (efalse.isnull())
             e.emitnull(result);
-        else
-            efalse.emit(e, result);
+        else {
+            string tfalse = efalse.checkresult();
+            if (tres == REGvar && tfalse != REGvar) {
+                string r = efalse.emit_get(e);
+                e.emitbox(result, r);
+            }
+            else
+                efalse.emit(e, result);
+        }
         e.emitlabel(cond_end);
     }
 }
