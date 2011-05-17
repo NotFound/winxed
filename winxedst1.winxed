@@ -8914,7 +8914,6 @@ class DeclareClassStatement : ClassBase
     function DeclareClassStatement(start, name, parent)
     {
         self.ClassBase(start, name, parent);
-        self.name = name;
     }
     function optimize()
     {
