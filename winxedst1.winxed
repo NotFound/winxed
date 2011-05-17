@@ -9161,26 +9161,26 @@ class NamespaceBase : VarContainer
                 return cl;
         return null;
     }
-    function findclasskey_base(classkey)
+    function findclasskey_base(classkey, int offset)
     {
         // Look for a class by its key in this namespace
         // and its childs.
-        switch (elements(classkey)) {
+        int nelems = elements(classkey);
+        switch (nelems - offset) {
           case 0:
             return null;
           case 1:
             // The key contains the name, look by name
-            return self.checkclass_base(classkey[0]);
+            return self.checkclass_base(classkey[nelems - 1]);
           default:
             // The key is multi: look for a child namespace named
             // as the first key item, and look into it with the
             // remaining.
             var namespaces = self.namespaces;
-            var childkey = clone(classkey);
-            string basename = childkey.shift();
+            string basename = classkey[offset];
             for (var ns in namespaces) {
                 if (ns.name == basename) {
-                    var found = ns.findclasskey(childkey);
+                    var found = ns.findclasskey(classkey, offset + 1);
                     if (found != null)
                         return found;
                 }
@@ -9441,13 +9441,13 @@ class NamespaceStatement : NamespaceBase
             return self.parent.checkclass(name);
         return cl;
     }
-    function findclasskey(classkey)
+    function findclasskey(classkey, int offset[optional])
     {
         // Look for a class bi its key in this namespace and its childs.
         // If not found, look in the parent namespace.
-        var cl = self.findclasskey_base(classkey);
-        if (cl == null)
-            return self.parent.findclasskey(classkey);
+        var cl = self.findclasskey_base(classkey, offset);
+        if (cl == null && offset == 0)
+            return self.parent.findclasskey(classkey, offset);
         return cl;
     }
     function findsymbol(classkey, int offset[optional])
@@ -9548,10 +9548,10 @@ class RootNamespace : NamespaceBase
     {
         return self.checkclass_base(name);
     }
-    function findclasskey(classkey)
+    function findclasskey(classkey, int offset[optional])
     {
         // Look for a class by its key in the root namespace.
-        return self.findclasskey_base(classkey);
+        return self.findclasskey_base(classkey, offset);
     }
     function findsymbol(classkey, int offset[optional])
     {
