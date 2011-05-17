@@ -1975,10 +1975,9 @@ class Statement : CommonBase
     {
         return self.owner.createlabel(name);
     }
-    function createconst(name, string type, var value, string id,
-            int flags [optional])
+    function createconst(name, string type, int flags [optional])
     {
-        return self.owner.createconst(name, type, value, id, flags);
+        return self.owner.createconst(name, type, flags);
     }
     function createvar(name, string type, int flags[optional])
     {
@@ -2326,21 +2325,14 @@ class VarData
     var reg;
     var scope;
     var flags;
-    var value;
-    var id;
     var lexname;
 
-    function VarData(type, reg, scope, int flags, value [optional])
+    function VarData(type, reg, scope, int flags)
     {
         self.type = type;
         self.reg = reg;
         self.scope = scope;
         self.flags = flags;
-        self.value = value;
-    }
-    function setid(string id)
-    {
-        self.id = id;
     }
     function setlex(string name)
     {
@@ -2350,8 +2342,7 @@ class VarData
     function getreg() { return self.reg; }
     function getscope() { return self.scope; }
     function getvalue() { return self.value; }
-    function isconst() { return self.value != null; }
-    function getid() { return self.id; }
+    function isconst() { return false; }
     function getlex() { return self.lexname; }
     function getflags() { return self.flags; }
 }
@@ -2365,7 +2356,24 @@ class ConstantInternalFail
     }
     function get_string[vtable]()
     {
-        InternalError('Attempt to use unexpanded constant!!!');
+        InternalError('Attempt to use unexpanded constant!!!', self.name);
+    }
+}
+
+class VarData_const : VarData
+{
+    var value;
+
+    function VarData_const(type, name, scope, flags)
+    {
+        self.VarData(type, new ConstantInternalFail(name), scope, flags);
+    }
+    function isconst() { return true; }
+    function setvalue(value)
+    {
+        if (self.value != null)
+            InternalError('Attempt change value of constant!!!');
+        self.value = value;
     }
 }
 
@@ -2399,19 +2407,16 @@ class VarContainer
             SyntaxError("Redeclared '" + sname + "'", name);
         locals[sname] = new VarData(type, pirname, self, 0);
     }
-    function createconst(var name, string type, var value, string id,
-            int flags[optional])
+    function createconst(var name, string type, int flags[optional])
     {
         var locals = self.locals;
         string sname = name;
         var exist = locals[sname];
         if (exist != null)
             SyntaxError("Redeclared '" + sname + "'", name);
-        var data = new VarData(type, new ConstantInternalFail(name),
-                self, flags, value);
-        if (id != null && id != '')
-            data.setid(id);
+        var data = new VarData_const(type, name, self, flags);
         locals[sname] = data;
+        return data;
     }
     function getvar(var name)
     {
@@ -2844,12 +2849,8 @@ class IdentifierExpr : SimpleExpr
                 s = '';
             }
         }
-        else {
-            if (desc.getid() != null)
-                return desc.getid();
-            else
-                s = desc.getreg();
-        }
+        else
+            s = desc.getreg();
         return s;
     }
     function getIdentifier()
@@ -2866,7 +2867,7 @@ class IdentifierExpr : SimpleExpr
         var name = self.name;
         var desc = self.owner.getvar(name);
         if (desc != null) {
-            if (desc.isconst() && desc.getid() == null)
+            if (desc.isconst())
                 return desc.getvalue();
             int flags = desc.getflags();
             if (flags & VAR_is_volatile) {
@@ -5625,14 +5626,10 @@ class NewExpr : NewBaseExpr
             // and obtain the string value.
             var desc = self.owner.getvar(value.getidentifier());
             if (desc != null && desc.isconst()) {
-                if (desc.getid() == null) {
-                    value = desc.getvalue();
-                    if (! (value instanceof StringLiteral))
-                        SyntaxError('Constant value must evaluate to a string', value);
-                    self.value = value.strval;
-                }
-                else
-                    SyntaxError('*Constant value must evaluate to a string', value);
+                value = desc.getvalue();
+                if (! (value instanceof StringLiteral))
+                    SyntaxError('Constant value must evaluate to a string', value);
+                self.value = value.strval;
             }
         }
         self.optimize_initializer();
@@ -7736,6 +7733,7 @@ class ConstStatement : Statement
 {
     var type;
     var name;
+    var data;
     var value;
 
     function ConstStatement(var start, var owner,
@@ -7745,6 +7743,7 @@ class ConstStatement : Statement
         self.type = type;
         self.name = name;
         self.value = value;
+        self.data = self.createconst(name, type);
     }
     function optimize()
     {
@@ -7756,8 +7755,7 @@ class ConstStatement : Statement
             SyntaxError('Value for const is not evaluable at compile time',
                 self.start);
         }
-        self.createconst(name, type, value, '');
-        self.value = value;
+        self.data.setvalue(value);
         return self;
     }
     function checkresult()
@@ -8450,10 +8448,10 @@ class FunctionStatement : FunctionBase
 
         var fullname = clone(self.owner.getpath());
         push(fullname, name.getidentifier());
-        self.createconst('__FUNCTION__', REGstring,
-                new StringLiteral(self,
-                    new TokenQuoted(name.file, name.line, join('.', fullname))),
-                    '');
+        var cfunction = self.createconst('__FUNCTION__', REGstring);
+        cfunction.setvalue(new StringLiteral(self,
+                new TokenQuoted(name.file, name.line,
+                    join('.', fullname))));
 
         t = tk.get();
         if (!t.isop('{'))
@@ -9004,10 +9002,9 @@ function include_parrot(var start, var tk, var ns)
                 ivalue = substr(value, 2).to_int(16);
             else
                 ivalue = value;
-            ns.createconst(name, REGint,
-                integerValue(ns,
-                    new TokenInteger(start.file, start.line, name), ivalue),
-                    '', VAR_is_extern);
+            var cst = ns.createconst(name, REGint, VAR_is_extern);
+            cst.setvalue(integerValue(ns,
+                    new TokenInteger(start.file, start.line, name), ivalue));
         }
     }
 
@@ -9652,21 +9649,18 @@ class WinxedCompileUnit
         // Store predefined constants in the root namespace.
         var taux = new TokenIdentifier('__predefconst__', 0, 'predefconst');
 
-        rootns.createconst('false', REGint,
-                integerValue(rootns,
-                    new TokenInteger(taux.file, taux.line, 'false'), 0),
-                    '', VAR_is_extern);
-        rootns.createconst('true', REGint,
-                integerValue(rootns,
-                    new TokenInteger(taux.file, taux.line, 'false'), 1),
-                    '', VAR_is_extern);
+        var cfalse = rootns.createconst('false', REGint, VAR_is_extern);
+        cfalse.setvalue(integerValue(rootns,
+                new TokenInteger(taux.file, taux.line, 'false'), 0));
+        var ctrue = rootns.createconst('true', REGint, VAR_is_extern);
+        ctrue.setvalue(integerValue(rootns,
+                new TokenInteger(taux.file, taux.line, 'false'), 1));
         // Tricky way of setting __STAGE__: stage 1 is built with
         // stage 0 and stage 2 is built with stage 1. Increment
         // the current stage and we are done.
-        rootns.createconst('__STAGE__', REGstring,
-                new StringLiteral(rootns,
-                    new TokenQuoted(taux.file, taux.line, string(int(__STAGE__) + 1))),
-                    '', VAR_is_extern);
+        var cstage = rootns.createconst('__STAGE__', REGstring, VAR_is_extern);
+        cstage.setvalue(new StringLiteral(rootns,
+                new TokenQuoted(taux.file, taux.line, string(int(__STAGE__) + 1))));
 
         self.rootns = rootns;
     }
