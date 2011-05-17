@@ -534,7 +534,9 @@ class Tokenizer
     var line;
     function Tokenizer(handle, string filename)
     {
-        using static getop;
+        using static getop, getident,
+            getquoted, getsinglequoted, getheredoc,
+            getcomment, getlinecomment;
 
         self.h = handle;
         self.pending = '';
