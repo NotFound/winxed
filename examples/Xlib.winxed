@@ -181,6 +181,27 @@ function getlib()
         yield l;
 }
 
+function str_to_cstring(string s)
+{
+    var to_cstring = dlfunc(null, 'Parrot_str_to_cstring',   'ppS');
+    return to_cstring(getinterp(), s);
+}
+
+function str_free_cstring(s)
+{
+    var free_cstring = dlfunc(null, 'Parrot_str_free_cstring', 'vp');
+    free_cstring(s);
+}
+
+function string_from_nci(p)
+{
+    var interp = getinterp();
+
+
+    var strnew = dlfunc(null, 'Parrot_str_new', 'SppI');
+    string s = strnew(interp, p, 0);
+    return s;
+}
 
 /***********************************************************************
                         Display
@@ -191,8 +212,10 @@ class Display
     var xdisplay;
     function Display(string displayname)
     {
-        var fn = dlfunc(getlib(), 'XOpenDisplay', 'pt');
-        self.xdisplay = fn(displayname);
+        var fn = dlfunc(getlib(), 'XOpenDisplay', 'pp');
+        var d = str_to_cstring(displayname);
+        self.xdisplay = fn(d);
+        str_free_cstring(d);
     }
     function Close()
     {
@@ -236,8 +259,10 @@ class Display
     }
     function InternAtom(string name, int only_if_exists[optional])
     {
-        var fn = dlfunc(getlib(), 'XInternAtom', 'ipti');
-        int atom = fn(self.xdisplay, name, only_if_exists);
+        var fn = dlfunc(getlib(), 'XInternAtom', 'ippi');
+        var pname = str_to_cstring(name);
+        int atom = fn(self.xdisplay, pname, only_if_exists);
+        str_free_cstring(pname);
         return atom;
     }
     function GetAtomName(int atom)
@@ -279,8 +304,8 @@ class Display
 
 function DisplayName()
 {
-    var fn = dlfunc(getlib(), 'XDisplayName', 'tt');
-    return fn('');
+    var fn = dlfunc(getlib(), 'XDisplayName', 'pp');
+    return string_from_nci(fn(null));
 }
 
 function KeysymToString(int keysym)
@@ -292,8 +317,10 @@ function KeysymToString(int keysym)
 
 function StringToKeysym(string keystring)
 {
-    var fn = dlfunc(getlib(), 'XStringToKeysym', 'it');
-    int k = fn(keystring);
+    var fn = dlfunc(getlib(), 'XStringToKeysym', 'ip');
+    var pkey = str_to_cstring(keystring);
+    int k = fn(pkey);
+    str_free_cstring(pkey);
     return k;
 }
 
@@ -381,8 +408,10 @@ class Window : Drawable
     }
     function StoreName(string name)
     {
-        var fn = dlfunc(getlib(), 'XStoreName', 'ippt');
-        fn(self.display.xdisplay, self.xdrawable, name);
+        var fn = dlfunc(getlib(), 'XStoreName', 'ippp');
+        var pname = str_to_cstring(name);
+        fn(self.display.xdisplay, self.xdrawable, pname);
+        str_free_cstring(pname);
     }
     function Map()
     {
