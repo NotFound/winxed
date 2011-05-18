@@ -1693,6 +1693,10 @@ class CommonBase
     {
         return self.owner.addlocalfunction(fn);
     }
+    function findns(nskey)
+    {
+        return self.owner.findns(nskey);
+    }
     function findsymbol(classkey)
     {
         return self.owner.findsymbol(classkey);
@@ -1983,6 +1987,10 @@ class Statement : CommonBase
     {
         return self.owner.createvar(name, type, flags);
     }
+    function createvarused(name, data)
+    {
+        return self.owner.createvarused(name, data);
+    }
     function getvar(name)
     {
         return self.owner.getvar(name);
@@ -1990,10 +1998,6 @@ class Statement : CommonBase
     function checkclass(string name)
     {
         return self.owner.checkclass(name);
-    }
-    function findns(nskey)
-    {
-        return self.owner.findns(nskey);
     }
     function usenamespace(ns)
     {
@@ -2224,17 +2228,29 @@ class UsingStatement : Statement
     {
         var path = self.path;
         string name = path[-1];
-        var vdata = self.createvar(name, REGvar);
 
         var symbol = self.findsymbol(path);
         switch {
           case symbol == null:
+            if (elements(path) > 0) {
+                var p = clone(path);
+                p.pop();
+                var ns = self.findns(p);
+                if (ns != null) {
+                    symbol = ns.getvar(name);
+                    if (symbol != null) {
+                        self.createvarused(name, symbol);
+                        return new EmptyStatement;
+                    }
+                }
+            }
             break;
           case symbol instanceof FunctionStatement:
             string subid = symbol.makesubid();
             self.subid = subid;
             break;
         }
+        self.createvar(name, REGvar);
         return self;
     }
     function emit(e)
