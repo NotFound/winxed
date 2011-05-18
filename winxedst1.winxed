@@ -2381,6 +2381,7 @@ class VarData_const : VarData
 class VarContainer
 {
     var locals;
+    var usednamespaces;
 
     function init [vtable] ()
     {
@@ -2397,6 +2398,15 @@ class VarContainer
         var data = new VarData(type, reg, self, flags);
         locals[sname] = data;
         return data;
+    }
+    function createvarused(name, data)
+    {
+        var locals = self.locals;
+        string sname = name;
+        var exist = locals[sname];
+        if (exist != null)
+            SyntaxError("Redeclared '" + sname + "'", name);
+        locals[sname] = data;
     }
     function createvarnamed(var name, string type, string pirname)
     {
@@ -2418,23 +2428,34 @@ class VarContainer
         locals[sname] = data;
         return data;
     }
-    function getvar(var name)
-    {
-        var locals = self.locals;
-        string sname = name;
-        var exist = locals[sname];
-        if (exist == null && self.owner != null)
-            exist = self.owner.getvar(name);
-        if (exist != null && ! (exist instanceof VarData))
-            InternalError('Incorrect data for Variable', name);
-        return exist;
-    }
     function getlocalvar(var name)
     {
         var locals = self.locals;
-        string sname = name;
-        var exist = locals[sname];
-        return exist;
+        return locals[string(name)];
+    }
+    function getusedvar(var name)
+    {
+        var usedns = self.usednamespaces;
+        if (usedns != null) {
+            var sym;
+            for (var ns in usedns) {
+                if ((sym = ns.getlocalvar(name)) != null)
+                    return sym;
+            }
+        }
+        return null;
+    }
+    function getvar(var name)
+    {
+        var sym;
+        if ((sym = self.getlocalvar(name)) != null)
+            return sym;
+        if ((sym = self.getusedvar(name)) != null)
+            return sym;
+        var owner = self.owner;
+        if (owner != null)
+            return owner.getvar(name);
+        return null;
     }
     function makelexical(vardesc)
     {
@@ -8176,7 +8197,6 @@ class FunctionBase : BlockStatement
     var lexicals;
     var usedlexicals;
     var outer;
-    var usedns;
 
     function FunctionBase(start, owner)
     {
@@ -8223,15 +8243,21 @@ class FunctionBase : BlockStatement
     }
     function usenamespace(ns)
     {
-        var usedns = self.usedns;
-        if (usedns == null)
-            self.usedns = [ ns ];
-        else
+        var usedns = self.usednamespaces;
+        if (usedns == null) {
+            //cry('use namespace ', ns.name);
+            self.usednamespaces = [ ns ];
+        }
+        else {
+            for (var used in usedns)
+                if (ns === used)
+                    return;
             push(usedns, ns);
+        }
     }
     function findsymbol(key)
     {
-        var usedns = self.usedns;
+        var usedns = self.usednamespaces;
         if (usedns != null) {
             var found;
             for (var ns in usedns) {
@@ -8245,6 +8271,11 @@ class FunctionBase : BlockStatement
 
     function optimize()
     {
+        var usedns = self.usednamespaces;
+        if (usedns != null) {
+            for (var used in usedns)
+                used.fixnamespaces();
+        }
         self.body = self.body.optimize();
         return self;
     }
@@ -8499,6 +8530,8 @@ class LocalFunctionStatement : FunctionBase
     function getvar(string name)
     {
         var r = self.getlocalvar(name);
+        if (r == null)
+            r = self.getusedvar(name);
         if (r == null) {
             // Not found in function scope, look for external scopes
             // and type valid for a lexical.
@@ -9025,7 +9058,7 @@ function parsensUsing(start, tk, ns)
         var nssym = ns.findns(nskey);
         if (nssym == null)
             SyntaxError('unknown namespace', t);
-        push(ns.usednamespaces, nssym);
+        ns.usenamespace(nssym);
         return;
     }
     if (! t.iskeyword('extern')) {
@@ -9035,9 +9068,7 @@ function parsensUsing(start, tk, ns)
         if (nelems < 1)
             SyntaxError('Unsupported at namespace level', t);
         ExpectOp(';', tk);
-        var sym = ns.findsymbol(key);
-        if (sym != null && (sym instanceof FunctionStatement))
-            push(ns.functions, sym);
+        ns.use(key);
         return;
     }
     t = tk.get();
@@ -9112,7 +9143,6 @@ class NamespaceBase : VarContainer
     var nspath;
     var externals;
     var namespaces;
-    var usednamespaces;
     var classes;
     var functions;
     var items;
@@ -9128,6 +9158,7 @@ class NamespaceBase : VarContainer
             self.functions = [];
         }
         else {
+            self.locals = previous.locals;
             self.namespaces = previous.namespaces;
             self.usednamespaces = previous.usednamespaces;
             self.classes = previous.classes;
@@ -9135,9 +9166,59 @@ class NamespaceBase : VarContainer
         }
         self.items = [];
     }
+    function fixnamespaces()
+    {
+        var ns;
+        for (ns in self.namespaces)
+            ns.fixnamespaces();
+        for (ns in self.usednamespaces)
+            for (var used in ns.usednamespaces)
+                self.usenamespace(used);
+    }
     function getpath()
     {
         return self.nspath;
+    }
+    function usenamespace(nsused)
+    {
+        if (nsused === self)
+            return;
+        var usednamespaces = self.usednamespaces;
+        for (var used in usednamespaces)
+            if (used === nsused)
+                return;
+        push(usednamespaces, nsused);
+    }
+    function use(key)
+    {
+        var sym = self.findsymbol(key);
+        if (sym != null) {
+            if (sym instanceof FunctionStatement)
+                push(self.functions, sym);
+        }
+        else {
+            string name = key.pop();
+            var ns = self.findns(key);
+            if (ns != null) {
+                sym = ns.getvar(name);
+                if (sym != null)
+                    self.createvarused(name, sym);
+            }
+        }
+    }
+    function getusedns(string name)
+    {
+        for (var ns in self.usednamespaces)
+            if (ns.name == name)
+                return ns;
+        return null;
+    }
+    function getlocalns(string name)
+    {
+        for (var ns in self.namespaces)
+            if (ns.name == name)
+                return ns;
+        return self.getusedns(name);
     }
 
     function addextern(module, names)
@@ -9173,16 +9254,24 @@ class NamespaceBase : VarContainer
             // The key is multi: look for a child namespace named
             // as the first key item, and look into it with the
             // remaining.
-            var namespaces = self.namespaces;
             string basename = classkey[offset];
-            for (var ns in namespaces) {
-                if (ns.name == basename) {
-                    var found = ns.findclasskey(classkey, offset + 1);
-                    if (found != null)
-                        return found;
-                }
+            var ns = self.getlocalns(basename);
+            if (ns != null) {
+                var found = ns.findclasskey(classkey, offset + 1);
+                if (found != null)
+                    return found;
             }
         }
+        return null;
+    }
+    function findsymbolbyname(string name)
+    {
+        var sym = self.checkclass_base(name);
+        if (sym != null)
+            return sym;
+        for (sym in self.functions)
+            if (sym.name == name)
+                return sym;
         return null;
     }
     function findlocalsymbol(classkey, int offset)
@@ -9190,47 +9279,35 @@ class NamespaceBase : VarContainer
         // Look for a symbol by its key in this namespace
         // and its childs.
         int nelems = elements(classkey);
+        string name;
+        var sym;
+        var ns;
         switch (nelems - offset) {
           case 0:
             return null;
           case 1:
-            string name = classkey[nelems - 1];
+            name = classkey[nelems - 1];
             // The key contains the name, look by name
-            var sym = self.checkclass_base(name);
-            if (sym != null)
+            if ((sym = self.findsymbolbyname(name)) != null)
                 return sym;
-            for (var s in self.functions)
-                if (s.name == name)
-                    return s;
+            for (ns in self.usednamespaces)
+                if ((sym = ns.findsymbolbyname(name)) != null)
+                    return sym;
             break;
           default:
             // The key is multi: look for a child namespace named
             // as the first key item, and look into it with the
             // remaining.
-            var namespaces = self.namespaces;
-            string basename = classkey[offset];
-            for (var ns in namespaces) {
-                if (ns.name == basename) {
-                    var found = ns.findlocalsymbol(classkey, offset + 1);
-                    if (found != null)
-                        return found;
-                }
-            }
+            name = classkey[offset];
+            ns = self.getlocalns(name);
+            if (ns != null &&
+                    (sym = ns.findlocalsymbol(classkey, offset + 1)) != null)
+                return sym;
+            ns = self.getusedns(name);
+            if (ns != null &&
+                    (sym = ns.findlocalsymbol(classkey, offset + 1)) != null)
+                return sym;
         }
-
-        for (var used in self.usednamespaces) {
-            var found = used.findlocalsymbol(classkey, offset);
-            if (found != null)
-                return found;
-        }
-
-        return null;
-    }
-    function getlocalns(string name)
-    {
-        for (var ns in self.namespaces)
-            if (ns.name == name)
-                return ns;
         return null;
     }
     function findlocalns(nskey, int offset)
@@ -9239,21 +9316,14 @@ class NamespaceBase : VarContainer
         switch (nelems - offset) {
           case 0:
             return null;
-          case 1:
-            string name = nskey[nelems - 1];
-            for (var ns in self.namespaces) {
-                if (ns.name == name)
-                    return ns;
-            }
-            break;
           default:
-            string nsname = nskey[offset];
-            for (var usedns in self.namespaces) {
-                if (usedns.name == nsname) {
-                    var found = usedns.findlocalns(nskey, offset + 1);
-                    if (found != null)
-                        return found;
-                }
+            string name = nskey[offset];
+            var ns = self.getlocalns(name);
+            if (ns != null) {
+                if (nelems - offset == 1)
+                    return ns;
+                else
+                    return ns.findlocalns(nskey, offset + 1);
             }
         }
         return null;
@@ -9675,6 +9745,7 @@ class WinxedCompileUnit
     function parse(tk)
     {
         self.rootns.parse(tk);
+        self.rootns.fixnamespaces();
     }
     function optimize()
     {
