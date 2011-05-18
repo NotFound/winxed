@@ -13,6 +13,7 @@ const int TYPE= 99;
 $load 'Getopt/Obj.pbc';
 $include_const 'datatypes.pasm';
 
+
 namespace WinxedMysql
 {
 
@@ -39,6 +40,38 @@ function getlib()
         throw Error('Cannot load Mysql lib', ERROR, TYPE);
     for (;;)
         yield l;
+}
+
+function str_to_cstring(string s)
+{
+    var to_cstring = dlfunc(null, 'Parrot_str_to_cstring',   'ppS');
+    return to_cstring(getinterp(), s);
+}
+
+function str_free_cstring(s)
+{
+    var free_cstring = dlfunc(null, 'Parrot_str_free_cstring', 'vp');
+    free_cstring(s);
+}
+
+function string_from_nci(p)
+{
+    var interp = getinterp();
+
+
+    var strnew = dlfunc(null, 'Parrot_str_new', 'SppI');
+    string s = strnew(interp, p, 0);
+/*
+    ****Untested****
+    var strnew = dlfunc(null, 'Parrot_str_from_platform_cstring', 'Spp');
+    string s = strnew(interp, p);
+
+    var find_encoding = dlfunc(null, 'Parrot_find_encoding', 'ppp');
+    var encoding = find_encoding(interp, str_to_cstring('utf8'));
+    var strnew = dlfunc(null, 'Parrot_str_new_init', 'SppIpI');
+    string s = strnew(interp, p, 0, encoding, 0);
+*/
+    return s;
 }
 
 class Row
@@ -116,9 +149,9 @@ class Connection
     function init [vtable]()
     {
         using WinxedMysql.getlib;
-        var minit = dlfunc(getlib(), 'mysql_init', 'pt');
+        var minit = dlfunc(getlib(), 'mysql_init', 'pp');
         string nothing;
-        var my = minit(nothing);
+        var my = minit(null);
         self.mysql = my;
     }
     function close()
@@ -132,21 +165,29 @@ class Connection
     function get_client_info()
     {
         using WinxedMysql.getlib;
-        var f = dlfunc(getlib(), 'mysql_get_client_info', 't');
-        return string(f());
+        var f = dlfunc(getlib(), 'mysql_get_client_info', 'p');
+        return string_from_nci(f());
     }
     function error()
     {
         using WinxedMysql.getlib;
-        var f = dlfunc(getlib(), 'mysql_error', 'tp');
-        return string(f(self.mysql));
+        var f = dlfunc(getlib(), 'mysql_error', 'pp');
+        return string_from_nci(f(self.mysql));
     }
     function connect(string host, string user, string pass, string database)
     {
         using WinxedMysql.getlib;
-        var f = dlfunc(getlib(), 'mysql_real_connect', 'ppttttitl');
+        var f = dlfunc(getlib(), 'mysql_real_connect', 'ppppppipi');
         string snull;
-        var p = f(self.mysql, host, user, pass, database, 0, snull, 0);
+        var phost = str_to_cstring(host);
+        var puser = str_to_cstring(user);
+        var ppass = str_to_cstring(pass);
+        var pdatabase = str_to_cstring(database);
+        var p = f(self.mysql, phost, puser, ppass, pdatabase, 0, null, 0);
+        str_free_cstring(phost);
+        str_free_cstring(puser);
+        str_free_cstring(ppass);
+        str_free_cstring(pdatabase);
         if (p == null)
             throw Error(self.error(), ERROR, TYPE);
         var none = new 'UnManagedStruct';
@@ -157,8 +198,10 @@ class Connection
     function query(string stmt)
     {
         using WinxedMysql.getlib;
-        var f = dlfunc(getlib(), 'mysql_query', 'ipt');
-        int q = f(self.mysql, stmt);
+        var f = dlfunc(getlib(), 'mysql_query', 'ipp');
+        var pstmt = str_to_cstring(stmt);
+        int q = f(self.mysql, pstmt);
+        str_free_cstring(pstmt);
         if (q != 0)
             throw Error(self.error(), ERROR, TYPE);
     }
@@ -248,8 +291,8 @@ function main(argv)
     try [min_severity(ERROR),max_severity(ERROR),handle_types(TYPE)] {
         mysql.connect(host, user, pass, database);
         string q = argv[0] ?
-	    string(argv[0]) :
-	    'select * from hello;';
+            string(argv[0]) :
+            'select * from hello;';
         say("Query: '", q, "'");
         mysql.query(q);
         result = mysql.use_result();
