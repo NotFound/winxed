@@ -2,40 +2,39 @@
 
 // Test Mysql usage via NCI
 
-// Severity and type of the exceptions explicitly thrown.
-const int ERROR = 2;
-const int TYPE= 99;
-
 // Note:
 // null results from dlfuncs are checked in a convoluted way
 // to be able to work with buggy versions of parrot.
 
-$load 'Getopt/Obj.pbc';
-$include_const 'datatypes.pasm';
-
-
 namespace WinxedMysql
 {
 
-function getlib__private()
+$include_const 'datatypes.pasm';
+
+// Severity and type of the exceptions explicitly thrown.
+const int ERROR = 2;
+const int TYPE= 99;
+
+namespace __private
 {
-    string libs[] = [
-        'libmysqlclient',
-        'libmysqlclient.so.16',
-        'libmysqlclient.so.15'
-    ];
-    var l;
-    for (string lib in libs) {
-        l = loadlib(lib);
+
+function findlib()
+{
+    for (string lib in [
+                'libmysqlclient',
+                'libmysqlclient.so.16',
+                'libmysqlclient.so.15'
+            ] ) {
+        var l = loadlib(lib);
         if (l)
-            break;
+            return l;
     }
-    return l;
+    return null;
 }
 
 function getlib()
 {
-    var l = getlib__private();
+    var l = findlib();
     if (! l)
         throw Error('Cannot load Mysql lib', ERROR, TYPE);
     for (;;)
@@ -54,38 +53,123 @@ function str_free_cstring(s)
     free_cstring(s);
 }
 
-function string_from_nci(p)
+function get_parrot_func(string name, string sig)
+{
+    var found;
+    try {
+        var strnew = dlfunc(null, name, sig);
+        if (strnew != null) {
+            int isdef;
+            ${ defined isdef, strnew };
+            if (isdef) {
+                isdef = strnew;
+                if (isdef)
+                    found = strnew;
+            }
+        }
+    }
+    catch () {}
+    return found;
+}
+
+function raw_encode(string s, string encoding)
+{
+    int got_encoding_num;
+    string got_encoding;
+    ${ encoding got_encoding_num, s };
+    ${ encodingname got_encoding, got_encoding_num };
+    if (got_encoding != encoding) {
+        switch {
+          case got_encoding == 'ascii' && encoding == 'iso-8859-1':
+          case got_encoding == 'ascii' && encoding == 'utf8':
+            // Compatible encodings, do nothing
+            break;
+          default:
+            // trans_encoding is not useful here, must encode
+            // from the raw bytes.
+            var b = new ['ByteBuffer'];
+            b =: s;
+            s = b.get_string(encoding);
+        }
+    }
+    return s;
+}
+
+function get_encoding_func()
+{
+    var found = get_parrot_func('Parrot_str_new_init', 'SppIpI');
+
+    if (found != null) {
+        return function(p, string encoding[optional])
+        {
+            var interp = getinterp();
+            var find_encoding = dlfunc(null, 'Parrot_find_encoding', 'ppp');
+            var pencoding = str_to_cstring(encoding);
+            var parrot_encoding = find_encoding(interp, pencoding);
+            str_free_cstring(pencoding);
+            return found(interp, p, 0, parrot_encoding, 0);
+        };
+    }
+
+    found = get_parrot_func('Parrot_str_from_platform_cstring', 'Spp');
+    if (found != null) {
+        return function(p, string encoding[optional])
+        {
+            var interp = getinterp();
+            return found(interp, p);
+        };
+    }
+
+    found = get_parrot_func('Parrot_str_new', 'SppI');
+    if (found != null) {
+        return function(p, string encoding[optional])
+        {
+            var interp = getinterp();
+            return found(interp, p, 0);
+        };
+    }
+    return null;
+}
+
+function string_from_nci(p, string encoding[optional])
 {
     var interp = getinterp();
 
+    var f = get_encoding_func();
+    if (! f)
+        throw "Cannot get string from NCI";
 
-    var strnew = dlfunc(null, 'Parrot_str_new', 'SppI');
-    string s = strnew(interp, p, 0);
-/*
-    ****Untested****
-    var strnew = dlfunc(null, 'Parrot_str_from_platform_cstring', 'Spp');
-    string s = strnew(interp, p);
+    string s;
+    if (f != null)
+        s = f(p, encoding);
 
-    var find_encoding = dlfunc(null, 'Parrot_find_encoding', 'ppp');
-    var encoding = find_encoding(interp, str_to_cstring('utf8'));
-    var strnew = dlfunc(null, 'Parrot_str_new_init', 'SppIpI');
-    string s = strnew(interp, p, 0, encoding, 0);
-*/
+    if (s != null && encoding != null)
+        s = raw_encode(s, encoding);
     return s;
 }
+
+} // namespace __private;
+
+using namespace __private;
 
 class Row
 {
     var mrow;
     var nfields;
-    function Row(var myrow, int n)
+    var encoding;
+    function Row(var myrow, int n, string encoding[optional])
     {
         self.mrow = myrow;
         self.nfields = n;
+        if (encoding != null)
+            self.encoding = encoding;
     }
     function get(int i)
     {
-        return string(self.mrow[i]);
+        string s = self.mrow[i];
+        if (s != null && self.encoding != null)
+            s = raw_encode(s, self.encoding);
+        return s;
     }
 }
 
@@ -101,7 +185,7 @@ class Result
         self.mysql = my;
         self.myresult = r;
         var f = dlfunc(getlib(), 'mysql_field_count', 'ip');
-        int count = f(my);
+        int count = f(my.mysql);
         self.nfields = count;
         int desc [3 * count];
         // Store the fields description for use in fetchs.
@@ -129,7 +213,10 @@ class Result
             return null;
 
         frow =: self.desc;
-        return new WinxedMysql.Row(frow, self.nfields);
+        string encoding;
+        if (self.mysql.encoding != null)
+            encoding = self.mysql.encoding;
+        return new WinxedMysql.Row(frow, self.nfields, encoding);
     }
     function close()
     {
@@ -146,7 +233,9 @@ class Result
 class Connection
 {
     var mysql;
-    function init [vtable]()
+    var encoding;
+
+    function Connection()
     {
         using WinxedMysql.getlib;
         var minit = dlfunc(getlib(), 'mysql_init', 'pp');
@@ -166,7 +255,7 @@ class Connection
     {
         using WinxedMysql.getlib;
         var f = dlfunc(getlib(), 'mysql_get_client_info', 'p');
-        return string_from_nci(f());
+        return string_from_nci(f(), 'utf8');
     }
     function error()
     {
@@ -174,7 +263,8 @@ class Connection
         var f = dlfunc(getlib(), 'mysql_error', 'pp');
         return string_from_nci(f(self.mysql));
     }
-    function connect(string host, string user, string pass, string database)
+    function connect(string host, string user, string pass, string database,
+            string encoding)
     {
         using WinxedMysql.getlib;
         var f = dlfunc(getlib(), 'mysql_real_connect', 'ppppppipi');
@@ -193,6 +283,14 @@ class Connection
         var none = new 'UnManagedStruct';
         if (p == none)
             throw Error(self.error(), ERROR, TYPE);
+
+        var setcharset = dlfunc(getlib(), 'mysql_set_character_set', 'ipp');
+        if (encoding != null) {
+            int i = setcharset(self.mysql, str_to_cstring(encoding));
+            if (i != 0)
+                cry('Failed to set character set.');
+           self.encoding = encoding;
+        }
         return p;
     }
     function query(string stmt)
@@ -215,20 +313,25 @@ class Connection
         var none = new 'UnManagedStruct';
         if (r == none)
             throw Error(self.error(), ERROR, TYPE);
-        return new WinxedMysql.Result(self.mysql, r);
+        return new WinxedMysql.Result(self, r);
     }
 }
 
 } // namespace WinxedMysql
 
+$load 'Getopt/Obj.pbc';
+
 function main(argv)
 {
+    using namespace WinxedMysql;
+
     var getopts = new ['Getopt', 'Obj'];
     getopts.notOptStop(1);
     getopts.push_string('host|h=s');
     getopts.push_string('user|u=s');
     getopts.push_string('password|p:s');
     getopts.push_string('database|D=s');
+    getopts.push_string('encoding|D=s');
     getopts.push_string('config|D=s');
     argv.shift();
     var opts = getopts.get_options(argv);
@@ -237,6 +340,7 @@ function main(argv)
     string user;
     string pass;
     string database;
+    string encoding;
 
     string config = opts['config'];
     if (config != null && config != '') {
@@ -253,6 +357,8 @@ function main(argv)
                 pass = data['password'];
             if (data['database'] != null)
                 database = data['database'];
+            if (data['encoding'] != null)
+                encoding = data['encoding'];
         }
         catch (e) {
             cry('Error reading config file: ', e['message']);
@@ -268,14 +374,14 @@ function main(argv)
         pass= opts['password'];
     if (opts['database'] != null)
         database = opts['database'];
+    if (opts['encoding'] != null)
+        encoding = opts['encoding'];
 
     if (host == null || host == '')
         host = 'localhost';
     if (user == null || user == '')
         user = 'parrot';
 
-    // Need a var here, keyed string access returns empty
-    // string instead of null in current parrot versions.
     if (pass == null)
         pass = 'baDworD';
     else if (pass == '')
@@ -284,15 +390,17 @@ function main(argv)
     if (database == null || database == '')
         database = 'parrot';
 
-    var mysql = new WinxedMysql.Connection;
+    var mysql = new WinxedMysql.Connection();
     say('Mysql version: ', mysql.get_client_info());
     var result;
 
     try [min_severity(ERROR),max_severity(ERROR),handle_types(TYPE)] {
-        mysql.connect(host, user, pass, database);
-        string q = argv[0] ?
-            string(argv[0]) :
-            'select * from hello;';
+        mysql.connect(host, user, pass, database, encoding);
+        string q = 'select * from hello;';
+        if (elements(argv) > 0) {
+            q = string(argv.shift());
+        }
+        for(;;) {
         say("Query: '", q, "'");
         mysql.query(q);
         result = mysql.use_result();
@@ -306,7 +414,7 @@ function main(argv)
             for (int i = 0; i < fields; ++i) {
                 if (i > 0)
                     print(", ");
-                var s = row.get(i);
+                string s = row.get(i);
                 if (s == null)
                     print('(null)');
                 else
@@ -316,6 +424,10 @@ function main(argv)
         }
         result.close();
         say('Total rows: ', nrows);
+        if (elements(argv) == 0)
+            break;
+        q = string(argv.shift());
+        }
     }
     catch (e) {
         say("\tERROR: ", e['message']);
