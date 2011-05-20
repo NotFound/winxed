@@ -1,11 +1,38 @@
 #! winxed
 
-function read_data(string file)
+function read_data(string filename)
 {
-    var json= load_language('data_json');
-    var code= json.compile((new 'FileHandle').open(file).readall());
-    var data= code();
+    var json = load_language('data_json');
+    var file = open(filename);
+    file.encoding('utf8');
+    var code = json.compile(file.readall());
+    var data = code();
     return data;
+}
+
+function dump(object, int indent[optional])
+{
+    switch {
+      case object instanceof ['ResizablePMCArray']:
+        say('  ' * indent, 'Array[');
+        int n = elements(object);
+        for (int i = 0; i < n; ++i) {
+            say('  ' * indent, i);
+            dump(object[i], indent + 1);
+        }
+        say('  ' * indent, ']');
+        break;
+      case object instanceof ['Hash']:
+        say('  ' * indent, 'Object{');
+        for (string key in object) {
+            say('  ' * indent, key, ' :');
+            dump(object[key], indent + 1);
+        }
+        say('  ' * indent, '}');
+        break;
+      default:
+        say('  ' * indent, object);
+    }
 }
 
 function main(argv)
@@ -19,6 +46,7 @@ function main(argv)
        say('Error reading data: ', e['message']);
        return;
     }
-    // This example expects an array of integers:
-    for (int i in data) say(i);
+    dump(data);
 }
+
+// End
