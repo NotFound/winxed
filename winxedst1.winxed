@@ -9250,8 +9250,12 @@ class NamespaceBase : VarContainer
     function checkclass_base(string name)
     {
         var classes = self.classes;
-        for (var cl in classes)
+        var cl;
+        for (cl in classes)
             if (cl.name == name)
+                return cl;
+        for (var ns in self.usednamespaces)
+            if ((cl = ns.checkclass_base(name)) != null)
                 return cl;
         return null;
     }
