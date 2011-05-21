@@ -138,6 +138,11 @@ function ExpectKeyword(string name, var tk)
     RequireKeyword(name, t);
 }
 
+function UndefinedVariable(name)
+{
+    SyntaxError("Variable '" + string(name) + "' is not defined", name);
+}
+
 //*********************************************
 //                Token
 //*********************************************
@@ -2893,10 +2898,8 @@ class IdentifierExpr : SimpleExpr
     function getIdentifier()
     {
         var value = self.checkIdentifier();
-        if (value == '') {
-            string name = self.name;
-            SyntaxError("Variable '" + name + "' is not defined", self.name);
-        }
+        if (value == '')
+            UndefinedVariable(self.name);
         return value;
     }
     function optimize()
@@ -7243,7 +7246,11 @@ class ForeachStatement : LoopStatement, BlockStatement
         }
         else
             regcont = self.container.emit_get(e);
+
         var itvar = self.getvar(self.varname);
+        if (itvar == null)
+            UndefinedVariable(self.varname);
+
         string iterator = self.createreg(REGvar);
         string continuelabel = self.gencontinuelabel();
         string breaklabel = self.genbreaklabel();
