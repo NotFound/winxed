@@ -8152,7 +8152,7 @@ class FunctionParameter
         self.name = string(t);
         t = tk.get();
         if (t.isop('['))
-            self.modifiers = new ParameterModifierList(tk, self);
+            self.modifiers = new ParameterModifierList(tk, func.owner);
         else
             tk.unget(t);
     }
@@ -8494,7 +8494,7 @@ class FunctionStatement : FunctionBase
         self.name = name;
         var t = tk.get();
         if (t.isop('[')) {
-            self.modifiers = new FunctionModifierList(tk, self);
+            self.modifiers = new FunctionModifierList(tk, self.owner);
             t = tk.get();
         }
         RequireOp('(', t);
