@@ -310,9 +310,8 @@ function DisplayName()
 
 function KeysymToString(int keysym)
 {
-    var fn = dlfunc(getlib(), 'XKeysymToString', 'ti');
-    string r = fn(keysym);
-    return r;
+    var fn = dlfunc(getlib(), 'XKeysymToString', 'pi');
+    return string_from_nci(fn(keysym));
 }
 
 function StringToKeysym(string keystring)
