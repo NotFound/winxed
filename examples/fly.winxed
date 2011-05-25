@@ -467,8 +467,8 @@ class Fly
             t -= 0.058;
         }
 
-        ${ sweep 1 };
         glutSwapBuffers();
+        ${ sweep 1 };
     }
 
     function timer(int ignored)
