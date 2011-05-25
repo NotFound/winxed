@@ -453,8 +453,7 @@ class Fly
         for (var thing in self.things)
             thing.draw();
 
-        float now;
-        ${ time now };
+        float now = self.prev;
         float t = now / 7.2;
         int i;
         float fuzz[] = [ 0.0, 0.4, 0.5, 0.3, 0.4, 0.0, 0.3, 0.5, 0.4, 0.3, 0.2 ];
@@ -468,8 +467,8 @@ class Fly
             t -= 0.058;
         }
 
-        glutSwapBuffers();
         ${ sweep 1 };
+        glutSwapBuffers();
     }
 
     function timer(int ignored)
