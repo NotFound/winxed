@@ -1790,7 +1790,8 @@ class Modifier
     }
     function optimize()
     {
-        self.args.optimizeargs();
+        if (self.args != null)
+            self.args.optimizeargs();
         return self;
     }
 }
