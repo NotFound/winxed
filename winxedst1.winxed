@@ -2844,6 +2844,7 @@ class FloatLiteral : Literal
 class IdentifierExpr : SimpleExpr
 {
     var name;
+    var subid;
     function isidentifier() { return true; }
     function IdentifierExpr(owner, t)
     {
@@ -2916,10 +2917,23 @@ class IdentifierExpr : SimpleExpr
                     return new LexicalVolatileExpr(self, desc);
             }
         }
+        else {
+            var sym = self.findsymbol([self.name]);
+            if (sym != null) {
+                string id = sym.makesubid();
+                self.subid = id;
+            }
+        }
         return self;
     }
     function emit_getid(e)
     {
+        if (self.subid != null) {
+            string id = self.subid;
+            string reg = self.owner.createreg(REGvar);
+            e.say(".const 'Sub' " + reg + " = '" + id + "'");
+            return reg;
+        }
         string id = self.getIdentifier();
         var desc = self.owner.getvar(self.name);
         int flags = desc == null ? 0 : desc.getflags();
