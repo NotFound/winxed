@@ -9795,6 +9795,7 @@ class WinxedCompileUnit
     }
     function emit(var e)
     {
+        e.comment('THIS IS A GENERATED FILE! DO NOT EDIT!');
         e.comment('Begin generated code');
         e.say('');
 
