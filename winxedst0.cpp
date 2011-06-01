@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 9-may-2011
+// Revision 2-jun-2011
 
 // Winxed compiler stage 0.
 
@@ -4145,14 +4145,25 @@ void ArrayExpr::emit(Emit &e, const std::string &result)
         {
             e << INDENT << el << " = box ";
             elem->emit(e, std::string());
-            e << "\n"
-                INDENT "push " << reg << " , " << el << '\n';
+            e << "\n";
         }
         else
         {
-            elem->emit(e, el);
-            e << INDENT "push " << reg << " , " << el << '\n';
+            char type = elem->checkresult();
+            switch (type)
+            {
+            case REGint: case REGfloat: case REGstring:
+                {
+                    std::string aux = gentemp(type);
+                    elem->emit(e, aux);
+                    e << op_box(el, aux) << '\n';
+                }
+                break;
+            default:
+                elem->emit(e, el);
+            }
         }
+        e << INDENT "push " << reg << " , " << el << '\n';
     }
 
     if (!result.empty())
