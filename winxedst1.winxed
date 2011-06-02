@@ -8455,8 +8455,12 @@ class FunctionBase : BlockStatement
             }
             // lexicals from outers used inside
             if (usedlexicals != null) {
-                for (string l in usedlexicals)
-                    e.emitfind_lex(l, usedlexicals[l]);
+                for (string l in usedlexicals) {
+                    if (substr(l, 0, 1) != '$') {
+                        e.say(INDENT + ".local pmc " + l);
+                        e.emitfind_lex(l, usedlexicals[l]);
+                    }
+                }
             }
         }
 
@@ -8593,6 +8597,9 @@ class LocalFunctionStatement : FunctionBase
                 }
             }
             else if (r.gettype() == 'P' && !r.isconst()) {
+                string reg = r.getreg();
+                //TEMPORARY WORKAROUND
+                if (substr(reg, 0, 6) != 'WSubId') {
                 var scope = r.getscope();
                 var ownerscope = scope.getouter();
                 var outer = self.outer;
@@ -8602,9 +8609,9 @@ class LocalFunctionStatement : FunctionBase
                         int flags = r.getflags() | VAR_is_lexical;
                         r = self.createvar(name, REGvar, flags);
                         r.lexname = lexname;
-                        string reg = r.getreg();
                         self.setusedlex(lexname, reg);
                     }
+                }
                 }
             }
         }
