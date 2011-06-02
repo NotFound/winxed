@@ -1657,7 +1657,10 @@ function parseList(tk, owner, fn, string oper_end[optional])
 // Helper to parse identifier lists using parseList
 function parseIdentifier(tk, unused)
 {
-    return tk.get().getidentifier();
+    var t = tk.get();
+    if (!t.isidentifier())
+        ExpectedIdentifier(t);
+    return t;
 }
 
 function toIdentifierList(var tlist)
@@ -1997,6 +2000,10 @@ class Statement : CommonBase
     {
         return self.owner.createvarused(name, data);
     }
+    function createvarnamed(name, string type, string pirname)
+    {
+        return self.owner.createvarnamed(name, type, pirname);
+    }
     function getvar(name)
     {
         return self.owner.getvar(name);
@@ -2199,14 +2206,22 @@ class StaticStatement : Statement
     {
         self.Statement(start, owner);
         using parseIdentifier;
-        self.names = parseList(tk, null, parseIdentifier, ';');
+        var names = parseList(tk, null, parseIdentifier, ';');
+        for (var name in names) {
+            string id = self.generatesubid();
+            self.createvarnamed(name, REGvar, id);
+        }
+        self.names = names;
     }
-    function optimize() { return self; }
+    function optimize()
+    {
+        return self;
+    }
     function emit(e)
     {
         self.annotate(e);
-        for (string name in self.names) {
-            var v = self.createvar(name, REGvar);
+        for (var name in self.names) {
+            var v = self.getvar(name);
             e.say(".const 'Sub' ", v.getreg(), " = '", name, "'");
         }
     }
@@ -2228,12 +2243,12 @@ class UsingStatement : Statement
         if (elements(path) == 0)
             ExpectedIdentifier(tk.get());
         ExpectOp(';', tk);
-        self.path = toIdentifierList(path);
+        self.path = path;
     }
     function optimize()
     {
         var path = self.path;
-        string name = path[-1];
+        var name = path[-1];
 
         var symbol = self.findsymbol(path);
         switch {
@@ -2253,8 +2268,9 @@ class UsingStatement : Statement
             break;
           case symbol instanceof FunctionStatement:
             string subid = symbol.makesubid();
+            self.createvarnamed(name, REGvar, subid);
             self.subid = subid;
-            break;
+            return self;
         }
         self.createvar(name, REGvar);
         return self;
@@ -2266,7 +2282,7 @@ class UsingStatement : Statement
         var vdata = self.getvar(name);
         if (self.subid != null) {
             string subid = self.subid;
-            e.say(".const 'Sub' ", vdata.getreg(), ' = "', subid, '"');
+            e.say(".const 'Sub' ", subid, ' = "', subid, '"');
         }
         else {
             self.annotate(e);
@@ -2918,30 +2934,33 @@ class IdentifierExpr : SimpleExpr
             }
         }
         else {
-            var sym = self.findsymbol([self.name]);
+            var sym = self.findsymbol([name]);
             if (sym != null) {
                 string id = sym.makesubid();
                 self.subid = id;
+                //cry('CREATE: ', name);
+                self.owner.createvarnamed(name, REGvar, id);
             }
         }
         return self;
     }
     function emit_getid(e)
     {
+        string id;
         if (self.subid != null) {
-            string id = self.subid;
-            string reg = self.owner.createreg(REGvar);
-            e.say(".const 'Sub' " + reg + " = '" + id + "'");
-            return reg;
+            id = self.subid;
+            e.say(".const 'Sub' " + id + " = '" + id + "'");
         }
-        string id = self.getIdentifier();
-        var desc = self.owner.getvar(self.name);
-        int flags = desc == null ? 0 : desc.getflags();
-        if (flags & VAR_is_volatile) {
-            if (flags & VAR_is_lexical) {
-                string lexname = desc.getlex();
-                if (lexname != null && lexname != '')
-                    e.emitfind_lex(id, lexname);
+        else {
+            id = self.getIdentifier();
+            var desc = self.owner.getvar(self.name);
+            int flags = desc == null ? 0 : desc.getflags();
+            if (flags & VAR_is_volatile) {
+                if (flags & VAR_is_lexical) {
+                    string lexname = desc.getlex();
+                    if (lexname != null && lexname != '')
+                        e.emitfind_lex(id, lexname);
+                }
             }
         }
         return id;
@@ -5017,7 +5036,6 @@ class CallExpr : Expr
 {
     var funref;
     var args;
-    var subid;
 
     function CallExpr(tk, owner, start, subexp)
     {
@@ -5051,15 +5069,6 @@ class CallExpr : Expr
             var predef = findpredef(callname, nargs);
             if (predef != null)
                 return genpredefcallexpr(self.owner, predef, args);
-            string call = funref.checkIdentifier();
-            if (call == '') {
-                string key[] = [ callname ];
-                var sym = self.findsymbol(key);
-                if (sym != null) {
-                    string id = sym.makesubid();
-                    self.subid = id;
-                }
-            }
         }
 
         self.funref = funref;
@@ -5072,14 +5081,10 @@ class CallExpr : Expr
     }
     function emitcall(e)
     {
-        if (self.subid) {
-            string reg = self.owner.createreg(REGvar);
-            e.say(".const 'Sub' " + reg + " = '" + string(self.subid) + "'");
-            return reg;
-        }
         var funref = self.funref;
         string call;
-        if (funref.isidentifier()) {
+
+        if (funref.isidentifier() && funref.subid == null) {
             call = funref.checkIdentifier();
             if (call == '')
                 call = join("", [ "'", funref.getName(), "'" ] );
@@ -5129,6 +5134,7 @@ class CallExpr : Expr
 // Method call by name.
 class CallMemberExpr : CallExpr
 {
+    var subid;
     function CallMemberExpr(callst, funref, args)
     {
         self.Expr(callst.owner, callst.start);
