@@ -1,6 +1,6 @@
 #! winxed
-# harness for winxed tests
-# TAP parsing adapted from nqp in plumage harness
+// harness for winxed tests
+// TAP parsing adapted from nqp in plumage harness
 
 $load 'Getopt/Obj.pbc';
 
@@ -12,7 +12,13 @@ function debugmsg(string s)
 
 function run_test(string filename, int stage)
 {
-    string s= 'parrot winxedrun.pbc --stage=' + stage + ' ' + filename;
+    // If stage is not specified, assume a winxed driver is in PATH
+    // and use it.
+    // If specified, assume we are in the build tree and use the
+    // non installed driver to select stage.
+    string s= stage == -1 ?
+        'winxed ' + filename :
+        'parrot winxedrun.pbc --stage=' + stage + ' ' + filename;
     debugmsg(s);
 
     var fh= open(s, 'rp');
@@ -179,7 +185,7 @@ function main(var argv)
     int verbose = optverbose == null ? 0 : int(optverbose);
     int recursive = optrecursive == null ? 0 : int(optrecursive);
     var opt_stage = opts['stage'];
-    int stage = 0;
+    int stage = -1;
     if (opt_stage != null)
         stage = opt_stage;
 
@@ -192,3 +198,5 @@ function main(var argv)
 
     run_test_list(args, verbose, stage);
 }
+
+// End
