@@ -8456,10 +8456,9 @@ class FunctionBase : BlockStatement
             // lexicals from outers used inside
             if (usedlexicals != null) {
                 for (string l in usedlexicals) {
-                    if (substr(l, 0, 1) != '$') {
+                    if (substr(l, 0, 1) != '$')
                         e.say(INDENT + ".local pmc " + l);
-                        e.emitfind_lex(l, usedlexicals[l]);
-                    }
+                    e.emitfind_lex(l, usedlexicals[l]);
                 }
             }
         }
@@ -8575,14 +8574,37 @@ class LocalFunctionStatement : FunctionBase
         // Forward to the outer to avoid duplicate names.
         return self.outer.getlexnum();
     }
-    function getvar(string name)
+    function checkvarlexical(name, data)
+    {
+        if (data.gettype() != 'P' || data.isconst())
+            return data;
+        string reg = data.getreg();
+        //TEMPORARY WORKAROUND
+        if (substr(reg, 0, 6) == 'WSubId')
+            return data;
+        var scope = data.getscope();
+        var ownerscope = scope.getouter();
+        var outer = self.outer;
+        if (ownerscope instanceof FunctionBase) {
+            if (ownerscope.same_scope_as(outer)) {
+                string lexname = scope.makelexical(data);
+                int flags = data.getflags() | VAR_is_lexical;
+                var lexused = self.createvar(name, REGvar, flags);
+                lexused.lexname = lexname;
+                self.setusedlex(lexname, lexused.getreg());
+                return lexused;
+            }
+        }
+        return data;
+    }
+    function getvar(name)
     {
         var r = self.getlocalvar(name);
         if (r == null)
             r = self.getusedvar(name);
         if (r == null) {
-            // Not found in function scope, look for external scopes
-            // and type valid for a lexical.
+            // Not found in function scope, search external scopes
+            // and check lexicals.
             r = self.owner.getvar(name);
             if (r == null) {
                 // Special case for self in methods
@@ -8596,24 +8618,7 @@ class LocalFunctionStatement : FunctionBase
                     }
                 }
             }
-            else if (r.gettype() == 'P' && !r.isconst()) {
-                string reg = r.getreg();
-                //TEMPORARY WORKAROUND
-                if (substr(reg, 0, 6) != 'WSubId') {
-                var scope = r.getscope();
-                var ownerscope = scope.getouter();
-                var outer = self.outer;
-                if (ownerscope instanceof FunctionBase) {
-                    if (ownerscope.same_scope_as(outer)) {
-                        string lexname = scope.makelexical(r);
-                        int flags = r.getflags() | VAR_is_lexical;
-                        r = self.createvar(name, REGvar, flags);
-                        r.lexname = lexname;
-                        self.setusedlex(lexname, reg);
-                    }
-                }
-                }
-            }
+            else r = self.checkvarlexical(name, r);
         }
         if (r != null && !(r instanceof VarData))
             InternalError('Incorrect data for variable in LocalFunction');
