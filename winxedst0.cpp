@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 2-jun-2011
+// Revision 3-jun-2011
 
 // Winxed compiler stage 0.
 
@@ -667,12 +667,15 @@ std::string dotted(const ClassKey &ck)
 
 //**********************************************************************
 
+class FunctionStatement;
+
 class BlockBase
 {
 public:
     virtual char checklocal(const std::string &name) const = 0;
     virtual char checkconstant(const std::string &name) const = 0;
     virtual ConstantValue getconstant(const std::string &name) const = 0;
+    virtual FunctionStatement *getfunction(const std::string &name) const = 0;
     virtual void genconstant(const std::string &name, char type, const Token &value) = 0;
     virtual std::string genlocallabel() = 0;
     virtual std::string genlocalregister(char type)= 0;
@@ -757,6 +760,10 @@ public:
     {
         return bl.getconstant(name);
     }
+    FunctionStatement *getfunction(const std::string &name) const
+    {
+        return bl.getfunction(name);
+    }
     std::string genlocallabel()
     {
         return bl.genlocallabel();
@@ -784,6 +791,10 @@ public:
     bool islocal(std::string name) const
     {
         return bl.islocal(name);
+    }
+    ClassStatement *findclass(const ClassKey &classkey)
+    {
+        return bl.findclass(classkey);
     }
 private:
     BlockBase &bl;
@@ -873,6 +884,10 @@ public:
     char checklocal(const std::string &name) const;
     char checkconstant(const std::string &name) const;
     ConstantValue getconstant(const std::string &name) const;
+    FunctionStatement *getfunction(const std::string &name) const
+    {
+        return parent.getfunction(name);
+    }
     std::string genlocalregister(char type)
     {
         return parent.genlocalregister(type);
@@ -985,6 +1000,13 @@ public:
         NamespaceKey newparent(*this);
         newparent.key.pop_back();
         return newparent;
+    }
+    std::string getid() const
+    {
+        std::string r= "__Id";
+        for (size_t i= 0; i < key.size(); ++i)
+            r+= '_' + key [i];
+        return r;
     }
     std::string get_key() const
     {
@@ -1131,6 +1153,7 @@ std::string FunctionBlock::getnamedlabel(const std::string &name)
 //**********************************************************************
 
 class FunctionStatement;
+class NamespaceBlockBase;
 class Expr;
 
 //**********************************************************************
@@ -2127,6 +2150,7 @@ public:
     FunctionStatement(Tokenizer &tk, const Token &st,
         Block &parent,
         const NamespaceKey & ns_a, const std::string &funcname);
+    std::string getsubid() const;
     std::string getname() const { return name; }
     NamespaceKey getnamespace() const { return ns; }
     void optimize();
@@ -2149,6 +2173,36 @@ private:
 
 //**********************************************************************
 
+class ClassStatement : public SubBlock
+{
+public:
+    ClassStatement(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a);
+    const std::string &getname() const { return name; }
+    void emit (Emit &e);
+    std::vector <Token> attributes() const { return attrs; }
+    void optimize();
+    const NamespaceKey &getkey() const;
+private:
+    unsigned int subblocks;
+    unsigned int blockid()
+    {
+        return ++subblocks;
+    }
+
+    std::string genlocallabel() { throw InternalError("No Class labels"); }
+    std::string getnamedlabel(const std::string&) { throw InternalError("No Class labels"); }
+    std::string genlocalregister(char) { throw InternalError("No Class registers"); }
+
+    Token start;
+    std::string name;
+    NamespaceKey ns;
+    std::vector <ClassSpecifier *> parents;
+    std::vector <FunctionStatement *> functions;
+    std::vector <Token> attrs;
+    std::vector <BaseStatement *> constants;
+};
+
+//**********************************************************************
 FunctionParameter::FunctionParameter(FunctionStatement *owner, Tokenizer &tk) //:
         //fst(owner)
 {
@@ -2416,6 +2470,17 @@ void ArgumentList::prepare(Emit &e)
                         e << op_null(nullreg) << '\n';
                     }
                     reg= nullreg;
+                }
+                else if (arg.isidentifier())
+                {
+                    std::string name = arg.getidentifier();
+                    FunctionStatement *fun = getfunction(name);
+                    if (fun)
+                    {
+                        name = fun->getsubid();
+                        e << ".const 'Sub' " << name << " = '" << name << "'\n";
+                        reg = name;
+                    }
                 }
             }
             argregs.push_back(reg);
@@ -4235,6 +4300,12 @@ public:
             std::string id= value->getidentifier();
             if (bl.checklocal(id))
                 reg= id;
+            else if (FunctionStatement *fun = bl.getfunction(id))
+            {
+                std::string subid = fun->getsubid();
+                (*e) << INDENT ".const 'Sub' " << subid << " = '" << subid << "'\n";
+                reg = subid;
+            }
             else
             {
                 reg = bl.gentemp(REGvar);
@@ -4523,7 +4594,16 @@ void CallExpr::emit(Emit &e, const std::string &result)
     if (called->isidentifier())
     {
         std::string name= called->getidentifier();
-        std::string quote(islocal(name) ? "" : "'");
+        bool is_local = islocal(name);
+        if (! is_local) {
+            FunctionStatement *fun = getfunction(name);
+            if (fun) {
+                name = fun->getsubid();
+                e << INDENT ".const 'Sub' " << name << " = '" << name << "'\n";
+                is_local = true;
+            }
+        }
+        std::string quote(is_local ? "" : "'");
         name = quote + name + quote;
         e.annotate(start);
         e << INDENT;
@@ -4593,7 +4673,15 @@ private:
         if (checked.isliteralstring())
             checkedval= checked.pirliteralstring();
         else if (checked.isidentifier())
-            checkedval= "'" + checked.identifier() + "'";
+        {
+            ClassKey key;
+            key.push_back(checked.identifier());
+            ClassStatement *cl = findclass(key);
+            if (cl)
+                checkedval = cl->getkey().get_key();
+            else
+                checkedval= "'" + checked.identifier() + "'";
+        }
         else
             throw CompileError("Unimplemented", checked);
 
@@ -6610,6 +6698,11 @@ FunctionStatement::FunctionStatement(Tokenizer &tk, const Token &st,
     body= cbody;
 }
 
+std::string FunctionStatement::getsubid() const
+{
+    return ns.getid() + "__" + name;
+}
+
 void FunctionStatement::local(std::string name)
 {
     loc.push_back(name);
@@ -6656,6 +6749,7 @@ void FunctionStatement::emit (Emit &e)
         e << " :anon";
     if (has_modifier("immediate"))
         e << " :immediate";
+    e << " :subid('" << getsubid() << "')";
     e << "\n";
 
     emitparams(e);
@@ -6713,6 +6807,8 @@ class NamespaceBlock;
 
 class NamespaceBlockBase : public Block
 {
+private:
+    typedef std::map<std::string, FunctionStatement *> mapfunc_t;
 public:
     NamespaceBlockBase () :
         subblocks(0)
@@ -6743,6 +6839,17 @@ public:
             (*it)->emit(e);
         emit_group(constants, e);
     }
+    void add_function(FunctionStatement *st)
+    {
+        functions[st->getname()] = st;
+    }
+    FunctionStatement *getfunction(const std::string &name) const
+    {
+        mapfunc_t::const_iterator it = functions.find(name);
+        if (it != functions.end())
+            return it->second;
+        return 0;
+    }
     virtual NamespaceBlockBase *getparent () { return 0; }
     ClassStatement *findclass_base(const ClassKey &classkey);
     virtual ClassStatement *findclass(const ClassKey &classkey) = 0;
@@ -6770,6 +6877,7 @@ private:
     std::vector <BaseStatement *> constants;
     std::vector <NamespaceBlock *> namespaces;
     std::vector <ClassStatement *> classes;
+    mapfunc_t functions;
     std::vector <External *> externals;
 };
 
@@ -6854,37 +6962,6 @@ private:
     const std::string nsname;
     NamespaceBlockBase &parentnbb;
     Block &parent;
-};
-
-//**********************************************************************
-
-class ClassStatement : public SubBlock
-{
-public:
-    ClassStatement(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a);
-    const std::string &getname() const { return name; }
-    void emit (Emit &e);
-    std::vector <Token> attributes() const { return attrs; }
-    void optimize();
-    const NamespaceKey &getkey() const;
-private:
-    unsigned int subblocks;
-    unsigned int blockid()
-    {
-        return ++subblocks;
-    }
-
-    std::string genlocallabel() { throw InternalError("No Class labels"); }
-    std::string getnamedlabel(const std::string&) { throw InternalError("No Class labels"); }
-    std::string genlocalregister(char) { throw InternalError("No Class registers"); }
-
-    Token start;
-    std::string name;
-    NamespaceKey ns;
-    std::vector <ClassSpecifier *> parents;
-    std::vector <FunctionStatement *> functions;
-    std::vector <Token> attrs;
-    std::vector <BaseStatement *> constants;
 };
 
 //**********************************************************************
@@ -7269,6 +7346,7 @@ void Winxed::parse (Tokenizer &tk)
             FunctionStatement *f = new FunctionStatement
                     (tk, t, *cur_nsblock, cur_namespace, fname.identifier());
             functions.push_back(f);
+            cur_nsblock->add_function(f);
         }
         else if (t.iskeyword("using"))
             parsensUsing(t, tk, *cur_nsblock, cur_namespace);

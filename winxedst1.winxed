@@ -4,6 +4,11 @@
                    Winxed stage 1 compiler
 ***********************************************************************/
 
+namespace Winxed
+{
+namespace Compiler
+{
+
 //*********************************************
 //          Character test functions
 //*********************************************
@@ -539,10 +544,6 @@ class Tokenizer
     var line;
     function Tokenizer(handle, string filename)
     {
-        using static getop, getident,
-            getquoted, getsinglequoted, getheredoc,
-            getcomment, getlinecomment;
-
         self.h = handle;
         self.pending = '';
         self.stacked = [];
@@ -595,9 +596,6 @@ class Tokenizer
     }
     function get_token()
     {
-        using static isspace, isidentstart, isdigit,
-                getop, getident, getnumber;
-
         if (self.stacked)
             return self.stacked.pop();
 
@@ -1261,17 +1259,6 @@ function predefeval_indexof_pos(var owner, var start, var args)
 
 function getpredefs()
 {
-    using predefeval_length;
-    using predefeval_bytelength;
-    using predefeval_chr;
-    using predefeval_ord;
-    using predefeval_ord_n;
-    using predefeval_substr;
-    using predefeval_substr_l;
-    using predefeval_indexof;
-    using predefeval_indexof_pos;
-    using static Predef_print, Predef_say, Predef_cry, Predef_invoke;
-
     var predefs = [
         new PredefFunction('int',
             new Predef_typecast(REGint),
@@ -1731,7 +1718,6 @@ class SimpleArgList
 
     function SimpleArgList(var tk, var owner, string oper_end)
     {
-        using static parseExpr;
         self.args = parseList(tk, owner, parseExpr, oper_end);
     }
 
@@ -1819,7 +1805,6 @@ class ModifierList
 
     function ModifierList(var tk, var owner)
     {
-        using static parseModifier;
         self.list = parseList(tk, owner, parseModifier, ']');
     }
     function optimize()
@@ -2142,7 +2127,6 @@ class PiropStatement : Statement
         t = tk.get();
         if (! t.isop('}')) {
             tk.unget(t);
-            using static parsePiropArg;
             self.args = parseList(tk, owner, parsePiropArg, '}');
         }
         ExpectOp(';', tk);
@@ -2205,7 +2189,6 @@ class StaticStatement : Statement
     function StaticStatement(start, tk, owner)
     {
         self.Statement(start, owner);
-        using parseIdentifier;
         var names = parseList(tk, null, parseIdentifier, ';');
         for (var name in names) {
             string id = self.generatesubid();
@@ -4827,7 +4810,6 @@ class ArgumentList
         var t = tk.get();
         if (! t.isop(delimiter)) {
             tk.unget(t);
-            using static parseArgument;
             self.args = parseList(tk, owner, parseArgument, delimiter);
         }
     }
@@ -5453,7 +5435,6 @@ class ArrayExpr : Expr
         var t = tk.get();
         if (! t.isop(']')) {
             tk.unget(t);
-            using static parseExpr;
             self.values = parseList(tk, owner, parseExpr, ']');
         }
     }
@@ -5583,29 +5564,27 @@ class HashExpr : Expr
 
             var value = values[i];
             string itemreg;
-            switch {
-              case value.isnull():
-                if (result != '') {
-                    itemreg = self.tempreg(REGvar);
-                    e.emitnull(itemreg);
-                }
-                break;
-              case value.isidentifier():
-                string s = value.checkIdentifier();
-                if (s != null && s != '')
-                    itemreg = s;
-                else {
-                    string id = value.getName();
-                    if (self.owner.getvar(id) == null) {
-                        itemreg = self.tempreg(REGvar);
-                        e.say(INDENT, 'get_hll_global ', itemreg, ", '", id, "'");
+            string it_p;
+            if (result != '')
+                it_p = self.tempreg(REGvar);
+            string aux;
+            switch (value.checkresult()) {
+                  case REGint: case REGfloat: case REGstring:
+                    aux = value.emit_get(e);
+                    if (result != '') {
+                        e.emitbox(it_p, aux);
+                        itemreg = it_p;
+                    }
+                    break;
+                  default:
+                    if (value.isnull()) {
+                        if (result != '') {
+                            itemreg = self.tempreg(REGvar);
+                            e.emitnull(itemreg);
+                        }
                     }
                     else
                         itemreg = value.emit_get(e);
-                }
-                break;
-              default:
-                itemreg = value.emit_get(e);
             }
             if (result != '')
                 e.say(INDENT, result, '[', item, '] = ', itemreg);
@@ -6127,8 +6106,6 @@ function getOpCode_16(t)
 
 function parseExpr_0(tk, owner)
 {
-    using static parseExpr;
-
     var t = tk.get();
     var expr;
 
@@ -6162,8 +6139,6 @@ function parseExpr_0(tk, owner)
 
 function parseExpr_2(tk, owner)
 {
-    using static parseExpr_0, getOpCode_2;
-
     var subexp = parseExpr_0(tk, owner);
     var t;
     var start;
@@ -6196,8 +6171,6 @@ function parseExpr_2(tk, owner)
 
 function parseExpr_3(tk, owner)
 {
-    using static parseExpr_2;
-
     var subexp = parseExpr_2(tk, owner);
     var t = tk.get();
     switch {
@@ -6213,8 +6186,6 @@ function parseExpr_3(tk, owner)
 
 function parseExpr_4(tk, owner)
 {
-    using static parseExpr_4, parseExpr_3, getOpCode_4;
-
     var t = tk.get();
     int code = getOpCode_4(t);
     if (code != Code_none) {
@@ -6244,8 +6215,6 @@ function parseExpr_4(tk, owner)
 
 function parseExpr_5(tk, owner)
 {
-    using static parseExpr_4, getOpCode_5;
-
     var lexpr = parseExpr_4(tk, owner);
     var t;
     int code;
@@ -6274,8 +6243,6 @@ function parseExpr_5(tk, owner)
 
 function parseExpr_6(tk, owner)
 {
-    using static parseExpr_5;
-
     var lexpr = parseExpr_5(tk, owner);
     var t;
     while ((t = tk.get()).isop('+') || t.isop('-')) {
@@ -6293,8 +6260,6 @@ function parseExpr_6(tk, owner)
 
 function parseExpr_7(tk, owner)
 {
-    using static parseExpr_6;
-
     var lexpr = parseExpr_6(tk, owner);
     var rexpr;
     var t;
@@ -6319,8 +6284,6 @@ function parseExpr_7(tk, owner)
 
 function parseExpr_8(tk, owner)
 {
-    using static parseExpr_7, getOpCode_8;
-
     var lexpr = parseExpr_7(tk, owner);
     var rexpr;
     var t;
@@ -6356,8 +6319,6 @@ function parseExpr_8(tk, owner)
 
 function parseExpr_9(tk, owner)
 {
-    using static parseExpr_8, getOpCode_9;
-
     var lexpr = parseExpr_8(tk, owner);
     var rexpr;
     var t;
@@ -6390,8 +6351,6 @@ function parseExpr_9(tk, owner)
 
 function parseExpr_10(tk, owner)
 {
-    using static parseExpr_9;
-
     var lexpr = parseExpr_9(tk, owner);
     var t;
     while ((t = tk.get()).isop('&')) {
@@ -6404,8 +6363,6 @@ function parseExpr_10(tk, owner)
 
 function parseExpr_11(tk, owner)
 {
-    using static parseExpr_10;
-
     var lexpr = parseExpr_10(tk, owner);
     var t;
     while ((t = tk.get()).isop('^')) {
@@ -6418,8 +6375,6 @@ function parseExpr_11(tk, owner)
 
 function parseExpr_12(tk, owner)
 {
-    using static parseExpr_11;
-
     var lexpr = parseExpr_11(tk, owner);
     var t;
     while ((t = tk.get()).isop('|')) {
@@ -6432,8 +6387,6 @@ function parseExpr_12(tk, owner)
 
 function parseExpr_13(tk, owner)
 {
-    using static parseExpr_12;
-
     var lexpr = parseExpr_12(tk, owner);
     var t;
     while ((t = tk.get()).isop('&&')) {
@@ -6446,8 +6399,6 @@ function parseExpr_13(tk, owner)
 
 function parseExpr_14(tk, owner)
 {
-    using static parseExpr_13;
-
     var lexpr = parseExpr_13(tk, owner);
     var t;
     while ((t = tk.get()).isop('||')) {
@@ -6460,8 +6411,6 @@ function parseExpr_14(tk, owner)
 
 function parseExpr_15(tk, owner)
 {
-    using static parseExpr_16, parseExpr_14;
-
     var econd = parseExpr_14(tk, owner);
     var t = tk.get();
     if (t.isop('?')) {
@@ -6478,8 +6427,6 @@ function parseExpr_15(tk, owner)
 
 function parseExpr_16(tk, owner)
 {
-    using static parseExpr_16, parseExpr_15, getOpCode_16;
-
     var lexpr = parseExpr_15(tk, owner);
     var t;
     int code;
@@ -6520,8 +6467,6 @@ function parseExpr_16(tk, owner)
 
 function parseExpr(tk, owner)
 {
-    using static parseExpr_16;
-
     return parseExpr_16(tk, owner);
 }
 
@@ -7610,7 +7555,6 @@ class DeclareArrayStatement : DeclareBase
             t = tk.get();
             if (! t.isop(']')) {
                 tk.unget(t);
-                using static parseExpr;
                 self.initarray = parseList(tk, self, parseExpr, ']');
             }
         }
@@ -7716,7 +7660,6 @@ function newIntArray(start, owner, tk, name)
 
 function parseInt(start, tk, owner)
 {
-    using static newIntSingle, newIntArray;
     return parseDeclareHelper(newIntSingle, newIntArray, start, tk, owner);
 }
 
@@ -7751,7 +7694,6 @@ function newFloatArray(start, owner, tk, name)
 
 function parseFloat(start, tk, owner)
 {
-    using static newFloatSingle, newFloatArray;
     return parseDeclareHelper(newFloatSingle, newFloatArray, start, tk, owner);
 }
 
@@ -7786,7 +7728,6 @@ function newStringArray(start, owner, tk, name)
 
 function parseString(start, tk, owner)
 {
-    using static newStringSingle, newStringArray;
     return parseDeclareHelper(newStringSingle, newStringArray, start, tk, owner);
 }
 
@@ -8272,7 +8213,6 @@ class FunctionBase : BlockStatement
         var t = tk.get();
         if (! t.isop(')')) {
             tk.unget(t);
-            using static parseParameter;
             self.params = parseList(tk, self, parseParameter, ')');
         }
     }
@@ -8689,7 +8629,6 @@ class SigParameterList
     var params;
     function SigParameterList(tk, owner)
     {
-        using static parseSigParameter;
         self.params = parseList(tk, owner, parseSigParameter, ')');
     }
     function emit(e)
@@ -8907,7 +8846,6 @@ class ClassStatement : ClassBase, VarContainer
 
         var t = tk.get();
         if (t.isop(':')) {
-            using parseClassSpecifier;
             self.bases = parseList(tk, self, parseClassSpecifier);
             t = tk.get();
         }
@@ -9141,7 +9079,6 @@ function parsensUsing(start, tk, ns)
         t = tk.get();
         if (! t.isop(';')) {
             tk.unget(t);
-            using parseIdentifier;
             var names = parseList(tk, null, parseIdentifier, ';');
             ns.addextern(module, names);
         }
@@ -9932,5 +9869,10 @@ function initializer [init,load]()
     var comp = new WinxedHLL;
     compreg('winxed', comp);
 }
+
+//*********************************************
+
+} // namespace Compiler
+} // namespace Winxed
 
 // End
