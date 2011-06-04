@@ -2972,6 +2972,15 @@ class IdentifierExpr : SimpleExpr
                 if (flags & VAR_is_lexical)
                     return new LexicalVolatileExpr(self, desc);
             }
+            else {
+                // const Sub previous definition may be in a code path
+                // not taken. Better allow redundant definitions than
+                // leave undefined depending on runtime conditions.
+                // TODO: improve this.
+                var reg = desc.getreg();
+                if (reg != null && substr(reg, 0, 7) == 'WSubId_')
+                    self.subid = string(reg);
+            }
         }
         else {
             var sym = self.findsymbol([name]);
