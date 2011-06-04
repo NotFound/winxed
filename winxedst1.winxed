@@ -1922,7 +1922,7 @@ function parseSig(start, tk, owner)
     if (! t.isop('='))
         Expected("'='", t);
     var expr = parseExpr(tk, owner);
-    return new MultiAssignStatement(params, expr);
+    return new MultiAssignStatement(start, owner, params, expr);
 }
 
 function parseStatement(tk, owner)
@@ -8710,12 +8710,13 @@ class SigParameterList
     }
 }
 
-class MultiAssignStatement
+class MultiAssignStatement : Statement
 {
     var params;
     var expr;
-    function MultiAssignStatement(params, expr)
+    function MultiAssignStatement(start, owner, params, expr)
     {
+        self.Statement(start, owner);
         self.params = params;
         self.expr = expr;
     }
