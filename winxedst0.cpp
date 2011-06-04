@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 3-jun-2011
+// Revision 4-jun-2011
 
 // Winxed compiler stage 0.
 
@@ -4198,6 +4198,24 @@ private:
     std::vector<Expr *> elems;
 };
 
+static void emit_maybeboxed(Emit &e, BlockBase &bl,
+        Expr &elem, const std::string &el)
+{
+    char type = elem.checkresult();
+    switch (type)
+    {
+    case REGint: case REGfloat: case REGstring:
+        {
+            std::string aux = bl.gentemp(type);
+            elem.emit(e, aux);
+            e << op_box(el, aux) << '\n';
+        }
+        break;
+    default:
+        elem.emit(e, el);
+    }
+}
+
 void ArrayExpr::emit(Emit &e, const std::string &result)
 {
     std::string reg = gentemp(REGvar);
@@ -4206,28 +4224,31 @@ void ArrayExpr::emit(Emit &e, const std::string &result)
     {
         Expr *elem= elems[i];
         std::string el = gentemp(REGvar);
-        if (elem->issimple() && !elem->isidentifier())
+        if (elem->issimple())
         {
-            e << INDENT << el << " = box ";
-            elem->emit(e, std::string());
-            e << "\n";
-        }
-        else
-        {
-            char type = elem->checkresult();
-            switch (type)
+            if (elem->isidentifier())
             {
-            case REGint: case REGfloat: case REGstring:
+                std::string id= elem->getidentifier();
+                if (checklocal(id))
+                    emit_maybeboxed(e, *this, *elem, el);
+                else if (FunctionStatement *fun = getfunction(id))
                 {
-                    std::string aux = gentemp(type);
-                    elem->emit(e, aux);
-                    e << op_box(el, aux) << '\n';
+                    std::string subid = fun->getsubid();
+                    e << INDENT ".const 'Sub' " << subid << " = '" << subid << "'\n";
+                    el = subid;
                 }
-                break;
-            default:
-                elem->emit(e, el);
+                else
+                    emit_maybeboxed(e, *this, *elem, el);
+            }
+            else
+            {
+                e << INDENT << el << " = box ";
+                elem->emit(e, std::string());
+                e << "\n";
             }
         }
+        else
+            emit_maybeboxed(e, *this, *elem, el);
         e << INDENT "push " << reg << " , " << el << '\n';
     }
 
