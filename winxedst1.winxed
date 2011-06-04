@@ -8728,6 +8728,8 @@ class MultiAssignStatement : Statement
     function emit(e)
     {
         var expr = self.expr;
+        if (! (expr instanceof CallExpr))
+            SyntaxError('multi assignment used with non function call', expr);
         var call = expr.emitcall(e);
         expr.prepareargs(e);
         e.print(INDENT);
