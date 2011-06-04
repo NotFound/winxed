@@ -1342,6 +1342,16 @@ root_new %0, ['parrot';'Exception']
 :>>
             , REGvar, REGstring, REGint, REGint
         ),
+        new PredefFunction('Error',
+<<:
+root_new %0, ['parrot';'Exception']
+%0['message'] = %1
+%0['severity'] = %2
+%0['type'] = %3
+%0['payload'] = %4
+:>>
+            , REGvar, REGstring, REGint, REGint, REGvar
+        ),
         new PredefFunction('elements',
             'elements %0, %1',
             REGint, REGvar

@@ -420,6 +420,13 @@ const PredefFunction *PredefFunction::predefs[]= {
         "{res}['severity'] = {arg1}\n"
         "{res}['type'] = {arg2}\n"
         , REGvar, REGstring, REGint, REGint),
+    new PredefFunctionFixargs("Error",
+        "root_new {res}, ['parrot';'Exception']\n"
+        "{res}['message'] = {arg0}\n"
+        "{res}['severity'] = {arg1}\n"
+        "{res}['type'] = {arg2}\n"
+	"{res}['payload'] = {arg3}\n"
+        , REGvar, REGstring, REGint, REGint, REGvar),
     new PredefFunctionFixargs("elements",
         "elements {res}, {arg0}",
         REGint, REGvar),
