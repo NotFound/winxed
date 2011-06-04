@@ -6,7 +6,7 @@ using extern Test.More plan, is;
 
 function main()
 {
-    plan(10);
+    plan(11);
 
     var a = [];
     is(elements(a), 0, 'empty');
@@ -29,6 +29,15 @@ function main()
     is(elements(a), 2, 'two mixed vars');
     is(a[0], 69, 'first item');
     is(a[1], "something", 'second item');
+
+    a = [ foo ];
+    var f = a[0];
+    is(f(), "this is foo", 'a function');
+}
+
+function foo()
+{
+    return "this is foo";
 }
 
 // End
