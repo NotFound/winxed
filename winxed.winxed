@@ -91,7 +91,7 @@ class WinxedDriverOptions : ['Getopt', 'Obj']
     }
 }
 
-function main [main] (argv)
+function driver_main(argv)
 {
     const int DEFAULT_STAGE = 2;
 
@@ -335,6 +335,23 @@ function main [main] (argv)
     }
     retval = (retval >> 8) & 0xFF;
     exit(retval);
+}
+
+function main [main] (argv)
+{
+    int r;
+    try [handle_types(__WINXED_ERROR__)] {
+        driver_main(argv);
+    }
+    catch (e) {
+        var payload = e["payload"];
+        if (payload != null)
+            cry(payload.filename, ':', payload.line, ': ', payload.message);
+        else
+            cry(e["message"]);
+        r = 1;
+    }
+    exit(r);
 }
 
 // End

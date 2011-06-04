@@ -52,10 +52,28 @@ function isident(string c)
 //        Error handling exceptions
 //*********************************************
 
-const int
-    ERRORinternal  = 555,
-    ERRORtokenizer = 556,
-    ERRORparser    = 557;
+const int WINXED_ERROR  = 567;
+
+class WinxedCompilerError
+{
+    // Payload for compiler exceptions.
+    var type;     // internal, tokenizer, parser
+    var filename;
+    var line;
+    var message;
+
+    function WinxedCompilerError(
+            string type,
+            string message,
+            string filename[optional],
+            int line[optional])
+    {
+        self.type = type;
+        self.message = message;
+        self.filename = filename;
+        self.line = line;
+    }
+}
 
 function Warn(string msg, var pos [optional], int has_pos [opt_flag])
 {
@@ -75,22 +93,28 @@ function InternalError(string msg, var pos [optional], int has_pos [opt_flag])
         string desc = pos.show();
         msg = msg + ' near ' + desc;
     }
-    throw Error(msg, 2, ERRORinternal);
+    var payload = has_pos ?
+        new WinxedCompilerError('internal', msg) :
+        new WinxedCompilerError('internal', msg, pos.filename(), pos.linenum());
+    throw Error(msg, 2, WINXED_ERROR, payload);
 }
 
 function TokenError(string msg, tk, int line)
 {
-   throw Error(msg + ' in ' + string(tk.filename) + ' line ' + string(line),
-           2, ERRORtokenizer);
+    throw Error(msg + ' in ' + string(tk.filename) + ' line ' + string(line),
+            2, WINXED_ERROR,
+            new WinxedCompilerError('tokenizer', msg, tk.filename, line));
 }
 
 function SyntaxError(string msg, var pos)
 {
-    string sline = pos.line;
-    string file = pos.file;
-    string desc = pos.viewable();
-    throw Error(msg + ' in ' + file + ' line ' + sline + ' near ' + desc,
-            2, ERRORparser);
+    int line = pos.linenum();
+    string file = pos.filename();
+    string desc = ' near ' + string(pos.viewable());
+    throw Error(msg + ' in ' + file + ' line ' + string(line) + desc,
+            2, WINXED_ERROR,
+            new WinxedCompilerError('parser', msg + desc,
+                   file, line));
 }
 
 function Expected(string msg, var t)
@@ -190,6 +214,8 @@ class Token
     function isop(string name)      { return false; }
     function checkop() { return ''; }
     function viewable() { return '(unknown)'; }
+    function filename() { return self.file; }
+    function linenum() { return self.line; }
     function show()
     {
         string r = self.viewable();
@@ -1682,6 +1708,27 @@ class CommonBase
         self.start = start;
         self.owner = owner;
     }
+    function filename()
+    {
+        if (self.start != null)
+            return self.start.filename();
+        else
+            return "unknown";
+    }
+    function linenum()
+    {
+        if (self.start != null)
+            return self.start.linenum();
+        else
+            return 0;
+    }
+    function viewable()
+    {
+        if (self.start != null)
+            return self.start.viewable();
+        else
+            return "";
+    }
     function annotate(e)
     {
         e.annotate(self.start);
@@ -2562,7 +2609,7 @@ class Expr : CommonBase
     }
     function emit_assign_get(e, expr)
     {
-        SyntaxError('Not a left-side expression', self.start);
+        SyntaxError('Not a left-side expression', self);
     }
 }
 
@@ -2985,7 +3032,7 @@ class IdentifierExpr : SimpleExpr
                 e.emitnull(lreg);
                 break;
               default:
-                SyntaxError("Can't assign null to that type", self.start);
+                SyntaxError("Can't assign null to that type", self);
             }
         }
         else if (expr instanceof IndexExpr)
@@ -2993,7 +3040,7 @@ class IdentifierExpr : SimpleExpr
         else {
             string typeright = expr.checkresult();
             if (typeright == REGnone)
-                SyntaxError("Can't assign from void expression", self.start);
+                SyntaxError("Can't assign from void expression", self);
             if (typeleft == typeright) {
                 expr.emit(e, lreg);
             }
@@ -3213,7 +3260,7 @@ class OpDeleteExpr : OpDelExBase
                 e.emitset(result, '1');
         }
         else
-            SyntaxError("delete with invalid operator", self.start);
+            SyntaxError("delete with invalid operator", self);
     }
 }
 
@@ -3235,7 +3282,7 @@ class OpExistsExpr : OpDelExBase
             e.say();
         }
         else
-            SyntaxError("exists with invalid operator", self.start);
+            SyntaxError("exists with invalid operator", self);
     }
 }
 
@@ -3551,7 +3598,7 @@ class OpSubToExpr : OpBaseAssignExpr
         self.annotate(e);
         switch (ltype) {
           case REGstring:
-            SyntaxError("-= can't be applied to string", self.start);
+            SyntaxError("-= can't be applied to string", self);
           case REGint:
           case REGfloat:
             if (ltype != rtype) {
@@ -4744,11 +4791,11 @@ class ArgumentModifierList : ModifierList
                   case 1:
                     var argmod = modif.getarg(0);
                     if (! argmod.isstringliteral())
-                        SyntaxError('Invalid modifier', self.start);
+                        SyntaxError('Invalid modifier', self);
                     setname = argmod.getPirString();
                     break;
                   default:
-                    SyntaxError('Invalid modifier', self.start);
+                    SyntaxError('Invalid modifier', self);
                 }
             }
         }
@@ -5180,7 +5227,7 @@ class CallMemberRefExpr : CallExpr
         var right = funref.right;
         var type = right.checkresult();
         if (type != REGvar && type != REGstring)
-            SyntaxError("Invalid expression type in '.*'", funref.start);
+            SyntaxError("Invalid expression type in '.*'", funref);
         // We want a well defined order of evaluation here, so use variables
         // to store intermediate results.
         string lreg = funref.emit_left_get(e);
@@ -5320,7 +5367,7 @@ class MemberRefExpr : MemberExprBase
     function emit(e, result)
     {
         SyntaxError('Member reference can be used only for method calls',
-            self.start);
+            self);
     }
 }
 
@@ -5395,7 +5442,7 @@ class IndexExpr : Expr
             var argregs = self.argregs;
             int nargs = elements(argregs);
             if (nargs != 1)
-               SyntaxError('Bad string index', self.start);
+               SyntaxError('Bad string index', self);
             if (result == '')
                 result = self.tempreg(REGstring);
             e.say(INDENT, 'substr ', result, ', ', self.regleft, ', ', argregs[0], ', ', 1);
@@ -5716,7 +5763,7 @@ class NewExpr : NewBaseExpr
             break;
           default:
             if (type != BYIDENT)
-                SyntaxError('Multiple init arguments not allowed here', self.start);
+                SyntaxError('Multiple init arguments not allowed here', self);
             if (! is_init)
                 regnew = self.tempreg(REGvar);
         }
@@ -5802,7 +5849,7 @@ class NewIndexedExpr : NewBaseExpr
             reginit = initval.emit_get(e);
             break;
           default:
-            SyntaxError('Multiple init arguments not allowed here', self.start);
+            SyntaxError('Multiple init arguments not allowed here', self);
         }
         var nskey = self.nskey;
         e.print(INDENT);
@@ -5910,7 +5957,7 @@ class OpInstanceOfExpr : Expr
         var lexpr = self.lexpr;
         string ltype = lexpr.checkresult();
         if (ltype != REGvar)
-            SyntaxError('Invalid instanceof left operand', lexpr.start);
+            SyntaxError('Invalid instanceof left operand', lexpr);
         var checked = self.checked;
 
         string r = result == '' ? self.tempreg(REGint) : result;
@@ -6995,7 +7042,7 @@ class SwitchStatement : SwitchBaseStatement
         for (var value in self.case_value) {
             string t = value.checkresult();
             if (t == REGfloat)
-                SyntaxError("Invalid type in case", self.start);
+                SyntaxError("Invalid type in case", self);
             if (type == '')
                 type = t;
             else if (type != t)
@@ -7292,7 +7339,7 @@ class ThrowStatement : Statement
             e.emitarg1('die', reg);
             break;
           default:
-            SyntaxError("Invalid throw argument", self.start);
+            SyntaxError("Invalid throw argument", self);
         }
     }
 }
@@ -7319,7 +7366,7 @@ class TryModifierList : ModifierList
               case 'min_severity':
               case 'max_severity':
                 if (nargs != 1)
-                    SyntaxError('Wrong modifier args', self.start);
+                    SyntaxError('Wrong modifier args', self);
                 var arg = modif.getarg(0);
                 string argreg = arg.emit_get(e);
                 e.say(INDENT, reghandler, ".'", modifname, "'(", argreg, ")");
@@ -7335,7 +7382,7 @@ class TryModifierList : ModifierList
                         "'(", join(', ', argregs), ")");
                 break;
               default:
-                SyntaxError("Modifier '" + modifname + "' not valid for try", self.start);
+                SyntaxError("Modifier '" + modifname + "' not valid for try", self);
             }
         }
     }
@@ -7511,7 +7558,7 @@ class DeclareSingleStatement : DeclareBase
                     string ireg;
                     switch (itype) {
                       case REGnone:
-                        SyntaxError('Invalid initialization from void value', self.start);
+                        SyntaxError('Invalid initialization from void value', self);
                       case '':
                         ireg = init.emit_get(e);
                         break;
@@ -7769,7 +7816,7 @@ class ConstStatement : Statement
         value = value.optimize();
         if (! value.hascompilevalue()) {
             SyntaxError('Value for const is not evaluable at compile time',
-                self.start);
+                self);
         }
         self.data.setvalue(value);
         return self;
@@ -8167,7 +8214,7 @@ class FunctionModifierList : ModifierList
                 for (int iargmod = 0; iargmod < nargmods; ++iargmod) {
                     var argmod = m.getarg(iargmod);
                     if (!argmod.isstringliteral())
-                        SyntaxError('Invalid modifier', argmod.start);
+                        SyntaxError('Invalid modifier', argmod);
                     e.print(argmod.getPirString());
                 }
                 e.print(')');
@@ -9738,6 +9785,10 @@ class WinxedCompileUnit
         var cstage = rootns.createconst('__STAGE__', REGstring, VAR_is_extern);
         cstage.setvalue(new StringLiteral(rootns,
                 new TokenQuoted(taux.file, taux.line, string(int(__STAGE__) + 1))));
+        // Propagate value for exception type.
+        var cerrtype = rootns.createconst('__WINXED_ERROR__', REGstring, VAR_is_extern);
+        cerrtype.setvalue(integerValue(rootns,
+                new TokenInteger(taux.file, taux.line, '__WINXED_ERROR__'), __WINXED_ERROR__));
 
         self.rootns = rootns;
     }

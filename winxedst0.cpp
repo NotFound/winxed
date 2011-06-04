@@ -425,7 +425,7 @@ const PredefFunction *PredefFunction::predefs[]= {
         "{res}['message'] = {arg0}\n"
         "{res}['severity'] = {arg1}\n"
         "{res}['type'] = {arg2}\n"
-	"{res}['payload'] = {arg3}\n"
+        "{res}['payload'] = {arg3}\n"
         , REGvar, REGstring, REGint, REGint, REGvar),
     new PredefFunctionFixargs("elements",
         "elements {res}, {arg0}",
@@ -6919,6 +6919,8 @@ class RootNamespaceBlock : public NamespaceBlockBase
                 result = REGint;
             else if (name == "__STAGE__")
                 result = REGstring;
+            else if (name == "__WINXED_ERROR__")
+                result = REGint;
         }
         return result;
     }
@@ -6938,6 +6940,11 @@ class RootNamespaceBlock : public NamespaceBlockBase
             // This is stage 0
             return ConstantValue(REGstring,
                     Token(TokenTSingleQuoted, "0", 0, "__predefconst__"));
+        }
+        else if (name == "__WINXED_ERROR__") {
+            // Hard coded value for exception type.
+            return ConstantValue(REGint,
+                Token(TokenTInteger, "567", 567, "__predefconst__"));
         }
         else throw InternalError("No such constant");
     }
