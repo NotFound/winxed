@@ -1741,6 +1741,10 @@ class CommonBase
     {
         return self.owner.generatesubid();
     }
+    function usesubid(string id)
+    {
+        self.owner.usesubid(id);
+    }
     function addlocalfunction(fn)
     {
         return self.owner.addlocalfunction(fn);
@@ -2310,6 +2314,7 @@ class UsingStatement : Statement
             string subid = symbol.makesubid();
             self.createvarnamed(name, REGvar, subid);
             self.subid = subid;
+            self.usesubid(subid);
             return self;
         }
         self.createvar(name, REGvar);
@@ -2320,11 +2325,7 @@ class UsingStatement : Statement
         var path = self.path;
         string name = path[-1];
         var vdata = self.getvar(name);
-        if (self.subid != null) {
-            string subid = self.subid;
-            e.say(".const 'Sub' ", subid, ' = "', subid, '"');
-        }
-        else {
+        if (self.subid == null) {
             self.annotate(e);
             e.print(INDENT + 'get_hll_global ', vdata.getreg(), ', ');
             path.pop();
@@ -2635,16 +2636,14 @@ class FunctionExpr : Expr
     function optimize()
     {
         self.fn = self.fn.optimize();
+        self.usesubid(self.fn.getsubid());
         return self;
     }
     function emit(e, result)
     {
-        var fn = self.fn;
-        string reg = self.tempreg(REGvar);
         self.annotate(e);
-        e.say(".const 'Sub' ", reg, " = '", fn.getsubid(), "'");
         if (result != '')
-            e.emitarg2('newclosure', result, reg);
+            e.emitarg2('newclosure', result, self.fn.getsubid());
     }
 }
 
@@ -2987,7 +2986,7 @@ class IdentifierExpr : SimpleExpr
             if (sym != null) {
                 string id = sym.makesubid();
                 self.subid = id;
-                //cry('CREATE: ', name);
+                self.usesubid(id);
                 self.owner.createvarnamed(name, REGvar, id);
             }
         }
@@ -2996,10 +2995,8 @@ class IdentifierExpr : SimpleExpr
     function emit_getid(e)
     {
         string id;
-        if (self.subid != null) {
+        if (self.subid != null)
             id = self.subid;
-            e.say(".const 'Sub' " + id + " = '" + id + "'");
-        }
         else {
             id = self.getIdentifier();
             var desc = self.owner.getvar(self.name);
@@ -5201,18 +5198,17 @@ class CallMemberExpr : CallExpr
                 var key = [ ];
                 funref.buildkey(key);
                 var sym = self.findsymbol(key);
-                if (sym != null)
+                if (sym != null) {
                     self.subid = sym.makesubid();
+                    self.usesubid(self.subid);
+                }
             }
         }
     }
     function emitcall(e)
     {
-        if (self.subid != null) {
-            string reg = self.owner.createreg(REGvar);
-            e.say(".const 'Sub' " + reg + " = '" + string(self.subid) + "'");
-            return reg;
-        }
+        if (self.subid != null)
+            return self.subid;
         var funref = self.funref;
         return join("", [ funref.emit_left_get(e),
                 ".'", funref.get_member(), "'" ] );
@@ -8247,6 +8243,7 @@ class FunctionBase : BlockStatement
     var localfun;
     var lexicals;
     var usedlexicals;
+    var usedsubids;
     var outer;
 
     function FunctionBase(start, owner)
@@ -8267,6 +8264,13 @@ class FunctionBase : BlockStatement
         if (subid == null)
             self.subid = subid = self.generatesubid();
         return subid;
+    }
+    function usesubid(string id)
+    {
+        var used = self.usedsubids;
+        if (used == null)
+            self.usedsubids = used = {};
+        used[id] = 1;
     }
 
     function same_scope_as(other)
@@ -8466,6 +8470,14 @@ class FunctionBase : BlockStatement
                         e.say(INDENT + ".local pmc " + l);
                     e.emitfind_lex(l, usedlexicals[l]);
                 }
+            }
+        }
+
+        var usedsubids = self.usedsubids;
+        if (usedsubids != null) {
+            for (string subid in usedsubids) {
+                //cry("Used: ", subid, ' in ', name);
+                e.say(".const 'Sub' ", subid, ' = "', subid, '"');
             }
         }
 
