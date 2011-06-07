@@ -222,19 +222,33 @@ function driver_main(argv)
         string ctarget = targettype == TargetConst ? 'include' : 'pir';
         var opts = { "target": ctarget, "noan": noan, "nowarn": nowarn };
         string pircode;
-        if (eval == null)
-            pircode = compiler.compile_from_file(srcfile, opts:[named,flat]);
+        if (eval == null) {
+            var output;
+	    var file;
+            if (pirfile == '-' &&
+                   (targettype == TargetPir || targettype == TargetConst))
+                output = getstdout();
+            else {
+                file = open(pirfile, 'w');
+                output = file;
+            }
+            opts['output'] = output;
+            compiler.compile_from_file(srcfile, opts:[named,flat]);
+            if (file != null)
+                file.close();
+        }
         else {
             eval = 'function main[main](argv){' + eval + ';}';
             pircode = compiler.compile(eval, opts:[named,flat]);
-        }
-        if (pirfile == '-' &&
-               (targettype == TargetPir || targettype == TargetConst))
-            print(pircode);
-        else {
-            var file = open(pirfile, 'w');
-            file.print(pircode);
-            file.close();
+
+            if (pirfile == '-' &&
+                   (targettype == TargetPir || targettype == TargetConst))
+                print(pircode);
+            else {
+                var file = open(pirfile, 'w');
+                file.print(pircode);
+                file.close();
+            }
         }
     }
     else {

@@ -9858,34 +9858,41 @@ class WinxedCompileUnit
 
 class WinxedHLL
 {
-    function __private_compile_tail(winxed, target, noan)
+    function __private_compile_tail(winxed, target, output, noan)
     {
         if (target == 'parse')
             return winxed;
-        var handleout = new ['StringHandle'];
-        handleout.open(EVAL_NAME, 'w');
-        var emit = new Emit(handleout);
+        var handleout;
+        if (output == null) {
+            handleout  = new ['StringHandle'];
+            handleout.open(EVAL_NAME, 'w');
+        }
+        var emit = new Emit(output);
         if (noan)
             emit.disable_annotations();
         winxed.emit(emit);
         emit.close();
-        handleout.close();
-        string pircode = handleout.read(0);
-        var object;
-        switch (target) {
-          case 'pir':
-            object = new ['String'];
-            object =: pircode;
-            break;
-          case 'pbc':
-          case '':
-            var pircomp = compreg('PIR');
-            object = pircomp(pircode);
-            break;
-          default:
-            die('Invalid target: ' + string(target));
+        if (output != null)
+            return output;
+        else {
+            handleout.close();
+            string pircode = handleout.read(0);
+            var object;
+            switch (target) {
+              case 'pir':
+                object = new ['String'];
+                object =: pircode;
+                break;
+              case 'pbc':
+              case '':
+                var pircomp = compreg('PIR');
+                object = pircomp(pircode);
+                break;
+              default:
+                die('Invalid target: ' + string(target));
+            }
+            return object;
         }
-        return object;
     }
     function __private_geninclude(winxed)
     {
@@ -9923,9 +9930,11 @@ class WinxedHLL
     }
     function compile_from_file(string filename,
             string target[named,optional],
+            output[named,optional],
             int noan[named,optional],
             int nowarn[named,optional] )
     {
+        // output is supposed to be used with pir target for a now,.
         if (target == null)
             target = '';
         var handlein = new ['FileHandle'];
@@ -9941,7 +9950,7 @@ class WinxedHLL
         if (target == 'include')
             return self.__private_geninclude(winxed);
         else
-            return self.__private_compile_tail(winxed, target, noan);
+            return self.__private_compile_tail(winxed, target, output, noan);
     }
 }
 
