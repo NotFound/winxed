@@ -9867,7 +9867,9 @@ class WinxedHLL
             handleout  = new ['StringHandle'];
             handleout.open(EVAL_NAME, 'w');
         }
-        var emit = new Emit(output);
+        else
+            handleout = output;
+        var emit = new Emit(handleout);
         if (noan)
             emit.disable_annotations();
         winxed.emit(emit);
@@ -9906,6 +9908,7 @@ class WinxedHLL
     }
     function compile(string code,
             string target[named,optional],
+            output[named,optional],
             int noan[named,optional],
             int nowarn[named,optional] )
     {
@@ -9926,7 +9929,7 @@ class WinxedHLL
         if (target == 'include')
             return self.__private_geninclude(winxed);
         else
-            return self.__private_compile_tail(winxed, target, noan);
+            return self.__private_compile_tail(winxed, target, output, noan);
     }
     function compile_from_file(string filename,
             string target[named,optional],
