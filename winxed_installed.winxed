@@ -178,10 +178,28 @@ function main [main] (argv)
                     compileoptions:[named, flat]);
         }
         else {
+            var output;
+            var outfile;
+            if (compileonly) {
+                if (outfilename == null)
+                    outfilename = objectname;
+                if (outfilename != null && outfilename != "-") {
+                    outfile = open(outfilename, 'w');
+                    output = outfile;
+                }
+                else
+                    output = getstdout();
+                compileoptions['output'] = output;
+            }
             string expr = 'function main[main](argv){' + eval + ';}';
             code = compiler.compile(expr,
                     compileoptions:[named, flat]);
-            if (! compileonly)
+            if (compileonly) {
+                if (outfile != null)
+                    outfile.close();
+                exit(0);
+            }
+            else
                 argv.unshift('__EVAL__');
         }
     }
