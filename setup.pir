@@ -61,6 +61,7 @@
 
 .sub 'main' :main
         .param pmc __ARG_1
+.const 'Sub' WSubId_1 = "WSubId_1"
 # Body
 # {
 .annotate 'line', 44
@@ -100,7 +101,6 @@
   __label_2: # endif
 .annotate 'line', 58
 # var data: $P4
-.const 'Sub' WSubId_1 = 'WSubId_1'
     $P4 = WSubId_1($S2)
 .annotate 'line', 60
     unless $I1 goto __label_3
