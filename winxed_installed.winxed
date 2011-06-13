@@ -223,12 +223,21 @@ function main [main] (argv)
         exit(0);
     }
 
-    // Simplified progrm start: look for a sub called 'main'
+    // Program start: look for a sub called 'main'.
+    // Use get_main if available, else use the old heuristic.
     var sub;
-    for (int i = 0; ; ++i) {
-        sub = code[i];
-        if (sub == null) break;
-        if (string(sub) == 'main') break;
+    try {
+        sub = code.get_main();
+    }
+    catch () {
+        for (int i = 0; ; ++i) {
+            sub = code[i];
+            if (sub == null) break;
+            if (string(sub) == 'main') break;
+        }
+        // Last resource: use first sub as entry point.
+        if (sub == null)
+            sub = code[0];
     }
 
     int retval = 0;
