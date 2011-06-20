@@ -2757,14 +2757,18 @@ class StringLiteral : Literal
         var strtok = self.strval;
         string str = strtok.str;
         int typesinglequoted = strtok instanceof TokenSingleQuoted;
-        int need_unicode = 0;
+        int need_unicode = false;
+        int need_escape = false;
         for (int code in str) {
             if (code > 127) {
-                need_unicode = 1;
+                need_unicode = true;
+                need_escape = true;
                 break;
             }
+            if (code < 32)
+                need_escape = true;
         }
-        if (need_unicode) {
+        if (need_unicode || need_escape) {
             if (typesinglequoted) {
                 typesinglequoted = false;
                 string saux = str;
@@ -2778,7 +2782,7 @@ class StringLiteral : Literal
             string result = '';
             for (string c in str) {
                 int n = ord(c);
-                if (n > 127) {
+                if (n < 32 || n > 127) {
                     string h = n.get_as_base(16);
                     result += '\x{' + h + '}';
                 }
