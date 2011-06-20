@@ -2983,7 +2983,7 @@ class IdentifierExpr : SimpleExpr
         }
         else {
             var sym = self.findsymbol([name]);
-            if (sym != null) {
+            if (sym != null && sym instanceof FunctionStatement) {
                 string id = sym.makesubid();
                 self.subid = id;
                 self.usesubid(id);
