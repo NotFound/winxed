@@ -6,7 +6,7 @@ using extern Test.More plan, is;
 
 function main()
 {
-    plan(9);
+    plan(11);
 
     string r;
     string s1= 'a';
@@ -33,6 +33,11 @@ function main()
     r = 'Hello\n' + "\tworld\n";
     is(r, "Hello\\n\tworld\n", 'single + double');
     is(length(r), 14, 'length single + double');
+
+    // Non-ascii strings
+    r = "ñÑáéíóú";
+    is(length(r), 7, 'non-ascii string have correct lenght');
+    is(bytelength(r), 14, 'non-ascii string have correct byte lenght');
 }
 
 // End

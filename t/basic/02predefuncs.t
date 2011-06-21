@@ -6,16 +6,25 @@ using extern Test.More plan, is;
 
 function main()
 {
-    plan (3);
+    plan (7);
 
-    // ord and chr
-
+    string r;
     int a = 65;
 
-    is (chr(a), "A");
-    is (chr(65), "A");
+    // ord and chr
+    is (chr(a), "A", 'chr with const argument');
+    is (chr(65), "A", 'chr with non const argument');
+    is (ord("A"), 65, 'ord with const argument');
+    r = 'A';
+    is (ord(r), 65, 'ord with non const argument');
 
-    is (ord("A"), 65);
+    // Concatenate with chr.
+    r = "a" + chr(10);
+    is(length(r), 2, 'concatenate literal and chr const - low value');
+    r = "a" + chr(1000);
+    is(length(r), 2, 'concatenate literal and chr const - high value');
+    r = chr(10) + chr(1000);
+    is(length(r), 2, 'concatenate two chr const');
 }
 
 // End
