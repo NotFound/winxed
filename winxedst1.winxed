@@ -922,6 +922,10 @@ class Emit
     {
         self.say(INDENT + "find_lex " + reg + ", '" + name + "'");
     }
+    function emitstore_lex(string name, string reg)
+    {
+        self.say("store_lex '", name, "', ", reg);
+    }
 }
 
 //*********************************************
@@ -3120,8 +3124,11 @@ class LexicalVolatileExpr : Expr
             }
         }
 
-        string lexname = desc.getlex();
-        e.say("store_lex '", lexname, "', ", lreg);
+        e.emitstore_lex(desc.getlex(), lreg);
+    }
+    function emit_store(e, reg)
+    {
+        e.emitstore_lex(self.desc.getlex(), reg);
     }
 }
 
@@ -3403,6 +3410,12 @@ class OpIncDec : OpUnaryExpr
     {
         return self.subexpr.checkresult();
     }
+    function iflexical(e, reg)
+    {
+        var expr = self.subexpr;
+        if (expr instanceof LexicalVolatileExpr)
+            expr.emit_store(e, reg);
+    }
 }
 
 //*********************************************
@@ -3428,6 +3441,7 @@ class OpPreIncExpr : OpPreIncDec
         string reg = self.subexpr.emit_get(e);
         self.annotate(e);
         e.emitinc(reg);
+        self.iflexical(e, reg);
         return reg;
     }
 }
@@ -3443,6 +3457,7 @@ class OpPreDecExpr : OpPreIncDec
         string reg = self.subexpr.emit_get(e);
         self.annotate(e);
         e.emitdec(reg);
+        self.iflexical(e, reg);
         return reg;
     }
 }
@@ -3462,6 +3477,7 @@ class OpPostIncExpr : OpIncDec
         if (result != '')
             e.emitset(result, reg);
         e.emitinc(reg);
+        self.iflexical(e, reg);
         return reg;
     }
 }
@@ -3479,6 +3495,7 @@ class OpPostDecExpr : OpIncDec
         if (result != '')
             e.emitset(result, reg);
         e.emitdec(reg);
+        self.iflexical(e, reg);
         return reg;
     }
 }
