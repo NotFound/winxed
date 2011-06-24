@@ -6,7 +6,7 @@ using extern Test.More plan, is;
 
 function main()
 {
-    plan (7);
+    plan (13);
 
     string r;
     int a = 65;
@@ -25,6 +25,15 @@ function main()
     is(length(r), 2, 'concatenate literal and chr const - high value');
     r = chr(10) + chr(1000);
     is(length(r), 2, 'concatenate two chr const');
+
+    // substr
+    is(substr("Winxed", 1, 2), "in", "substr literal 3 args");
+    is(substr("Winxed", 4), "ed", "substr literal 2 args");
+    is(substr("Winxed", -3), "xed", "substr literal 2 args - negative");
+    r = "Winxed";
+    is(substr(r, 1, 2), "in", "substr 3 args");
+    is(substr(r, 4), "ed", "substr 2 args");
+    is(substr(r, -3), "xed", "substr 2 args - negative");
 }
 
 // End
