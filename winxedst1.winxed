@@ -3077,12 +3077,15 @@ class LexicalVolatileExpr : Expr
         self.Expr(idexpr.owner, idexpr.start);
         self.desc = desc;
     }
-    function checkresult() { return REGvar; }
+    function checkresult()
+    {
+        return self.desc.gettype();
+    }
     function emit_get(e)
     {
         var desc = self.desc;
         string lexname = desc.getlex();
-        string reg = self.owner.tempreg(REGvar);
+        string reg = self.owner.tempreg(desc.gettype());
         e.emitfind_lex(reg, lexname);
         return reg;
     }
@@ -3096,7 +3099,9 @@ class LexicalVolatileExpr : Expr
     }
     function emit_assign_get(e, expr)
     {
-        string lreg = self.owner.tempreg(REGvar);
+        var desc = self.desc;
+        string typelex = desc.gettype();
+        string lreg = self.owner.tempreg(desc.gettype());
         switch {
           case expr.isnull():
             e.emitnull(lreg);
@@ -3106,7 +3111,7 @@ class LexicalVolatileExpr : Expr
             break;
           default:
             string typeright = expr.checkresult();
-            if (REGvar == typeright)
+            if (typelex == typeright || typelex != REGvar)
                 expr.emit(e, lreg);
             else {
                 string rreg = expr.emit_get(e);
@@ -3115,7 +3120,6 @@ class LexicalVolatileExpr : Expr
             }
         }
 
-        var desc = self.desc;
         string lexname = desc.getlex();
         e.say("store_lex '", lexname, "', ", lreg);
     }
@@ -8598,7 +8602,7 @@ class LocalFunctionStatement : FunctionBase
     }
     function checkvarlexical(name, data)
     {
-        if (data.gettype() != 'P' || data.isconst())
+        if (data.isconst())
             return data;
         string reg = data.getreg();
         //TEMPORARY WORKAROUND
@@ -8611,7 +8615,10 @@ class LocalFunctionStatement : FunctionBase
             if (ownerscope.same_scope_as(outer)) {
                 string lexname = scope.makelexical(data);
                 int flags = data.getflags() | VAR_is_lexical;
-                var lexused = self.createvar(name, REGvar, flags);
+                string type = data.gettype();
+                if (type != REGvar)
+                    flags = flags | VAR_is_volatile;
+                var lexused = self.createvar(name, data.gettype(), flags);
                 lexused.lexname = lexname;
                 self.setusedlex(lexname, lexused.getreg());
                 return lexused;
