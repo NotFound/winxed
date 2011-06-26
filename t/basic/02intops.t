@@ -2,7 +2,7 @@
 
 // Basic tests: int operators
 
-using extern Test.More plan, is, throws_type, diag;
+using extern Test.More plan, is, diag;
 
 function main()
 {
@@ -56,7 +56,7 @@ function main()
 
     diag("Exceptions:");
 
-    is (divzero(), 1, "division by zero throws");
+    is(divzero(), 1, "division by zero throws");
 }
 
 function divzero()
