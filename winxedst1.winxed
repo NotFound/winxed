@@ -918,6 +918,10 @@ class Emit
     {
         self.say(INDENT + 'say ', arg);
     }
+    function emitget_hll_global(string reg, string key, string name)
+    {
+        self.say(INDENT, "get_hll_global " + reg + ", " + key + ", '" + name + "'");
+    }
     function emitfind_lex(string reg, string name)
     {
         self.say(INDENT + "find_lex " + reg + ", '" + name + "'");
@@ -5156,8 +5160,13 @@ class CallExpr : Expr
 
         if (funref.isidentifier() && funref.subid == null) {
             call = funref.checkIdentifier();
-            if (call == '')
-                call = join("", [ "'", funref.getName(), "'" ] );
+            if (call == '') {
+                var sym = self.findsymbol([ funref.getName() ]);
+                if (sym != null && sym instanceof FunctionExtern)
+                    call = sym.emit_get(e, self);
+                else
+                    call = join("", [ "'", funref.getName(), "'" ] );
+            }
         }
         else
             call = funref.emit_get(e);
@@ -5204,6 +5213,7 @@ class CallExpr : Expr
 // Method call by name.
 class CallMemberExpr : CallExpr
 {
+    var sym;
     var subid;
     function CallMemberExpr(callst, funref, args)
     {
@@ -5224,16 +5234,24 @@ class CallMemberExpr : CallExpr
                 funref.buildkey(key);
                 var sym = self.findsymbol(key);
                 if (sym != null) {
-                    self.subid = sym.makesubid();
-                    self.usesubid(self.subid);
+                    self.sym = sym;
+                    if (sym instanceof FunctionStatement) {
+                        self.subid = sym.makesubid();
+                        self.usesubid(self.subid);
+                    }
                 }
             }
         }
     }
     function emitcall(e)
     {
-        if (self.subid != null)
-            return self.subid;
+        if (self.sym != null) {
+            if (self.subid != null)
+                return self.subid;
+            var sym = self.sym;
+            if (sym instanceof FunctionExtern)
+                return sym.emit_get(e, self);
+        }
         var funref = self.funref;
         return join("", [ funref.emit_left_get(e),
                 ".'", funref.get_member(), "'" ] );
@@ -8225,6 +8243,28 @@ function parseParameter(tk, owner)
 }
 
 //*********************************************
+//            FunctionExtern
+//*********************************************
+
+class FunctionExtern : CommonBase
+{
+    var name;
+    function FunctionExtern(start, owner)
+    {
+        self.initbase(start, owner);
+        self.name = start;
+    }
+    function emit_get(e, owner)
+    {
+        var ns = self.owner;
+        string key = getparrotkey(ns.getpath());
+        string reg = owner.tempreg(REGvar);
+        e.emitget_hll_global(reg, key, self.name);
+        return reg;
+    }
+}
+
+//*********************************************
 //            FunctionBase
 //*********************************************
 
@@ -9496,6 +9536,16 @@ class NamespaceBase : VarContainer
                 break;
               case 'class':
                 parseClass(t, tk, self);
+                break;
+              case 'extern':
+                var t1 = tk.get();
+                if (!t1.iskeyword('function'))
+                    SyntaxError('Unsupported extern', t1);
+                t1 = tk.get();
+                RequireIdentifier(t1);
+                ExpectOp(';', tk);
+                var fex = new FunctionExtern(t1, self);
+                push(functions, fex);
                 break;
               case 'using':
                 parsensUsing(t, tk, self);
