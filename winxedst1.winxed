@@ -918,9 +918,12 @@ class Emit
     {
         self.say(INDENT + 'say ', arg);
     }
-    function emitget_hll_global(string reg, string key, string name)
+    function emitget_hll_global(string reg, string name, string key[optional])
     {
-        self.say(INDENT, "get_hll_global " + reg + ", " + key + ", '" + name + "'");
+        self.print(INDENT + "get_hll_global " + reg );
+        if (key != null)
+            self.print(", " + key);
+        self.say(", '" + name + "'");
     }
     function emitfind_lex(string reg, string name)
     {
@@ -2335,15 +2338,12 @@ class UsingStatement : Statement
         var vdata = self.getvar(name);
         if (self.subid == null) {
             self.annotate(e);
-            e.print(INDENT + 'get_hll_global ', vdata.getreg(), ', ');
-            path.pop();
-            switch (elements(path)) {
-              case 0:
-                e.say("'", name, "'");
-                break;
-              default:
-                e.say(getparrotkey(path), " , '", name, "'");
+            string key;
+            if (elements(path) > 1) {
+                path.pop();
+                key = getparrotkey(path);
             }
+            e.emitget_hll_global(vdata.getreg(), name, key);
         }
     }
 }
@@ -5662,7 +5662,7 @@ class HashExpr : Expr
             if (key.isidentifier()) {
                 string id = key.getName();
                 item = self.tempreg(REGvar);
-                e.say(INDENT, 'get_hll_global ', item, ", '", id, "'");
+                e.emitget_hll_global(item, id);
             }
             else
                 item = key.emit_get(e);
@@ -8259,7 +8259,7 @@ class FunctionExtern : CommonBase
         var ns = self.owner;
         string key = getparrotkey(ns.getpath());
         string reg = owner.tempreg(REGvar);
-        e.emitget_hll_global(reg, key, self.name);
+        e.emitget_hll_global(reg, self.name, key);
         return reg;
     }
 }
