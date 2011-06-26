@@ -2650,8 +2650,14 @@ class FunctionExpr : Expr
     function emit(e, result)
     {
         self.annotate(e);
-        if (result != '')
-            e.emitarg2('newclosure', result, self.fn.getsubid());
+        var fn = self.fn;
+        if (result != '') {
+            string subid = fn.getsubid();
+            if (fn.needclosure())
+                e.emitarg2('newclosure', result, subid);
+            else
+                e.emitset(result, subid);
+        }
     }
 }
 
@@ -8643,6 +8649,18 @@ class LocalFunctionStatement : FunctionBase
     }
     function isanonymous() { return true; }
     function ismethod() { return false; }
+    function needclosure()
+    {
+        if (self.lexicals != null || self.usedlexicals != null)
+            return true;
+        var localfun = self.localfun;
+        if (localfun != null) {
+            for (var fn in localfun)
+                if (fn.needclosure())
+                    return true;
+        }
+        return false;
+    }
     function getsubid()
     {
         return self.subid;
