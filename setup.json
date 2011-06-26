@@ -12,8 +12,8 @@
     "license_type"     : "Artistic License 2.0",
     "license_uri"      : "http://www.perlfoundation.org/artistic_license_2_0",
 
-    "checkout_uri" : "http://winxed.googlecode.com/svn/trunk",
-    "browser_uri"  : "http://code.google.com/p/winxed/source/browse/",
+    "checkout_uri" : "git://github.com/NotFound/winxed.git",
+    "browser_uri"  : "http://github.com/NotFound/winxed",
     "project_uri"  : "http://winxed.org/",
 
     "pbc_pir" : {
