@@ -1,0 +1,5 @@
+// Simple header for include tests
+
+const int THE_ANSWER = 42;
+
+// End
