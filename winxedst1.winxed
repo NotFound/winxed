@@ -8263,7 +8263,10 @@ class FunctionExtern : CommonBase
     function emit_get(e, owner)
     {
         var ns = self.owner;
-        string key = getparrotkey(ns.getpath());
+        var path = ns.getpath();
+        string key;
+        if (elements(path) > 0)
+             key = getparrotkey(path);
         string reg = owner.tempreg(REGvar);
         e.emitget_hll_global(reg, self.name, key);
         return reg;
