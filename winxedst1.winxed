@@ -9226,8 +9226,8 @@ function include_winxed(var start, var tk, var ns)
     string filename = tfile.rawstring();
     var file = open_include(filename, start);
 
-    var tk = new Tokenizer(file, filename);
-    ns.parse(tk);
+    var tkinc = new Tokenizer(file, filename);
+    ns.parse(tkinc);
 
     file.close();
 }
