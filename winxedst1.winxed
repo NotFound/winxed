@@ -331,7 +331,7 @@ class TokenQuoted : TokenString
                 break;
             }
         }
-        ${ escape str, strunesc };
+        str = escape(strunesc);
         string encoding = need_encoding ? "utf8:" : "";
         return encoding + '"' + str + '"';
     }
@@ -1493,6 +1493,10 @@ trans_encoding %0, $S0, $I0
         new PredefFunction('join',
             'join %0, %1, %2',
             REGstring, REGstring, REGvar
+        ),
+        new PredefFunction('escape',
+            'escape %0, %1',
+            REGstring, REGstring
         ),
         new PredefFunction('upcase',
             'upcase %0, %1',
