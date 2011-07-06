@@ -22,6 +22,7 @@ function run_test(string filename, int stage)
     debugmsg(s);
 
     var fh= open(s, 'rp');
+    fh.encoding("utf8");
     string test_output= fh.readall();
     fh.close();
     return split("\n", test_output);
