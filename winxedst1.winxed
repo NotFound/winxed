@@ -313,6 +313,22 @@ class TokenQuoted : TokenString
     {
         return self.str;
     }
+    function getPirString()
+    {
+        string str = self.str;
+        var s = str;
+        string strunesc = s.unescape('utf8');
+        int need_encoding = false;
+        for (int code in strunesc) {
+            if (code > 127) {
+                need_encoding = true;
+                break;
+            }
+        }
+        ${ escape str, strunesc };
+        string encoding = need_encoding ? "utf8:" : "";
+        return encoding + '"' + str + '"';
+    }
 }
 
 class TokenSingleQuoted : TokenString
@@ -343,6 +359,44 @@ class TokenSingleQuoted : TokenString
             s += c;
         }
         return s;
+    }
+    function getPirString()
+    {
+        string str = self.str;
+        string quote = "'";
+        int need_escape = false;
+        for (int code in str) {
+            if (code < 32 || code > 127) {
+                need_escape = true;
+                break;
+            }
+        }
+        int need_encoding = false;
+        if (need_escape) {
+            quote = '"';
+            string result = '';
+            for (string c in str) {
+                if (c == '\')
+                    result += '\\';
+                else
+                {
+                    int n = ord(c);
+                    if (n < 32 || n > 127) {
+                        if (n > 127)
+                            need_encoding = true;
+                        string h = n.get_as_base(16);
+                        result += '\x{' + h + '}';
+                    }
+                    else
+                        result += c;
+                }
+            }
+            str = result;
+        }
+        str = quote + str + quote;
+        if (need_encoding)
+            str = 'utf8:' + str;
+        return str;
     }
 }
 
@@ -2753,46 +2807,7 @@ class StringLiteral : Literal
     function getPirString()
     {
         var strtok = self.strval;
-        string str = strtok.str;
-        int typesinglequoted = strtok instanceof TokenSingleQuoted;
-        int need_unicode = false;
-        int need_escape = false;
-        for (int code in str) {
-            if (code > 127) {
-                need_unicode = true;
-                need_escape = true;
-                break;
-            }
-            if (code < 32)
-                need_escape = true;
-        }
-        if (need_unicode || need_escape) {
-            if (typesinglequoted) {
-                typesinglequoted = false;
-                string saux = str;
-                str = '';
-                for (string c in saux) {
-                    if (c == '\')
-                        c = '\\';
-                    str += c;
-                }
-            }
-            string result = '';
-            for (string c in str) {
-                int n = ord(c);
-                if (n < 32 || n > 127) {
-                    string h = n.get_as_base(16);
-                    result += '\x{' + h + '}';
-                }
-                else
-                    result += c;
-            }
-            str = result;
-        }
-        string q = (typesinglequoted) ? "'" : '"';
-        str = q + str + q;
-        if (need_unicode)
-            str = 'unicode:' + str;
+        string str = strtok.getPirString();
         return str;
     }
     function get_value()
