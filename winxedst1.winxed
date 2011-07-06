@@ -185,14 +185,6 @@ class Token
         self.file = file;
         self.line = line;
     }
-    function get_bool[vtable]()
-    {
-        return true;
-    }
-    function get_integer[vtable]()
-    {
-        return 1;
-    }
 
     function iseof()        { return false; }
     function iscomment()    { return false; }
@@ -228,14 +220,6 @@ class TokenEof : Token
     function TokenEof(string file)
     {
         self.Token(file, 0);
-    }
-    function get_bool[vtable]()
-    {
-        return false;
-    }
-    function get_integer[vtable]()
-    {
-        return 0;
     }
     function iseof() { return true; }
     function viewable() { return '(End of file)'; }
@@ -9540,7 +9524,7 @@ class NamespaceBase : VarContainer
         var functions = self.functions;
         var classes = self.classes;
         var t;
-        for (t = tk.get(); t && !t.isop('}'); t = tk.get())
+        for (t = tk.get(); !(t.iseof() || t.isop('}')); t = tk.get())
         {
             switch (t.checkkeyword()) {
               case 'namespace':
@@ -9592,10 +9576,10 @@ class NamespaceBase : VarContainer
                 Unexpected("token", t);
             }
         }
-        if (t)
-            self.close_ns(t);
-        else
+        if (t.iseof())
             self.unclosed_ns();
+        else
+            self.close_ns(t);
     }
     function optimize_base()
     {
