@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 2-feb-2011
+// Revision 6-jul-2011
 
 #include "token.h"
 #include "errors.h"
@@ -314,6 +314,9 @@ Token Tokenizer::getquoted()
             case 'e':
                 s+= '\x1B';
                 break;
+            default:
+                throw SyntaxError ("Invalid escape sequence",
+                    Token(TokenTQuoted, s + '\\' + c, linenum, name));
             }
         }
         else
