@@ -317,7 +317,13 @@ class TokenQuoted : TokenString
     {
         string str = self.str;
         var s = str;
-        string strunesc = s.unescape('utf8');
+        string strunesc;
+        try {
+            strunesc = s.unescape('utf8');
+        }
+        catch () {
+            SyntaxError("Invalid escape sequence in literal string", self);
+        }
         int need_encoding = false;
         for (int code in strunesc) {
             if (code > 127) {
