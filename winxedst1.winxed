@@ -5410,8 +5410,9 @@ class MemberExpr : MemberExprBase
     }
 }
 
-// Member derefrence via a var or string expresion.
-// Used only for method calls.
+// Member dereference via a var or string expresion.
+// When used for method calls is handled by CallMemberRefExpr.
+// For attribute access only string is allowed.
 class MemberRefExpr : MemberExprBase
 {
     var right;
@@ -5429,8 +5430,16 @@ class MemberRefExpr : MemberExprBase
     }
     function emit(e, result)
     {
-        SyntaxError('Member reference can be used only for method calls',
-            self);
+        var left = self.left;
+        var right = self.right;
+        if (right.checkresult() != REGstring)
+            Expected("string expression", right);
+        string lreg = left.emit_get(e);
+        string rreg = right.emit_get(e);
+        self.annotate(e);
+        if (result == '')
+            result = self.tempreg(REGvar);
+        e.say(INDENT, 'getattribute ', result, ', ', lreg, ", ", rreg);
     }
 }
 
