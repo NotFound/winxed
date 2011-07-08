@@ -5450,6 +5450,34 @@ class MemberRefExpr : MemberExprBase
             result = self.tempreg(REGvar);
         e.say(INDENT, 'getattribute ', result, ', ', lreg, ", ", rreg);
     }
+    function emit_assign_get(e, expr)
+    {
+        var left = self.left;
+        var right = self.right;
+        if (right.checkresult() != REGstring)
+            Expected("string expression", right);
+        string lreg = left.emit_get(e);
+        string rreg = right.emit_get(e);
+        string vreg;
+        switch (expr.checkresult()) {
+          case REGvar:
+            vreg = expr.emit_get(e);
+            // Special case
+            if (vreg == NULL) {
+                vreg = self.tempreg(REGvar);
+                e.emitnull(vreg);
+            }
+            break;
+          default:
+            vreg = self.tempreg(REGvar);
+            string aux = expr.emit_get(e);
+            e.emitbox(vreg, aux);
+        }
+
+        self.annotate(e);
+        e.say(INDENT, "setattribute ",  lreg, ", ", rreg, ", ", vreg);
+        return vreg;
+    }
 }
 
 //*********************************************
