@@ -1594,6 +1594,14 @@ $P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
             'getattribute %0, %1, %2',
             REGvar, REGvar, REGstring
         ),
+        new PredefFunction('getattribute',
+            'getattribute %0, %1, %2, %3',
+            REGvar, REGvar, REGvar, REGstring
+        ),
+        new PredefFunction('setattribute',
+            'setattribute %1, %2, %3, %4',
+            REGnone, REGvar, REGvar, REGstring, REGvar
+        ),
         new PredefFunction('find_method',
             'find_method %0, %1, %2',
             REGvar, REGvar, REGstring
