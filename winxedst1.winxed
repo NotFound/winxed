@@ -1582,6 +1582,19 @@ $P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
             'getinterp %0',
             REGvar
         ),
+        new PredefFunction('getcontext',
+/* Experimental:
+Parrot will probably have a getcontext op in the near future.
+At that point this bulitin will just map to that op.
+In the meantime, get the conext via getinterp and the
+ParrotInterpreter PMC.
+*/
+<<:
+getinterp $P0
+%0 = $P0["context"]
+:>>
+            , REGvar
+        ),
         new PredefFunction('get_class',
             'get_class %0, %1',
             REGvar, REGstring
