@@ -52,6 +52,11 @@ function isident(string c)
 //        Error handling exceptions
 //*********************************************
 
+const string
+    ERR_INTERNAL = 'internal',
+    ERR_TOKEN    = 'tokenizer',
+    ERR_PARSER   = 'parser';
+
 class WinxedCompilerError
 {
     // Payload for compiler exceptions.
@@ -92,8 +97,8 @@ function InternalError(string msg, var pos [optional], int has_pos [opt_flag])
         msg = msg + ' near ' + desc;
     }
     var payload = has_pos ?
-        new WinxedCompilerError('internal', msg) :
-        new WinxedCompilerError('internal', msg, pos.filename(), pos.linenum());
+        new WinxedCompilerError(ERR_INTERNAL, msg) :
+        new WinxedCompilerError(ERR_INTERNAL, msg, pos.filename(), pos.linenum());
     throw Error(msg, 2, __WINXED_ERROR__, payload);
 }
 
@@ -101,7 +106,7 @@ function TokenError(string msg, tk, int line)
 {
     throw Error(msg + ' in ' + string(tk.filename) + ' line ' + string(line),
             2, __WINXED_ERROR__,
-            new WinxedCompilerError('tokenizer', msg, tk.filename, line));
+            new WinxedCompilerError(ERR_TOKEN, msg, tk.filename, line));
 }
 
 function SyntaxError(string msg, var pos)
@@ -111,7 +116,7 @@ function SyntaxError(string msg, var pos)
     string desc = ' near ' + string(pos.viewable());
     throw Error(msg + ' in ' + file + ' line ' + string(line) + desc,
             2, __WINXED_ERROR__,
-            new WinxedCompilerError('parser', msg + desc,
+            new WinxedCompilerError(ERR_PARSER, msg + desc,
                    file, line));
 }
 
