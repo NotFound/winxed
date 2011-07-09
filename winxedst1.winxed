@@ -2663,6 +2663,12 @@ class Expr : CommonBase
         self.emit(e, reg);
         return reg;
     }
+    function emit_get_nonull(e)
+    {
+        if (self.isnull())
+            SyntaxError("Invalid 'null' usage", self);
+        return self.emit_get(e);
+    }
     function emit_getint(e)
     {
         string reg;
@@ -5392,7 +5398,7 @@ class MemberExpr : MemberExprBase
     }
     function emit_assign(e, string typeright, string rreg)
     {
-        string obj = self.left.emit_get(e);
+        string obj = self.left.emit_get_nonull(e);
         string value;
         if (typeright == REGvar) {
             // Special case temporarily
@@ -5410,7 +5416,7 @@ class MemberExpr : MemberExprBase
     }
     function emit_assign_get(e, expr)
     {
-        string obj = self.left.emit_get(e);
+        string obj = self.left.emit_get_nonull(e);
         string value = self.tempreg(REGvar);
         if (expr.isnull())
             e.emitnull(value);
@@ -5450,7 +5456,7 @@ class MemberRefExpr : MemberExprBase
         var right = self.right;
         if (right.checkresult() != REGstring)
             Expected("string expression", right);
-        string lreg = left.emit_get(e);
+        string lreg = left.emit_get_nonull(e);
         string rreg = right.emit_get(e);
         self.annotate(e);
         if (result == '')
@@ -5463,7 +5469,7 @@ class MemberRefExpr : MemberExprBase
         var right = self.right;
         if (right.checkresult() != REGstring)
             Expected("string expression", right);
-        string lreg = left.emit_get(e);
+        string lreg = left.emit_get_nonull(e);
         string rreg = right.emit_get(e);
         string vreg;
         switch (expr.checkresult()) {
