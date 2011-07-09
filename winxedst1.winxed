@@ -2945,15 +2945,19 @@ class IdentifierExpr : SimpleExpr
     }
     function isnull()
     {
-        return self.name.iskeyword(NULL);
+        var name = self.name;
+        if (self.owner.getvar(name) != null)
+            return false;
+        return name.iskeyword(NULL);
     }
     function checkresult()
     {
-        var desc = self.owner.getvar(self.name);
+        var name = self.name;
+        var desc = self.owner.getvar(name);
         if (desc != null)
             return desc.gettype();
         else {
-            switch (self.name) {
+            switch (name) {
               case SELF:
               case NULL:
                 return REGvar;
@@ -2975,12 +2979,10 @@ class IdentifierExpr : SimpleExpr
         var desc = self.owner.getvar(name);
         string s;
         if (desc == null) {
-            string sname = name;
-            switch (sname) {
+            switch (name) {
               case SELF:
-                s = SELF; break;
               case NULL:
-                s = NULL; break;
+                s = name; break;
               default:
                 s = '';
             }
@@ -3065,7 +3067,7 @@ class IdentifierExpr : SimpleExpr
     {
         self.annotate(e);
         if (self.isnull())
-            die("NO");
+            SyntaxError("Cannot assign to null", self);
         string typeleft = self.checkresult();
         string lreg = self.getIdentifier();
         if (expr.isnull()) {
@@ -3591,9 +3593,14 @@ class OpAssignToExpr : OpBaseAssignExpr
     }
     function emit_get(e)
     {
-        self.annotate(e);
-        string reg = self.lexpr.emit_get(e);
+        var lexpr = self.lexpr;
+        if (lexpr.checkresult() != REGvar)
+            SyntaxError("Wrong dest type in =:", lexpr);
+        if (lexpr.isnull())
+            SyntaxError("Cannot assign-to to null");
+        string reg = lexpr.emit_get(e);
         string reg2 = self.rexpr.emit_get(e);
+        self.annotate(e);
         e.emitassign(reg, reg2);
         return reg;
     }
