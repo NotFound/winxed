@@ -97,8 +97,9 @@ function InternalError(string msg, var pos [optional], int has_pos [opt_flag])
         msg = msg + ' near ' + desc;
     }
     var payload = has_pos ?
-        new WinxedCompilerError(ERR_INTERNAL, msg) :
-        new WinxedCompilerError(ERR_INTERNAL, msg, pos.filename(), pos.linenum());
+        new WinxedCompilerError(ERR_INTERNAL, msg,
+                pos.filename(), pos.linenum()) :
+        new WinxedCompilerError(ERR_INTERNAL, msg);
     throw Error(msg, 2, __WINXED_ERROR__, payload);
 }
 
@@ -747,6 +748,7 @@ const string
 // Pseudotypes for predefined functions
     REGarglist = '*',
     REGany     = '?',
+    REGs_v     = 'p', // string or var
     REGraw1    = '!', // raw mode one arg
     REGnone    = 'v'; // void return
 
@@ -1652,7 +1654,7 @@ getinterp $P0
         ),
         new PredefFunction('get_class',
             'get_class %0, %1',
-            REGvar, REGstring
+            REGvar, REGs_v
         ),
         new PredefFunction('typeof',
             'typeof %0, %1',
@@ -5134,10 +5136,14 @@ class CallPredefExpr : Expr
                     }
                 }
                 else {
-                    if (argtype == paramtype || paramtype == REGany)
+                    if (argtype == paramtype || paramtype == REGany ||
+                            (paramtype == REGs_v &&
+                             (argtype == REGstring || argtype == REGvar)))
                         argr = arg.emit_get(e);
                     else {
                         string aux;
+                        if (paramtype == REGs_v)
+                            paramtype = REGvar;
                         argr = self.tempreg(paramtype);
                         switch (paramtype) {
                           case REGvar:
