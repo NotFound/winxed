@@ -120,6 +120,11 @@ function SyntaxError(string msg, var pos)
                    file, line));
 }
 
+function NoLeftSide(var pos)
+{
+    SyntaxError('Not a left-side expression', pos);
+}
+
 function Expected(string msg, var t)
 {
     SyntaxError("Expected " + msg, t);
@@ -2740,7 +2745,7 @@ class Expr : CommonBase
     }
     function emit_assign_get(e, expr)
     {
-        SyntaxError('Not a left-side expression', self);
+        NoLeftSide(self);
     }
 }
 
@@ -3611,6 +3616,12 @@ class OpBaseAssignExpr : Expr
     {
         return self.optimize_base();
     }
+    function checkleft()
+    {
+        var lexpr = self.lexpr;
+        if (lexpr.isnull() || lexpr.isliteral())
+            NoLeftSide(lexpr);
+    }
     function emit(e, result)
     {
         string reg = self.emit_get(e);
@@ -3646,11 +3657,10 @@ class OpAssignToExpr : OpBaseAssignExpr
     }
     function emit_get(e)
     {
+        self.checkleft();
         var lexpr = self.lexpr;
         if (lexpr.checkresult() != REGvar)
             SyntaxError("Wrong dest type in =:", lexpr);
-        if (lexpr.isnull())
-            SyntaxError("Cannot assign-to to null");
         string reg = lexpr.emit_get(e);
         string reg2 = self.rexpr.emit_get(e);
         self.annotate(e);
@@ -3665,6 +3675,7 @@ class OpAddToExpr : OpBaseAssignExpr
 {
     function emit_get(e)
     {
+        self.checkleft();
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
         string ltype = lexpr.checkresult();
@@ -3708,6 +3719,7 @@ class OpSubToExpr : OpBaseAssignExpr
 {
     function emit_get(e)
     {
+        self.checkleft();
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
         string ltype = lexpr.checkresult();
@@ -3741,6 +3753,7 @@ class OpMulToExpr : OpBaseAssignExpr
 {
     function emit_get(e)
     {
+        self.checkleft();
         string ltype = self.lexpr.checkresult();
         string rtype = self.lexpr.checkresult();
         string lreg = self.lexpr.emit_get(e);
@@ -3771,6 +3784,7 @@ class OpDivToExpr : OpBaseAssignExpr
 {
     function emit_get(e)
     {
+        self.checkleft();
         string type = self.lexpr.checkresult();
         string reg = self.lexpr.emit_get(e);
         string reg2 = self.rexpr.emit_get(e);
@@ -3786,6 +3800,7 @@ class OpModToExpr : OpBaseAssignExpr
 {
     function emit_get(e)
     {
+        self.checkleft();
         string type = self.lexpr.checkresult();
         string reg = self.lexpr.emit_get(e);
         string reg2 = self.rexpr.emit_get(e);
