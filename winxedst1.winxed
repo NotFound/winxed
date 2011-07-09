@@ -194,6 +194,10 @@ class Token
     function isstring()       { return false; }
     function issinglequoted() { return false; }
 
+    function getintvalue()
+    {
+        InternalError('Not a literal int', self);
+    }
     function rawstring()
     {
         InternalError('Not a literal string', self);
@@ -415,6 +419,10 @@ class TokenInteger : TokenWithVal
         self.TokenWithVal(file, line, str);
     }
     function isint() { return true; }
+    function getintvalue()
+    {
+        return int(self.str);
+    }
 }
 
 class TokenFloat : TokenWithVal
@@ -2871,18 +2879,11 @@ class IntegerLiteral : Literal
 {
     var pos;
     var numval;
-    function IntegerLiteral(owner, t,
-            value [optional], int has_value [opt_flag])
+    function IntegerLiteral(owner, t, value)
     {
         self.Expr(owner, t);
         self.pos = t;
-        int n;
-        if (has_value)
-            n = value;
-        else {
-            string aux = t;
-            n = aux;
-        }
+        int n = value;
         self.numval = n;
     }
     function isintegerliteral() { return true; }
@@ -6302,7 +6303,7 @@ function parseExpr_0(tk, owner)
       case t.isstring():
         return new StringLiteral(owner, t);
       case t.isint():
-        return new IntegerLiteral(owner, t);
+        return integerValue(owner, t, t.getintvalue());
       case t.isfloat():
         return new FloatLiteral(owner, t);
       case t.iskeyword('new'):
@@ -8682,7 +8683,8 @@ class FunctionStatement : FunctionBase
 
         var fullname = clone(self.owner.getpath());
         push(fullname, name.getidentifier());
-        var cfunction = self.createconst('__FUNCTION__', REGstring);
+        var tfun = new TokenIdentifier('__predefconst__', 0, '__FUNCTION__');
+        var cfunction = self.createconst(tfun, REGstring);
         cfunction.setvalue(new StringLiteral(self,
                 new TokenQuoted(name.file, name.line,
                     join('.', fullname))));
@@ -9954,20 +9956,27 @@ class WinxedCompileUnit
         // Store predefined constants in the root namespace.
         var taux = new TokenIdentifier('__predefconst__', 0, 'predefconst');
 
-        var cfalse = rootns.createconst('false', REGint, VAR_is_extern);
+        var tfalse = new TokenIdentifier('__predefconst__', 0, 'false');
+        var cfalse = rootns.createconst(tfalse, REGint, VAR_is_extern);
         cfalse.setvalue(integerValue(rootns,
                 new TokenInteger(taux.file, taux.line, 'false'), 0));
-        var ctrue = rootns.createconst('true', REGint, VAR_is_extern);
+
+        var ttrue = new TokenIdentifier('__predefconst__', 0, 'true');
+        var ctrue = rootns.createconst(ttrue, REGint, VAR_is_extern);
         ctrue.setvalue(integerValue(rootns,
                 new TokenInteger(taux.file, taux.line, 'false'), 1));
+
         // Tricky way of setting __STAGE__: stage 1 is built with
         // stage 0 and stage 2 is built with stage 1. Increment
         // the current stage and we are done.
-        var cstage = rootns.createconst('__STAGE__', REGstring, VAR_is_extern);
+        var tstage = new TokenIdentifier('__predefconst__', 0, '__STAGE__');
+        var cstage = rootns.createconst(tstage, REGstring, VAR_is_extern);
         cstage.setvalue(new StringLiteral(rootns,
                 new TokenQuoted(taux.file, taux.line, string(int(__STAGE__) + 1))));
+
         // Propagate value for exception type.
-        var cerrtype = rootns.createconst('__WINXED_ERROR__', REGstring, VAR_is_extern);
+        var terrtype = new TokenIdentifier('__predefconst__', 0, '__WINXED_ERROR__');
+        var cerrtype = rootns.createconst(terrtype, REGstring, VAR_is_extern);
         cerrtype.setvalue(integerValue(rootns,
                 new TokenInteger(taux.file, taux.line, '__WINXED_ERROR__'), __WINXED_ERROR__));
 
