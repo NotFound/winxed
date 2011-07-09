@@ -1023,6 +1023,29 @@ const int
     VAR_is_lexical  = 2, // lexicalized local variable
     VAR_is_extern   = 4; // externaly defined constant, do not export
 
+// Predefined constants
+
+// Fake filename and line number for the tokens.
+const string PREDEFCONST_FILENAME = '__predefconst__';
+const int PREDEFCONST_LINENUM = 0;
+
+function createPredefConstInt(scope, string name, int value)
+{
+    var tid = new TokenIdentifier(PREDEFCONST_FILENAME, PREDEFCONST_LINENUM,
+        name);
+    var cst = scope.createconst(tid, REGint, VAR_is_extern);
+    cst.setvalue(integerValue(scope, tid, value));
+}
+
+function createPredefConstString(scope, string name, string value)
+{
+    var tid = new TokenIdentifier(PREDEFCONST_FILENAME, PREDEFCONST_LINENUM,
+        name);
+    var cst = scope.createconst(tid, REGstring, VAR_is_extern);
+    cst.setvalue(new StringLiteral(scope,
+        new TokenQuoted(PREDEFCONST_FILENAME, PREDEFCONST_LINENUM, value)));
+}
+
 //*********************************************
 //         Predefined functions
 //*********************************************
@@ -8683,11 +8706,7 @@ class FunctionStatement : FunctionBase
 
         var fullname = clone(self.owner.getpath());
         push(fullname, name.getidentifier());
-        var tfun = new TokenIdentifier('__predefconst__', 0, '__FUNCTION__');
-        var cfunction = self.createconst(tfun, REGstring);
-        cfunction.setvalue(new StringLiteral(self,
-                new TokenQuoted(name.file, name.line,
-                    join('.', fullname))));
+        createPredefConstString(self, '__FUNCTION__', join('.', fullname));
 
         t = tk.get();
         if (!t.isop('{'))
@@ -9954,31 +9973,18 @@ class WinxedCompileUnit
         var rootns = new RootNamespace(self);
 
         // Store predefined constants in the root namespace.
-        var taux = new TokenIdentifier('__predefconst__', 0, 'predefconst');
 
-        var tfalse = new TokenIdentifier('__predefconst__', 0, 'false');
-        var cfalse = rootns.createconst(tfalse, REGint, VAR_is_extern);
-        cfalse.setvalue(integerValue(rootns,
-                new TokenInteger(taux.file, taux.line, 'false'), 0));
-
-        var ttrue = new TokenIdentifier('__predefconst__', 0, 'true');
-        var ctrue = rootns.createconst(ttrue, REGint, VAR_is_extern);
-        ctrue.setvalue(integerValue(rootns,
-                new TokenInteger(taux.file, taux.line, 'false'), 1));
+        createPredefConstInt(rootns, 'false', 0);
+        createPredefConstInt(rootns, 'true', 1);
 
         // Tricky way of setting __STAGE__: stage 1 is built with
         // stage 0 and stage 2 is built with stage 1. Increment
         // the current stage and we are done.
-        var tstage = new TokenIdentifier('__predefconst__', 0, '__STAGE__');
-        var cstage = rootns.createconst(tstage, REGstring, VAR_is_extern);
-        cstage.setvalue(new StringLiteral(rootns,
-                new TokenQuoted(taux.file, taux.line, string(int(__STAGE__) + 1))));
+        createPredefConstString(rootns, '__STAGE__',
+                string(int(__STAGE__) + 1));
 
         // Propagate value for exception type.
-        var terrtype = new TokenIdentifier('__predefconst__', 0, '__WINXED_ERROR__');
-        var cerrtype = rootns.createconst(terrtype, REGstring, VAR_is_extern);
-        cerrtype.setvalue(integerValue(rootns,
-                new TokenInteger(taux.file, taux.line, '__WINXED_ERROR__'), __WINXED_ERROR__));
+        createPredefConstInt(rootns, '__WINXED_ERROR__', __WINXED_ERROR__);
 
         self.rootns = rootns;
     }
