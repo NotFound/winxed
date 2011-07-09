@@ -4387,12 +4387,11 @@ class ConcatString : Expr
     {
         var regvalues = self.getregs(e);
         int nvalues = elements(regvalues);
-        string auxreg = '$S0';
+        string auxreg = result != '' ? result : '$S0';
         self.annotate(e);
         e.emitconcat(auxreg, regvalues[0], regvalues[1]);
         for (int i = 2; i < nvalues; ++i)
             e.emitconcat1(auxreg, regvalues[i]);
-        e.emitset(result, auxreg);
     }
     function emit_get(e)
     {
@@ -4411,15 +4410,6 @@ class ConcatString : Expr
         int nvalues = elements(regvalues);
         self.annotate(e);
         for (int i = 0; i < nvalues; ++i)
-            e.emitconcat1(result, regvalues[i]);
-    }
-    function emit_concat_set(e, result)
-    {
-        var regvalues = self.getregs(e);
-        int nvalues = elements(regvalues);
-        self.annotate(e);
-        e.emitconcat(result, regvalues[0], regvalues[1]);
-        for (int i = 2; i < nvalues; ++i)
             e.emitconcat1(result, regvalues[i]);
     }
 }
@@ -7695,12 +7685,8 @@ class DeclareSingleStatement : DeclareBase
             e.emitnull(reg);
         else {
             string itype = init.checkresult();
-            if (itype == basetype) {
-                if (itype == REGstring && (init instanceof ConcatString))
-                    init.emit_concat_set(e, reg);
-                else
-                    init.emit(e, reg);
-            }
+            if (itype == basetype)
+                init.emit(e, reg);
             else {
                 if (init instanceof IndexExpr) {
                     // Use the declared type for the indexing
