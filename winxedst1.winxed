@@ -9960,9 +9960,9 @@ class WinxedCompileUnit
     var rootns;
     var warnings;
 
-    function init [vtable] ()
+    function WinxedCompileUnit(int nowarn)
     {
-        self.warnings = true;
+        self.warnings = ! nowarn;
         var rootns = new RootNamespace(self);
 
         // Store predefined constants in the root namespace.
@@ -9980,10 +9980,6 @@ class WinxedCompileUnit
         createPredefConstInt(rootns, '__WINXED_ERROR__', __WINXED_ERROR__);
 
         self.rootns = rootns;
-    }
-    function setwarnmode(int mode)
-    {
-        self.warnings =: mode;
     }
     function dowarnings()
     {
@@ -10085,9 +10081,7 @@ class WinxedHLL
         handlein.close();
         handlein.open(EVAL_NAME, 'r');
         var tk = new Tokenizer(handlein, EVAL_NAME);
-        var winxed = new WinxedCompileUnit;
-        if (nowarn)
-            winxed.setwarnmode(false);
+        var winxed = new WinxedCompileUnit(nowarn);
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
@@ -10109,9 +10103,7 @@ class WinxedHLL
         handlein.open(filename, 'r');
         handlein.encoding('utf8');
         var tk = new Tokenizer(handlein, filename);
-        var winxed = new WinxedCompileUnit;
-        if (nowarn)
-            winxed.setwarnmode(false);
+        var winxed = new WinxedCompileUnit(nowarn);
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
