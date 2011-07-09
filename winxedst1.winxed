@@ -430,6 +430,10 @@ class TokenFloat : TokenWithVal
         self.TokenWithVal(file, line, str);
     }
     function isfloat() { return true; }
+    function getfloatvalue()
+    {
+        return float(self.str);
+    }
 }
 
 
@@ -1011,6 +1015,18 @@ function floatresult(string r1, string r2)
     int result = (r1 == REGfloat && (r2 == REGfloat || r2 == REGint)) ||
            (r2 == REGfloat && (r1 == REGfloat || r1 == REGint));
     return result;
+}
+
+function floatAsString(float n)
+/*
+    Make sure that a float value is recognized as such by the
+    PIR compiler, adding a dot if needed.
+*/
+{
+    string aux = n;
+    if (indexof(aux, '.') < 0)
+        aux += '.0';
+    return aux;
 }
 
 const string NULL = 'null', SELF = 'self';
@@ -2911,8 +2927,12 @@ class IntegerLiteral : Literal
     function checkresult() { return REGint; }
     function getIntegerValue()
     {
-        string aux = self.numval;
-        return int(aux);
+        return self.numval;
+    }
+    function getFloatValue()
+    {
+        float value = self.getIntegerValue();
+        return value;
     }
     function emit(e, result)
     {
@@ -2944,26 +2964,20 @@ class FloatLiteral : Literal
     function checkresult() { return REGfloat; }
     function getFloatValue()
     {
-        string aux = self.numval;
-        var n = new ['Float'];
-        n =: aux;
-        return n;
+        float value = self.numval.getfloatvalue();
+        return value;
     }
     function emit(e, result)
     {
         if (result != '') {
-            var n = self.getFloatValue();
+            string n = self.emit_get(e);
             e.emitset(result, n);
         }
     }
     function emit_get(e)
     {
-        // Make sure that a float constant is handled as such:
-        // if it looks like an integer, add a dcimal part.
-        string aux = self.numval;
-        if (indexof(aux, '.') < 0)
-            aux += '.0';
-        return aux;
+        float value = self.getFloatValue();
+        return floatAsString(value);
     }
 }
 
@@ -3310,8 +3324,8 @@ class OpBinaryIntExpr : OpBinaryExpr
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
         if (lexpr.isintegerliteral() && rexpr.isintegerliteral()) {
-            int li = int(lexpr.numval);
-            int ri = int(rexpr.numval);
+            int li = lexpr.getIntegerValue();
+            int ri = rexpr.getIntegerValue();
             return integerValue(self.owner, self.start, self.do_op(li, ri));
         }
         return self;
@@ -3393,17 +3407,16 @@ class OpUnaryMinusExpr : OpUnaryExpr
     }
     function optimize()
     {
+        var subexpr = self.subexpr;
         self.optimizearg();
-        if (self.subexpr.isintegerliteral()) {
-            var numval = self.subexpr.numval;
-            int i = numval;
-            return integerValue(self.owner, self.subexpr.start, -i);
+        if (subexpr.isintegerliteral()) {
+            int i = subexpr.getIntegerValue();
+            return integerValue(self.owner, subexpr.start, -i);
         }
         if (__STAGE__ != '0') {
-            if (self.subexpr.isfloatliteral()) {
-                var numval = self.subexpr.numval;
-                float n = string(numval);
-                return floatValue(self.owner, self.subexpr.start, -n);
+            if (subexpr.isfloatliteral()) {
+                float n = subexpr.getFloatValue();
+                return floatValue(self.owner, subexpr.start, -n);
             }
         }
         return self;
@@ -3439,8 +3452,7 @@ class OpNotExpr : OpUnaryExpr
         self.optimizearg();
         var subexpr = self.subexpr;
         if (subexpr.isintegerliteral()) {
-            var numval = subexpr.numval;
-            int n = numval;
+            int n = subexpr.getIntegerValue();
             return integerValue(self.owner, subexpr.start, ! n);
         }
         if (subexpr.isnegable())
@@ -3789,8 +3801,8 @@ class ComparatorBaseExpr : OpBinaryExpr
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
         if (lexpr.isintegerliteral() && rexpr.isintegerliteral()) {
-            int li = int(lexpr.numval);
-            int ri = int(rexpr.numval);
+            int li = lexpr.getIntegerValue();
+            int ri = rexpr.getIntegerValue();
             return integerValue(self.owner, self.start, self.int_op(li, ri));
         }
         return self;
@@ -3932,8 +3944,8 @@ class OpEqualExpr : ComparatorBaseExpr
             if (ltype == rtype) {
                 switch (ltype) {
                   case REGint:
-                    int li = int(lexpr.numval);
-                    int ri = int(rexpr.numval);
+                    int li = lexpr.getIntegerValue();
+                    int ri = rexpr.getIntegerValue();
                     return integerValue(self.owner, self.start, li == ri);
                   case REGstring:
                     string ls = (lexpr.strval).str;
@@ -3992,8 +4004,8 @@ class OpNotEqualExpr : ComparatorBaseExpr
             if (ltype == rtype) {
                 switch (ltype) {
                   case REGint:
-                    int li = int(lexpr.numval);
-                    int ri = int(rexpr.numval);
+                    int li = lexpr.getIntegerValue();
+                    int ri = rexpr.getIntegerValue();
                     return integerValue(self.owner, self.start, li != ri);
                   case REGstring:
                     string ls = (lexpr.strval).str;
@@ -4196,8 +4208,7 @@ class OpBoolAndExpr : OpBaseBoolExpr
     {
         self.optimizearg();
         if (self.lexpr.isintegerliteral() ) {
-            var lval = self.lexpr.numval;
-            int ln = lval;
+            int ln = self.lexpr.getIntegerValue();
             if (ln != 0)
                return self.rexpr;
             else
@@ -4235,8 +4246,7 @@ class OpBoolOrExpr : OpBaseBoolExpr
     {
         self.optimizearg();
         if (self.lexpr.isintegerliteral() ) {
-            var lval = self.lexpr.numval;
-            int ln = lval;
+            int ln = self.lexpr.getIntegerValue();
             if (ln == 0)
                return self.rexpr;
             else
@@ -4447,18 +4457,14 @@ class OpAddExpr : OpBinaryExpr
                 return new StringLiteral(self.owner, t);
             }
             if (ltype == REGint && rtype == REGint) {
-                var lval = lexpr.numval;
-                int ln = lval;
-                var rval = rexpr.numval;
-                int rn = rval;
+                int ln = lexpr.getIntegerValue();
+                int rn = rexpr.getIntegerValue();
                 return integerValue(self.owner, self.start, ln + rn);
             }
             if (__STAGE__ != '0') {
                 if (floatresult(ltype, rtype)) {
-                    var lvalf = lexpr.numval;
-                    float lf = string(lvalf);
-                    var rvalf = rexpr.numval;
-                    float rf = string(rvalf);
+                    float lf = lexpr.getFloatValue();
+                    float rf = rexpr.getFloatValue();
                     return floatValue(self.owner, self.start, lf + rf);
                 }
             }
@@ -4545,10 +4551,8 @@ class OpSubExpr : OpBinaryExpr
             string ltype = lexpr.checkresult();
             string rtype = rexpr.checkresult();
             if (ltype == REGint && rtype == REGint) {
-                var lval = lexpr.numval;
-                int ln = lval;
-                var rval = rexpr.numval;
-                int rn = rval;
+                int ln = lexpr.getIntegerValue();
+                int rn = rexpr.getIntegerValue();
                 return integerValue(self.owner, self.start, ln - rn);
             }
         }
@@ -4591,18 +4595,14 @@ class OpMulExpr : OpBinaryExpr
             string ltype = lexpr.checkresult();
             string rtype = rexpr.checkresult();
             if (ltype == REGint && rtype == REGint) {
-                var lval = lexpr.numval;
-                int ln = lval;
-                var rval = rexpr.numval;
-                int rn = rval;
+                int ln = lexpr.getIntegerValue();
+                int rn = rexpr.getIntegerValue();
                 return integerValue(self.owner, self.start, ln * rn);
             }
             if (__STAGE__ != '0') {
                 if (floatresult(ltype, rtype)) {
-                    var lvalf = lexpr.numval;
-                    float lf = string(lvalf);
-                    var rvalf = rexpr.numval;
-                    float rf = string(rvalf);
+                    float lf = lexpr.getFloatValue();
+                    float rf = rexpr.getFloatValue();
                     return floatValue(self.owner, self.start, lf * rf);
                 }
             }
@@ -4732,19 +4732,15 @@ class OpDivExpr : OpBinaryExpr
             var lval;
             var rval;
             if (ltype == REGint && rtype == REGint) {
-                lval = lexpr.numval;
-                int ln = lval;
-                rval = rexpr.numval;
-                int rn = rval;
+                int ln = lexpr.getIntegerValue();
+                int rn = rexpr.getIntegerValue();
                 if (rn != 0)
                     return integerValue(self.owner, self.start, ln / rn);
             }
             if (__STAGE__ != '0') {
                 if (floatresult(ltype, rtype)) {
-                    lval = lexpr.numval;
-                    float lf = string(lval);
-                    rval = rexpr.numval;
-                    float rf = string(rval);
+                    float lf = lexpr.getFloatValue();
+                    float rf = rexpr.getFloatValue();
                     if (rf != 0)
                         return floatValue(self.owner, self.start, lf / rf);
                 }
