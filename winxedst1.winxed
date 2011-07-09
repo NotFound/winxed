@@ -4436,6 +4436,34 @@ class ConcatString : Expr
 
 //*********************************************
 
+class RepeatString : OpBinaryExpr
+{
+    function RepeatString(from)
+    {
+        self.set(from.owner, from.start, from.lexpr, from.rexpr);
+    }
+    function checkresult() { return REGstring; }
+    function emit(e, result)
+    {
+        var rexpr = self.rexpr;
+        string lreg = self.lexpr.emit_get(e);
+        string rreg = rexpr.emit_get(e);
+        string rval;
+        switch (rexpr.checkresult()) {
+          case REGint:
+            rval = rreg;
+            break;
+          default:
+            rval = self.tempreg(REGint);
+            e.emitset(rval, rreg);
+        }
+        self.annotate(e);
+        e.emitrepeat(result, lreg, rval);
+    }
+}
+
+//*********************************************
+
 class OpAddExpr : OpBinaryExpr
 {
     function OpAddExpr(owner, start, lexpr, rexpr)
@@ -4601,9 +4629,9 @@ class OpMulExpr : OpBinaryExpr
         self.optimizearg();
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
+        string ltype = lexpr.checkresult();
+        string rtype = rexpr.checkresult();
         if (lexpr.isliteral() && rexpr.isliteral()) {
-            string ltype = lexpr.checkresult();
-            string rtype = rexpr.checkresult();
             if (ltype == REGint && rtype == REGint) {
                 int ln = lexpr.getIntegerValue();
                 int rn = rexpr.getIntegerValue();
@@ -4617,6 +4645,8 @@ class OpMulExpr : OpBinaryExpr
                 }
             }
         }
+        if (ltype == REGstring)
+            return new RepeatString(self);
         return self;
     }
     function checkresult()
@@ -4638,22 +4668,6 @@ class OpMulExpr : OpBinaryExpr
         string ltype = lexpr.checkresult();
         string rtype = rexpr.checkresult();
         string lreg, rreg;
-        if (ltype == REGstring) {
-            lreg = lexpr.emit_get(e);
-            rreg = rexpr.emit_get(e);
-            string rval;
-            switch (rtype) {
-              case REGint:
-                rval = rreg;
-                break;
-              default:
-                rval = self.tempreg(REGint);
-                e.emitset(rval, rreg);
-            }
-            self.annotate(e);
-            e.emitrepeat(result, lreg, rval);
-            return;
-        }
         if (ltype == rtype && (ltype == REGint || ltype == REGfloat || ltype == REGvar)) {
             lreg = lexpr.emit_get(e);
             rreg = rexpr.emit_get(e);
