@@ -7322,10 +7322,18 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
     }
     function optimize()
     {
-        if (self.initializer != null)
-            self.initializer = self.initializer.optimize();
-        if (self.condexpr != null)
+        var initializer = self.initializer;
+        if (initializer != null)
+            self.initializer = initializer = initializer.optimize();
+        if (self.condexpr != null) {
             self.optimize_condition();
+            if (self.getvalue() == CONDisfalse) {
+                if (initializer != null)
+                    return initializer;
+                else
+                    return new EmptyStatement;
+            }
+        }
         if (self.iteration != null)
             self.iteration = self.iteration.optimize();
         self.body = self.body.optimize();
