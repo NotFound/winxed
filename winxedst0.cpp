@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 6-jul-2011
+// Revision 9-jul-2011
 
 // Winxed compiler stage 0.
 
@@ -5983,16 +5983,16 @@ void ForeachStatement::emit(Emit &e)
     std::string label= genlabel();
     std::string continuelabel = gencontinuelabel();
     std::string breaklabel= genbreaklabel();
-    std::string container_ = genlocalregister(REGvar);
+    std::string regcont = genlocalregister(REGvar);
     if (container-> isstring() )
     {
         std::string value= gentemp(REGstring);
         container->emit(e, value);
         e.annotate(start);
-        e << op_box(container_, value) << '\n';
+        e << op_box(regcont, value) << '\n';
     }
     else
-        container->emit(e, container_);
+        container->emit(e, regcont);
 
     e.annotate(start);
     if (vartype != '\0')
@@ -6000,7 +6000,8 @@ void ForeachStatement::emit(Emit &e)
     const std::string iter= "iter_" + varname;
 
     e << INDENT ".local pmc " << iter << "\n" <<
-        INDENT << iter << " = iter " << container_ << "\n" <<
+        INDENT "if null " << regcont << " goto " << breaklabel << '\n' <<
+        INDENT "iter " << iter << ", " << regcont << "\n" <<
         INDENT << iter << " = 0\n" << // ITERATE_FROM_START
         INDENTLABEL << continuelabel << ": # FOR IN\n" <<
         INDENT "unless " << iter << " goto " << breaklabel<< "\n"
@@ -6009,7 +6010,7 @@ void ForeachStatement::emit(Emit &e)
     st->emit(e);
     e << INDENT "goto " << continuelabel << '\n' <<
         INDENTLABEL << breaklabel << ": # FOR IN END\n";
-    freelocalregister(container_);
+    freelocalregister(regcont);
 }
 
 //**********************************************************************

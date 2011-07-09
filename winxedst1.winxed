@@ -1718,10 +1718,8 @@ function optimize_array(var arr)
 
 function emit_array(e, arr)
 {
-    if (arr != null) {
-        for (var item in arr)
-            item.emit(e);
-    }
+    for (var item in arr)
+        item.emit(e);
 }
 
 function parseDotted(tk)
@@ -2593,13 +2591,10 @@ class VarContainer
     }
     function getusedvar(var name)
     {
-        var usedns = self.usednamespaces;
-        if (usedns != null) {
-            var sym;
-            for (var ns in usedns) {
-                if ((sym = ns.getlocalvar(name)) != null)
-                    return sym;
-            }
+        var sym;
+        for (var ns in self.usednamespaces) {
+            if ((sym = ns.getlocalvar(name)) != null)
+                return sym;
         }
         return null;
     }
@@ -4985,22 +4980,19 @@ class ArgumentList
         if (argregs == null) {
             string argregs[];
             string pnull = '';
-            var args = self.args;
-            if (args != null) {
-                for (var argitem in args) {
-                    var arg = argitem.arg;
-                    string reg;
-                    if (arg.isnull()) {
-                        if (pnull == '') {
-                            pnull = self.owner.tempreg(REGvar);
-                            e.emitnull(pnull);
-                        }
-                        reg = pnull;
+            for (var argitem in self.args) {
+                var arg = argitem.arg;
+                string reg;
+                if (arg.isnull()) {
+                    if (pnull == '') {
+                        pnull = self.owner.tempreg(REGvar);
+                        e.emitnull(pnull);
                     }
-                    else
-                        reg = arg.emit_get(e);
-                    push(argregs, reg);
+                    reg = pnull;
                 }
+                else
+                    reg = arg.emit_get(e);
+                push(argregs, reg);
             }
             self.argregs = argregs;
         }
@@ -5664,31 +5656,28 @@ class ArrayExpr : Expr
             e.say(INDENT, 'root_new ', container, ", ['parrot';'ResizablePMCArray']");
             it_p = self.tempreg(REGvar);
         }
-        var values = self.values;
-        if (values != null) {
-            for (var item in values) {
-                switch (item.checkresult()) {
-                  case REGint: case REGfloat: case REGstring:
-                    string aux = item.emit_get(e);
-                    if (container != '') {
-                        e.emitbox(it_p, aux);
-                        itemreg = it_p;
-                    }
-                    break;
-                  default:
-                    if (item.isnull()) {
-                        if (container != '') {
-                            itemreg = self.tempreg(REGvar);
-                            e.emitnull(itemreg);
-                        }
-                    }
-                    else
-                        itemreg = item.emit_get(e);
-                }
+        for (var item in self.values) {
+            switch (item.checkresult()) {
+              case REGint: case REGfloat: case REGstring:
+                string aux = item.emit_get(e);
                 if (container != '') {
-                    self.annotate(e);
-                    e.emitarg2('push', container, itemreg);
+                    e.emitbox(it_p, aux);
+                    itemreg = it_p;
                 }
+                break;
+              default:
+                if (item.isnull()) {
+                    if (container != '') {
+                        itemreg = self.tempreg(REGvar);
+                        e.emitnull(itemreg);
+                    }
+                }
+                else
+                    itemreg = item.emit_get(e);
+            }
+            if (container != '') {
+                self.annotate(e);
+                e.emitarg2('push', container, itemreg);
             }
         }
     }
@@ -7389,7 +7378,16 @@ class ForeachStatement : LoopStatement, BlockStatement
     }
     function optimize()
     {
-        self.container = self.container.optimize();
+        var container = self.container.optimize();
+
+        // Optimize out iterating on compile time eveluated
+        // null values and empty strings.
+        if (container.isnull() ||
+                (container.isstringliteral() &&
+                length(container.get_value()) == 0))
+            return new EmptyStatement;
+
+        self.container = container;
         self.body = self.body.optimize();
         return self;
     }
@@ -7412,6 +7410,7 @@ class ForeachStatement : LoopStatement, BlockStatement
         string iterator = self.createreg(REGvar);
         string continuelabel = self.gencontinuelabel();
         string breaklabel = self.genbreaklabel();
+        e.emitif_null(regcont, breaklabel);
         e.emitarg2('iter', iterator, regcont);
         e.emitset(iterator, '0');
         e.emitlabel(continuelabel, 'for iteration');
@@ -8466,25 +8465,19 @@ class FunctionBase : BlockStatement
     }
     function findsymbol(key)
     {
-        var usedns = self.usednamespaces;
-        if (usedns != null) {
-            var found;
-            for (var ns in usedns) {
-                found = ns.findsymbol(key);
-                if (found != null)
-                    return found;
-            }
+        var found;
+        for (var ns in self.usednamespaces) {
+            found = ns.findsymbol(key);
+            if (found != null)
+                return found;
         }
         return self.owner.findsymbol(key);
     }
 
     function optimize()
     {
-        var usedns = self.usednamespaces;
-        if (usedns != null) {
-            for (var used in usedns)
-                used.fixnamespaces();
-        }
+        for (var used in self.usednamespaces)
+            used.fixnamespaces();
         self.body = self.body.optimize();
         return self;
     }
@@ -8614,26 +8607,19 @@ class FunctionBase : BlockStatement
         if (lexicals != null || usedlexicals != null) {
             e.annotate(self.start);
             // lexicals declared in this function and its inner scopes
-            if (lexicals != null) {
-                for (string l in lexicals)
-                    e.say(".lex '", lexicals[l], "', ", l);
-            }
+            for (string l in lexicals)
+                e.say(".lex '", lexicals[l], "', ", l);
             // lexicals from outers used inside
-            if (usedlexicals != null) {
-                for (string l in usedlexicals) {
-                    if (substr(l, 0, 1) != '$')
-                        e.say(INDENT + ".local pmc " + l);
-                    e.emitfind_lex(l, usedlexicals[l]);
-                }
+            for (string l in usedlexicals) {
+                if (substr(l, 0, 1) != '$')
+                    e.say(INDENT + ".local pmc " + l);
+                e.emitfind_lex(l, usedlexicals[l]);
             }
         }
 
-        var usedsubids = self.usedsubids;
-        if (usedsubids != null) {
-            for (string subid in usedsubids) {
-                //cry("Used: ", subid, ' in ', name);
-                e.say(".const 'Sub' ", subid, ' = "', subid, '"');
-            }
+        for (string subid in self.usedsubids) {
+            //cry("Used: ", subid, ' in ', name);
+            e.say(".const 'Sub' ", subid, ' = "', subid, '"');
         }
 
         var body = self.body;
@@ -8647,11 +8633,8 @@ class FunctionBase : BlockStatement
         e.say("\n.end # ", name, "\n");
 
         // Local functions
-        var localfun = self.localfun;
-        if (localfun != null) {
-            for (var fn in localfun)
-                fn.emit(e);
-        }
+        for (var fn in self.localfun)
+            fn.emit(e);
     }
 }
 
@@ -8737,12 +8720,9 @@ class LocalFunctionStatement : FunctionBase
     {
         if (self.lexicals != null || self.usedlexicals != null)
             return true;
-        var localfun = self.localfun;
-        if (localfun != null) {
-            for (var fn in localfun)
-                if (fn.needclosure())
-                    return true;
-        }
+        for (var fn in self.localfun)
+            if (fn.needclosure())
+                return true;
         return false;
     }
     function getsubid()
@@ -9165,16 +9145,13 @@ class ClassStatement : ClassBase, VarContainer
 
         e.say(INDENT, 'newclass $P0, ', self.getclasskey() );
         int n = 1;
-        var bases = self.bases;
-        if (bases != null) {
-            for (var base in self.bases) {
-                base.annotate(e);
-                string reg = "$P" + n++;
-                e.print(INDENT, 'get_class ', reg, ', ');
-                base.emit(e, self.parent);
-                e.say();
-                e.say(INDENT, 'addparent $P0, ', reg);
-            }
+        for (var base in self.bases) {
+            base.annotate(e);
+            string reg = "$P" + n++;
+            e.print(INDENT, 'get_class ', reg, ', ');
+            base.emit(e, self.parent);
+            e.say();
+            e.say(INDENT, 'addparent $P0, ', reg);
         }
         for (var member in self.members) {
             e.annotate(member);
