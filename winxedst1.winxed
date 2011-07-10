@@ -1572,6 +1572,20 @@ $P0 = %1
 :>>
             , REGstring, REGstring, REGstring
         ),
+        new PredefFunction('trans_encoding',
+<<:
+find_encoding $I0, %2
+trans_encoding %0, %1, $I0
+:>>
+            , REGstring, REGstring, REGstring
+        ),
+        new PredefFunction('encoding_name',
+<<:
+encoding $I0, %1
+encodingname %0, $I0
+:>>
+            , REGstring, REGstring
+        ),
         new PredefFunction('upcase',
             'upcase %0, %1',
             REGstring, REGstring
