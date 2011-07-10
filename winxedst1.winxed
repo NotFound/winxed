@@ -5245,8 +5245,33 @@ class CallExpr : Expr
         if (args != null)
             args = args.optimize();
 
-        if (funref instanceof MemberExpr)
-            return new CallMemberExpr(self, funref, args);
+        if (funref instanceof MemberExpr) {
+            // Check if the first element of the member expression
+            // is an identfier. In that case, if it's not in scope
+            // look for a function in accessible namespaces.
+            var sym;
+            var subid;
+            var first = funref.left;
+            while (first instanceof MemberExpr)
+                first = first.left;
+            if (first instanceof IdentifierExpr) {
+                var idfirst = first.checkIdentifier();
+                if (idfirst == null || idfirst == '') {
+                    var key = [ ];
+                    funref.buildkey(key);
+                    sym = self.findsymbol(key);
+                    if (sym != null) {
+                        if (sym instanceof FunctionStatement) {
+                            subid = sym.makesubid();
+                            self.usesubid(subid);
+                        }
+                        if (sym instanceof Builtin)
+                            return gencallbuiltin(self.owner, funref.start, sym, args);
+                    }
+                }
+            }
+            return new CallMemberExpr(self, funref, args, sym, subid);
+        }
         if (funref instanceof MemberRefExpr)
             return new CallMemberRefExpr(self, funref, args);
 
@@ -5337,33 +5362,13 @@ class CallMemberExpr : CallExpr
 {
     var sym;
     var subid;
-    function CallMemberExpr(callst, funref, args)
+    function CallMemberExpr(callst, funref, args, sym, subid)
     {
         self.Expr(callst.owner, callst.start);
         self.funref = funref;
         self.args = args;
-
-        // Check if the first element of the member expression
-        // is an identfier. In that case, if it's not in scope
-        // look for a function in accessible namespaces.
-        var first = funref.left;
-        while (first instanceof MemberExpr)
-            first = first.left;
-        if (first instanceof IdentifierExpr) {
-            var idfirst = first.checkIdentifier();
-            if (idfirst == null || idfirst == '') {
-                var key = [ ];
-                funref.buildkey(key);
-                var sym = self.findsymbol(key);
-                if (sym != null) {
-                    self.sym = sym;
-                    if (sym instanceof FunctionStatement) {
-                        self.subid = sym.makesubid();
-                        self.usesubid(self.subid);
-                    }
-                }
-            }
-        }
+        self.sym = sym;
+        self.subid = subid;
     }
     function emitcall(e)
     {
