@@ -1772,21 +1772,7 @@ compreg %0, %2
             REGvar, REGraw1
         )
     ];
-    for (;;)
-        yield predefs;
-}
-
-function findpredef(string name, int nargs)
-{
-    for (var p in getpredefs())
-        if (p.name == name) {
-            int pargs = p.nparams;
-            if (pargs == nargs ||
-                    pargs == PREDEF_arglist ||
-                    (pargs == PREDEF_raw1 && nargs == 1))
-                return p;
-        }
-    return null;
+    return predefs;
 }
 
 //*********************************************
@@ -5205,12 +5191,25 @@ class CallPredefExpr : Expr
 
 //*********************************************
 
-function genpredefcallexpr(owner, predef, args)
+function gencallbuiltin(owner, start, builtin, args)
 {
-    string callname = predef.name();
+    string callname = builtin.getname();
     owner.use_predef(callname);
     int nargs = args == null ? 0 : args.numargs();
     var rawargs = nargs == 0 ? [] : args.getrawargs();
+
+    var variants = builtin.variants;
+    int nvariants = elements(variants);
+    var predef;
+    for (var p in variants) {
+        int pargs = p.nparams;
+        if (pargs == nargs ||
+                pargs == PREDEF_arglist ||
+                (pargs == PREDEF_raw1 && nargs == 1))
+            predef = p;
+    }
+    if (predef == null)
+        SyntaxError("Wrong arguments for builtin", start);
 
     // Check for compile time evaluation.
     if (predef instanceof PredefFunctionEval) {
@@ -5220,7 +5219,7 @@ function genpredefcallexpr(owner, predef, args)
         }
     }
 
-    return new CallPredefExpr(owner.owner, owner.start, predef, rawargs);
+    return new CallPredefExpr(owner, start, predef, rawargs);
 }
 
 class CallExpr : Expr
@@ -5243,11 +5242,8 @@ class CallExpr : Expr
     {
         var funref = self.funref.optimize();
         var args = self.args;
-        int nargs = 0;
-        if (args != null) {
+        if (args != null)
             args = args.optimize();
-            nargs = args.numargs();
-        }
 
         if (funref instanceof MemberExpr)
             return new CallMemberExpr(self, funref, args);
@@ -5256,10 +5252,11 @@ class CallExpr : Expr
 
         // Check for predefined functions
         if (funref.isidentifier()) {
-            string callname = funref.getName();
-            var predef = findpredef(callname, nargs);
-            if (predef != null)
-                return genpredefcallexpr(self.owner, predef, args);
+            if (funref.checkIdentifier() == '') {
+                var sym = self.findsymbol([ funref.getName() ]);
+                if (sym != null && sym instanceof Builtin)
+                    return gencallbuiltin(self.owner, funref.start, sym, args);
+            }
         }
 
         self.funref = funref;
@@ -5279,10 +5276,18 @@ class CallExpr : Expr
             call = funref.checkIdentifier();
             if (call == '') {
                 var sym = self.findsymbol([ funref.getName() ]);
-                if (sym != null && sym instanceof FunctionExtern)
-                    call = sym.emit_get(e, self);
-                else
+                switch {
+                  case sym == null:
                     call = join("", [ "'", funref.getName(), "'" ] );
+                    break;
+                  case sym instanceof FunctionExtern:
+                    call = sym.emit_get(e, self);
+                    break;
+                  case sym instanceof Builtin:
+                    InternalError("Builtin unexpeted here", self);
+                  default:
+                    call = join("", [ "'", funref.getName(), "'" ] );
+                }
             }
         }
         else
@@ -10015,6 +10020,21 @@ class RootNamespace : NamespaceBase
 //           Compiler classes
 //*********************************************
 
+class Builtin {
+    var name;
+    var variants;
+    function Builtin(string name, variant)
+    {
+        self.name = name;
+        self.variants = [ variant ];
+    }
+    function getname() { return string(self.name); }
+    function addvariant(variant)
+    {
+        push(self.variants, variant);
+    }
+}
+
 const string EVAL_NAME = '__eval__';
 
 class WinxedCompileUnit
@@ -10040,6 +10060,22 @@ class WinxedCompileUnit
 
         // Propagate value for exception type.
         createPredefConstInt(rootns, '__WINXED_ERROR__', __WINXED_ERROR__);
+
+        // Builtins
+        var builtins = rootns.childnamespace(new TokenEof('__builtins__'),
+                "Winxed_Builtins", null);
+        var predefs = getpredefs();
+        var predefentries = {};
+        for (var predef in predefs) {
+            string name = predef.name;
+            if (predefentries[name] != null)
+               predefentries[name].addvariant(predef);
+            else
+                predefentries[name] = new Builtin(name, predef);
+        }
+        for (string s in predefentries)
+            push(builtins.functions, predefentries[s]);
+        rootns.usenamespace(builtins);
 
         self.rootns = rootns;
     }
