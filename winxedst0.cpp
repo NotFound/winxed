@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 9-jul-2011
+// Revision 10-jul-2011
 
 // Winxed compiler stage 0.
 
@@ -465,6 +465,16 @@ const PredefFunction *PredefFunction::predefs[]= {
     new PredefFunctionFixargs("escape",
         "escape {res}, {arg0}",
         REGstring, REGstring),
+    new PredefFunctionFixargs("unescape",
+        "$P0 = new ['String']\n"
+        "$P0 = {arg0}\n"
+        "{res} = $P0.'unescape'('utf8')\n",
+        REGstring, REGstring),
+    new PredefFunctionFixargs("unescape",
+        "$P0 = new ['String']\n"
+        "$P0 = {arg0}\n"
+        "{res} = $P0.'unescape'({arg1})\n",
+        REGstring, REGstring, REGstring),
     new PredefFunctionFixargs("upcase",
         "upcase {res}, {arg0}",
         REGstring, REGstring),
