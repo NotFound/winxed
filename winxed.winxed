@@ -6,6 +6,11 @@
 
 $load 'Getopt/Obj.pbc';
 
+// This driver must be compilable with stage 0, can't use $incldue_const
+// here, so harcode the values from iglobals.pasm and libpaths.pasm
+const int IGLOBALS_LIB_PATHS = 9;
+const int PARROT_LIB_PATH_INCLUDE = 0;
+
 function extname(string filename, string ext)
 {
     // Strip a possible .winxed extension from filename,
@@ -204,6 +209,14 @@ function driver_main(argv)
     int use_pbc = stage > 0;
 
     if (use_pbc) {
+        // Set the -I value now so the $include directive can use it.
+        if (incs != null) {
+            var interp = getinterp();
+            var lpaths = interp[IGLOBALS_LIB_PATHS];
+            var pathlib = lpaths[PARROT_LIB_PATH_INCLUDE];
+            pathlib.push(string(incs));
+        }
+
         try {
             load_bytecode(winxedbin + '.pbc');
         } catch () { }
@@ -224,7 +237,7 @@ function driver_main(argv)
         string pircode;
         if (eval == null) {
             var output;
-	    var file;
+            var file;
             if (pirfile == '-' &&
                    (targettype == TargetPir || targettype == TargetConst))
                 output = getstdout();

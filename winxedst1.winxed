@@ -9299,14 +9299,15 @@ function open_include(string filename, start)
         string filepath = path + filename;
         try {
             file = open(filepath, 'r');
-            file.encoding("utf8");
-            break;
+            if (file != null && ! file.is_closed())
+                break;
         }
         catch () {
         }
     }
-    if (file == null)
+    if (file == null || file.is_closed())
         SyntaxError('File not found', start);
+    file.encoding("utf8");
     return file;
 }
 
