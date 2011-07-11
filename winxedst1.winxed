@@ -9285,13 +9285,8 @@ function parseClass(start, tk, parent)
 //        Namespace classes and functions
 //*********************************************
 
-function include_parrot(var start, var tk, var ns)
+function open_include(string filename, start)
 {
-    var t = tk.get();
-    if (!t.isstring())
-        Expected('literal string', t);
-    ExpectOp(';', tk);
-    string filename = t.rawstring();
     var interp = getinterp();
 
     // Search for the file in the parrot include paths
@@ -9299,18 +9294,30 @@ function include_parrot(var start, var tk, var ns)
     const int PARROT_LIB_PATH_INCLUDE = 0;
     var libpaths = interp[IGLOBALS_LIB_PATHS];
     var paths = libpaths[PARROT_LIB_PATH_INCLUDE];
-    var file = new ['FileHandle'];
+    var file;
     for (string path in paths) {
         string filepath = path + filename;
         try {
-            file.open(filepath, 'r');
+            file = open(filepath, 'r');
             break;
         }
         catch () {
         }
     }
-    if (file.is_closed())
-        SyntaxError('File not found', t);
+    if (file == null)
+        SyntaxError('File not found', start);
+    return file;
+}
+
+function include_parrot(var start, var tk, var ns)
+{
+    var tfile = tk.get();
+    if (!tfile.isstring())
+        Expected('literal string', tfile);
+    ExpectOp(';', tk);
+
+    string filename = tfile.rawstring();
+    var file = open_include(filename, start);
 
     // Parse lines like this: .macro_const CONST_NAME value
     // Assume only integer values for a now
@@ -9348,6 +9355,26 @@ function include_parrot(var start, var tk, var ns)
                     new TokenInteger(start.file, start.line, name), ivalue));
         }
     }
+
+    file.close();
+}
+
+//*********************************************
+
+function include_winxed(var start, var tk, var ns)
+{
+    if (! (ns instanceof RootNamespace))
+        SyntaxError("Must be used at root namespace level");
+    var tfile = tk.get();
+    if (!tfile.isstring())
+        Expected('literal string', tfile);
+    ExpectOp(';', tk);
+
+    string filename = tfile.rawstring();
+    var file = open_include(filename, start);
+
+    var tkinc = new Tokenizer(file, filename);
+    ns.parse(tkinc);
 
     file.close();
 }
@@ -9717,6 +9744,9 @@ class NamespaceBase : VarContainer
                 break;
               case '$include_const':
                 include_parrot(t, tk, self);
+                break;
+              case '$include':
+                include_winxed(t, tk, self);
                 break;
               case '$load':
                 t = tk.get();
