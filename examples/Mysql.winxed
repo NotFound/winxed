@@ -102,6 +102,8 @@ function get_encoding_func()
     if (found != null) {
         return function(p, string encoding[optional])
         {
+            if (encoding == null)
+                encoding = 'ascii';
             var interp = getinterp();
             var find_encoding = dlfunc(null, 'Parrot_find_encoding', 'ppp');
             var pencoding = str_to_cstring(encoding);
