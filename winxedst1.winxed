@@ -1755,10 +1755,6 @@ compreg %0, %2
             'sprintf %0, %1, %2',
             REGstring, REGstring, REGvar
         ),
-        new PredefFunction('sprintf',
-            'sprintf %0, %1, %2',
-            REGvar, REGvar, REGvar
-        ),
         new PredefFunction('print',
             Predef_print,
             REGnone, REGarglist

@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 10-jul-2011
+// Revision 14-jul-2011
 
 // Winxed compiler stage 0.
 
@@ -538,10 +538,7 @@ const PredefFunction *PredefFunction::predefs[]= {
         REGvar, REGvar, REGstring, REGstring),
     new PredefFunctionFixargs("sprintf",
         "sprintf {res}, {arg0}, {arg1}",
-        REGstring, REGstring, REGvar),
-    new PredefFunctionFixargs("sprintf",
-        "sprintf {res}, {arg0}, {arg1}",
-        REGvar, REGvar, REGvar)
+        REGstring, REGstring, REGvar)
 };
 
 const size_t PredefFunction::numpredefs =
