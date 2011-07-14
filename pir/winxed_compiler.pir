@@ -29727,7 +29727,7 @@
 # {
 .annotate 'line', 10159
     new $P1, ['FixedIntegerArray'], 3
-    null $I1
+    set $I1, 1
     $P1[0] = $I1
     null $I1
     $P1[1] = $I1
