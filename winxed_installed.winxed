@@ -27,7 +27,8 @@ class WinxedDriverOptions : [ 'Getopt', 'Obj']
           [ 'I=s',      'Add to parrot include search path' ],
           [ 'nowarn',   'No warnings' ],
           [ 'noan',     'No code annotations' ],
-          [ 'help',     'Show this help' ]
+          [ 'help',     'Show this help' ],
+          [ 'version',   'Show version and exit' ]
         ];
         self.options = options;
         for (var o in options)
@@ -86,9 +87,34 @@ function extname(string filename, string ext)
     return newname;
 }
 
+function getcompiler()
+{
+    var compiler;
+    try 
+        compiler = load_language('winxed');
+    catch () { }
+    if (compiler == null) {
+        if (DEBUG) {
+            load_bytecode("winxedst2.pbc");
+            compiler = compreg('winxed');
+            if (compiler == null)
+                die("winxed: Cannot load language or stage");
+        }
+        else
+            die("winxed: Cannot load language");
+    }
+    return compiler;
+}
+
 function main [main] (argv)
 {
     var optionset = new WinxedDriverOptions(argv);
+
+    if (optionset.getbool('version')) {
+        var compiler = getcompiler();
+        say(compiler.version_string());
+        exit(0);
+    }
 
     int help          = optionset.getbool('help');
     int compileonly   = optionset.getbool('c');
@@ -146,21 +172,7 @@ function main [main] (argv)
     if (objectname != null && ! compileonly)
         die('-o without -c or --target is not supported yet');
 
-    var compiler;
-    try 
-        compiler = load_language('winxed');
-    catch () { }
-
-    if (compiler == null) {
-        if (DEBUG) {
-            load_bytecode("winxedst2.pbc");
-            compiler = compreg('winxed');
-            if (compiler == null)
-                die("winxed: Cannot load language or stage");
-        }
-        else
-            die("winxed: Cannot load language");
-    }
+    var compiler = getcompiler();
 
     var code;
     string outfilename = null;

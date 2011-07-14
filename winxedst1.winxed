@@ -9,6 +9,10 @@ namespace Winxed
 namespace Compiler
 {
 
+const int VERSION_MAJOR = 0;
+const int VERSION_MINOR = 0;
+const int VERSION_BUILD = 0;
+
 //*********************************************
 //          Character test functions
 //*********************************************
@@ -10154,6 +10158,15 @@ class WinxedCompileUnit
 
 class WinxedHLL
 {
+    function version()
+    {
+        int version[3] = [ VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD ];
+        return version;
+    }
+    function version_string()
+    {
+        return "Winxed " + string(join(".", self.version()));
+    }
     function __private_compile_tail(winxed, target, output, noan)
     {
         if (target == 'parse')
