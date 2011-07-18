@@ -2493,21 +2493,25 @@ class UsingStatement : Statement
 //            UsingNamespaceStatement
 //*********************************************
 
+// Common part of using namespace from different kinds of scopes.
+function usingNamespace(start, tk, owner)
+{
+    var nskey = parseDotted(tk);
+    int nlems = elements(nskey);
+    if (nlems < 1)
+        Expected('namespace identifier', start);
+    var nssym = owner.findns(nskey);
+    if (nssym == null)
+        SyntaxError('unknow namespace', start);
+    owner.usenamespace(nssym);
+}
+
 class UsingNamespaceStatement : Statement
 {
     function UsingNamespaceStatement(start, tk, owner)
     {
         self.Statement(tk, owner);
-        var nskey = parseDotted(tk);
-        int nlems = elements(nskey);
-        if (nlems < 1)
-            Expected('namespace identifier', start);
-        var nssym = owner.findns(toIdentifierList(nskey));
-
-        if (nssym == null)
-            SyntaxError('unknow namespace', start);
-        owner.usenamespace(nssym);
-
+        usingNamespace(start, tk, owner);
         ExpectOp(';', tk);
     }
     function optimize()
@@ -9387,15 +9391,8 @@ function parsensUsing(start, tk, ns)
 {
     var t = tk.get();
     if (t.iskeyword('namespace')) {
-        var nskey = parseDotted(tk);
-        int nelems = elements(nskey);
-        if (nelems < 1)
-            SyntaxError('Unsupported', t);
+        usingNamespace(start, tk, ns);
         ExpectOp(';', tk);
-        var nssym = ns.findns(nskey);
-        if (nssym == null)
-            SyntaxError('unknown namespace', t);
-        ns.usenamespace(nssym);
         return;
     }
     if (! t.iskeyword('extern')) {
