@@ -1400,92 +1400,91 @@ function predefeval_indexof_pos(var owner, var start, var args)
     return integerValue(owner, start, indexof(strfrom, strsearch, pos));
 }
 
-function getpredefs()
+function getpredefs(builder)
 {
-    var predefs = [
-        new PredefFunction('int',
-            new Predef_typecast(REGint),
-            REGint, REGraw1
-        ),
-        new PredefFunction('float',
-            new Predef_typecast(REGfloat),
-            REGfloat, REGraw1
-        ),
-        new PredefFunction('string',
-            new Predef_typecast(REGstring),
-            REGstring, REGraw1
-        ),
-        new PredefFunction('die',
-            'die %1',
-            REGnone, REGstring
-        ),
-        new PredefFunction('exit',
-            'exit %1',
-            REGnone, REGint
-        ),
-        new PredefFunction('time',
-            'time %0',
-            REGint
-        ),
-        new PredefFunction('floattime',
-            'time %0',
-            REGfloat
-        ),
-        new PredefFunction('spawnw',
-            'spawnw %0, %1',
-            REGint, REGvar
-        ),
-        new PredefFunction('getstdin',
-            'getstdin %0',
-            REGvar
-        ),
-        new PredefFunction('getstdout',
-            'getstdout %0',
-            REGvar
-        ),
-        new PredefFunction('getstderr',
-            'getstderr %0',
-            REGvar
-        ),
-        new PredefFunction('open',
+    builder.add(new PredefFunction('int',
+        new Predef_typecast(REGint),
+        REGint, REGraw1
+    ));
+    builder.add(new PredefFunction('float',
+        new Predef_typecast(REGfloat),
+        REGfloat, REGraw1
+    ));
+    builder.add(new PredefFunction('string',
+        new Predef_typecast(REGstring),
+        REGstring, REGraw1
+    ));
+    builder.add(new PredefFunction('die',
+        'die %1',
+        REGnone, REGstring
+    ));
+    builder.add(new PredefFunction('exit',
+        'exit %1',
+        REGnone, REGint
+    ));
+    builder.add(new PredefFunction('time',
+        'time %0',
+        REGint
+    ));
+    builder.add(new PredefFunction('floattime',
+        'time %0',
+        REGfloat
+    ));
+    builder.add(new PredefFunction('spawnw',
+        'spawnw %0, %1',
+        REGint, REGvar
+    ));
+    builder.add(new PredefFunction('getstdin',
+        'getstdin %0',
+        REGvar
+    ));
+    builder.add(new PredefFunction('getstdout',
+        'getstdout %0',
+        REGvar
+    ));
+    builder.add(new PredefFunction('getstderr',
+        'getstderr %0',
+        REGvar
+    ));
+    builder.add(new PredefFunction('open',
 <<:
 root_new %0, ['parrot';'FileHandle']
 %0.'open'(%1)
 :>>
-            , REGvar, REGstring
-        ),
-        new PredefFunction('open',
+        , REGvar, REGstring
+    ));
+    builder.add(new PredefFunction('open',
 <<:
 root_new %0, ['parrot';'FileHandle']
 %0.'open'(%1,%2)
 :>>
-            , REGvar, REGstring, REGstring
-        ),
-        new PredefFunction('Error',
+        , REGvar, REGstring, REGstring
+    ));
+    builder.add(new PredefFunction('Error',
 <<:
 root_new %0, ['parrot';'Exception']
 %0['message'] = %1
 :>>
-            , REGvar, REGstring
-        ),
-        new PredefFunction('Error',
+        , REGvar, REGstring
+    ));
+    builder.add(new PredefFunction('Error',
 <<:
 root_new %0, ['parrot';'Exception']
 %0['message'] = %1
 %0['severity'] = %2
 :>>
-            , REGvar, REGstring, REGint
-        ),
-        new PredefFunction('Error',
+        , REGvar, REGstring, REGint
+    ));
+    builder.add(new PredefFunction('Error',
 <<:
 root_new %0, ['parrot';'Exception']
 %0['message'] = %1
 %0['severity'] = %2
 %0['type'] = %3
 :>>
-            , REGvar, REGstring, REGint, REGint
-        ),
-        new PredefFunction('Error',
+        , REGvar, REGstring, REGint, REGint
+    ));
+    builder.add(new PredefFunction('Error',
 <<:
 root_new %0, ['parrot';'Exception']
 %0['message'] = %1
@@ -1493,186 +1492,186 @@ root_new %0, ['parrot';'Exception']
 %0['type'] = %3
 %0['payload'] = %4
 :>>
-            , REGvar, REGstring, REGint, REGint, REGvar
-        ),
-        new PredefFunction('elements',
-            'elements %0, %1',
-            REGint, REGvar
-        ),
-        new PredefFunctionEval('length',
-            predefeval_length,
-            'length %0, %1',
-            REGint, REGstring
-        ),
-        new PredefFunctionEval('bytelength',
-            predefeval_bytelength,
-            'bytelength %0, %1',
-            REGint, REGstring
-        ),
-        new PredefFunctionEval('chr',
-            predefeval_chr,
+        , REGvar, REGstring, REGint, REGint, REGvar
+    ));
+    builder.add(new PredefFunction('elements',
+        'elements %0, %1',
+        REGint, REGvar
+    ));
+    builder.add(new PredefFunctionEval('length',
+        predefeval_length,
+        'length %0, %1',
+        REGint, REGstring
+    ));
+    builder.add(new PredefFunctionEval('bytelength',
+        predefeval_bytelength,
+        'bytelength %0, %1',
+        REGint, REGstring
+    ));
+    builder.add(new PredefFunctionEval('chr',
+        predefeval_chr,
 <<:
 chr $S0, %1
 find_encoding $I0, 'utf8'
 trans_encoding %0, $S0, $I0
 :>>
-            , REGstring, REGint
-        ),
-        new PredefFunctionEval('ord',
-            predefeval_ord,
-            'ord %0, %1',
-            REGint, REGstring
-        ),
-        new PredefFunctionEval('ord',
-            predefeval_ord_n,
-            'ord %0, %1, %2',
-            REGint, REGstring, REGint
-        ),
-        new PredefFunctionEval('substr',
-            predefeval_substr,
-            'substr %0, %1, %2',
-            REGstring, REGstring, REGint
-        ),
-        new PredefFunctionEval('substr',
-            predefeval_substr_l,
-            'substr %0, %1, %2, %3',
-            REGstring, REGstring, REGint, REGint
-        ),
-        new PredefFunction('replace',
-            'replace %0, %1, %2, %3, %4',
-            REGstring, REGstring, REGint, REGint, REGstring
-        ),
-        new PredefFunctionEval('indexof',
-            predefeval_indexof,
-            'index %0, %1, %2',
-            REGint, REGstring, REGstring
-        ),
-        new PredefFunctionEval('indexof',
-            predefeval_indexof_pos,
-            'index %0, %1, %2, %3',
-            REGint, REGstring, REGstring, REGint
-        ),
-        new PredefFunction('join',
-            'join %0, %1, %2',
-            REGstring, REGstring, REGvar
-        ),
-        new PredefFunction('escape',
-            'escape %0, %1',
-            REGstring, REGstring
-        ),
-        new PredefFunction('unescape',
+        , REGstring, REGint
+    ));
+    builder.add(new PredefFunctionEval('ord',
+        predefeval_ord,
+        'ord %0, %1',
+        REGint, REGstring
+    ));
+    builder.add(new PredefFunctionEval('ord',
+        predefeval_ord_n,
+        'ord %0, %1, %2',
+        REGint, REGstring, REGint
+    ));
+    builder.add(new PredefFunctionEval('substr',
+        predefeval_substr,
+        'substr %0, %1, %2',
+        REGstring, REGstring, REGint
+    ));
+    builder.add(new PredefFunctionEval('substr',
+        predefeval_substr_l,
+        'substr %0, %1, %2, %3',
+        REGstring, REGstring, REGint, REGint
+    ));
+    builder.add(new PredefFunction('replace',
+        'replace %0, %1, %2, %3, %4',
+        REGstring, REGstring, REGint, REGint, REGstring
+    ));
+    builder.add(new PredefFunctionEval('indexof',
+        predefeval_indexof,
+        'index %0, %1, %2',
+        REGint, REGstring, REGstring
+    ));
+    builder.add(new PredefFunctionEval('indexof',
+        predefeval_indexof_pos,
+        'index %0, %1, %2, %3',
+        REGint, REGstring, REGstring, REGint
+    ));
+    builder.add(new PredefFunction('join',
+        'join %0, %1, %2',
+        REGstring, REGstring, REGvar
+    ));
+    builder.add(new PredefFunction('escape',
+        'escape %0, %1',
+        REGstring, REGstring
+    ));
+    builder.add(new PredefFunction('unescape',
 <<:
 $P0 = new ['String']
 $P0 = %1
 %0 = $P0.'unescape'('utf8')
 :>>
-            , REGstring, REGstring
-        ),
-        new PredefFunction('unescape',
+        , REGstring, REGstring
+    ));
+    builder.add(new PredefFunction('unescape',
 <<:
 $P0 = new ['String']
 $P0 = %1
 %0 = $P0.'unescape'(%2)
 :>>
-            , REGstring, REGstring, REGstring
-        ),
-        new PredefFunction('trans_encoding',
+        , REGstring, REGstring, REGstring
+    ));
+    builder.add(new PredefFunction('trans_encoding',
 <<:
 find_encoding $I0, %2
 trans_encoding %0, %1, $I0
 :>>
-            , REGstring, REGstring, REGstring
-        ),
-        new PredefFunction('encoding_name',
+        , REGstring, REGstring, REGstring
+    ));
+    builder.add(new PredefFunction('encoding_name',
 <<:
 encoding $I0, %1
 encodingname %0, $I0
 :>>
-            , REGstring, REGstring
-        ),
-        new PredefFunction('upcase',
-            'upcase %0, %1',
-            REGstring, REGstring
-        ),
-        new PredefFunction('downcase',
-            'downcase %0, %1',
-            REGstring, REGstring
-        ),
-        new PredefFunction('titlecase',
-            'titlecase %0, %1',
-            REGstring, REGstring
-        ),
-        new PredefFunction('split',
-            'split %0, %1, %2',
-            REGvar, REGstring, REGstring
-        ),
-        new PredefFunction('chomp',
+        , REGstring, REGstring
+    ));
+    builder.add(new PredefFunction('upcase',
+        'upcase %0, %1',
+        REGstring, REGstring
+    ));
+    builder.add(new PredefFunction('downcase',
+        'downcase %0, %1',
+        REGstring, REGstring
+    ));
+    builder.add(new PredefFunction('titlecase',
+        'titlecase %0, %1',
+        REGstring, REGstring
+    ));
+    builder.add(new PredefFunction('split',
+        'split %0, %1, %2',
+        REGvar, REGstring, REGstring
+    ));
+    builder.add(new PredefFunction('chomp',
 <<:
 $P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
 %0 = $P0(%1)
 :>>
-            , REGstring, REGstring
-        ),
-        new PredefFunction('chomp',
+        , REGstring, REGstring
+    ));
+    builder.add(new PredefFunction('chomp',
 <<:
 $P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
 %0 = $P0(%1, %2)
 :>>
-            , REGstring, REGstring, REGstring
-        ),
-        new PredefFunction('push',
-            'push %1, %2',
-            REGnone, REGvar, REGany
-        ),
-        new PredefFunction('sqrt',
-            'sqrt %0, %1',
-            REGfloat, REGfloat
-        ),
-        new PredefFunction('pow',
-            'pow %0, %1, %2',
-            REGfloat, REGfloat, REGfloat
-        ),
-        new PredefFunction('exp',
-            'exp %0, %1',
-            REGfloat, REGfloat
-        ),
-        new PredefFunction('ln',
-            'ln %0, %1',
-            REGfloat, REGfloat
-        ),
-        new PredefFunction('sin',
-            'sin %0, %1',
-            REGfloat, REGfloat
-        ),
-        new PredefFunction('cos',
-            'cos %0, %1',
-            REGfloat, REGfloat
-        ),
-        new PredefFunction('tan',
-            'tan %0, %1',
-            REGfloat, REGfloat
-        ),
-        new PredefFunction('asin',
-            'asin %0, %1',
-            REGfloat, REGfloat
-        ),
-        new PredefFunction('acos',
-            'acos %0, %1',
-            REGfloat, REGfloat
-        ),
-        new PredefFunction('atan',
-            'atan %0, %1',
-            REGfloat, REGfloat
-        ),
-        new PredefFunction('atan',
-            'atan %0, %1, %2',
-            REGfloat, REGfloat, REGfloat
-        ),
-        new PredefFunction('getinterp',
-            'getinterp %0',
-            REGvar
-        ),
-        new PredefFunction('getcontext',
+        , REGstring, REGstring, REGstring
+    ));
+    builder.add(new PredefFunction('push',
+        'push %1, %2',
+        REGnone, REGvar, REGany
+    ));
+    builder.add(new PredefFunction('sqrt',
+        'sqrt %0, %1',
+        REGfloat, REGfloat
+    ));
+    builder.add(new PredefFunction('pow',
+        'pow %0, %1, %2',
+        REGfloat, REGfloat, REGfloat
+    ));
+    builder.add(new PredefFunction('exp',
+        'exp %0, %1',
+        REGfloat, REGfloat
+    ));
+    builder.add(new PredefFunction('ln',
+        'ln %0, %1',
+        REGfloat, REGfloat
+    ));
+    builder.add(new PredefFunction('sin',
+        'sin %0, %1',
+        REGfloat, REGfloat
+    ));
+    builder.add(new PredefFunction('cos',
+        'cos %0, %1',
+        REGfloat, REGfloat
+    ));
+    builder.add(new PredefFunction('tan',
+        'tan %0, %1',
+        REGfloat, REGfloat
+    ));
+    builder.add(new PredefFunction('asin',
+        'asin %0, %1',
+        REGfloat, REGfloat
+    ));
+    builder.add(new PredefFunction('acos',
+        'acos %0, %1',
+        REGfloat, REGfloat
+    ));
+    builder.add(new PredefFunction('atan',
+        'atan %0, %1',
+        REGfloat, REGfloat
+    ));
+    builder.add(new PredefFunction('atan',
+        'atan %0, %1, %2',
+        REGfloat, REGfloat, REGfloat
+    ));
+    builder.add(new PredefFunction('getinterp',
+        'getinterp %0',
+        REGvar
+    ));
+    builder.add(new PredefFunction('getcontext',
 /* Experimental:
 Parrot will probably have a getcontext op in the near future.
 At that point this bulitin will just map to that op.
@@ -1683,96 +1682,94 @@ ParrotInterpreter PMC.
 getinterp $P0
 %0 = $P0["context"]
 :>>
-            , REGvar
-        ),
-        new PredefFunction('get_class',
-            'get_class %0, %1',
-            REGvar, REGs_v
-        ),
-        new PredefFunction('typeof',
-            'typeof %0, %1',
-            REGvar, REGvar
-        ),
-        new PredefFunction('getattribute',
-            'getattribute %0, %1, %2',
-            REGvar, REGvar, REGstring
-        ),
-        new PredefFunction('getattribute',
-            'getattribute %0, %1, %2, %3',
-            REGvar, REGvar, REGvar, REGstring
-        ),
-        new PredefFunction('setattribute',
-            'setattribute %1, %2, %3, %4',
-            REGnone, REGvar, REGvar, REGstring, REGvar
-        ),
-        new PredefFunction('find_method',
-            'find_method %0, %1, %2',
-            REGvar, REGvar, REGstring
-        ),
-        new PredefFunction('callmethodwithargs',
-            '%0 = %1.%2(%3 :flat)',
-            REGvar, REGvar, REGvar, REGvar
-        ),
-        new PredefFunction('clone',
-            'clone %0, %1',
-            REGvar, REGvar
-        ),
-        new PredefFunction('compreg',
-            'compreg %0, %1',
-            REGvar, REGstring
-        ),
-        new PredefFunction('compreg',
-            'compreg %1, %2',
-            REGnone, REGstring, REGvar
-        ),
-        new PredefFunction('load_language',
+        , REGvar
+    ));
+    builder.add(new PredefFunction('get_class',
+        'get_class %0, %1',
+        REGvar, REGs_v
+    ));
+    builder.add(new PredefFunction('typeof',
+        'typeof %0, %1',
+        REGvar, REGvar
+    ));
+    builder.add(new PredefFunction('getattribute',
+        'getattribute %0, %1, %2',
+        REGvar, REGvar, REGstring
+    ));
+    builder.add(new PredefFunction('getattribute',
+        'getattribute %0, %1, %2, %3',
+        REGvar, REGvar, REGvar, REGstring
+    ));
+    builder.add(new PredefFunction('setattribute',
+        'setattribute %1, %2, %3, %4',
+        REGnone, REGvar, REGvar, REGstring, REGvar
+    ));
+    builder.add(new PredefFunction('find_method',
+        'find_method %0, %1, %2',
+        REGvar, REGvar, REGstring
+    ));
+    builder.add(new PredefFunction('callmethodwithargs',
+        '%0 = %1.%2(%3 :flat)',
+        REGvar, REGvar, REGvar, REGvar
+    ));
+    builder.add(new PredefFunction('clone',
+        'clone %0, %1',
+        REGvar, REGvar
+    ));
+    builder.add(new PredefFunction('compreg',
+        'compreg %0, %1',
+        REGvar, REGstring
+    ));
+    builder.add(new PredefFunction('compreg',
+        'compreg %1, %2',
+        REGnone, REGstring, REGvar
+    ));
+    builder.add(new PredefFunction('load_language',
 <<:
 load_language %1
 compreg %0, %1
 :>>
-            , REGvar, REGstring
-        ),
-        new PredefFunction('load_language',
+        , REGvar, REGstring
+    ));
+    builder.add(new PredefFunction('load_language',
 <<:
 load_language %1
 compreg %0, %2
 :>>
-            , REGvar, REGstring, REGstring
-        ),
-        new PredefFunction('loadlib',
-            'loadlib %0, %1',
-            REGvar, REGstring
-        ),
-        new PredefFunction('load_bytecode',
-            'load_bytecode %1',
-            REGnone, REGstring
-        ),
-        new PredefFunction('dlfunc',
-            'dlfunc %0, %1, %2, %3',
-            REGvar, REGvar, REGstring, REGstring
-        ),
-        new PredefFunction('sprintf',
-            'sprintf %0, %1, %2',
-            REGstring, REGstring, REGvar
-        ),
-        new PredefFunction('print',
-            Predef_print,
-            REGnone, REGarglist
-        ),
-        new PredefFunction('say',
-            Predef_say,
-            REGnone, REGarglist
-        ),
-        new PredefFunction('cry',
-            Predef_cry,
-            REGnone, REGarglist
-        ),
-        new PredefFunction('invoke',
-            Predef_invoke,
-            REGvar, REGraw1
-        )
-    ];
-    return predefs;
+        , REGvar, REGstring, REGstring
+    ));
+    builder.add(new PredefFunction('loadlib',
+        'loadlib %0, %1',
+        REGvar, REGstring
+    ));
+    builder.add(new PredefFunction('load_bytecode',
+        'load_bytecode %1',
+        REGnone, REGstring
+    ));
+    builder.add(new PredefFunction('dlfunc',
+        'dlfunc %0, %1, %2, %3',
+        REGvar, REGvar, REGstring, REGstring
+    ));
+    builder.add(new PredefFunction('sprintf',
+        'sprintf %0, %1, %2',
+        REGstring, REGstring, REGvar
+    ));
+    builder.add(new PredefFunction('print',
+        Predef_print,
+        REGnone, REGarglist
+    ));
+    builder.add(new PredefFunction('say',
+        Predef_say,
+        REGnone, REGarglist
+    ));
+    builder.add(new PredefFunction('cry',
+        Predef_cry,
+        REGnone, REGarglist
+    ));
+    builder.add(new PredefFunction('invoke',
+        Predef_invoke,
+        REGvar, REGraw1
+    ));
 }
 
 //*********************************************
@@ -10071,6 +10068,30 @@ class Builtin {
 
 const string EVAL_NAME = '__eval__';
 
+class BuiltinBuilder
+{
+    var entries;
+    function BuiltinBuilder()
+    {
+        self.entries = {};
+    }
+    function add(builtin)
+    {
+        var entries = self.entries;
+        string name = builtin.name;
+        if (entries[name] != null)
+            entries[name].addvariant(builtin);
+        else
+            entries[name] = new Builtin(name, builtin);
+    }
+    function put(ns)
+    {
+        var entries = self.entries;
+        for (string s in entries)
+            push(ns.functions, entries[s]);
+    }
+}
+
 class WinxedCompileUnit
 {
     var rootns;
@@ -10096,20 +10117,13 @@ class WinxedCompileUnit
         createPredefConstInt(rootns, '__WINXED_ERROR__', __WINXED_ERROR__);
 
         // Builtins
-        var builtins = rootns.childnamespace(new TokenEof('__builtins__'),
+        var builtins_ns = rootns.childnamespace(new TokenEof('__builtins__'),
                 "Winxed_Builtins", null);
-        var predefs = getpredefs();
-        var predefentries = {};
-        for (var predef in predefs) {
-            string name = predef.name;
-            if (predefentries[name] != null)
-               predefentries[name].addvariant(predef);
-            else
-                predefentries[name] = new Builtin(name, predef);
-        }
-        for (string s in predefentries)
-            push(builtins.functions, predefentries[s]);
-        rootns.usenamespace(builtins);
+        var builder = new BuiltinBuilder();
+        getpredefs(builder);
+        builder.put(builtins_ns);
+
+        rootns.usenamespace(builtins_ns);
 
         self.rootns = rootns;
     }
