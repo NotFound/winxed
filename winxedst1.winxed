@@ -9168,6 +9168,9 @@ class ClassStatement : ClassBase, VarContainer
             t = tk.get();
         }
         RequireOp('{', t);
+
+        createPredefConstString(self, '__CLASS__', join('.', self.classns));
+
         for (t = tk.get(); !t.isop('}'); t = tk.get()) {
             switch (t.checkkeyword()) {
               case 'function':
@@ -9495,6 +9498,7 @@ class NamespaceBase : VarContainer
             self.functions = previous.functions;
         }
         self.items = [];
+        createPredefConstString(self, '__NAMESPACE__', join('.', self.nspath));
     }
     function fixnamespaces()
     {
