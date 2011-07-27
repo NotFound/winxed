@@ -52,7 +52,8 @@ class WinxedDriverOptions : ['Getopt', 'Obj']
           [ 'noan',     'No code annotations' ],
           [ 'nowarn',   'No warnings' ],
           [ 'target=s', 'Set target type: pir, pbc or run. Default is run.' ],
-          [ 'help',     'Show this help' ]
+          [ 'help',     'Show this help' ],
+          [ 'version',  'Show version and exit' ]
         ];
         self.options = options;
         for (var o in options)
@@ -103,6 +104,7 @@ function driver_main(argv)
     var options = new WinxedDriverOptions(argv, 0);
 
     int help         = options.getbool('help');
+    int version      = options.getbool('version');
     string opt_stage = options.getstring('stage');
     int compileonly  = options.getbool('c');
     int noan         = options.getbool('noan');
@@ -129,6 +131,10 @@ function driver_main(argv)
         string envstage = env['WINXED_STAGE'];
         if (envstage != '')
             stage = envstage;
+    }
+    if (version && stage == 0) {
+        cry("--version not available in stage 0");
+        exit(1);
     }
 
     const int
@@ -166,7 +172,7 @@ function driver_main(argv)
         targettype = TargetRun;
 
     string srcfile;
-    if (eval == null) {
+    if (eval == null && ! version) {
         int argc= argv;
         if (argc < 1) {
             say("ERROR: No program specified");
@@ -231,6 +237,10 @@ function driver_main(argv)
             }
             if (compiler == null)
                 die("Cannot load stage " + winxedbin);
+        }
+        if (version) {
+            say(compiler.version_string());
+            exit(0);
         }
         string ctarget = targettype == TargetConst ? 'include' : 'pir';
         var opts = { "target": ctarget, "noan": noan, "nowarn": nowarn };

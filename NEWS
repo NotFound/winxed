@@ -1,0 +1,10 @@
+Winxed news.
+(C) Julián Albo "NotFound"
+
+Version 1.1
+    - Predefined constants __NAMESPACE__ and __CLASS__
+
+Version 1.0
+    - First stable version
+  Build 1.0.0
+      - Bundled with parrot 3.6.0

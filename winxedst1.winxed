@@ -10,8 +10,8 @@ namespace Compiler
 {
 
 const int VERSION_MAJOR = 1;
-const int VERSION_MINOR = 0;
-const int VERSION_BUILD = 0;
+const int VERSION_MINOR = 1;
+const int VERSION_BUILD = -1;
 
 //*********************************************
 //          Character test functions
@@ -9489,6 +9489,7 @@ class NamespaceBase : VarContainer
             self.usednamespaces = [];
             self.classes = [];
             self.functions = [];
+            createPredefConstString(self, '__NAMESPACE__', join('.', self.nspath));
         }
         else {
             self.locals = previous.locals;
@@ -9498,7 +9499,6 @@ class NamespaceBase : VarContainer
             self.functions = previous.functions;
         }
         self.items = [];
-        createPredefConstString(self, '__NAMESPACE__', join('.', self.nspath));
     }
     function fixnamespaces()
     {
