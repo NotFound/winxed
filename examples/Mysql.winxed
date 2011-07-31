@@ -97,21 +97,7 @@ function raw_encode(string s, string encoding)
 
 function get_encoding_func()
 {
-    var found = get_parrot_func('Parrot_str_new_init', 'SppIpI');
-
-    if (found != null) {
-        return function(p, string encoding[optional])
-        {
-            if (encoding == null)
-                encoding = 'ascii';
-            var interp = getinterp();
-            var find_encoding = dlfunc(null, 'Parrot_find_encoding', 'ppp');
-            var pencoding = str_to_cstring(encoding);
-            var parrot_encoding = find_encoding(interp, pencoding);
-            str_free_cstring(pencoding);
-            return found(interp, p, 0, parrot_encoding, 0);
-        };
-    }
+    var found;
 
     found = get_parrot_func('Parrot_str_from_platform_cstring', 'Spp');
     if (found != null) {
@@ -378,6 +364,21 @@ function main(argv)
         database = opts['database'];
     if (opts['encoding'] != null)
         encoding = opts['encoding'];
+
+    if (encoding != null) {
+        // Get the encoding number and get back the name from it.
+        // This simplifies the usage of encoding aliases and
+        // catch not available or invalid encodings.
+        int encnum;
+        try {
+            ${ find_encoding encnum, encoding };
+            ${ encodingname encoding, encnum };
+        }
+        catch() {
+            cry("Encoding '" + encoding + "' not available");
+            exit(1);
+        }
+    }
 
     if (host == null || host == '')
         host = 'localhost';
