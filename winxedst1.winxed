@@ -1746,6 +1746,10 @@ compreg %0, %2
         'load_bytecode %1',
         REGnone, REGstring
     ));
+    builder.add(new PredefFunction('load_packfile',
+        'load_bytecode %0, %1',
+        REGvar, REGstring
+    ));
     builder.add(new PredefFunction('dlfunc',
         'dlfunc %0, %1, %2, %3',
         REGvar, REGvar, REGstring, REGstring
