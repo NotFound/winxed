@@ -2,6 +2,7 @@ Winxed news.
 (C) Julián Albo "NotFound"
 
 Version 1.1
+    - load_packfile builtin
     - Predefined constants __NAMESPACE__ and __CLASS__
 
 Version 1.0
