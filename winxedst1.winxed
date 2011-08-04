@@ -654,7 +654,7 @@ class Tokenizer
                 ':': getop
             },
             '+': { '+': getop, '=': getop },
-            '-': { '-': getop, '=': getop },
+            '-': { '-': getop, '=': getop, '>': getop },
             '*': { '=': getop },
             '|': { '|': getop },
             '&': { '&': getop },
@@ -2808,10 +2808,14 @@ class FunctionExpr : Expr
     function FunctionExpr(tk, owner, start)
     {
         self.Expr(owner, start);
-        var t = tk.get();
-        if (!t.isop('('))
-            Expected('anonymous function', t);
-        self.fn = new LocalFunctionStatement(start, tk, owner);
+        if (start.isop('->')) {
+            self.fn = new LambdaFunctionStatement(start, tk, owner);
+        } else {
+            var t = tk.get();
+            if (!t.isop('('))
+                Expected('anonymous function', t);
+            self.fn = new LocalFunctionStatement(start, tk, owner);
+        }
     }
     function checkresult() { return REGvar; }
     function optimize()
@@ -6441,6 +6445,8 @@ function parseExpr_0(tk, owner)
         return parseNew(tk, owner, t);
       case t.iskeyword('function'):
         return new FunctionExpr(tk, owner, t);
+      case t.isop('->'):
+        return new FunctionExpr(tk, owner, t);
       case t.iskeyword('class'):
         return new OpClassExpr(tk, owner, t);
       case t.isidentifier():
@@ -8924,6 +8930,31 @@ class LocalFunctionStatement : FunctionBase
         if (r != null && !(r instanceof VarData))
             InternalError('Incorrect data for variable in LocalFunction');
         return r;
+    }
+}
+
+//*********************************************
+//            LambdaFunctionStatement
+//*********************************************
+
+class LambdaFunctionStatement : LocalFunctionStatement
+{
+    function LambdaFunctionStatement(start, tk, owner)
+    {
+        self.FunctionBase(start, owner);
+        self.outer = owner.getouter();
+        self.outer.makesubid();
+        var subid = self.makesubid();
+        self.name = subid;
+        var t = tk.get();
+        if (t.isop('(')) {
+            self.parse_parameters(tk);
+            t = tk.get();
+        } else
+            self.params = [];
+        RequireOp('{', t);
+        self.body = new CompoundStatement(t, tk, self);
+        owner.addlocalfunction(self);
     }
 }
 
