@@ -6903,6 +6903,39 @@ class ReturnStatement : ReturnYieldStatement
     }
 }
 
+class SimpleReturnStatement : ReturnStatement
+{
+    function SimpleReturnStatement(start, tk, owner)
+    {
+        self.Statement(start, owner);
+        self.values = parseExpr(tk, owner);
+    }
+
+    function emit(e)
+    {
+        // Experimental tailcall optimization
+        var value = self.values;
+        if (value.cantailcall()) {
+            self.annotate(e);
+            return value.emit(e, '.tailcall');
+        }
+
+        string reg;
+        if (value.isnull()) {
+            string pnull = self.owner.tempreg(REGvar);
+            e.emitnull(pnull);
+            reg = pnull;
+        }
+        else
+            reg = value.emit_get(e);
+
+        self.annotate(e);
+        self.emitret(e);
+        e.print(reg);
+        e.say(')');
+    }
+}
+
 class YieldStatement : ReturnYieldStatement
 {
     function YieldStatement(start, tk, owner)
@@ -8960,9 +8993,7 @@ class LambdaFunctionStatement : LocalFunctionStatement
             self.body = new CompoundStatement(t, tk, self);
         else {
             tk.unget(t);
-            self.body = new ReturnStatement(t, tk, self);
-            var term = new TokenOp(t.file, t.line, ';');
-            tk.unget(term);
+            self.body = new SimpleReturnStatement(t, tk, self);
         }
         owner.addlocalfunction(self);
     }
