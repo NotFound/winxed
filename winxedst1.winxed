@@ -8770,7 +8770,10 @@ class FunctionBase : BlockStatement
         else {
             e.comment('Body');
             body.emit(e);
-            e.annotate(body.getend());
+            int can_getend = 0;
+            ${ can can_getend, body, "getend" };
+            if (can_getend)
+                e.annotate(body.getend());
         }
         e.say("\n.end # ", name, "\n");
 
@@ -8952,8 +8955,15 @@ class LambdaFunctionStatement : LocalFunctionStatement
             t = tk.get();
         } else
             self.params = [];
-        RequireOp('{', t);
-        self.body = new CompoundStatement(t, tk, self);
+
+        if (t.isop('{'))
+            self.body = new CompoundStatement(t, tk, self);
+        else {
+            tk.unget(t);
+            self.body = new ReturnStatement(t, tk, self);
+            var term = new TokenOp(t.file, t.line, ';');
+            tk.unget(term);
+        }
         owner.addlocalfunction(self);
     }
 }
