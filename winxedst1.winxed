@@ -5385,6 +5385,24 @@ class CallMemberExpr : CallExpr
                 return sym.emit_get(e, self);
         }
         var funref = self.funref;
+
+        var first = funref.left;
+        while (first instanceof MemberExpr)
+            first = first.left;
+        if (first.isidentifier()) {
+            string check = first.checkIdentifier();
+            if (check == null || check == '') {
+                // The other usages are covered in other conditions,
+                // here we have a qualified symbol not found in scope,
+                // assume is function in a namespace not declared here.
+                string key[];
+                funref.buildkey(key);
+                string fun = key.pop();
+                var reg = self.tempreg(REGvar);
+                e.emitget_hll_global(reg, fun, key);
+                return reg;
+            }
+        }
         return join("", [ funref.emit_left_get(e),
                 ".'", funref.get_member(), "'" ] );
     }
