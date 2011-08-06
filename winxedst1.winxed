@@ -8469,6 +8469,8 @@ class FunctionModifierList : ModifierList
                     if (!argmod.isstringliteral())
                         SyntaxError('Invalid modifier', argmod);
                     e.print(argmod.getPirString());
+                    if (iargmod < nargmods - 1)
+                        e.print(", ");
                 }
                 e.print(')');
             }
