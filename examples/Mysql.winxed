@@ -43,97 +43,10 @@ function getlib()
 
 function str_to_cstring(string s)
 {
-    var to_cstring = dlfunc(null, 'Parrot_str_to_cstring',   'ppS');
-    return to_cstring(getinterp(), s);
-}
-
-function str_free_cstring(s)
-{
-    var free_cstring = dlfunc(null, 'Parrot_str_free_cstring', 'vp');
-    free_cstring(s);
-}
-
-function get_parrot_func(string name, string sig)
-{
-    var found;
-    try {
-        var strnew = dlfunc(null, name, sig);
-        if (strnew != null) {
-            int isdef;
-            ${ defined isdef, strnew };
-            if (isdef) {
-                isdef = strnew;
-                if (isdef)
-                    found = strnew;
-            }
-        }
-    }
-    catch () {}
-    return found;
-}
-
-function raw_encode(string s, string encoding)
-{
-    int got_encoding_num;
-    string got_encoding;
-    ${ encoding got_encoding_num, s };
-    ${ encodingname got_encoding, got_encoding_num };
-    if (got_encoding != encoding) {
-        switch {
-          case got_encoding == 'ascii' && encoding == 'iso-8859-1':
-          case got_encoding == 'ascii' && encoding == 'utf8':
-            // Compatible encodings, do nothing
-            break;
-          default:
-            // trans_encoding is not useful here, must encode
-            // from the raw bytes.
-            var b = new ['ByteBuffer'];
-            b =: s;
-            s = b.get_string(encoding);
-        }
-    }
-    return s;
-}
-
-function get_encoding_func()
-{
-    var found;
-
-    found = get_parrot_func('Parrot_str_from_platform_cstring', 'Spp');
-    if (found != null) {
-        return function(p, string encoding[optional])
-        {
-            var interp = getinterp();
-            return found(interp, p);
-        };
-    }
-
-    found = get_parrot_func('Parrot_str_new', 'SppI');
-    if (found != null) {
-        return function(p, string encoding[optional])
-        {
-            var interp = getinterp();
-            return found(interp, p, 0);
-        };
-    }
-    return null;
-}
-
-function string_from_nci(p, string encoding[optional])
-{
-    var interp = getinterp();
-
-    var f = get_encoding_func();
-    if (! f)
-        throw "Cannot get string from NCI";
-
-    string s;
-    if (f != null)
-        s = f(p, encoding);
-
-    if (s != null && encoding != null)
-        s = raw_encode(s, encoding);
-    return s;
+    var cstring = new ['ByteBuffer'];
+    cstring =: s;
+    push(cstring, 0);
+    return cstring;
 }
 
 } // namespace __private;
@@ -143,21 +56,30 @@ using namespace __private;
 class Row
 {
     var mrow;
+    var desc;
     var nfields;
     var encoding;
-    function Row(var myrow, int n, string encoding[optional])
+    function Row(var myrow, var desc, int n, string encoding[optional])
     {
         self.mrow = myrow;
+        self.desc = desc;
         self.nfields = n;
         if (encoding != null)
             self.encoding = encoding;
     }
     function get(int i)
     {
-        string s = self.mrow[i];
-        if (s != null && self.encoding != null)
-            s = raw_encode(s, self.encoding);
-        return s;
+        string encoding;
+        if (self.encoding != null)
+            encoding = self.encoding;
+        var p = self.desc[self.mrow, 0, i];
+        string result;
+        if (p != null) {
+            result = p.as_string(encoding);
+        }
+        else
+            result = '';
+        return result;
     }
 }
 
@@ -175,13 +97,10 @@ class Result
         var f = dlfunc(getlib(), 'mysql_field_count', 'ip');
         int count = f(my.mysql);
         self.nfields = count;
-        int desc [3 * count];
-        // Store the fields description for use in fetchs.
-        for (int i = 0; i < count; ++i) {
-            desc[i * 3]     = DATATYPE_CSTR;
-            desc[i * 3 + 1] = 1;
-            desc[i * 3 + 2] = 0;
-        }
+        var desc = new ['StructView'] ( [DATATYPE_STRUCT, 1,
+                DATATYPE_PTR, count
+            ]
+        );
         self.desc = desc;
     }
     function field_count()
@@ -200,11 +119,10 @@ class Result
         if (frow == none)
             return null;
 
-        frow =: self.desc;
         string encoding;
         if (self.mysql.encoding != null)
             encoding = self.mysql.encoding;
-        return new WinxedMysql.Row(frow, self.nfields, encoding);
+        return new WinxedMysql.Row(frow, self.desc, self.nfields, encoding);
     }
     function close()
     {
@@ -243,13 +161,13 @@ class Connection
     {
         using WinxedMysql.getlib;
         var f = dlfunc(getlib(), 'mysql_get_client_info', 'p');
-        return string_from_nci(f(), 'utf8');
+        return f().as_string('utf8');
     }
     function error()
     {
         using WinxedMysql.getlib;
         var f = dlfunc(getlib(), 'mysql_error', 'pp');
-        return string_from_nci(f(self.mysql));
+        return f(self.mysql).as_string('utf8');
     }
     function connect(string host, string user, string pass, string database,
             string encoding)
@@ -262,10 +180,6 @@ class Connection
         var ppass = str_to_cstring(pass);
         var pdatabase = str_to_cstring(database);
         var p = f(self.mysql, phost, puser, ppass, pdatabase, 0, null, 0);
-        str_free_cstring(phost);
-        str_free_cstring(puser);
-        str_free_cstring(ppass);
-        str_free_cstring(pdatabase);
         if (p == null)
             throw Error(self.error(), ERROR, TYPE);
         var none = new 'UnManagedStruct';
@@ -287,7 +201,6 @@ class Connection
         var f = dlfunc(getlib(), 'mysql_query', 'ipp');
         var pstmt = str_to_cstring(stmt);
         int q = f(self.mysql, pstmt);
-        str_free_cstring(pstmt);
         if (q != 0)
             throw Error(self.error(), ERROR, TYPE);
     }
