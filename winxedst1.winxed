@@ -1276,6 +1276,26 @@ class Predef_typecast
     }
 }
 
+function Predef_varcast(e, start, string result, args)
+{
+    if (elements(args) != 1)
+        InternalError("Invalid var cast");
+    var arg = args[0];
+    string argtype = arg.checkresult();
+    if (argtype == REGvar) {
+        e.annotate(start);
+        arg.emit(e, result);
+    }
+    else {
+        string reg = arg.emit_get(e);
+        e.annotate(start);
+        if (reg == NULL)
+            e.emitnull(result);
+        else
+            e.emitbox(result, reg);
+    }
+}
+
 function Predef_say(e, start, string result, args)
 {
     e.annotate(start);
@@ -1413,6 +1433,10 @@ function getpredefs(builder)
     builder.add(new PredefFunction('string',
         new Predef_typecast(REGstring),
         REGstring, REGraw1
+    ));
+    builder.add(new PredefFunction('var',
+        Predef_varcast,
+        REGvar, REGraw1
     ));
     builder.add(new PredefFunction('die',
         'die %1',
