@@ -5423,7 +5423,8 @@ class CallMemberExpr : CallExpr
                 funref.buildkey(key);
                 string fun = key.pop();
                 var reg = self.tempreg(REGvar);
-                e.emitget_hll_global(reg, fun, key);
+                self.annotate(e);
+                e.emitget_hll_global(reg, fun, getparrotkey(key));
                 return reg;
             }
         }
