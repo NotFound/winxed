@@ -2120,6 +2120,7 @@ function parseSig(start, tk, owner)
 function parseStatement(tk, owner)
 {
     var t = tk.get();
+    var t2;
     if (t.isop(';'))
         return new EmptyStatement;
     if (t.isop('{'))
@@ -2143,13 +2144,29 @@ function parseStatement(tk, owner)
         return parseVolatile(t, tk, owner);
         break;
       case 'var':
-        return parseVar(t, tk, owner);
+        t2 = tk.get();
+        tk.unget(t2);
+        if (! t2.isop("("))
+            return parseVar(t, tk, owner);
+        break;
       case 'string':
-        return parseString(t, tk, owner);
+        t2 = tk.get();
+        tk.unget(t2);
+        if (! t2.isop("("))
+            return parseString(t, tk, owner);
+        break;
       case 'int':
-        return parseInt(t, tk, owner);
+        t2 = tk.get();
+        tk.unget(t2);
+        if (! t2.isop("("))
+            return parseInt(t, tk, owner);
+        break;
       case 'float':
-        return parseFloat(t, tk, owner);
+        t2 = tk.get();
+        tk.unget(t2);
+        if (! t2.isop("("))
+            return parseFloat(t, tk, owner);
+        break;
       case 'return':
         return new ReturnStatement(t, tk, owner);
       case 'yield':
@@ -2174,17 +2191,16 @@ function parseStatement(tk, owner)
         return new ThrowStatement(t, tk, owner);
       case 'try':
         return new TryStatement(t, tk, owner);
-      default:
-        if (t.isidentifier()) {
-            var t2 = tk.get();
-            if (t2.isop(':'))
-                return new LabelStatement(t, owner);
-            tk.unget(t2);
-        }
-        tk.unget(t);
-        return new ExprStatement(t, tk, owner);
     }
-    InternalError('parseStatement failure', t);
+
+    if (t.isidentifier()) {
+        var t2 = tk.get();
+        if (t2.isop(':'))
+            return new LabelStatement(t, owner);
+        tk.unget(t2);
+    }
+    tk.unget(t);
+    return new ExprStatement(t, tk, owner);
 }
 
 //*********************************************
