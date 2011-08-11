@@ -1283,8 +1283,19 @@ function Predef_varcast(e, start, string result, args)
     var arg = args[0];
     string argtype = arg.checkresult();
     if (argtype == REGvar) {
-        e.annotate(start);
-        arg.emit(e, result);
+        if (arg instanceof MemberExpr) {
+            // The cast in this case means: forget what we know about
+            // this symbol, always do a namespace lookup.
+            string key[];
+            arg.buildkey(key);
+            string sym = key.pop();
+            e.annotate(start);
+            e.emitget_hll_global(result, sym, getparrotkey(key));
+        }
+        else {
+            e.annotate(start);
+            arg.emit(e, result);
+        }
     }
     else {
         string reg = arg.emit_get(e);
