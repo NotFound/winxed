@@ -3127,10 +3127,12 @@ class IdentifierExpr : SimpleExpr
         else {
             var sym = self.findsymbol([name]);
             if (sym != null && sym instanceof FunctionStatement) {
-                string id = sym.makesubid();
-                self.subid = id;
-                self.usesubid(id);
-                self.owner.createvarnamed(name, REGvar, id);
+                if (sym.ismulti() == 0) {
+                    string id = sym.makesubid();
+                    self.subid = id;
+                    self.usesubid(id);
+                    self.owner.createvarnamed(name, REGvar, id);
+                }
             }
         }
         return self;
@@ -8803,12 +8805,14 @@ class FunctionStatement : FunctionBase
         self.parse(tk);
         self.multi_sig = [];
         var params = self.params;
-        var multi_sig = self.multi_sig;
-        for (int i = 0; i < elements(params); i++) {
-            var param = params[i];
-            multi_sig[i] = param.get_type();
+        if (params != null) {
+            var multi_sig = self.multi_sig;
+            for (int i = 0; i < elements(params); i++) {
+                var param = params[i];
+                multi_sig[i] = param.get_type();
+            }
+            self.is_multi = 0;
         }
-        self.is_multi = 0;
     }
 
     function isanonymous() { return false; }
@@ -8823,7 +8827,12 @@ class FunctionStatement : FunctionBase
         return int(++self.lexnum);
     }
     function ismethod() { return false; }
-    function setismulti() { self.is_multi = 1; }
+    function ismulti(int is [optional], int has_is [opt_flag])
+    {
+        if (has_is)
+            self.is_multi = is;
+        return self.is_multi;
+    }
 
     function parse(tk)
     {
@@ -9813,6 +9822,12 @@ class NamespaceBase : VarContainer
                 var f = new FunctionStatement(t, tk, self);
                 push(functions, f);
                 push(items, f);
+                var first_func = seen_functions[f.name];
+                if (first_func != null) {
+                    f.ismulti(1);
+                    first_func.ismulti(1);
+                } else
+                    seen_functions[f.name] = f;
                 break;
               case 'class':
                 parseClass(t, tk, self);
