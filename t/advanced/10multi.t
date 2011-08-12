@@ -4,18 +4,31 @@
 
 using extern Test.More plan, is;
 
-multi bar(var a) { return a; }
-multi bar(int a, int b) { return a * b; }
-multi bar(int a) { return a + 10; }
-multi bar(string a, string b) { return a + b; }
+function bar(var a) { return "p"; }
+function bar(int a, int b) { return "ii"; }
+function bar(int a) { return "i"; }
+function bar(string a, string b) { return "ss"; }
+
+class Foo
+{
+    function baz(int a, int b) { return "ii"; }
+    function baz(float a, float b) { return "nn"; }
+    function baz(string a, string b) { return "ss"; }
+    function baz(var a, var b) { return "pp"; }
+}
 
 function main[main]()
 {
-    plan(4);
-    var bar;
-    ${ get_global bar, "bar" };
-    is(bar(3, 2), 6, "multi(int, int)");
-    is(bar(3), 13, "multi(int)");
-    is(bar("a", "b"), "ab", "multi(string, string)");
-    is(bar(3.14), 3.14, "multi(var)");
+    plan(8);
+    is(bar(3, 2), "ii", "multi(int, int)");
+    is(bar(3), "i", "multi(int)");
+    is(bar("a", "b"), "ss", "multi(string, string)");
+    is(bar(3.14), "p", "multi(var)");
+
+    var foo = new Foo;
+    is(foo.baz(1, 2), "ii", "");
+    is(foo.baz(1.2, 3.4), "nn", "");
+    is(foo.baz("a", "b"), "ss", "");
+    is(foo.baz(foo, foo), "pp", "");
+
 }
