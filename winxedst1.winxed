@@ -5293,8 +5293,10 @@ class CallExpr : Expr
                     sym = self.findsymbol(key);
                     if (sym != null) {
                         if (sym instanceof FunctionStatement) {
-                            subid = sym.makesubid();
-                            self.usesubid(subid);
+                            if (sym.ismulti() == 0) {
+                                subid = sym.makesubid();
+                                self.usesubid(subid);
+                            }
                         }
                         if (sym instanceof Builtin)
                             return gencallbuiltin(self.owner, funref.start, sym, args);
@@ -8807,9 +8809,14 @@ class FunctionStatement : FunctionBase
         var params = self.params;
         if (params != null) {
             var multi_sig = self.multi_sig;
+            int start_idx = 0;
+            if (self.ismethod()) {
+                start_idx = 1;
+                multi_sig[0] = 'P';
+            }
             for (int i = 0; i < elements(params); i++) {
                 var param = params[i];
-                multi_sig[i] = param.get_type();
+                multi_sig[i + start_idx] = param.get_type();
             }
             self.is_multi = 0;
         }
@@ -9257,6 +9264,7 @@ class ClassStatement : ClassBase, VarContainer
         self.members = members;
         var constants = [];
         self.constants = constants;
+        var seen_functions = {};
 
         var t = tk.get();
         if (t.isop(':')) {
@@ -9272,6 +9280,13 @@ class ClassStatement : ClassBase, VarContainer
               case 'function':
                 var f = new MethodStatement(t, tk, self);
                 push(functions, f);
+                var first_func = seen_functions[f.name];
+                if (first_func == null)
+                    seen_functions[f.name] = f;
+                else {
+                    first_func.ismulti(1);
+                    f.ismulti(1);
+                }
                 break;
               case 'var':
                 var name = tk.get();
