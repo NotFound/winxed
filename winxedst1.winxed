@@ -8792,6 +8792,8 @@ class FunctionStatement : FunctionBase
 {
     var paramnum;
     var lexnum;
+    var multi_sig;
+    var is_multi;
 
     function FunctionStatement(start, tk, owner)
     {
@@ -8799,6 +8801,14 @@ class FunctionStatement : FunctionBase
         self.paramnum = 0;
         self.lexnum = 0;
         self.parse(tk);
+        self.multi_sig = [];
+        var params = self.params;
+        var multi_sig = self.multi_sig;
+        for (int i = 0; i < elements(params); i++) {
+            var param = params[i];
+            multi_sig[i] = param.get_type();
+        }
+        self.is_multi = 0;
     }
 
     function isanonymous() { return false; }
@@ -8813,6 +8823,7 @@ class FunctionStatement : FunctionBase
         return int(++self.lexnum);
     }
     function ismethod() { return false; }
+    function setismulti() { self.is_multi = 1; }
 
     function parse(tk)
     {
@@ -8836,39 +8847,25 @@ class FunctionStatement : FunctionBase
         self.body = new CompoundStatement(t, tk, self);
         return self;
     }
-}
-
-class MultiFunctionStatement : FunctionStatement
-{
-    var multi_sig;
-    function MultiFunctionStatement(start, tk, owner)
-    {
-        self.FunctionStatement(start, tk, owner);
-        self.multi_sig = [];
-        var params = self.params;
-        var multi_sig = self.multi_sig;
-        for (int i = 0; i < elements(params); i++) {
-            var param = params[i];
-            multi_sig[i] = param.get_type();
-        }
-    }
 
     function emit_extra_modifiers(e)
     {
-        var table = {"P" : "pmc", "S" : "string", "I" : "int", "N" : "num"};
-        var multi_sig = self.multi_sig;
-        e.print(' :multi(');
-        if (elements(multi_sig) == 0) {
+        if (self.is_multi) {
+            var table = {"P" : "pmc", "S" : "string", "I" : "int", "N" : "num"};
+            var multi_sig = self.multi_sig;
+            e.print(' :multi(');
+            if (elements(multi_sig) == 0) {
+                e.print(')');
+                return;
+            }
+            string first = multi_sig[0];
+            e.print(table[first]);
+            for (int i = 1; i < elements(multi_sig); i++) {
+                string mod = string(multi_sig[i]);
+                e.print(', ' + string(table[mod]));
+            }
             e.print(')');
-            return;
         }
-        string first = multi_sig[0];
-        e.print(table[first]);
-        for (int i = 1; i < elements(multi_sig); i++) {
-            string mod = string(multi_sig[i]);
-            e.print(', ' + string(table[mod]));
-        }
-        e.print(')');
     }
 }
 
@@ -9800,6 +9797,7 @@ class NamespaceBase : VarContainer
         var items = self.items;
         var functions = self.functions;
         var classes = self.classes;
+        var seen_functions = {};
         var t;
         for (t = tk.get(); !(t.iseof() || t.isop('}')); t = tk.get())
         {
@@ -9815,11 +9813,6 @@ class NamespaceBase : VarContainer
                 var f = new FunctionStatement(t, tk, self);
                 push(functions, f);
                 push(items, f);
-                break;
-              case 'multi':
-                var m = new MultiFunctionStatement(t, tk, self);
-                push(functions, m);
-                push(items, m);
                 break;
               case 'class':
                 parseClass(t, tk, self);
