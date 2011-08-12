@@ -8426,6 +8426,7 @@ class FunctionParameter
     var func;
     var name;
     var modifiers;
+    var type;
     function FunctionParameter(func, tk)
     {
         self.func = func;
@@ -8435,6 +8436,7 @@ class FunctionParameter
             t = tk.get();
         else
             type = REGvar;
+        self.type = type;
         string argname = '__ARG_' + string(func.getparamnum());
         func.createvarnamed(t, type, argname);
 
@@ -8457,6 +8459,11 @@ class FunctionParameter
             modarg.emitmodifiers(e, func.start, paramname);
         e.say('');
     }
+    function get_type()
+    {
+        return self.type;
+    }
+
 }
 
 function parseParameter(tk, owner)
@@ -8705,6 +8712,8 @@ class FunctionBase : BlockStatement
         SyntaxError('continue not allowed here', pos);
     }
 
+    function emit_extra_modifiers(e) { }
+
     function emit(var e)
     {
         string name = self.name;
@@ -8733,6 +8742,7 @@ class FunctionBase : BlockStatement
             if (name == 'main')
                 e.print(' :main');
         }
+        self.emit_extra_modifiers(e);
         e.say();
 
         // Parameters
@@ -8825,6 +8835,40 @@ class FunctionStatement : FunctionBase
             ExpectedOp('{', t);
         self.body = new CompoundStatement(t, tk, self);
         return self;
+    }
+}
+
+class MultiFunctionStatement : FunctionStatement
+{
+    var multi_sig;
+    function MultiFunctionStatement(start, tk, owner)
+    {
+        self.FunctionStatement(start, tk, owner);
+        self.multi_sig = [];
+        var params = self.params;
+        var multi_sig = self.multi_sig;
+        for (int i = 0; i < elements(params); i++) {
+            var param = params[i];
+            multi_sig[i] = param.get_type();
+        }
+    }
+
+    function emit_extra_modifiers(e)
+    {
+        var table = {"P" : "pmc", "S" : "string", "I" : "int", "N" : "num"};
+        var multi_sig = self.multi_sig;
+        e.print(' :multi(');
+        if (elements(multi_sig) == 0) {
+            e.print(')');
+            return;
+        }
+        string first = multi_sig[0];
+        e.print(table[first]);
+        for (int i = 1; i < elements(multi_sig); i++) {
+            string mod = string(multi_sig[i]);
+            e.print(', ' + string(table[mod]));
+        }
+        e.print(')');
     }
 }
 
@@ -9771,6 +9815,11 @@ class NamespaceBase : VarContainer
                 var f = new FunctionStatement(t, tk, self);
                 push(functions, f);
                 push(items, f);
+                break;
+              case 'multi':
+                var m = new MultiFunctionStatement(t, tk, self);
+                push(functions, m);
+                push(items, m);
                 break;
               case 'class':
                 parseClass(t, tk, self);
