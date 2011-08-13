@@ -5342,7 +5342,7 @@ class CallExpr : Expr
                     call = sym.emit_get(e, self);
                     break;
                   case sym instanceof Builtin:
-                    InternalError("Builtin unexpected here", self);
+                    InternalError("Builtin unexpected here", self.start);
                   default:
                     call = join("", [ "'", funref.getName(), "'" ] );
                 }
@@ -6862,7 +6862,7 @@ class ReturnYieldStatement : Statement
     {
         var values = self.values;
         if (values != null)
-            values = values.optimize();
+            self.values = values.optimize();
         return self;
     }
     function emit(e)
