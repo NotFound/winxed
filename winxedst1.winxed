@@ -1109,7 +1109,7 @@ class Predef_frombody
         self.body = bodystr;
         self.typeresult = typeresult;
     }
-    function invoke [vtable](e, start, string result, args)
+    function invoke [vtable](e, owner, start, string result, args)
     {
         string typeresult = self.typeresult;
 
@@ -1213,7 +1213,7 @@ class PredefBase
         if (typeresult != REGnone && result == '')
             result = owner.tempreg(typeresult);
         var fun = self.body;
-        fun(e, start, result, args);
+        fun(e, owner, start, result, args);
     }
 }
 
@@ -1252,7 +1252,7 @@ class Predef_typecast
     {
         self.type = type;
     }
-    function invoke [vtable](e, start, result, args)
+    function invoke [vtable](e, owner, start, result, args)
     {
         string type = self.type;
         if (elements(args) != 1)
@@ -1276,15 +1276,51 @@ class Predef_typecast
     }
 }
 
-function Predef_varcast(e, start, string result, args)
+function Predef_varcast(e, owner, start, string result, args)
 {
     if (elements(args) != 1)
         InternalError("Invalid var cast");
     var arg = args[0];
     string argtype = arg.checkresult();
     if (argtype == REGvar) {
-        e.annotate(start);
-        arg.emit(e, result);
+        string name;
+        var sym;
+        switch {
+          case arg instanceof IdentifierExpr:
+            name = arg.getName();
+            string id = arg.checkIdentifier();
+            var desc = arg.checkVar();
+            if (id != '' && desc != null && ! desc.issubid()) {
+                // The cast is redundant in this case
+                arg.emit(e, result);
+            }
+            else {
+                sym = arg.findsymbol([name]);
+                if (sym != null && sym instanceof FunctionStatement) {
+                    var path = sym.owner.getpath();
+                    e.emitget_hll_global(result, name, getparrotkey(path));
+                }
+            }
+            break;
+          case arg instanceof MemberExpr:
+            // If it's a known function avoid using it bt subid,
+            // else, look up in the hll namespace at runtime.
+            string key[];
+            arg.buildkey(key);
+            sym = owner.findsymbol(key);
+            if (sym != null && sym instanceof FunctionStatement) {
+                var path = sym.owner.getpath();
+                e.annotate(start);
+                e.emitget_hll_global(result, name, getparrotkey(path));
+            }
+            name = key.pop();
+            e.annotate(start);
+            e.emitget_hll_global(result, name, getparrotkey(key));
+            break;
+          default:
+            e.annotate(start);
+            arg.emit(e, result);
+        }
     }
     else {
         string reg = arg.emit_get(e);
@@ -1296,7 +1332,7 @@ function Predef_varcast(e, start, string result, args)
     }
 }
 
-function Predef_say(e, start, string result, args)
+function Predef_say(e, owner, start, string result, args)
 {
     e.annotate(start);
     int n = elements(args) - 1;
@@ -1309,7 +1345,7 @@ function Predef_say(e, start, string result, args)
         e.emitsay("''");
 }
 
-function Predef_cry(e, start, string result, args)
+function Predef_cry(e, owner, start, string result, args)
 {
     e.annotate(start);
     e.say(INDENT, "getstderr $P0");
@@ -1318,7 +1354,7 @@ function Predef_cry(e, start, string result, args)
     e.say(INDENT, "print $P0, \"\\n\"");
 }
 
-function Predef_print(e, start, string result, args)
+function Predef_print(e, owner, start, string result, args)
 {
     e.annotate(start);
     for (string arg in args)
@@ -1327,7 +1363,7 @@ function Predef_print(e, start, string result, args)
 
 // invoke is a quick & dirty way to allow use of multiple return values.
 // It's a wrap around the call that gives the signature object returned.
-function Predef_invoke(e, start, string result, args)
+function Predef_invoke(e, owner, start, string result, args)
 {
     var arg = args[0];
     if (! (arg instanceof CallExpr))
@@ -1335,28 +1371,28 @@ function Predef_invoke(e, start, string result, args)
     arg.emit(e, "(" + result + " :call_sig)");
 }
 
-function predefeval_length(var owner, var start, var args)
+function predefeval_length(owner, start, args)
 {
     var arg = args[0].arg;
     string s = arg.get_value();
     return integerValue(owner, start, length(s));
 }
 
-function predefeval_bytelength(var owner, var start, var args)
+function predefeval_bytelength(owner, start, args)
 {
     var arg = args[0].arg;
     string s = arg.get_value();
     return integerValue(owner, start, bytelength(s));
 }
 
-function predefeval_ord(var owner, var start, var args)
+function predefeval_ord(owner, start, args)
 {
     var arg = args[0].arg;
     string s = arg.get_value();
     return integerValue(owner, start, ord(s));
 }
 
-function predefeval_ord_n(var owner, var start, var args)
+function predefeval_ord_n(owner, start, args)
 {
     var arg = args[0].arg;
     string s = arg.get_value();
@@ -1365,7 +1401,7 @@ function predefeval_ord_n(var owner, var start, var args)
     return integerValue(owner, start, ord(s, n));
 }
 
-function predefeval_chr(var owner, var start, var args)
+function predefeval_chr(owner, start, args)
 {
     var arg = args[0].arg;
 
@@ -1376,7 +1412,7 @@ function predefeval_chr(var owner, var start, var args)
     return new StringLiteral(owner, t);
 }
 
-function predefeval_substr(var owner, var start, var args)
+function predefeval_substr(owner, start, args)
 {
     var argstr = args[0].arg;
     var argpos = args[1].arg;
@@ -1387,7 +1423,7 @@ function predefeval_substr(var owner, var start, var args)
     return new StringLiteral(owner, t);
 }
 
-function predefeval_substr_l(var owner, var start, var args)
+function predefeval_substr_l(owner, start, args)
 {
     var argstr = args[0].arg;
     var argpos = args[1].arg;
@@ -1400,7 +1436,7 @@ function predefeval_substr_l(var owner, var start, var args)
     return new StringLiteral(owner, t);
 }
 
-function predefeval_indexof(var owner, var start, var args)
+function predefeval_indexof(owner, start, args)
 {
     var argstrfrom = args[0].arg;
     var argstrsearch = args[1].arg;
@@ -1409,7 +1445,7 @@ function predefeval_indexof(var owner, var start, var args)
     return integerValue(owner, start, indexof(strfrom, strsearch));
 }
 
-function predefeval_indexof_pos(var owner, var start, var args)
+function predefeval_indexof_pos(owner, start, args)
 {
     var argstrfrom = args[0].arg;
     var argstrsearch = args[1].arg;
@@ -2066,8 +2102,10 @@ class ModifierList
 
 function getparrotkey(var path)
 {
-    string s = join("'; '", path);
-    return "[ '" + s + "' ]";
+    string r;
+    if (elements(path) > 0)
+        r = "[ '" + string(join("'; '", path)) + "' ]";
+    return r;
 }
 
 function getparrotnamespacekey(var path)
@@ -2109,6 +2147,7 @@ function parseSig(start, tk, owner)
 function parseStatement(tk, owner)
 {
     var t = tk.get();
+    var t2;
     if (t.isop(';'))
         return new EmptyStatement;
     if (t.isop('{'))
@@ -2132,13 +2171,29 @@ function parseStatement(tk, owner)
         return parseVolatile(t, tk, owner);
         break;
       case 'var':
-        return parseVar(t, tk, owner);
+        t2 = tk.get();
+        tk.unget(t2);
+        if (! t2.isop("("))
+            return parseVar(t, tk, owner);
+        break;
       case 'string':
-        return parseString(t, tk, owner);
+        t2 = tk.get();
+        tk.unget(t2);
+        if (! t2.isop("("))
+            return parseString(t, tk, owner);
+        break;
       case 'int':
-        return parseInt(t, tk, owner);
+        t2 = tk.get();
+        tk.unget(t2);
+        if (! t2.isop("("))
+            return parseInt(t, tk, owner);
+        break;
       case 'float':
-        return parseFloat(t, tk, owner);
+        t2 = tk.get();
+        tk.unget(t2);
+        if (! t2.isop("("))
+            return parseFloat(t, tk, owner);
+        break;
       case 'return':
         return new ReturnStatement(t, tk, owner);
       case 'yield':
@@ -2163,17 +2218,16 @@ function parseStatement(tk, owner)
         return new ThrowStatement(t, tk, owner);
       case 'try':
         return new TryStatement(t, tk, owner);
-      default:
-        if (t.isidentifier()) {
-            var t2 = tk.get();
-            if (t2.isop(':'))
-                return new LabelStatement(t, owner);
-            tk.unget(t2);
-        }
-        tk.unget(t);
-        return new ExprStatement(t, tk, owner);
     }
-    InternalError('parseStatement failure', t);
+
+    if (t.isidentifier()) {
+        var t2 = tk.get();
+        if (t2.isop(':'))
+            return new LabelStatement(t, owner);
+        tk.unget(t2);
+    }
+    tk.unget(t);
+    return new ExprStatement(t, tk, owner);
 }
 
 //*********************************************
@@ -2602,6 +2656,11 @@ class VarData
     function isconst() { return false; }
     function getlex() { return self.lexname; }
     function getflags() { return self.flags; }
+    function issubid()
+    {
+        var reg = self.reg;
+        return reg != null && substr(reg, 0, 7) == 'WSubId_';
+    }
 }
 
 class ConstantInternalFail
@@ -3078,6 +3137,10 @@ class IdentifierExpr : SimpleExpr
     {
         string s = self.name;
         return s;
+    }
+    function checkVar()
+    {
+        return self.owner.getvar(string(self.name));
     }
     function checkIdentifier()
     {
@@ -5427,7 +5490,8 @@ class CallMemberExpr : CallExpr
                 funref.buildkey(key);
                 string fun = key.pop();
                 var reg = self.tempreg(REGvar);
-                e.emitget_hll_global(reg, fun, key);
+                self.annotate(e);
+                e.emitget_hll_global(reg, fun, getparrotkey(key));
                 return reg;
             }
         }
@@ -8550,6 +8614,8 @@ class FunctionModifierList : ModifierList
                     if (!argmod.isstringliteral())
                         SyntaxError('Invalid modifier', argmod);
                     e.print(argmod.getPirString());
+                    if (iargmod < nargmods - 1)
+                        e.print(", ");
                 }
                 e.print(')');
             }
