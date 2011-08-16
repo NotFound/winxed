@@ -3190,10 +3190,12 @@ class IdentifierExpr : SimpleExpr
         else {
             var sym = self.findsymbol([name]);
             if (sym != null && sym instanceof FunctionStatement) {
-                string id = sym.makesubid();
-                self.subid = id;
-                self.usesubid(id);
-                self.owner.createvarnamed(name, REGvar, id);
+                if (sym.ismulti() == 0) {
+                    string id = sym.makesubid();
+                    self.subid = id;
+                    self.usesubid(id);
+                    self.owner.createvarnamed(name, REGvar, id);
+                }
             }
         }
         return self;
@@ -5354,8 +5356,10 @@ class CallExpr : Expr
                     sym = self.findsymbol(key);
                     if (sym != null) {
                         if (sym instanceof FunctionStatement) {
-                            subid = sym.makesubid();
-                            self.usesubid(subid);
+                            if (sym.ismulti() == 0) {
+                                subid = sym.makesubid();
+                                self.usesubid(subid);
+                            }
                         }
                         if (sym instanceof Builtin)
                             return gencallbuiltin(self.owner, funref.start, sym, args);
@@ -8490,6 +8494,7 @@ class FunctionParameter
     var func;
     var name;
     var modifiers;
+    var type;
     function FunctionParameter(func, tk)
     {
         self.func = func;
@@ -8499,6 +8504,7 @@ class FunctionParameter
             t = tk.get();
         else
             type = REGvar;
+        self.type = type;
         string argname = '__ARG_' + string(func.getparamnum());
         func.createvarnamed(t, type, argname);
 
@@ -8521,6 +8527,11 @@ class FunctionParameter
             modarg.emitmodifiers(e, func.start, paramname);
         e.say('');
     }
+    function get_type()
+    {
+        return self.type;
+    }
+
 }
 
 function parseParameter(tk, owner)
@@ -8771,6 +8782,8 @@ class FunctionBase : BlockStatement
         SyntaxError('continue not allowed here', pos);
     }
 
+    function emit_extra_modifiers(e) { }
+
     function emit(var e)
     {
         string name = self.name;
@@ -8799,6 +8812,7 @@ class FunctionBase : BlockStatement
             if (name == 'main')
                 e.print(' :main');
         }
+        self.emit_extra_modifiers(e);
         e.say();
 
         // Parameters
@@ -8848,6 +8862,8 @@ class FunctionStatement : FunctionBase
 {
     var paramnum;
     var lexnum;
+    var multi_sig;
+    var is_multi;
 
     function FunctionStatement(start, tk, owner)
     {
@@ -8855,6 +8871,21 @@ class FunctionStatement : FunctionBase
         self.paramnum = 0;
         self.lexnum = 0;
         self.parse(tk);
+        self.multi_sig = [];
+        var params = self.params;
+        self.is_multi = false;
+        if (params != null) {
+            var multi_sig = self.multi_sig;
+            int start_idx = 0;
+            if (self.ismethod()) {
+                start_idx = 1;
+                multi_sig[0] = 'P';
+            }
+            for (int i = 0; i < elements(params); i++) {
+                var param = params[i];
+                multi_sig[i + start_idx] = param.get_type();
+            }
+        }
     }
 
     function isanonymous() { return false; }
@@ -8869,6 +8900,14 @@ class FunctionStatement : FunctionBase
         return int(++self.lexnum);
     }
     function ismethod() { return false; }
+    function ismulti(int is [optional], int has_is [opt_flag])
+    {
+        if (has_is)
+            self.is_multi = is;
+        if (self.is_multi == null)
+            return 0;
+        return int(self.is_multi);
+    }
 
     function parse(tk)
     {
@@ -8891,6 +8930,26 @@ class FunctionStatement : FunctionBase
             ExpectedOp('{', t);
         self.body = new CompoundStatement(t, tk, self);
         return self;
+    }
+
+    function emit_extra_modifiers(e)
+    {
+        if (self.is_multi) {
+            var table = {"P" : "pmc", "S" : "string", "I" : "int", "N" : "num"};
+            var multi_sig = self.multi_sig;
+            e.print(' :multi(');
+            if (elements(multi_sig) == 0) {
+                e.print(')');
+                return;
+            }
+            string first = multi_sig[0];
+            e.print(table[first]);
+            for (int i = 1; i < elements(multi_sig); i++) {
+                string mod = string(multi_sig[i]);
+                e.print(', ' + string(table[mod]));
+            }
+            e.print(')');
+        }
     }
 }
 
@@ -9273,6 +9332,7 @@ class ClassStatement : ClassBase, VarContainer
         self.members = members;
         var constants = [];
         self.constants = constants;
+        var seen_functions = {};
 
         var t = tk.get();
         if (t.isop(':')) {
@@ -9288,6 +9348,13 @@ class ClassStatement : ClassBase, VarContainer
               case 'function':
                 var f = new MethodStatement(t, tk, self);
                 push(functions, f);
+                var first_func = seen_functions[f.name];
+                if (first_func == null)
+                    seen_functions[f.name] = f;
+                else {
+                    first_func.ismulti(1);
+                    f.ismulti(1);
+                }
                 break;
               case 'var':
                 var name = tk.get();
@@ -9822,6 +9889,7 @@ class NamespaceBase : VarContainer
         var items = self.items;
         var functions = self.functions;
         var classes = self.classes;
+        var seen_functions = {};
         var t;
         for (t = tk.get(); !(t.iseof() || t.isop('}')); t = tk.get())
         {
@@ -9837,6 +9905,12 @@ class NamespaceBase : VarContainer
                 var f = new FunctionStatement(t, tk, self);
                 push(functions, f);
                 push(items, f);
+                var first_func = seen_functions[f.name];
+                if (first_func != null) {
+                    f.ismulti(1);
+                    first_func.ismulti(1);
+                } else
+                    seen_functions[f.name] = f;
                 break;
               case 'class':
                 parseClass(t, tk, self);
