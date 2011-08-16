@@ -6,9 +6,9 @@ using extern Test.More plan, is;
 
 // :multi
 
-function Foo[multi("_", "_")](a, b) { return a + b; }
+function Foo(a, b) { return a + b; }
 
-function Foo[multi("_")](a) { return a; }
+function Foo(a) { return a; }
 
 function main[main]()
 {
