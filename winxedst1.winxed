@@ -446,7 +446,9 @@ class TokenFloat : TokenWithVal
     function isfloat() { return true; }
     function getfloatvalue()
     {
-        return float(self.str);
+        // Cast to float fails in stage 1, use an aux var instead.
+        float value = self.str;
+        return value;
     }
 }
 
@@ -1038,7 +1040,10 @@ function floatAsString(float n)
     PIR compiler, adding a dot if needed.
 */
 {
-    string aux = n;
+    // Use assignment instead of initializations to work around
+    // stage 1 limitations.
+    string aux; aux = n;
+
     if (indexof(aux, '.') < 0)
         aux += '.0';
     return aux;
