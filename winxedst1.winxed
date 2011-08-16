@@ -3195,7 +3195,7 @@ class IdentifierExpr : SimpleExpr
         else {
             var sym = self.findsymbol([name]);
             if (sym != null && sym instanceof FunctionStatement) {
-                if (sym.ismulti() == 0) {
+                if (!sym.ismulti()) {
                     string id = sym.makesubid();
                     self.subid = id;
                     self.usesubid(id);
@@ -5361,7 +5361,7 @@ class CallExpr : Expr
                     sym = self.findsymbol(key);
                     if (sym != null) {
                         if (sym instanceof FunctionStatement) {
-                            if (sym.ismulti() == 0) {
+                            if (!sym.ismulti()) {
                                 subid = sym.makesubid();
                                 self.usesubid(subid);
                             }
@@ -8905,13 +8905,13 @@ class FunctionStatement : FunctionBase
         return int(++self.lexnum);
     }
     function ismethod() { return false; }
-    function ismulti(int is [optional], int has_is [opt_flag])
+    function ismulti()
     {
-        if (has_is)
-            self.is_multi = is;
-        if (self.is_multi == null)
-            return 0;
         return int(self.is_multi);
+    }
+    function setmulti()
+    {
+        self.is_multi = true;
     }
 
     function parse(tk)
@@ -9357,8 +9357,8 @@ class ClassStatement : ClassBase, VarContainer
                 if (first_func == null)
                     seen_functions[f.name] = f;
                 else {
-                    first_func.ismulti(1);
-                    f.ismulti(1);
+                    first_func.setmulti();
+                    f.setmulti();
                 }
                 break;
               case 'var':
@@ -9662,6 +9662,7 @@ class NamespaceBase : VarContainer
     var namespaces;
     var classes;
     var functions;
+    var functions_name;
     var items;
     var owner;
 
@@ -9673,6 +9674,7 @@ class NamespaceBase : VarContainer
             self.usednamespaces = [];
             self.classes = [];
             self.functions = [];
+            self.functions_name = {};
             createPredefConstString(self, '__NAMESPACE__', join('.', self.nspath));
         }
         else {
@@ -9681,6 +9683,7 @@ class NamespaceBase : VarContainer
             self.usednamespaces = previous.usednamespaces;
             self.classes = previous.classes;
             self.functions = previous.functions;
+            self.functions_name = previous.functions_name;
         }
         self.items = [];
     }
@@ -9893,8 +9896,8 @@ class NamespaceBase : VarContainer
     {
         var items = self.items;
         var functions = self.functions;
+        var functions_name = self.functions_name;
         var classes = self.classes;
-        var seen_functions = {};
         var t;
         for (t = tk.get(); !(t.iseof() || t.isop('}')); t = tk.get())
         {
@@ -9908,14 +9911,18 @@ class NamespaceBase : VarContainer
                 break;
               case 'function':
                 var f = new FunctionStatement(t, tk, self);
+                string name = f.name;
                 push(functions, f);
                 push(items, f);
-                var first_func = seen_functions[f.name];
-                if (first_func != null) {
-                    f.ismulti(1);
-                    first_func.ismulti(1);
-                } else
-                    seen_functions[f.name] = f;
+                var funcs = functions_name[name];
+                if (funcs != null) {
+                    f.setmulti();
+                    if (elements(funcs) == 1)
+                        funcs[0].setmulti();
+                    funcs.push(f);
+                }
+                else
+                    functions_name[name] = [ f ];
                 break;
               case 'class':
                 parseClass(t, tk, self);
