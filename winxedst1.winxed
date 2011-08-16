@@ -8873,6 +8873,7 @@ class FunctionStatement : FunctionBase
         self.parse(tk);
         self.multi_sig = [];
         var params = self.params;
+        self.is_multi = false;
         if (params != null) {
             var multi_sig = self.multi_sig;
             int start_idx = 0;
@@ -8884,7 +8885,6 @@ class FunctionStatement : FunctionBase
                 var param = params[i];
                 multi_sig[i + start_idx] = param.get_type();
             }
-            self.is_multi = 0;
         }
     }
 
