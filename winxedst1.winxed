@@ -8904,7 +8904,9 @@ class FunctionStatement : FunctionBase
     {
         if (has_is)
             self.is_multi = is;
-        return self.is_multi;
+        if (self.is_multi == null)
+            return 0;
+        return int(self.is_multi);
     }
 
     function parse(tk)
