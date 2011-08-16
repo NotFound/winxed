@@ -2,8 +2,12 @@ Winxed news.
 (C) Julián Albo "NotFound"
 
 Version 1.1
+    - multi functions and methods
+    - casting to var builtin
     - load_packfile builtin
     - Predefined constants __NAMESPACE__ and __CLASS__
+  Build 1.1.0
+    - Bundled with parrot 3.7.0
 
 Version 1.0
     - First stable version
