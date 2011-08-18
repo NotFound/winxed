@@ -10,8 +10,8 @@ namespace Compiler
 {
 
 const int VERSION_MAJOR = 1;
-const int VERSION_MINOR = 1;
-const int VERSION_BUILD = 0;
+const int VERSION_MINOR = 2;
+const int VERSION_BUILD = -1;
 
 //*********************************************
 //          Character test functions
@@ -8878,7 +8878,7 @@ class FunctionStatement : FunctionBase
         self.parse(tk);
         self.multi_sig = [];
         var params = self.params;
-        self.is_multi = false;
+        self.is_multi = new ["Boolean"];
         if (params != null) {
             var multi_sig = self.multi_sig;
             int start_idx = 0;
@@ -8907,11 +8907,11 @@ class FunctionStatement : FunctionBase
     function ismethod() { return false; }
     function ismulti()
     {
-        return int(self.is_multi);
+        return self.is_multi ? true : false;
     }
     function setmulti()
     {
-        self.is_multi = true;
+        self.is_multi =: true;
     }
 
     function parse(tk)
