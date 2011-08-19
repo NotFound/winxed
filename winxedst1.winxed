@@ -1012,6 +1012,22 @@ class Emit
 //         Helper functions and constants
 //*********************************************
 
+// Scope search flags
+const int
+    SEARCH_NAMESPACE = 1,
+    SEARCH_CLASS     = 2;
+
+// Var flags
+const int
+    VAR_is_volatile = 1, // volatile qualifier
+    VAR_is_lexical  = 2, // lexicalized local variable
+    VAR_is_extern   = 4; // externaly defined constant, do not export
+
+const string
+    NULL = 'null',
+    SELF = 'self';
+
+
 function integerValue(var owner, var start, int value)
 {
     return new IntegerLiteral(owner, start, value);
@@ -1049,13 +1065,6 @@ function floatAsString(float n)
     return aux;
 }
 
-const string NULL = 'null', SELF = 'self';
-
-// Var flags
-const int
-    VAR_is_volatile = 1, // volatile qualifier
-    VAR_is_lexical  = 2, // lexicalized local variable
-    VAR_is_extern   = 4; // externaly defined constant, do not export
 
 // Predefined constants
 
@@ -1300,7 +1309,7 @@ function Predef_varcast(e, owner, start, string result, args)
                 arg.emit(e, result);
             }
             else {
-                sym = arg.findsymbol([name]);
+                sym = arg.scopesearch([name], 0);
                 if (sym != null && sym instanceof FunctionStatement) {
                     var path = sym.owner.getpath();
                     e.emitget_hll_global(result, name, getparrotkey(path));
@@ -1312,7 +1321,7 @@ function Predef_varcast(e, owner, start, string result, args)
             // else, look up in the hll namespace at runtime.
             string key[];
             arg.buildkey(key);
-            sym = owner.findsymbol(key);
+            sym = owner.scopesearch(key, 0);
             if (sym != null && sym instanceof FunctionStatement) {
                 var path = sym.owner.getpath();
                 e.annotate(start);
@@ -1967,17 +1976,9 @@ class CommonBase
     {
         return self.owner.addlocalfunction(fn);
     }
-    function findns(nskey)
+    function scopesearch(key, int flags)
     {
-        return self.owner.findns(nskey);
-    }
-    function findsymbol(classkey)
-    {
-        return self.owner.findsymbol(classkey);
-    }
-    function findclasskey(classkey)
-    {
-        return self.owner.findclasskey(classkey);
+        return self.owner.scopesearch(key, flags);
     }
     function dowarnings()
     {
@@ -2530,13 +2531,13 @@ class UsingStatement : Statement
         var path = self.path;
         var name = path[-1];
 
-        var symbol = self.findsymbol(path);
+        var symbol = self.scopesearch(path, 0);
         switch {
           case symbol == null:
             if (elements(path) > 0) {
                 var p = clone(path);
                 p.pop();
-                var ns = self.findns(p);
+                var ns = self.scopesearch(p, SEARCH_NAMESPACE);
                 if (ns != null) {
                     symbol = ns.getvar(name);
                     if (symbol != null) {
@@ -2584,7 +2585,7 @@ function usingNamespace(start, tk, owner)
     int nlems = elements(nskey);
     if (nlems < 1)
         Expected('namespace identifier', start);
-    var nssym = owner.findns(nskey);
+    var nssym = owner.scopesearch(nskey, SEARCH_NAMESPACE);
     if (nssym == null)
         SyntaxError('unknow namespace', start);
     owner.usenamespace(nssym);
@@ -3193,7 +3194,7 @@ class IdentifierExpr : SimpleExpr
             }
         }
         else {
-            var sym = self.findsymbol([name]);
+            var sym = self.scopesearch([name], 0);
             if (sym != null && sym instanceof FunctionStatement) {
                 if (!sym.ismulti()) {
                     string id = sym.makesubid();
@@ -5358,7 +5359,7 @@ class CallExpr : Expr
                 if (idfirst == null || idfirst == '') {
                     var key = [ ];
                     funref.buildkey(key);
-                    sym = self.findsymbol(key);
+                    sym = self.scopesearch(key, 0);
                     if (sym != null) {
                         if (sym instanceof FunctionStatement) {
                             if (!sym.ismulti()) {
@@ -5379,7 +5380,7 @@ class CallExpr : Expr
         // Check for predefined functions
         if (funref.isidentifier()) {
             if (funref.checkIdentifier() == '') {
-                var sym = self.findsymbol([ funref.getName() ]);
+                var sym = self.scopesearch([ funref.getName() ], 0);
                 if (sym != null && sym instanceof Builtin)
                     return gencallbuiltin(self.owner, funref.start, sym, args);
             }
@@ -5401,7 +5402,7 @@ class CallExpr : Expr
         if (funref.isidentifier() && funref.subid == null) {
             call = funref.checkIdentifier();
             if (call == '') {
-                var sym = self.findsymbol([ funref.getName() ]);
+                var sym = self.scopesearch([ funref.getName() ], 0);
                 switch {
                   case sym == null:
                     call = join("", [ "'", funref.getName(), "'" ] );
@@ -8681,15 +8682,15 @@ class FunctionBase : BlockStatement
             push(usedns, ns);
         }
     }
-    function findsymbol(key)
+    function scopesearch(key, int flags)
     {
         var found;
         for (var ns in self.usednamespaces) {
-            found = ns.findsymbol(key);
+            found = ns.scopesearch(key, flags);
             if (found != null)
                 return found;
         }
-        return self.owner.findsymbol(key);
+        return self.owner.scopesearch(key, flags);
     }
 
     function optimize()
@@ -9275,7 +9276,7 @@ class ClassSpecifierId : ClassSpecifier
 
     function emit(e, ns)
     {
-        var key = ns.findclasskey(self.key);
+        var key = ns.scopesearch(self.key, SEARCH_CLASS);
         if (key == null) {
             if (self.dowarnings())
                 Warn("class " + join(".", self.key) + " not found at compile time");
@@ -9387,17 +9388,13 @@ class ClassStatement : ClassBase, VarContainer
     {
         return self.owner.generatesubid();
     }
-    function findsymbol(classkey)
-    {
-        return self.parent.findsymbol(classkey);
-    }
-    function findclasskey(classkey)
-    {
-        return self.parent.findclasskey(classkey);
-    }
     function checkclass(string name)
     {
         return self.parent.checkclass(name);
+    }
+    function scopesearch(key, int flags)
+    {
+        return self.parent.scopesearch(key, flags);
     }
     function use_predef(string name)
     {
@@ -9712,14 +9709,14 @@ class NamespaceBase : VarContainer
     }
     function use(key)
     {
-        var sym = self.findsymbol(key);
+        var sym = self.scopesearch(key, 0);
         if (sym != null) {
             if (sym instanceof FunctionStatement)
                 push(self.functions, sym);
         }
         else {
             string name = key.pop();
-            var ns = self.findns(key);
+            var ns = self.scopesearch(key, SEARCH_NAMESPACE);
             if (ns != null) {
                 sym = ns.getvar(name);
                 if (sym != null)
@@ -9764,31 +9761,6 @@ class NamespaceBase : VarContainer
                 return cl;
         return null;
     }
-    function findclasskey_base(classkey, int offset)
-    {
-        // Look for a class by its key in this namespace
-        // and its childs.
-        int nelems = elements(classkey);
-        switch (nelems - offset) {
-          case 0:
-            return null;
-          case 1:
-            // The key contains the name, look by name
-            return self.checkclass_base(classkey[nelems - 1]);
-          default:
-            // The key is multi: look for a child namespace named
-            // as the first key item, and look into it with the
-            // remaining.
-            string basename = classkey[offset];
-            var ns = self.getlocalns(basename);
-            if (ns != null) {
-                var found = ns.findclasskey(classkey, offset + 1);
-                if (found != null)
-                    return found;
-            }
-        }
-        return null;
-    }
     function findsymbolbyname(string name)
     {
         var sym = self.checkclass_base(name);
@@ -9799,57 +9771,46 @@ class NamespaceBase : VarContainer
                 return sym;
         return null;
     }
-    function findlocalsymbol(classkey, int offset)
+    function scopesearchlocal(key, int flags, int offset)
     {
         // Look for a symbol by its key in this namespace
         // and its childs.
-        int nelems = elements(classkey);
+        int keylen = elements(key);
         string name;
         var sym;
         var ns;
-        switch (nelems - offset) {
+        switch (keylen - offset) {
           case 0:
-            return null;
+            break;
           case 1:
-            name = classkey[nelems - 1];
-            // The key contains the name, look by name
-            if ((sym = self.findsymbolbyname(name)) != null)
-                return sym;
-            for (ns in self.usednamespaces)
-                if ((sym = ns.findsymbolbyname(name)) != null)
+            name = key[keylen - 1];
+            switch (flags) {
+              case SEARCH_NAMESPACE:
+                return self.getlocalns(name);
+              case SEARCH_CLASS:
+                return self.checkclass_base(name);
+              default:
+                // The key contains the name, look by name
+                if ((sym = self.findsymbolbyname(name)) != null)
                     return sym;
+                for (ns in self.usednamespaces)
+                    if ((sym = ns.findsymbolbyname(name)) != null)
+                        return sym;
+            }
             break;
           default:
             // The key is multi: look for a child namespace named
             // as the first key item, and look into it with the
             // remaining.
-            name = classkey[offset];
+            name = key[offset];
             ns = self.getlocalns(name);
             if (ns != null &&
-                    (sym = ns.findlocalsymbol(classkey, offset + 1)) != null)
+                    (sym = ns.scopesearchlocal(key, flags, offset + 1)) != null)
                 return sym;
             ns = self.getusedns(name);
             if (ns != null &&
-                    (sym = ns.findlocalsymbol(classkey, offset + 1)) != null)
+                    (sym = ns.scopesearchlocal(key, flags, offset + 1)) != null)
                 return sym;
-        }
-        return null;
-    }
-    function findlocalns(nskey, int offset)
-    {
-        int nelems = elements(nskey);
-        switch (nelems - offset) {
-          case 0:
-            return null;
-          default:
-            string name = nskey[offset];
-            var ns = self.getlocalns(name);
-            if (ns != null) {
-                if (nelems - offset == 1)
-                    return ns;
-                else
-                    return ns.findlocalns(nskey, offset + 1);
-            }
         }
         return null;
     }
@@ -10057,28 +10018,12 @@ class NamespaceStatement : NamespaceBase
             return self.parent.checkclass(name);
         return cl;
     }
-    function findclasskey(classkey, int offset[optional])
+    function scopesearch(key, int flags, int offset[optional])
     {
-        // Look for a class bi its key in this namespace and its childs.
-        // If not found, look in the parent namespace.
-        var cl = self.findclasskey_base(classkey, offset);
-        if (cl == null && offset == 0)
-            return self.parent.findclasskey(classkey, offset);
-        return cl;
-    }
-    function findsymbol(classkey, int offset[optional])
-    {
-        var sym = self.findlocalsymbol(classkey, offset);
+        var sym = self.scopesearchlocal(key, flags, offset);
         if (sym == null && offset <= 0)
-            return self.parent.findsymbol(classkey, offset);
+            return self.parent.scopesearch(key, flags, offset);
         return sym;
-    }
-    function findns(nskey, int offset[optional])
-    {
-        var ns = self.findlocalns(nskey, offset);
-        if (ns == null && offset <= 0)
-            return self.parent.findns(nskey, offset);
-        return ns;
     }
     function unclosed_ns()
     {
@@ -10164,18 +10109,9 @@ class RootNamespace : NamespaceBase
     {
         return self.checkclass_base(name);
     }
-    function findclasskey(classkey, int offset[optional])
+    function scopesearch(key, int flags, int offset[optional])
     {
-        // Look for a class by its key in the root namespace.
-        return self.findclasskey_base(classkey, offset);
-    }
-    function findsymbol(classkey, int offset[optional])
-    {
-        return self.findlocalsymbol(classkey, offset);
-    }
-    function findns(nskey, int offset[optional])
-    {
-        return self.findlocalns(nskey, offset);
+        return self.scopesearchlocal(key, flags, offset);
     }
     function unclosed_ns()
     {
