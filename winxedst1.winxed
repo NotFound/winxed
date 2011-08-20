@@ -9842,6 +9842,15 @@ class NamespaceBase : VarContainer
         var t = tk.get();
         string name = t;
         t = tk.get();
+        var parent = self;
+
+        if (t.isop('.')) {
+            for ( ; t.isop('.'); t = tk.get()) {
+                say("Declaring namespace " + string(name));
+                parent = parent.childnamespace(name, string(name), null);
+                name = tk.get();
+            }
+        }
 
         var modifier;
         if (t.isop('[')) {
@@ -9850,7 +9859,7 @@ class NamespaceBase : VarContainer
         }
 
         RequireOp('{', t);
-        var child = self.childnamespace(start, name, modifier);
+        var child = parent.childnamespace(start, name, modifier);
         child.parse(tk);
     }
     function parse(tk)
