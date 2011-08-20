@@ -9846,7 +9846,6 @@ class NamespaceBase : VarContainer
 
         if (t.isop('.')) {
             for ( ; t.isop('.'); t = tk.get()) {
-                say("Declaring namespace " + string(name));
                 parent = parent.childnamespace(name, string(name), null);
                 name = tk.get();
             }
