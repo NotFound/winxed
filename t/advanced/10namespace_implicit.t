@@ -46,7 +46,7 @@ function use2()
 
 function main[main]()
 {
-    plan(7);
+    plan(8);
 
     is(A.B.C.foo(), "A.B.C.foo", "call by full name");
     is(A.B.C.D.foo(), "A.B.C.D.foo", "call by full name: same name, different namespace");
@@ -58,6 +58,8 @@ function main[main]()
     }
     catch () {}
     ok(r, "new by full name");
+
+    is((namespace A.B.C.D)['foo'](), "A.B.C.D.foo", "call via namespace operator");
 
     use1();
     use2();

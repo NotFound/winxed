@@ -3350,6 +3350,29 @@ class OpExpr : Expr
 
 //*********************************************
 
+class OpNamespaceExpr : OpExpr
+{
+    var key;
+    function OpNamespaceExpr(tk, owner, start)
+    {
+        self.initop(owner, start);
+        self.key = parseDotted(tk);
+        if (elements(self.key) < 1)
+            Expected('namespace identifier', start);
+    }
+    function checkresult() { return REGvar; }
+    function emit(e, result)
+    {
+        var sym = self.owner.scopesearch(self.key, SEARCH_NAMESPACE);
+        if (sym == null)
+            SyntaxError('unknown namespace', self.start);
+        var path = sym.getpath();
+        e.say(INDENT + 'get_namespace ', result, ', ', getparrotkey(path));
+    }
+}
+
+//*********************************************
+
 class OpClassExpr : OpExpr
 {
     var clspec;
@@ -6522,6 +6545,8 @@ function parseExpr_0(tk, owner)
         return new FunctionExpr(tk, owner, t);
       case t.iskeyword('class'):
         return new OpClassExpr(tk, owner, t);
+      case t.iskeyword('namespace'):
+        return new OpNamespaceExpr(tk, owner, t);
       case t.isidentifier():
         return new IdentifierExpr(owner, t);
       default:
