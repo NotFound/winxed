@@ -6122,9 +6122,14 @@ class NewExpr : NewBaseExpr
                     e.say(INDENT, 'new ', regnew, ", ", cl.getclasskey(), reginit);
                 }
                 else {
-                    if (self.dowarnings())
-                        Warn('Checking: new unknown type');
-                    e.say(INDENT, 'new ', regnew, ", ['", self.value, "']", reginit);
+                    id = self.scopesearch( [self.value], SEARCH_CLASS);
+                    if (id != null)
+                        e.say(INDENT, 'new ', regnew, ", ", id.getclasskey(), reginit);
+                    else {
+                        if (self.dowarnings())
+                            Warn('Checking: new unknown type');
+                        e.say(INDENT, 'new ', regnew, ", ['", self.value, "']", reginit);
+                    }
                 }
                 constructor = self.value;
             }
@@ -9452,16 +9457,23 @@ function parseClass(start, tk, parent)
 {
     var name = tk.get();
     var t = tk.get();
-    if (t.isop(';') || t.isop('.')) {
-        for ( ; t.isop('.'); t = tk.get()) {
-            parent = parent.declarenamespace(name, string(name));
-            name = tk.get();
-        }
-        RequireOp(';', t);
+    var nskey = [];
+    var ns;
+
+    for ( ; t.isop('.'); t = tk.get()) {
+        nskey.push(name);
+        name = tk.get();
+    }
+
+    if (t.isop(';')) {
+        for (ns in nskey)
+            parent = parent.declarenamespace(ns, string(ns));
         parent.declareclass(new DeclareClassStatement(start, name, parent));
     }
     else {
         tk.unget(t);
+        for (ns in nskey)
+            parent = parent.childnamespace(start, ns, null);
         parent.addclass(new ClassStatement(start, name, parent, tk));
     }
 }
@@ -9843,6 +9855,12 @@ class NamespaceBase : VarContainer
         string name = t;
         t = tk.get();
 
+        var parent = self;
+        for ( ; t.isop('.'); t = tk.get()) {
+            parent = parent.childnamespace(start, name, null);
+            name = tk.get();
+        }
+
         var modifier;
         if (t.isop('[')) {
             modifier = new ModifierList(tk, self);
@@ -9850,7 +9868,7 @@ class NamespaceBase : VarContainer
         }
 
         RequireOp('{', t);
-        var child = self.childnamespace(start, name, modifier);
+        var child = parent.childnamespace(start, name, modifier);
         child.parse(tk);
     }
     function parse(tk)
