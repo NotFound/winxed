@@ -8890,7 +8890,7 @@ class FunctionStatement : FunctionBase
             int start_idx = 0;
             if (self.ismethod()) {
                 start_idx = 1;
-                multi_sig[0] = 'P';
+                multi_sig[0] = REGvar;
             }
             for (int i = 0; i < elements(params); i++) {
                 var param = params[i];
@@ -8946,18 +8946,12 @@ class FunctionStatement : FunctionBase
     function emit_extra_modifiers(e)
     {
         if (self.is_multi) {
-            var table = {"P" : "pmc", "S" : "string", "I" : "int", "N" : "num"};
             var multi_sig = self.multi_sig;
             e.print(' :multi(');
-            if (elements(multi_sig) == 0) {
-                e.print(')');
-                return;
-            }
-            string first = multi_sig[0];
-            e.print(table[first]);
-            for (int i = 1; i < elements(multi_sig); i++) {
-                string mod = string(multi_sig[i]);
-                e.print(', ' + string(table[mod]));
+            string sep = '';
+            for (string mod in multi_sig) {
+                e.print(sep, typetopirname(mod));
+                sep = ', ';
             }
             e.print(')');
         }
