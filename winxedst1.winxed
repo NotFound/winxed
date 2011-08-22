@@ -998,6 +998,14 @@ class Emit
             self.print(", " + key);
         self.say(", '" + name + "'");
     }
+    function emitnamespace(path)
+    {
+    
+        self.print(".namespace [ ");
+        if (elements(path) > 0)
+            self.print("'", join("'; '", path), "' ");
+        self.say("]");
+    }
     function emitfind_lex(string reg, string name)
     {
         self.say(INDENT + "find_lex " + reg + ", '" + name + "'");
@@ -2112,16 +2120,6 @@ function getparrotkey(var path)
     if (elements(path) > 0)
         r = "[ '" + string(join("'; '", path)) + "' ]";
     return r;
-}
-
-function getparrotnamespacekey(var path)
-{
-    if (elements(path) == 0)
-        return ".namespace [ ]";
-    else {
-        string s = join("'; '", path);
-        return ".namespace [ '" + s + "' ]";
-    }
 }
 
 function parseUsing(t, tk, owner)
@@ -9432,8 +9430,7 @@ class ClassStatement : ClassBase, VarContainer
     }
     function emit(var e)
     {
-        var classns = self.classns;
-        e.say(getparrotnamespacekey(classns));
+        e.emitnamespace(self.classns);
         emit_array(e, self.functions);
 
         e.say('.sub Winxed_class_init :anon :load :init');
@@ -9974,13 +9971,12 @@ class NamespaceBase : VarContainer
     function emit_base(var e)
     {
         var path = self.getpath();
-        string s = getparrotnamespacekey(path);
 
         int activate = 1;
 
         var externals = self.externals;
         if (externals != null) {
-            e.say(s);
+            e.emitnamespace(path);
             activate = 0;
             emit_array(e, externals);
         }
@@ -9991,7 +9987,7 @@ class NamespaceBase : VarContainer
                 activate = 1;
             else
                 if (activate) {
-                    e.say(s);
+                    e.emitnamespace(path);
                     activate = 0;
                 }
             item.emit(e);
