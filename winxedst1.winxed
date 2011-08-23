@@ -898,6 +898,10 @@ class Emit
     {
         self.say(INDENT + op + ' ' + arg1 + ', ' + arg2);
     }
+    function emitarg3(string op, string arg1, string arg2, string arg3)
+    {
+        self.say(INDENT + op + ' ' + arg1 + ', ' + arg2 + ', ' + arg3);
+    }
     function emitcompare(string op, string arg1, string arg2, string label)
     {
         self.say(INDENT + op + ' ' + arg1 + ', ' + arg2 + ', ' + label);
@@ -2941,7 +2945,7 @@ class Condition
         var condexpr = self.condexpr;
 
         if ((condexpr instanceof ComparatorBaseExpr) ||
-                (condexpr instanceof NullCheckerExpr))
+                (condexpr instanceof CheckerExpr))
             condexpr.emit_if(e, labeltrue);
         else {
             string reg = condexpr.emit_get(e);
@@ -2963,7 +2967,7 @@ class Condition
         var condexpr = self.condexpr;
 
         if ((condexpr instanceof ComparatorBaseExpr) ||
-                (condexpr instanceof NullCheckerExpr))
+                (condexpr instanceof CheckerExpr))
             condexpr.emit_else(e, labelfalse);
         else {
             string reg = condexpr.emit_get(e);
@@ -4035,38 +4039,72 @@ class ComparatorBaseExpr : OpBinaryExpr
 // Null checkers, created during optimize of Equal and NotEqual
 // to simplify its emit functions.
 
-class NullCheckerExpr : Expr
+class CheckerExpr : Expr
 {
     var expr;
-    var checknull;
+    var positive;
 
-    function NullCheckerExpr(base, expr, int checknull)
+    function CheckerExpr(base, expr, int positive)
     {
         self.Expr(base.owner, base.start);
         self.expr = expr;
-        self.checknull = checknull;
+        var p = new ["Boolean"];
+        p =: positive;
+        self.positive = p;
     }
     function checkresult() { return REGint; }
     function isnegable() { return true; }
     function negated()
     {
-        int checkneg = ! self.checknull;
-        self.checknull = checkneg;
+        var positive = self.positive;
+        int n = ! positive;
+        positive =: n;
         return self;
+    }
+}
+
+class NullCheckerExpr : CheckerExpr
+{
+    function NullCheckerExpr(base, expr, int checknull)
+    {
+        self.CheckerExpr(base, expr, checknull);
     }
     function emit(e, result)
     {
         string reg = self.expr.emit_get(e);
         self.annotate(e);
         e.emitarg2('isnull', result, reg);
-        if (! self.checknull)
+        if (! self.positive)
             e.emitarg1('not', result);
     }
     function emit_else(e, string labelelse)
     {
         string reg = self.expr.emit_get(e);
         self.annotate(e);
-        e.say(INDENT, self.checknull ? 'unless' : 'if', '_null ', reg, ', ', labelelse);
+        e.say(INDENT, self.positive ? 'unless' : 'if', '_null ', reg, ', ', labelelse);
+    }
+}
+
+class ZeroCheckerExpr : CheckerExpr
+{
+    function ZeroCheckerExpr(base, expr, int positive)
+    {
+        self.CheckerExpr(base, expr, positive);
+    }
+    function emit(e, result)
+    {
+        string reg = self.expr.emit_get(e);
+        self.annotate(e);
+        if (self.positive)
+            e.emitarg3('iseq', result, reg, 0);
+        else
+            e.emitarg3('isne', result, reg, 0);
+    }
+    function emit_else(e, string labelelse)
+    {
+        string reg = self.expr.emit_get(e);
+        self.annotate(e);
+        e.say(INDENT, self.positive ? 'if ' : 'unless ', reg, ', ', labelelse);
     }
 }
 
@@ -4090,13 +4128,13 @@ class OpEqualExpr : ComparatorBaseExpr
             if (rnull)
                 return integerValue(self.owner, self.start, 1);
             else
-                return new NullCheckerExpr(self, self.rexpr, true);
+                return new NullCheckerExpr(self, rexpr, true);
         }
         if (rnull)
-            return new NullCheckerExpr(self, self.lexpr, true);
+            return new NullCheckerExpr(self, lexpr, true);
+        string ltype = lexpr.checkresult();
+        string rtype = rexpr.checkresult();
         if (lexpr.isliteral() && rexpr.isliteral()) {
-            string ltype = lexpr.checkresult();
-            string rtype = rexpr.checkresult();
             if (ltype == rtype) {
                 switch (ltype) {
                   case REGint:
@@ -4109,6 +4147,12 @@ class OpEqualExpr : ComparatorBaseExpr
                     return integerValue(self.owner, self.start, ls == rs);
                 }
             }
+        }
+        if (ltype == REGint && ltype == rtype) {
+            if (rexpr.isliteral() && rexpr.getIntegerValue() == 0)
+                return new ZeroCheckerExpr(self, lexpr, true);
+            if (lexpr.isliteral() && lexpr.getIntegerValue() == 0)
+                return new ZeroCheckerExpr(self, rexpr, true);
         }
         return self;
     }
@@ -4150,13 +4194,13 @@ class OpNotEqualExpr : ComparatorBaseExpr
             if (rnull)
                 return integerValue(self.owner, self.start, 0);
             else
-                return new NullCheckerExpr(self, self.rexpr, false);
+                return new NullCheckerExpr(self, rexpr, false);
         }
         if (rnull)
-            return new NullCheckerExpr(self, self.lexpr, false);
+            return new NullCheckerExpr(self, lexpr, false);
+        string ltype = lexpr.checkresult();
+        string rtype = rexpr.checkresult();
         if (lexpr.isliteral() && rexpr.isliteral()) {
-            string ltype = lexpr.checkresult();
-            string rtype = rexpr.checkresult();
             if (ltype == rtype) {
                 switch (ltype) {
                   case REGint:
@@ -4169,6 +4213,12 @@ class OpNotEqualExpr : ComparatorBaseExpr
                     return integerValue(self.owner, self.start, ls != rs);
                 }
             }
+        }
+        if (ltype == REGint && ltype == rtype) {
+            if (rexpr.isliteral() && rexpr.getIntegerValue() == 0)
+                return new ZeroCheckerExpr(self, lexpr, false);
+            if (lexpr.isliteral() && lexpr.getIntegerValue() == 0)
+                return new ZeroCheckerExpr(self, rexpr, false);
         }
         return self;
     }
