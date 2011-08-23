@@ -2,8 +2,6 @@
 
 // Winxed compiler driver.
 
-const int DEBUG = 0;
-
 $include_const 'iglobals.pasm';
 $include_const 'libpaths.pasm';
 $include_const 'except_types.pasm';
@@ -25,6 +23,7 @@ class WinxedDriverOptions : [ 'Getopt', 'Obj']
           [ 'target=s', 'Set target type' ],
           [ 'L=s',      'Add to parrot library search path' ],
           [ 'I=s',      'Add to parrot include search path' ],
+          [ 'debug',    'Set debug mode' ],
           [ 'nowarn',   'No warnings' ],
           [ 'noan',     'No code annotations' ],
           [ 'help',     'Show this help' ],
@@ -94,7 +93,7 @@ function getcompiler()
         compiler = load_language('winxed');
     catch () { }
     if (compiler == null) {
-        if (DEBUG) {
+        if (__DEBUG__) {
             load_bytecode("winxedst2.pbc");
             compiler = compreg('winxed');
             if (compiler == null)
@@ -123,6 +122,7 @@ function main [main] (argv)
     string objectname = optionset.getstring('o');
     string opt_L      = optionset.getstring('L');
     string opt_I      = optionset.getstring('I');
+    int debug         = optionset.getbool('debug');
     int nowarn        = optionset.getbool('nowarn');
     int noan          = optionset.getbool('noan');
 
@@ -146,7 +146,11 @@ function main [main] (argv)
         pathlib.push(string(opt_I));
     }
 
-    var compileoptions = { "noan" : noan, "nowarn" : nowarn };
+    var compileoptions = {
+        "debug":  debug,
+        "noan":   noan,
+        "nowarn": nowarn
+    };
     if (compileonly) {
         if (target != null)
             die("options -c and --target can't be used together");
