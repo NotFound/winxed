@@ -2816,6 +2816,7 @@ class Expr : CommonBase
     function issimple() { return false; }
     function isliteral() { return false; }
     function isintegerliteral() { return false; }
+    function isintegerzero() { return false; }
     function isfloatliteral() { return false; }
     function isstringliteral() { return false; }
     function isidentifier() { return false; }
@@ -3045,6 +3046,10 @@ class IntegerLiteral : Literal
         self.numval = n;
     }
     function isintegerliteral() { return true; }
+    function isintegerzero()
+    {
+        return int(self.numval) == 0;
+    }
     function checkresult() { return REGint; }
     function getIntegerValue()
     {
@@ -4091,7 +4096,14 @@ class ZeroCheckerExpr : CheckerExpr
     }
     function emit(e, result)
     {
-        string reg = self.expr.emit_get(e);
+        var expr = self.expr;
+        string reg;
+        if (expr.checkresult() == REGint)
+            reg = expr.emit_get(e);
+        else {
+            reg = self.tempreg(REGint);
+            expr.emit(e, reg);
+        }
         self.annotate(e);
         if (self.positive)
             e.emitarg3('iseq', result, reg, 0);
@@ -4100,7 +4112,14 @@ class ZeroCheckerExpr : CheckerExpr
     }
     function emit_else(e, string labelelse)
     {
-        string reg = self.expr.emit_get(e);
+        var expr = self.expr;
+        string reg;
+        if (expr.checkresult() == REGint)
+            reg = expr.emit_get(e);
+        else {
+            reg = self.tempreg(REGint);
+            expr.emit(e, reg);
+        }
         self.annotate(e);
         e.say(INDENT, self.positive ? 'if ' : 'unless ', reg, ', ', labelelse);
     }
@@ -4146,12 +4165,10 @@ class OpEqualExpr : ComparatorBaseExpr
                 }
             }
         }
-        if (ltype == REGint && ltype == rtype) {
-            if (rexpr.isliteral() && rexpr.getIntegerValue() == 0)
-                return new ZeroCheckerExpr(self, lexpr, true);
-            if (lexpr.isliteral() && lexpr.getIntegerValue() == 0)
-                return new ZeroCheckerExpr(self, rexpr, true);
-        }
+        if (rexpr.isintegerzero())
+            return new ZeroCheckerExpr(self, lexpr, true);
+        if (lexpr.isintegerzero())
+            return new ZeroCheckerExpr(self, rexpr, true);
         return self;
     }
     function emitop(e, string result, string regl, string regr)
@@ -4212,12 +4229,10 @@ class OpNotEqualExpr : ComparatorBaseExpr
                 }
             }
         }
-        if (ltype == REGint && ltype == rtype) {
-            if (rexpr.isliteral() && rexpr.getIntegerValue() == 0)
-                return new ZeroCheckerExpr(self, lexpr, false);
-            if (lexpr.isliteral() && lexpr.getIntegerValue() == 0)
-                return new ZeroCheckerExpr(self, rexpr, false);
-        }
+        if (rexpr.isintegerzero())
+            return new ZeroCheckerExpr(self, lexpr, false);
+        if (lexpr.isintegerzero())
+            return new ZeroCheckerExpr(self, rexpr, false);
         return self;
     }
     function emitop(e, string result, string regl, string regr)
