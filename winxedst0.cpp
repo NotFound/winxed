@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 14-jul-2011
+// Revision 23-aug-2011
 
 // Winxed compiler stage 0.
 
@@ -4838,7 +4838,9 @@ class NewIndexedExpr : public Expr
 {
 public:
     NewIndexedExpr(BlockBase &block, Tokenizer &tk, Token start) :
-            Expr(block)
+            Expr(block),
+            st(start),
+            init(0)
     {
         Token first = tk.get();
         if (!first.isliteralstring())
@@ -4859,6 +4861,12 @@ public:
             nskey.push_back(first.pirliteralstring());
             t = tk.get();
         }
+        t= tk.get();
+
+        if (t.isop('('))
+            init = new ArgumentList(block, tk, ')');
+        else
+            tk.unget(t);
     }
 private:
     Expr *optimize()
@@ -4867,6 +4875,11 @@ private:
     }
     void emit(Emit &e, const std::string &result)
     {
+        if (init) {
+            if (init->numargs() != 1)
+                throw SyntaxError("Wrong number of arguments", st);
+            init->prepare(e);
+        }
         std::string sep;
         if (!hll.empty()) {
             e << INDENT "root_new " << result << ", [" << hll;
@@ -4882,11 +4895,18 @@ private:
             e << sep << *it;
             sep = ";";
         }
-        e << "]\n";
+        e << "]";
+        if (init) {
+            e << ", ";
+            init->emit(e);
+        }
+        e << "\n";
     }
 
+    Token st;
     std::string hll;
     std::vector<std::string> nskey;
+    ArgumentList *init;
 };
 
 //**********************************************************************

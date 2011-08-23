@@ -4048,9 +4048,7 @@ class CheckerExpr : Expr
     {
         self.Expr(base.owner, base.start);
         self.expr = expr;
-        var p = new ["Boolean"];
-        p =: positive;
-        self.positive = p;
+        self.positive = new ["Boolean"](positive);
     }
     function checkresult() { return REGint; }
     function isnegable() { return true; }

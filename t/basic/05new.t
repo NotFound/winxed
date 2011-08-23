@@ -6,7 +6,7 @@ using extern Test.More plan, ok, is, is_null;
 
 function main()
 {
-    plan(10);
+    plan(11);
 
     var obj;
 
@@ -42,6 +42,9 @@ function main()
 
     obj = new ['Integer'];
     ok(obj instanceof 'Integer', 'new with key');
+
+    obj = new ['Integer'](42);
+    is(obj, 42, 'new with key - int argument');
 }
 
 class Foo
