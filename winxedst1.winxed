@@ -10328,7 +10328,7 @@ class WinxedCompileUnit
     var rootns;
     var warnings;
 
-    function WinxedCompileUnit(int nowarn)
+    function WinxedCompileUnit(int nowarn, int debug)
     {
         self.warnings = ! nowarn;
         var rootns = new RootNamespace(self);
@@ -10344,7 +10344,7 @@ class WinxedCompileUnit
         createPredefConstString(rootns, '__STAGE__',
                 string(int(__STAGE__) + 1));
 
-        createPredefConstInt(rootns, '__DEBUG__', false);
+        createPredefConstInt(rootns, '__DEBUG__', debug);
 
         // Propagate value for exception type.
         createPredefConstInt(rootns, '__WINXED_ERROR__', __WINXED_ERROR__);
@@ -10407,7 +10407,7 @@ class WinxedHLL
     {
         return "Winxed " + string(join(".", self.version()));
     }
-    function __private_compile_tail(winxed, target, output, noan)
+    function __private_compile_tail(winxed, target, output, int noan)
     {
         if (target == 'parse')
             return winxed;
@@ -10458,6 +10458,7 @@ class WinxedHLL
     function compile(string code,
             string target[named,optional],
             output[named,optional],
+            int debug[named,optional],
             int noan[named,optional],
             int nowarn[named,optional] )
     {
@@ -10469,7 +10470,7 @@ class WinxedHLL
         handlein.close();
         handlein.open(EVAL_NAME, 'r');
         var tk = new Tokenizer(handlein, EVAL_NAME);
-        var winxed = new WinxedCompileUnit(nowarn);
+        var winxed = new WinxedCompileUnit(nowarn, debug);
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
@@ -10481,6 +10482,7 @@ class WinxedHLL
     function compile_from_file(string filename,
             string target[named,optional],
             output[named,optional],
+            int debug[named,optional],
             int noan[named,optional],
             int nowarn[named,optional] )
     {
@@ -10491,7 +10493,7 @@ class WinxedHLL
         handlein.open(filename, 'r');
         handlein.encoding('utf8');
         var tk = new Tokenizer(handlein, filename);
-        var winxed = new WinxedCompileUnit(nowarn);
+        var winxed = new WinxedCompileUnit(nowarn, debug);
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();

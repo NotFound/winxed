@@ -49,6 +49,7 @@ class WinxedDriverOptions : ['Getopt', 'Obj']
           [ 'o=s',      'Object name' ],
           [ 'L=s',      'Add to parrot library search path' ],
           [ 'I=s',      'Add to parrot include search path' ],
+          [ 'debug',    'Set debug mode' ],
           [ 'noan',     'No code annotations' ],
           [ 'nowarn',   'No warnings' ],
           [ 'target=s', 'Set target type: pir, pbc or run. Default is run.' ],
@@ -107,6 +108,7 @@ function driver_main(argv)
     int version      = options.getbool('version');
     string opt_stage = options.getstring('stage');
     int compileonly  = options.getbool('c');
+    int debug        = options.getbool('debug');
     int noan         = options.getbool('noan');
     int nowarn       = options.getbool('nowarn');
     string eval      = options.getstring('e');
@@ -243,7 +245,12 @@ function driver_main(argv)
             exit(0);
         }
         string ctarget = targettype == TargetConst ? 'include' : 'pir';
-        var opts = { "target": ctarget, "noan": noan, "nowarn": nowarn };
+        var opts = {
+            "target": ctarget,
+            "debug":  debug,
+            "noan":   noan,
+            "nowarn": nowarn
+        };
         string pircode;
         if (eval == null) {
             var output;
@@ -302,8 +309,10 @@ function driver_main(argv)
         if (targettype == TargetConst)
             die('target include unavailable in stage 0');
 
+        if (debug)
+            cmd.push('--debug');
         if (noan)
-            cmd.push('--noan');;
+            cmd.push('--noan');
         if (nowarn && stage != 0)
             cmd.push('--nowarn');
         if (eval != null) {

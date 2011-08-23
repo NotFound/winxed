@@ -6942,6 +6942,12 @@ private:
 
 class RootNamespaceBlock : public NamespaceBlockBase
 {
+public:
+    RootNamespaceBlock(bool debug) :
+            debug_flag(debug)
+    {
+    }
+private:
     char checkconstant(const std::string &name) const
     {
         char result = NamespaceBlockBase::checkconstant(name);
@@ -6975,9 +6981,10 @@ class RootNamespaceBlock : public NamespaceBlockBase
                     Token(TokenTSingleQuoted, "0", 0, "__predefconst__"));
         }
         else if (name == "__DEBUG__") {
-            // Hard coded value for a now.
             return ConstantValue(REGint,
-                Token(TokenTInteger, "0", 0, "__predefconst__"));
+                Token(TokenTInteger,
+                        debug_flag ? "1" : "0", debug_flag,
+                        "__predefconst__"));
         }
         else if (name == "__WINXED_ERROR__") {
             // Hard coded value for exception type.
@@ -6998,6 +7005,7 @@ public:
             e << "  load_bytecode '" << loads[i] << "'\n";
     }
 private:
+    bool debug_flag;
     std::vector <std::string> loads;
 };
 
@@ -7361,7 +7369,8 @@ void parsensUsing(const Token &start, Tokenizer &tk,
 class Winxed
 {
 public:
-    Winxed() :
+    Winxed(bool debug) :
+        root_ns(debug),
         cur_nsblock(&root_ns)
     {
         namespaces.push_back(cur_nsblock);
@@ -7510,7 +7519,8 @@ void winxed_main (int argc, char **argv)
     std::string inputname;
     std::string expr;
     std::string outputname;
-    bool noan= false;
+    bool noan = false;
+    bool debug = false;
 
     int i;
     for (i = 1; i < argc; ++i)
@@ -7522,7 +7532,9 @@ void winxed_main (int argc, char **argv)
         else if (strcmp(argv[i], "-e") == 0)
             expr = argv[++i];
         else if (strcmp(argv[i], "--noan") == 0)
-            noan= true;
+            noan = true;
+        else if (strcmp(argv[i], "--debug") == 0)
+            debug = true;
         else break;
     }
 
@@ -7552,7 +7564,7 @@ void winxed_main (int argc, char **argv)
         outputname= genfile(inputname, "pir");
     std::string pirfile = genfile(outputname, "pir");
 
-    Winxed winxed;
+    Winxed winxed(debug);
     {
         Tokenizer tk (*input, inputname.c_str());
         winxed.parse (tk);
