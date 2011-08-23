@@ -6950,6 +6950,8 @@ class RootNamespaceBlock : public NamespaceBlockBase
                 result = REGint;
             else if (name == "__STAGE__")
                 result = REGstring;
+            else if (name == "__DEBUG__")
+                result = REGint;
             else if (name == "__WINXED_ERROR__")
                 result = REGint;
         }
@@ -6971,6 +6973,11 @@ class RootNamespaceBlock : public NamespaceBlockBase
             // This is stage 0
             return ConstantValue(REGstring,
                     Token(TokenTSingleQuoted, "0", 0, "__predefconst__"));
+        }
+        else if (name == "__DEBUG__") {
+            // Hard coded value for a now.
+            return ConstantValue(REGint,
+                Token(TokenTInteger, "0", 0, "__predefconst__"));
         }
         else if (name == "__WINXED_ERROR__") {
             // Hard coded value for exception type.

@@ -1105,9 +1105,6 @@ function createPredefConstString(scope, string name, string value)
 //         Predefined functions
 //*********************************************
 
-// Set this to non-zero to enable sanity checks of predef definitions.
-const int __DEBUG_PREDEFS = 0;
-
 const int PREDEF_arglist = -1, PREDEF_raw1 = -2;
 
 // Invokable object generated from a string body
@@ -1118,7 +1115,7 @@ class Predef_frombody
     var typeresult;
     function Predef_frombody(string typeresult, string bodystr)
     {
-        if (__DEBUG_PREDEFS) {
+        if (__DEBUG__) {
             // Minimal sanity check
             int pos = indexof(bodystr, resultmark);
             if (typeresult == REGnone && pos != -1)
@@ -10346,6 +10343,8 @@ class WinxedCompileUnit
         // the current stage and we are done.
         createPredefConstString(rootns, '__STAGE__',
                 string(int(__STAGE__) + 1));
+
+        createPredefConstInt(rootns, '__DEBUG__', false);
 
         // Propagate value for exception type.
         createPredefConstInt(rootns, '__WINXED_ERROR__', __WINXED_ERROR__);
