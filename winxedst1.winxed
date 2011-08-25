@@ -5987,30 +5987,24 @@ class ArrayExpr : Expr
     {
         self.annotate(e);
         string itemreg;
+        string pnull;
         string it_p;
         if (container != '') {
             e.say(INDENT, 'root_new ', container, ", ['parrot';'ResizablePMCArray']");
             it_p = self.tempreg(REGvar);
         }
         for (var item in self.values) {
-            switch (item.checkresult()) {
-              case REGint: case REGfloat: case REGstring:
-                string aux = item.emit_get(e);
+            if (item.isnull()) {
                 if (container != '') {
-                    e.emitbox(it_p, aux);
-                    itemreg = it_p;
-                }
-                break;
-              default:
-                if (item.isnull()) {
-                    if (container != '') {
-                        itemreg = self.tempreg(REGvar);
-                        e.emitnull(itemreg);
+                    if (pnull == null) {
+                        pnull = self.tempreg(REGvar);
+                        e.emitnull(pnull);
                     }
                 }
-                else
-                    itemreg = item.emit_get(e);
+                itemreg = pnull;
             }
+            else
+                itemreg = item.emit_get(e);
             if (container != '') {
                 self.annotate(e);
                 e.emitarg2('push', container, itemreg);
@@ -6081,28 +6075,22 @@ class HashExpr : Expr
 
             var value = values[i];
             string itemreg;
+            string pnull;
             string it_p;
             if (result != '')
                 it_p = self.tempreg(REGvar);
             string aux;
-            switch (value.checkresult()) {
-                  case REGint: case REGfloat: case REGstring:
-                    aux = value.emit_get(e);
-                    if (result != '') {
-                        e.emitbox(it_p, aux);
-                        itemreg = it_p;
+            if (value.isnull()) {
+                if (result != '') {
+                    if (pnull == null) {
+                        pnull = self.tempreg(REGvar);
+                        e.emitnull(pnull);
                     }
-                    break;
-                  default:
-                    if (value.isnull()) {
-                        if (result != '') {
-                            itemreg = self.tempreg(REGvar);
-                            e.emitnull(itemreg);
-                        }
-                    }
-                    else
-                        itemreg = value.emit_get(e);
+                }
+                itemreg = pnull;
             }
+            else
+                itemreg = value.emit_get(e);
             if (result != '')
                 e.say(INDENT, result, '[', item, '] = ', itemreg);
         }
