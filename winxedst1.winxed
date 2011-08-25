@@ -1206,6 +1206,10 @@ class PredefBase
         }
         self.nparams = n;
     }
+    function iscompileevaluable()
+    {
+        return false;
+    }
     function name()
     {
         string name = self.name;
@@ -1266,6 +1270,10 @@ class PredefFunctionEval : PredefBase
         self.PredefBase(name, body, typeresult, type0, type1, type2, type3);
         self.evalfun = evalfun;
     }
+    function iscompileevaluable()
+    {
+        return true;
+    }
 }
 
 class Predef_typecast
@@ -1296,6 +1304,45 @@ class Predef_typecast
             else
                 e.emitset(result, arg);
         }
+    }
+}
+
+function predefeval_stringcast(owner, start, args)
+{
+    var arg = args[0].arg;
+
+    string s;
+    switch {
+      case arg.isintegerliteral():
+        s = int(arg.numval);
+        break;
+      case arg.isfloatliteral():
+        s = arg.getFloatValue();
+        break;
+      case arg.isstringliteral():
+        return arg;
+        break;
+      default:
+        InternalError('wrong call to predefeval_stringcast', start);
+    }
+
+    var t = new TokenQuoted(start.file, start.line, s);
+    return new StringLiteral(owner, t);
+}
+
+function predefeval_intcast(owner, start, args)
+{
+    var arg = args[0].arg;
+
+    switch {
+      case arg.isintegerliteral():
+        return arg;
+      case arg.isfloatliteral():
+        return integerValue(owner, start, int(arg.getFloatValue()));
+      case arg.isstringliteral():
+        return integerValue(owner, start, int(arg.get_value()));
+      default:
+        InternalError('wrong call to predefeval_intcast', start);
     }
 }
 
@@ -1481,7 +1528,8 @@ function predefeval_indexof_pos(owner, start, args)
 
 function getpredefs(builder)
 {
-    builder.add(new PredefFunction('int',
+    builder.add(new PredefFunctionEval('int',
+        predefeval_intcast,
         new Predef_typecast(REGint),
         REGint, REGraw1
     ));
@@ -1489,7 +1537,8 @@ function getpredefs(builder)
         new Predef_typecast(REGfloat),
         REGfloat, REGraw1
     ));
-    builder.add(new PredefFunction('string',
+    builder.add(new PredefFunctionEval('string',
+        predefeval_stringcast,
         new Predef_typecast(REGstring),
         REGstring, REGraw1
     ));
@@ -5393,7 +5442,7 @@ function gencallbuiltin(owner, start, builtin, args)
         SyntaxError("Wrong arguments for builtin", start);
 
     // Check for compile time evaluation.
-    if (predef instanceof PredefFunctionEval) {
+    if (predef.iscompileevaluable()) {
         if (arglist_hascompilevalue(rawargs)) {
             var evalfun = predef.evalfun;
             return evalfun(owner.owner, owner.start, rawargs);
