@@ -5988,12 +5988,15 @@ class ArrayExpr : Expr
         self.annotate(e);
         string itemreg;
         string pnull;
-        string it_p;
+        var values = self.values;
+        int size = values == null ? 0 : elements(values);
         if (container != '') {
             e.say(INDENT, 'root_new ', container, ", ['parrot';'ResizablePMCArray']");
-            it_p = self.tempreg(REGvar);
+            if (size > 0)
+                e.emitassign(container, size);
         }
-        for (var item in self.values) {
+        int i = 0;
+        for (var item in values) {
             if (item.isnull()) {
                 if (container != '') {
                     if (pnull == null) {
@@ -6007,7 +6010,8 @@ class ArrayExpr : Expr
                 itemreg = item.emit_get(e);
             if (container != '') {
                 self.annotate(e);
-                e.emitarg2('push', container, itemreg);
+                e.say(INDENT, container, "[", i, "] = ", itemreg);
+                ++i;
             }
         }
     }
@@ -6076,9 +6080,6 @@ class HashExpr : Expr
             var value = values[i];
             string itemreg;
             string pnull;
-            string it_p;
-            if (result != '')
-                it_p = self.tempreg(REGvar);
             string aux;
             if (value.isnull()) {
                 if (result != '') {
