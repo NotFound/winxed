@@ -723,9 +723,9 @@ class Tokenizer
             else
                 op += c;
         }
-        if (current)
-            return current(self, op, line);
-        return getop(self, op, line);
+        return current != null ?
+            current(self, op, line) :
+            getop(self, op, line);
     }
     function get(int withcomments [optional])
     {
@@ -1006,7 +1006,7 @@ class Emit
     {
     
         self.print(".namespace [ ");
-        if (elements(path) > 0)
+        if (elements(path) != 0)
             self.print("'", join("'; '", path), "' ");
         self.say("]");
     }
@@ -2167,7 +2167,7 @@ class ModifierList
 function getparrotkey(var path)
 {
     string r;
-    if (elements(path) > 0)
+    if (elements(path) != 0)
         r = "[ '" + string(join("'; '", path)) + "' ]";
     return r;
 }
@@ -2400,10 +2400,7 @@ class MultiStatementBase
                 empty = false;
             statements[i] = st;
         }
-        if (empty)
-            return new EmptyStatement;
-        else
-            return self;
+        return empty ? new EmptyStatement : self;
     }
 }
 
@@ -2428,12 +2425,14 @@ class MultiStatement : MultiStatementBase
 
 function addtomulti(var multi, var newst)
 {
-    if (multi == null)
+    switch {
+      case multi == null:
         return newst;
-    else if (multi instanceof MultiStatement)
+      case multi instanceof MultiStatement:
         return multi.push(newst);
-    else
+      default:
         return new MultiStatement(multi, newst);
+    }
 }
 
 //*********************************************
@@ -2582,7 +2581,7 @@ class UsingStatement : Statement
         var symbol = self.scopesearch(path, 0);
         switch {
           case symbol == null:
-            if (elements(path) > 0) {
+            if (elements(path) != 0) {
                 var p = clone(path);
                 p.pop();
                 var ns = self.scopesearch(p, SEARCH_NAMESPACE);
@@ -2630,8 +2629,7 @@ class UsingStatement : Statement
 function usingNamespace(start, tk, owner)
 {
     var nskey = parseDotted(tk);
-    int nlems = elements(nskey);
-    if (nlems < 1)
+    if (elements(nskey) == 0)
         Expected('namespace identifier', start);
     var nssym = owner.scopesearch(nskey, SEARCH_NAMESPACE);
     if (nssym == null)
@@ -2975,16 +2973,8 @@ class Condition
     function getvalue()
     {
         var condexpr = self.condexpr;
-        if (condexpr.isliteral()) {
-            switch (condexpr.checkresult()) {
-              case REGint:
-               int n = condexpr.getIntegerValue();
-                if (n == 0)
-                    return CONDisfalse;
-                else
-                    return CONDistrue;
-            }
-        }
+        if (condexpr.isintegerliteral())
+            return condexpr.isintegerzero() ? CONDisfalse : CONDistrue;
         return CONDisruntime;
     }
     function emit_if(e, string labeltrue, string labelfalse)
@@ -3410,7 +3400,7 @@ class OpNamespaceExpr : OpExpr
     {
         self.initop(owner, start);
         self.key = parseDotted(tk);
-        if (elements(self.key) < 1)
+        if (elements(self.key) == 0)
             Expected('namespace identifier', start);
     }
     function checkresult() { return REGvar; }
@@ -4474,10 +4464,9 @@ class OpBoolAndExpr : OpBaseBoolExpr
         self.optimizearg();
         if (self.lexpr.isintegerliteral() ) {
             int ln = self.lexpr.getIntegerValue();
-            if (ln != 0)
-               return self.rexpr;
-            else
-                return integerValue(self.owner, self.start, ln);
+            return ln != 0 ?
+                self.rexpr :
+                integerValue(self.owner, self.start, ln);
         }
         return self;
     }
@@ -4512,10 +4501,9 @@ class OpBoolOrExpr : OpBaseBoolExpr
         self.optimizearg();
         if (self.lexpr.isintegerliteral() ) {
             int ln = self.lexpr.getIntegerValue();
-            if (ln == 0)
-               return self.rexpr;
-            else
-                return integerValue(self.owner, self.start, ln);
+            return ln == 0 ?
+                self.rexpr :
+                integerValue(self.owner, self.start, ln);
         }
         return self;
     }
@@ -5429,7 +5417,6 @@ function gencallbuiltin(owner, start, builtin, args)
     var rawargs = nargs == 0 ? [] : args.getrawargs();
 
     var variants = builtin.variants;
-    int nvariants = elements(variants);
     var predef;
     for (var p in variants) {
         int pargs = p.nparams;
@@ -5851,10 +5838,7 @@ class IndexExpr : Expr
     }
     function checkresult()
     {
-        if (self.left.checkresult() == REGstring)
-            return REGstring;
-        else
-            return REGvar;
+       return self.left.checkresult() == REGstring ? REGstring: REGvar;
     }
     function optimize()
     {
@@ -8117,7 +8101,7 @@ class DeclareArrayStatement : DeclareBase
             string itemreg = self.tempreg(basetype);
             int n = elements(init);
             if (size == null) {
-                if (n > 0) {
+                if (n != 0) {
                     // Allocate initializers size
                     e.emitset(reg, n);
                 }
@@ -8541,7 +8525,7 @@ class RegisterStore
         var freereg = self.freereg;
         var tempreg = self.tempreg;
         string reg;
-        if (elements(freereg) > 0)
+        if (elements(freereg) != 0)
             reg = freereg.pop();
         else
             reg = self.createreg();
@@ -8688,7 +8672,7 @@ class FunctionExtern : CommonBase
         var ns = self.owner;
         var path = ns.getpath();
         string key;
-        if (elements(path) > 0)
+        if (elements(path) != 0)
              key = getparrotkey(path);
         string reg = owner.tempreg(REGvar);
         e.emitget_hll_global(reg, self.name, key);
