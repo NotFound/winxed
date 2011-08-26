@@ -6105,6 +6105,11 @@ class NewBaseExpr : Expr
         // opening parenthesis
         self.initializer = new ArgumentList(self.owner, self.start, tk, ')');
     }
+    function numargs()
+    {
+        var initializer = self.initializer;
+        return initializer == null ? -1 : int(initializer.numargs());
+    }
     function optimize_initializer()
     {
         var initializer = self.initializer;
@@ -6151,7 +6156,7 @@ class NewExpr : NewBaseExpr
     function optimize()
     {
         var value = self.value;
-        if ((value instanceof Token) && value.isidentifier()) {
+        if (value.isidentifier()) {
             // The identifier can be a string constant, check for that case
             // and obtain the string value.
             var desc = self.owner.getvar(value.getidentifier());
@@ -6170,7 +6175,7 @@ class NewExpr : NewBaseExpr
         self.annotate(e);
 
         var initializer = self.initializer;
-        int numinits = initializer == null ? -1 : initializer.numargs();
+        int numinits = self.numargs();
 
         const int BYNAME = 0, BYIDENT = 1;
         int type = self.value.isstring() ? BYNAME :
@@ -6277,13 +6282,12 @@ class NewIndexedExpr : NewBaseExpr
     function emit(e, result)
     {
         string reginit;
-        var initializer = self.initializer;
-        int numinits = initializer == null ? 0 : initializer.numargs();
-        switch (numinits) {
+        switch (self.numargs()) {
+          case -1:
           case 0:
             break;
           case 1:
-            var initval = initializer.getfreearg(0);
+            var initval = self.initializer.getfreearg(0);
             reginit = initval.emit_get(e);
             break;
           default:
@@ -6321,10 +6325,7 @@ class NewQualifiedExpr : NewBaseExpr
     }
     function emit(e, result)
     {
-        string reginit;
-        var initializer = self.initializer;
-
-        int numinits = initializer == null ? -1 : initializer.numargs();
+        int numinits = self.numargs();
         string regnew = result;
         if (numinits > 0)
             regnew = self.tempreg(REGvar);
