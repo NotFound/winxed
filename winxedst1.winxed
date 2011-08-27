@@ -6206,6 +6206,9 @@ class NewExpr : NewBaseExpr
                 regnew = self.tempreg(REGvar);
         }
 
+        if (regnew == '')
+            regnew = self.tempreg(REGvar);
+
         switch (type) {
           case BYNAME:
             // By name, usually a pmc.
@@ -6251,7 +6254,7 @@ class NewExpr : NewBaseExpr
         }
         if (numinits > 1 || (numinits >= 0 && type == BYIDENT)) {
             self.emit_constructor(e, regnew, constructor);
-            if (! is_init)
+            if (! is_init && result != '')
                 e.emitset(result, regnew);
         }
     }
@@ -6294,6 +6297,10 @@ class NewIndexedExpr : NewBaseExpr
             SyntaxError('Multiple init arguments not allowed here', self);
         }
         var nskey = self.nskey;
+
+        if (result == '')
+            result = self.tempreg(REGvar);
+
         e.print(INDENT);
         if (nskey.hasHLL())
             e.print("root_");
@@ -6330,6 +6337,10 @@ class NewQualifiedExpr : NewBaseExpr
         if (numinits > 0)
             regnew = self.tempreg(REGvar);
         var nskey = self.nskey;
+
+        if (regnew == '')
+            regnew = self.tempreg(REGvar);
+
         e.print(INDENT, 'new ', regnew, ", ");
         nskey.emit(e, self.owner);
         e.say();
@@ -6337,7 +6348,8 @@ class NewQualifiedExpr : NewBaseExpr
         if (numinits >= 0) {
             string constructor = nskey.last();
             self.emit_constructor(e, regnew, constructor);
-            e.emitset(result, regnew);
+            if (result != '')
+                e.emitset(result, regnew);
         }
     }
 }
