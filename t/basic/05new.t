@@ -6,7 +6,7 @@ using extern Test.More plan, ok, is, is_null;
 
 function main()
 {
-    plan(11);
+    plan(12);
 
     var obj;
 
@@ -45,6 +45,10 @@ function main()
 
     obj = new ['Integer'](42);
     is(obj, 42, 'new with key - int argument');
+
+    obj = new ['Exception']( { "severity":  1, "message": "foobar" } );
+    ok((obj instanceof 'Exception') && obj["severity"] == 1 && obj["message"] == "foobar",
+            'new with key - var argument');
 }
 
 class Foo
