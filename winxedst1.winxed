@@ -9965,6 +9965,14 @@ class NamespaceBase : VarContainer
         var t = tk.get();
         string name = t;
         t = tk.get();
+        var parent = self;
+
+        if (t.isop('.')) {
+            for ( ; t.isop('.'); t = tk.get()) {
+                parent = parent.childnamespace(name, string(name), null);
+                name = tk.get();
+            }
+        }
 
         var parent = self;
         for ( ; t.isop('.'); t = tk.get()) {
