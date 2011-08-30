@@ -4133,28 +4133,29 @@ class ZeroCheckerExpr : CheckerExpr
     function emit(e, result)
     {
         var expr = self.expr;
-        string reg;
-        if (expr.checkresult() == REGint)
-            reg = expr.emit_get(e);
-        else {
-            reg = self.tempreg(REGint);
-            expr.emit(e, reg);
+        string reg = expr.emit_get(e);
+        if (expr.checkresult() != REGint) {
+            string aux = self.tempreg(REGint);
+            self.annotate(e);
+            e.emitset(aux, reg);
+            reg = aux;
         }
-        self.annotate(e);
-        if (self.positive)
-            e.emitarg3('iseq', result, reg, 0);
-        else
-            e.emitarg3('isne', result, reg, 0);
+        if (result != '') {
+            self.annotate(e);
+            if (self.positive)
+                e.emitarg3('iseq', result, reg, 0);
+            else
+                e.emitarg3('isne', result, reg, 0);
+        }
     }
     function emit_else(e, string labelelse)
     {
         var expr = self.expr;
-        string reg;
-        if (expr.checkresult() == REGint)
-            reg = expr.emit_get(e);
-        else {
-            reg = self.tempreg(REGint);
-            expr.emit(e, reg);
+        string reg = expr.emit_get(e);
+        if (expr.checkresult() != REGint) {
+            string aux = self.tempreg(REGint);
+            e.emitset(aux, reg);
+            reg = aux;
         }
         self.annotate(e);
         e.say(INDENT, self.positive ? 'if ' : 'unless ', reg, ', ', labelelse);
