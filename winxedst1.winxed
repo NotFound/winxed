@@ -991,6 +991,13 @@ class Emit
     {
         self.say(INDENT + 'say ', arg);
     }
+    function emitget_root_global(string reg, string name, string key[optional])
+    {
+        self.print(INDENT + "get_root_global " + reg);
+        if (key != null)
+            self.print(", " + key);
+        self.say(", '" + name + "'");
+    }
     function emitget_hll_global(string reg, string name, string key[optional])
     {
         self.print(INDENT + "get_hll_global " + reg );
@@ -2134,6 +2141,8 @@ function parseUsing(t, tk, owner)
         return new StaticStatement(t, tk, owner);
       case taux.iskeyword('namespace'):
         return new UsingNamespaceStatement(taux, tk, owner);
+      case taux.iskeyword('root'):
+        return new UsingRootStatement(taux, tk, owner);
       default:
         tk.unget(taux);
         return new UsingStatement(t, tk, owner);
@@ -2557,6 +2566,7 @@ class UsingStatement : Statement
         self.createvar(name, REGvar);
         return self;
     }
+    function is_root() { return false; }
     function emit(e)
     {
         var path = self.path;
@@ -2569,10 +2579,23 @@ class UsingStatement : Statement
                 path.pop();
                 key = getparrotkey(path);
             }
-            e.emitget_hll_global(vdata.getreg(), name, key);
+            if (self.is_root())
+                e.emitget_root_global(vdata.getreg(), name, key);
+            else
+                e.emitget_hll_global(vdata.getreg(), name, key);
         }
     }
 }
+
+class UsingRootStatement : UsingStatement
+{
+    function UsingRootStatement(start, tk, owner)
+    {
+        self.UsingStatement(start, tk, owner);
+    }
+    function is_root() { return true; }
+}
+
 
 //*********************************************
 //            UsingNamespaceStatement
