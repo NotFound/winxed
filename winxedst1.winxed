@@ -4832,20 +4832,47 @@ class OpSubExpr : OpBinaryExpr
     }
     function checkresult()
     {
-        string rl = self.lexpr.checkresult();
-        string rr = self.rexpr.checkresult();
-        if (rl == rr)
-            return rl;
-        if (rl == REGint && rr == REGfloat)
+        string ltype = self.lexpr.checkresult();
+        string rtype = self.rexpr.checkresult();
+        switch {
+          case ltype == rtype:
+            return ltype;
+          case ltype == REGvar || rtype == REGvar:
+            return REGvar;
+          case ltype == REGint && rtype == REGfloat:
             return REGfloat;
-        if (rl == REGfloat && rr == REGint)
+          case ltype == REGfloat && rtype == REGint:
             return REGfloat;
-        return REGint;
+          default:
+            return REGint;
+        }
     }
     function emit(e, result)
     {
-        string lreg = self.lexpr.emit_get(e);
-        string rreg = self.rexpr.emit_get(e);
+        string type = self.checkresult();
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        string ltype = lexpr.checkresult();
+        string rtype = rexpr.checkresult();
+        string lreg = lexpr.emit_get(e);
+        string rreg = rexpr.emit_get(e);
+        string aux;
+        if (ltype != type) {
+            aux = self.tempreg(type);
+            if (type == REGvar)
+                e.emitbox(aux, lreg);
+            else
+                e.emitset(aux, lreg);
+            lreg = aux;
+        }
+        if (rtype != type) {
+            aux = self.tempreg(type);
+            if (type == REGvar)
+                e.emitbox(aux, rreg);
+            else
+                e.emitset(aux, rreg);
+            rreg = aux;
+        }
         e.emitsub(result, lreg, rreg);
     }
 }
