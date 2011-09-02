@@ -1002,14 +1002,6 @@ class Emit
             self.print(", " + key);
         self.say(", '" + name + "'");
     }
-    function emitnamespace(path)
-    {
-    
-        self.print(".namespace [ ");
-        if (elements(path) != 0)
-            self.print("'", join("'; '", path), "' ");
-        self.say("]");
-    }
     function emitfind_lex(string reg, string name)
     {
         self.say(INDENT + "find_lex " + reg + ", '" + name + "'");
@@ -2017,6 +2009,10 @@ class CommonBase
     function annotate(e)
     {
         e.annotate(self.start);
+    }
+    function getpath()
+    {
+        return self.owner.getpath();
     }
     function use_predef(string name)
     {
@@ -3410,7 +3406,7 @@ class OpNamespaceExpr : OpExpr
         if (sym == null)
             SyntaxError('unknown namespace', self.start);
         var path = sym.getpath();
-        e.say(INDENT + 'get_namespace ', result, ', ', getparrotkey(path));
+        e.say(INDENT + 'get_namespace ', result, ', ', path.getparrotkey());
     }
 }
 
@@ -6369,8 +6365,7 @@ class NewQualifiedExpr : NewBaseExpr
         if (regnew == '')
             regnew = self.tempreg(REGvar);
 
-        e.print(INDENT, 'new ', regnew, ", ");
-        nskey.emit(e, self.owner);
+        nskey.emit_new(e, self, regnew);
         e.say();
 
         if (numinits >= 0) {
@@ -8712,9 +8707,7 @@ class FunctionExtern : CommonBase
     {
         var ns = self.owner;
         var path = ns.getpath();
-        string key;
-        if (elements(path) != 0)
-             key = getparrotkey(path);
+        string key = path.getparrotkey();
         string reg = owner.tempreg(REGvar);
         e.emitget_hll_global(reg, self.name, key);
         return reg;
@@ -9078,9 +9071,8 @@ class FunctionStatement : FunctionBase
         RequireOp('(', t);
         self.parse_parameters(tk);
 
-        var fullname = clone(self.owner.getpath());
-        push(fullname, name.getidentifier());
-        createPredefConstString(self, '__FUNCTION__', join('.', fullname));
+        var path = self.owner.getpath().createchild(name.getidentifier());
+        createPredefConstString(self, '__FUNCTION__', path.fullname());
 
         t = tk.get();
         if (!t.isop('{'))
@@ -9429,6 +9421,18 @@ class ClassSpecifierId : ClassSpecifier
         }
         else e.print(key.getclasskey());
     }
+    function emit_new(e, from, string regnew)
+    {
+        var key = from.scopesearch(self.key, SEARCH_CLASS);
+        if (key == null) {
+            if (self.dowarnings())
+                Warn("class " + join(".", self.key) + " not found at compile time");
+            e.print(getparrotkey(self.key));
+        }
+        else {
+            key.getpath().emit_new(e, from, regnew);
+        }
+    }
 }
 
 function parseClassSpecifier(tk, owner)
@@ -9455,13 +9459,12 @@ class ClassBase : CommonBase
     {
         self.initbase(start, parent);
         self.name = name;
-        var classns = clone(parent.getpath());
-        push(classns, self.name);
+        var classns = parent.getpath().createchild(name);
         self.classns = classns;
     }
     function getclasskey()
     {
-        return getparrotkey(self.classns);
+        return self.classns.getparrotkey();
     }
 }
 
@@ -9492,7 +9495,7 @@ class ClassStatement : ClassBase, VarContainer
         }
         RequireOp('{', t);
 
-        createPredefConstString(self, '__CLASS__', join('.', self.classns));
+        createPredefConstString(self, '__CLASS__', self.classns.fullname());
 
         for (t = tk.get(); !t.isop('}'); t = tk.get()) {
             switch (t.checkkeyword()) {
@@ -9553,7 +9556,7 @@ class ClassStatement : ClassBase, VarContainer
     }
     function emit(var e)
     {
-        e.emitnamespace(self.classns);
+        self.classns.emitnamespace(e);
         emit_array(e, self.functions);
 
         e.say('.sub Winxed_class_init :anon :load :init');
@@ -9799,6 +9802,91 @@ class External
     }
 }
 
+class NamespacePath
+{
+    var hll;
+    var path;
+
+    function NamespacePath(string name[optional], int is_hll[optional])
+    {
+        string path[];
+        if (is_hll)
+            self.hll = name;
+        else {
+            if (name != null)
+                push(path, name);
+        }
+        self.path = path;
+    }
+    function createchild(string name)
+    {
+        var child = new NamespacePath;
+        child.hll = self.hll;
+        var path = clone(self.path);
+        push(path, name);
+        child.path = path;
+        return child;
+    }
+    function samehllas(fromns)
+    {
+        var hll = self.hll;
+        return hll == null ?
+            fromns.hll == null :
+            fromns.hll = hll;
+    }
+    function fullname()
+    {
+        string name = join('.', self.path);
+        if (self.hll != null)
+            name = string(self.hll) + '.' + name;
+        return name;
+    }
+    function getparrotkey()
+    {
+        var path = self.path;
+        string r;
+        if (elements(path) != 0)
+            r = "[ '" + string(join("'; '", path)) + "' ]";
+        return r;
+    }
+    function getparrotrootkey()
+    {
+        var path = self.path;
+        var hll = self.hll;
+        string r = "[ '";
+        if (hll != null)
+            r += hll;
+        else
+            r += "parrot";
+        r += "'";
+        if (elements(path) != 0)
+            r += "; '" + string(join("'; '", path)) + "'";
+        r += " ]";
+        return r;
+    }
+    function emitnamespace(e)
+    {
+        var path = self.path;
+        e.print(".namespace [ ");
+        if (elements(path) != 0)
+            e.print("'", join("'; '", path), "' ");
+        e.say("]");
+    }
+    function emit_new(e, fromns, string regnew)
+    {
+        var fromkey = fromns.getpath();
+        int same_hll = self.samehllas(fromkey);
+        if (same_hll) {
+            e.print(INDENT, 'new ', regnew, ", ");
+            e.print(self.getparrotkey());
+        }
+        else {
+            e.print(INDENT, 'root_new ', regnew, ", ");
+            e.print(self.getparrotrootkey());
+        }
+    }
+}
+
 //*********************************************
 //            NamespaceBase
 //*********************************************
@@ -9823,7 +9911,7 @@ class NamespaceBase : VarContainer
             self.classes = [];
             self.functions = [];
             self.functions_name = {};
-            createPredefConstString(self, '__NAMESPACE__', join('.', self.nspath));
+            createPredefConstString(self, '__NAMESPACE__', nspath.fullname());
         }
         else {
             self.locals = previous.locals;
@@ -10099,7 +10187,7 @@ class NamespaceBase : VarContainer
 
         var externals = self.externals;
         if (externals != null) {
-            e.emitnamespace(path);
+            path.emitnamespace(e);
             activate = 0;
             emit_array(e, externals);
         }
@@ -10110,7 +10198,7 @@ class NamespaceBase : VarContainer
                 activate = 1;
             else
                 if (activate) {
-                    e.emitnamespace(path);
+                    path.emitnamespace(e);
                     activate = 0;
                 }
             item.emit(e);
@@ -10133,19 +10221,23 @@ class NamespaceStatement : NamespaceBase
     function NamespaceStatement(var parent, var start, var previous,
             string name, var modifier)
     {
-        var nspath = clone(parent.getpath());
-        push(nspath, name);
+        self.modifier = modifier;
+        int is_hll = false;
+        if (modifier != null) {
+            if (modifier.pick('HLL') != null) {
+                self.hll = name;
+                is_hll = true;
+            }
+        }
+        var nspath = is_hll ?
+            new NamespacePath(name, true) :
+            parent.getpath().createchild(name);
         self.NamespaceBase(nspath, previous);
 
         self.parent = parent;
         self.start = start;
         self.owner = parent;
         self.name = name;
-        self.modifier = modifier;
-        if (modifier != null) {
-            if (modifier.pick('HLL') != null)
-                self.hll = self.name;
-        }
     }
     function dowarnings()
     {
@@ -10224,8 +10316,7 @@ class RootNamespace : NamespaceBase
 
     function RootNamespace(unit)
     {
-        string nspath[];
-        self.NamespaceBase(nspath, null);
+        self.NamespaceBase(new NamespacePath(), null);
         self.unit = unit;
         self.predefs_used = {};
         self.subidgen = 0;
