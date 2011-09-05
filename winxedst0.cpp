@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 23-aug-2011
+// Revision 5-sep-2011
 
 // Winxed compiler stage 0.
 
@@ -5087,7 +5087,10 @@ private:
         exprtrue->emit(e, result);
         e << INDENT "goto " << label_end << '\n';
         e << INDENTLABEL << label_false << ":\n";
-        exprfalse->emit(e, result);
+        if (exprfalse->isnull())
+            e << op_null(result) << '\n';
+        else
+            exprfalse->emit(e, result);
         e << INDENTLABEL << label_end << ":\n";
     }
     Condition *condition;

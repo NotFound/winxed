@@ -9787,9 +9787,7 @@ class NamespacePath
     function samehllas(fromns)
     {
         var hll = self.hll;
-        var fromhll;
-        if (fromns != null)
-            fromhll = fromns.hll;
+        var fromhll = fromns != null ? fromns.hll : null;
         if (hll == null)
             return fromhll == null;
         else
