@@ -4081,29 +4081,39 @@ class ComparatorBaseExpr : OpBinaryExpr
 
 //*********************************************
 
+class Negable
+{
+    var positive;
+
+    function Negable(int positive)
+    {
+        self.positive = new ["Boolean"](positive);
+    }
+    function isnegable() { return true; }
+    function negated()
+    {
+        int positive = ! self.positive;
+        self.positive =: positive;
+        return self;
+    }
+}
+
+//*********************************************
+
 // Null checkers, created during optimize of Equal and NotEqual
 // to simplify its emit functions.
 
-class CheckerExpr : Expr
+class CheckerExpr : Expr, Negable
 {
     var expr;
-    var positive;
 
     function CheckerExpr(base, expr, int positive)
     {
         self.Expr(base.owner, base.start);
+        self.Negable(positive);
         self.expr = expr;
-        self.positive = new ["Boolean"](positive);
     }
     function checkresult() { return REGint; }
-    function isnegable() { return true; }
-    function negated()
-    {
-        var positive = self.positive;
-        int n = ! positive;
-        positive =: n;
-        return self;
-    }
 }
 
 class NullCheckerExpr : CheckerExpr
@@ -4168,12 +4178,12 @@ class ZeroCheckerExpr : CheckerExpr
 
 //*********************************************
 
-class OpEqualExpr : ComparatorBaseExpr
+class OpEqualExpr : ComparatorBaseExpr, Negable
 {
-    function isnegable() { return true; }
-    function negated()
+    function OpEqualExpr(owner, start, lexpr, rexpr, int positive)
     {
-        return (new OpNotEqualExpr).setfrom(self);
+        self.set(owner, start, lexpr, rexpr);
+        self.Negable(positive);
     }
     function optimize()
     {
@@ -4184,12 +4194,12 @@ class OpEqualExpr : ComparatorBaseExpr
         int rnull = rexpr.isnull();
         if (lnull) {
             if (rnull)
-                return integerValue(self.owner, self.start, 1);
+                return integerValue(self.owner, self.start, self.positive);
             else
-                return new NullCheckerExpr(self, rexpr, true);
+                return new NullCheckerExpr(self, rexpr, self.positive);
         }
         if (rnull)
-            return new NullCheckerExpr(self, lexpr, true);
+            return new NullCheckerExpr(self, lexpr, self.positive);
         string ltype = lexpr.checkresult();
         string rtype = rexpr.checkresult();
         if (lexpr.isliteral() && rexpr.isliteral()) {
@@ -4198,117 +4208,54 @@ class OpEqualExpr : ComparatorBaseExpr
                   case REGint:
                     int li = lexpr.getIntegerValue();
                     int ri = rexpr.getIntegerValue();
-                    return integerValue(self.owner, self.start, li == ri);
+                    int vi = self.positive ? li == ri : li != ri;
+                    return integerValue(self.owner, self.start, vi);
                   case REGstring:
                     string ls = (lexpr.strval).str;
                     string rs = (rexpr.strval).str;
-                    return integerValue(self.owner, self.start, ls == rs);
+                    int vs = self.positive ? ls == rs : ls != rs;
+                    return integerValue(self.owner, self.start, vs);
                 }
             }
         }
         if (rexpr.isintegerzero())
-            return new ZeroCheckerExpr(self, lexpr, true);
+            return new ZeroCheckerExpr(self, lexpr, self.positive);
         if (lexpr.isintegerzero())
-            return new ZeroCheckerExpr(self, rexpr, true);
+            return new ZeroCheckerExpr(self, rexpr, self.positive);
         return self;
     }
     function emitop(e, string result, string regl, string regr)
     {
-        e.emitbinop('iseq', result, regl, regr);
+        self.annotate(e);
+        e.emitbinop(self.positive ? 'iseq' : 'isne', result, regl, regr);
     }
     function emit(e, result)
     {
+        self.annotate(e);
         self.emit_comparator(e, result);
     }
     function emitop_if(e, string labeltrue, string regl, string regr)
     {
-        e.emitcompare('eq', regl, regr, labeltrue);
+        self.annotate(e);
+        e.emitcompare(self.positive ? 'eq' : 'ne', regl, regr, labeltrue);
     }
     function emitop_else(e, string labelelse, string regl, string regr)
     {
-        e.emitcompare('ne', regl, regr, labelelse);
+        self.annotate(e);
+        e.emitcompare(self.positive ? 'ne' : 'eq', regl, regr, labelelse);
     }
 }
 
-//*********************************************
-
-class OpNotEqualExpr : ComparatorBaseExpr
-{
-    function isnegable() { return true; }
-    function negated()
-    {
-        return (new OpEqualExpr).setfrom(self);
-    }
-    function optimize()
-    {
-        self.optimizearg();
-        var lexpr = self.lexpr;
-        var rexpr = self.rexpr;
-        int lnull = lexpr.isnull();
-        int rnull = rexpr.isnull();
-        if (lnull) {
-            if (rnull)
-                return integerValue(self.owner, self.start, 0);
-            else
-                return new NullCheckerExpr(self, rexpr, false);
-        }
-        if (rnull)
-            return new NullCheckerExpr(self, lexpr, false);
-        string ltype = lexpr.checkresult();
-        string rtype = rexpr.checkresult();
-        if (lexpr.isliteral() && rexpr.isliteral()) {
-            if (ltype == rtype) {
-                switch (ltype) {
-                  case REGint:
-                    int li = lexpr.getIntegerValue();
-                    int ri = rexpr.getIntegerValue();
-                    return integerValue(self.owner, self.start, li != ri);
-                  case REGstring:
-                    string ls = (lexpr.strval).str;
-                    string rs = (rexpr.strval).str;
-                    return integerValue(self.owner, self.start, ls != rs);
-                }
-            }
-        }
-        if (rexpr.isintegerzero())
-            return new ZeroCheckerExpr(self, lexpr, false);
-        if (lexpr.isintegerzero())
-            return new ZeroCheckerExpr(self, rexpr, false);
-        return self;
-    }
-    function emitop(e, string result, string regl, string regr)
-    {
-        e.emitbinop('isne', result, regl, regr);
-    }
-    function emit(e, result)
-    {
-        self.emit_comparator(e, result);
-    }
-    function emitop_if(e, string labeltrue, string regl, string regr)
-    {
-        e.emitcompare('ne', regl, regr, labeltrue);
-    }
-    function emitop_else(e, string labelelse, string regl, string regr)
-    {
-        e.emitcompare('eq', regl, regr, labelelse);
-    }
-}
 
 //**********************************************************************
 
-class OpSameExpr : ComparatorBaseExpr
+class OpSameExpr : ComparatorBaseExpr, Negable
 {
     var positive;
-    function OpSameExpr(int positiveform, owner, t, lexpr, rexpr)
+    function OpSameExpr(owner, t, lexpr, rexpr, int positive)
     {
         self.initbinary(owner, t, lexpr, rexpr);
-        self.positive = positiveform;
-    }
-    function isnegable() { return true; }
-    function negated()
-    {
-        int positive = self.positive;
-        return new OpSameExpr(! positive, self.owner, self.start, self.lexpr, self.rexpr);
+        self.Negable(positive);
     }
     function int_op(int left, int right)
     {
@@ -4316,6 +4263,7 @@ class OpSameExpr : ComparatorBaseExpr
     }
     function emitop(e, string result, string regl, string regr)
     {
+        self.annotate(e);
         int positive = self.positive;
         string op = positive ? 'issame' : 'isntsame';
         e.emitbinop(op, result, regl, regr);
@@ -4326,12 +4274,14 @@ class OpSameExpr : ComparatorBaseExpr
     }
     function emitop_if(e, string labeltrue, string regl, string regr)
     {
+        self.annotate(e);
         int positive = self.positive;
         string op = positive ? 'eq_addr' : 'ne_addr';
         e.emitcompare(op, regl, regr, labeltrue);
     }
     function emitop_else(e, string labelelse, string regl, string regr)
     {
+        self.annotate(e);
         int positive = self.positive;
         string op = positive ? 'ne_addr' : 'eq_addr';
         e.emitcompare(op, regl, regr, labelelse);
@@ -6868,19 +6818,19 @@ function parseExpr_9(tk, owner)
         switch (code) {
           case Code_equal:
             rexpr = parseExpr_8(tk, owner);
-            lexpr = (new OpEqualExpr).set(owner, t, lexpr, rexpr);
+            lexpr = new OpEqualExpr(owner, t, lexpr, rexpr, true);
             break;
           case Code_not_equal:
             rexpr = parseExpr_8(tk, owner);
-            lexpr = (new OpNotEqualExpr).set(owner, t, lexpr, rexpr);
+            lexpr = new OpEqualExpr(owner, t, lexpr, rexpr, false);
             break;
           case Code_same:
             rexpr = parseExpr_8(tk, owner);
-            lexpr = new OpSameExpr(true, owner, t, lexpr, rexpr);
+            lexpr = new OpSameExpr(owner, t, lexpr, rexpr, true);
             break;
           case Code_not_same:
             rexpr = parseExpr_8(tk, owner);
-            lexpr = new OpSameExpr(false, owner, t, lexpr, rexpr);
+            lexpr = new OpSameExpr(owner, t, lexpr, rexpr, false);
             break;
           default:
             InternalError('Invalid code in parseExpr_8', t);
