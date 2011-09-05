@@ -6251,10 +6251,11 @@ class NewExpr : NewBaseExpr
           case BYIDENT:
             var id = self.owner.getvar(self.value);
             if (id == null) {
-                //say('new with no var');
                 var cl = self.owner.checkclass(self.value);
                 if (cl != null) {
-                    e.say(INDENT, 'new ', regnew, ", ", cl.getclasskey(), reginit);
+                    var key = cl.getpath();
+                    key.emit_new(e, self, regnew, reginit);
+                    e.say();
                 }
                 else {
                     id = self.scopesearch( [self.value], SEARCH_CLASS);
@@ -9462,6 +9463,10 @@ class ClassBase : CommonBase
         var classns = parent.getpath().createchild(name);
         self.classns = classns;
     }
+    function getpath()
+    {
+        return self.classns;
+    }
     function getclasskey()
     {
         return self.classns.getparrotkey();
@@ -9527,10 +9532,6 @@ class ClassStatement : ClassBase, VarContainer
                 Unexpected("item in class", t);
             }
         }
-    }
-    function getpath()
-    {
-        return self.classns;
     }
     function generatesubid()
     {
@@ -9832,14 +9833,15 @@ class NamespacePath
         var hll = self.hll;
         return hll == null ?
             fromns.hll == null :
-            fromns.hll = hll;
+            fromns.hll == hll;
     }
     function fullname()
     {
         string name = join('.', self.path);
         if (self.hll != null)
-            name = string(self.hll) + '.' + name;
-        return name;
+            return string(self.hll) + '.' + name;
+        else
+            return name;
     }
     function getparrotkey()
     {
@@ -9872,7 +9874,7 @@ class NamespacePath
             e.print("'", join("'; '", path), "' ");
         e.say("]");
     }
-    function emit_new(e, fromns, string regnew)
+    function emit_new(e, fromns, string regnew, string reginit[optional])
     {
         var fromkey = fromns.getpath();
         int same_hll = self.samehllas(fromkey);
@@ -9884,6 +9886,8 @@ class NamespacePath
             e.print(INDENT, 'root_new ', regnew, ", ");
             e.print(self.getparrotrootkey());
         }
+        if (reginit != null && reginit != '')
+            e.print(reginit);
     }
 }
 
