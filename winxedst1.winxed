@@ -4635,13 +4635,9 @@ class ConcatString : Expr
     }
     function emit(e, result)
     {
-        var regvalues = self.getregs(e);
-        int nvalues = elements(regvalues);
-        string auxreg = result != '' ? result : '$S0';
-        self.annotate(e);
-        e.emitconcat(auxreg, regvalues[0], regvalues[1]);
-        for (int i = 2; i < nvalues; ++i)
-            e.emitconcat1(auxreg, regvalues[i]);
+        string auxreg = self.emit_get(e);
+        if (result != '')
+            e.emitset(result, auxreg);
     }
     function emit_get(e)
     {
