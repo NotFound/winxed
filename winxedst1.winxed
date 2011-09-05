@@ -1002,6 +1002,13 @@ class Emit
             self.print(", " + key);
         self.say(", '" + name + "'");
     }
+    function emitget_root_global(string reg, string name, string key[optional])
+    {
+        self.print(INDENT + "get_root_global " + reg );
+        if (key != null)
+            self.print(", " + key);
+        self.say(", '" + name + "'");
+    }
     function emitfind_lex(string reg, string name)
     {
         self.say(INDENT + "find_lex " + reg + ", '" + name + "'");
@@ -8705,11 +8712,10 @@ class FunctionExtern : CommonBase
     }
     function emit_get(e, owner)
     {
-        var ns = self.owner;
-        var path = ns.getpath();
-        string key = path.getparrotkey();
+        var path = self.owner.getpath();
         string reg = owner.tempreg(REGvar);
-        e.emitget_hll_global(reg, self.name, key);
+        self.annotate(e);
+        path.emit_get_global(e, owner, reg, self.name);
         return reg;
     }
 }
@@ -9887,6 +9893,15 @@ class NamespacePath
         }
         if (reginit != null && reginit != '')
             e.print(reginit);
+    }
+    function emit_get_global(e, fromns, string regnew, string name)
+    {
+        var fromkey = fromns.getpath();
+        int same_hll = self.samehllas(fromkey);
+        if (same_hll)
+            e.emitget_hll_global(regnew, name, self.getparrotkey());
+        else
+            e.emitget_root_global(regnew, name, self.getparrotrootkey());
     }
 }
 
