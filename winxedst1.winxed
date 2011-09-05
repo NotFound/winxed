@@ -805,7 +805,7 @@ class Emit
     }
     function disable_annotations()
     {
-        self.noan = 1;
+        self.noan = true;
     }
     function close()
     {
@@ -3997,6 +3997,11 @@ class OpModToExpr : OpBaseAssignExpr
 
 //*********************************************
 
+const int
+    COMPARATOR_DEFAULT = 0,
+    COMPARATOR_IF      = 1,
+    COMPARATOR_ELSE    = 2;
+
 class ComparatorBaseExpr : OpBinaryExpr
 {
     function checkresult() { return REGint; }
@@ -4054,13 +4059,13 @@ class ComparatorBaseExpr : OpBinaryExpr
         }
 
         switch (doifelse) {
-          case 0:
+          case COMPARATOR_DEFAULT:
             self.emitop(e, result, regl, regr);
             break;
-          case 1:
+          case COMPARATOR_IF:
             self.emitop_if(e, result, regl, regr);
             break;
-          case 2:
+          case COMPARATOR_ELSE:
             self.emitop_else(e, result, regl, regr);
             break;
         }
@@ -4071,11 +4076,11 @@ class ComparatorBaseExpr : OpBinaryExpr
     }
     function emit_if(e, string labeltrue)
     {
-        self.emit_comparator(e, labeltrue, 1);
+        self.emit_comparator(e, labeltrue, COMPARATOR_IF);
     }
     function emit_else(e, string labelfalse)
     {
-        self.emit_comparator(e, labelfalse, 2);
+        self.emit_comparator(e, labelfalse, COMPARATOR_ELSE);
     }
 }
 
@@ -5109,15 +5114,15 @@ class ArgumentModifierList : ModifierList
     }
     function emitmodifiers(e)
     {
-        int isflat = 0, isnamed = 0;
+        int isflat = false, isnamed = false;
         string setname = '';
         for (var modif in self.getlist()) {
             switch (modif.getname()) {
               case 'flat':
-                isflat = 1;
+                isflat = true;
                 break;
               case 'named':
-                isnamed = 1;
+                isnamed = true;
                 switch (modif.numargs()) {
                   case 0:
                     break;
@@ -10171,23 +10176,23 @@ class NamespaceBase : VarContainer
     {
         var path = self.getpath();
 
-        int activate = 1;
+        int activate = true;
 
         var externals = self.externals;
         if (externals != null) {
             path.emitnamespace(e);
-            activate = 0;
+            activate = false;
             emit_array(e, externals);
         }
 
         for (var item in self.items) {
             if ((item instanceof NamespaceStatement) ||
                     (item instanceof ClassStatement))
-                activate = 1;
+                activate = true;
             else
                 if (activate) {
                     path.emitnamespace(e);
-                    activate = 0;
+                    activate = false;
                 }
             item.emit(e);
         }
