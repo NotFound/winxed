@@ -3409,11 +3409,12 @@ class OpNamespaceExpr : OpExpr
     function checkresult() { return REGvar; }
     function emit(e, result)
     {
-        var sym = self.owner.scopesearch(self.key, SEARCH_NAMESPACE);
+        var owner = self.owner;
+        var sym = owner.scopesearch(self.key, SEARCH_NAMESPACE);
         if (sym == null)
             SyntaxError('unknown namespace', self.start);
         var path = sym.getpath();
-        e.say(INDENT + 'get_namespace ', result, ', ', path.getparrotkey());
+        path.emit_get_namespace(e, owner, result);
     }
 }
 
@@ -9836,9 +9837,13 @@ class NamespacePath
     function samehllas(fromns)
     {
         var hll = self.hll;
-        return hll == null ?
-            fromns.hll == null :
-            fromns.hll == hll;
+        var fromhll;
+        if (fromns != null)
+            fromhll = fromns.hll;
+        if (hll == null)
+            return fromhll == null;
+        else
+            return fromhll == null ? false : hll == fromhll;
     }
     function fullname()
     {
@@ -9861,8 +9866,11 @@ class NamespacePath
         var path = self.path;
         var hll = self.hll;
         string r = "[ '";
-        if (hll != null)
-            r += hll;
+        if (hll != null) {
+            // HLL namespace is stored in the root namespace
+            // using its name in lower case as key.
+            r += downcase(hll);
+        }
         else
             r += "parrot";
         r += "'";
@@ -9894,14 +9902,28 @@ class NamespacePath
         if (reginit != null && reginit != '')
             e.print(reginit);
     }
-    function emit_get_global(e, fromns, string regnew, string name)
+    function emit_get_namespace(e, fromns, string result)
+    {
+        var fromkey = fromns.getpath();
+        int same_hll = self.samehllas(fromkey);
+        if (same_hll) {
+            e.print(INDENT, 'get_hll_namespace ', result, ", ");
+            e.print(self.getparrotkey());
+        }
+        else {
+            e.print(INDENT, "get_root_namespace ", result, ", ");
+            e.print(self.getparrotrootkey());
+        }
+        e.say();
+    }
+    function emit_get_global(e, fromns, string result, string name)
     {
         var fromkey = fromns.getpath();
         int same_hll = self.samehllas(fromkey);
         if (same_hll)
-            e.emitget_hll_global(regnew, name, self.getparrotkey());
+            e.emitget_hll_global(result, name, self.getparrotkey());
         else
-            e.emitget_root_global(regnew, name, self.getparrotrootkey());
+            e.emitget_root_global(result, name, self.getparrotrootkey());
     }
 }
 
