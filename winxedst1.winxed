@@ -6448,10 +6448,6 @@ class OpInstanceOfExpr : Expr
 
 class OpConditionalExpr : Expr
 {
-    // TODO
-    // Allow true and false branches to have different types,
-    // or give an error in that case.
-
     var condition;
     var etrue;
     var efalse;
@@ -6509,7 +6505,14 @@ class OpConditionalExpr : Expr
                 e.emitbox(result, r);
             }
             else
-                efalse.emit(e, result);
+            {
+                if (tfalse == REGvar) {
+                    var aux = efalse.emit_get(e);
+                    e.emitset(result, aux);
+                }
+                else
+                    efalse.emit(e, result);
+            }
         }
         e.emitlabel(cond_end);
     }
