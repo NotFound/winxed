@@ -798,7 +798,7 @@ class Emit
     function Emit(var handle)
     {
         self.handle = handle;
-        self.file = '';
+        self.file = "";
         self.line = 0;
         self.pendingf = false;
         self.pendingl = false;
@@ -868,55 +868,55 @@ class Emit
     function comment(string s)
     {
         self.updateannot();
-        self.handle.print('# ' + s + "\n");
+        self.handle.print("# " + s + "\n");
     }
     function emitlabel(string label, string comment [optional])
     {
         var handle = self.handle;
         handle.print(INDENTLABEL);
         handle.print(label);
-        handle.print(':');
+        handle.print(":");
         if (comment != null)
-            handle.print(' # ' + comment);
+            handle.print(" # " + comment);
         handle.print("\n");
     }
     function emitgoto(string label, string comment [optional])
     {
         var handle = self.handle;
-        handle.print(INDENT + 'goto ');
+        handle.print(INDENT + "goto ");
         handle.print(label);
         if (comment != null)
-            handle.print(' # ' + comment);
+            handle.print(" # " + comment);
         handle.print("\n");
     }
 
     function emitarg1(string op, string arg1)
     {
-        self.say(INDENT + op + ' ' + arg1);
+        self.say(INDENT, op, " ", arg1);
     }
     function emitarg2(string op, string arg1, string arg2)
     {
-        self.say(INDENT + op + ' ' + arg1 + ', ' + arg2);
+        self.say(INDENT, op, " ", arg1, ", ", arg2);
     }
     function emitarg3(string op, string arg1, string arg2, string arg3)
     {
-        self.say(INDENT + op + ' ' + arg1 + ', ' + arg2 + ', ' + arg3);
+        self.say(INDENT, op, " ", arg1, ", ", arg2, ", ", arg3);
     }
     function emitcompare(string op, string arg1, string arg2, string label)
     {
-        self.say(INDENT + op + ' ' + arg1 + ', ' + arg2 + ', ' + label);
+        self.say(INDENT, op, " ", arg1, ", ", arg2, ", ", label);
     }
     function emitif(string value, string label)
     {
-        self.say(INDENT + 'if ', value, ' goto ', label);
+        self.say(INDENT + "if ", value, " goto ", label);
     }
     function emitunless(string value, string label)
     {
-        self.say(INDENT + 'unless ', value, ' goto ', label);
+        self.say(INDENT + "unless ", value, " goto ", label);
     }
     function emitif_null(string value, string label)
     {
-        self.say(INDENT + 'if_null ', value, ', ', label);
+        self.say(INDENT + "if_null ", value, ", ", label);
     }
     function emitnull(string dst)
     {
@@ -925,11 +925,11 @@ class Emit
 
     function emitinc(string arg)
     {
-        self.say(INDENT + 'inc ', arg);
+        self.say(INDENT + "inc ", arg);
     }
     function emitdec(string arg)
     {
-        self.say(INDENT + 'dec ', arg);
+        self.say(INDENT + "dec ", arg);
     }
     function emitset(string dst, string src)
     {
@@ -989,29 +989,37 @@ class Emit
     }
     function emitprint(string arg)
     {
-        self.say(INDENT + 'print ', arg);
+        self.say(INDENT + "print ", arg);
     }
     function emitsay(string arg)
     {
-        self.say(INDENT + 'say ', arg);
+        self.say(INDENT + "say ", arg);
+    }
+    function emitget_hll_namespace(string reg, string key)
+    {
+        self.say(INDENT + "get_hll_namespace ", reg, ", " + key);
+    }
+    function emitget_root_namespace(string reg, string key)
+    {
+        self.say(INDENT + "get_root_namespace ", reg, ", " + key);
     }
     function emitget_hll_global(string reg, string name, string key[optional])
     {
-        self.print(INDENT + "get_hll_global " + reg );
+        self.print(INDENT + "get_hll_global ", reg);
         if (key != null)
-            self.print(", " + key);
-        self.say(", '" + name + "'");
+            self.print(", ", key);
+        self.say(", '", name, "'");
     }
     function emitget_root_global(string reg, string name, string key[optional])
     {
-        self.print(INDENT + "get_root_global " + reg );
+        self.print(INDENT + "get_root_global ", reg);
         if (key != null)
-            self.print(", " + key);
-        self.say(", '" + name + "'");
+            self.print(", ", key);
+        self.say(", '", name, "'");
     }
     function emitfind_lex(string reg, string name)
     {
-        self.say(INDENT + "find_lex " + reg + ", '" + name + "'");
+        self.say(INDENT + "find_lex ", reg, ", '", name, "'");
     }
     function emitstore_lex(string name, string reg)
     {
@@ -9750,9 +9758,10 @@ class External
     symbols = new ['ResizableStringArray']
 :>>
         );
-        e.print(INDENT + "srcns = get_root_namespace ['parrot'; '");
-        e.print(join("'; '", self.module));
-        e.say("']");
+
+        e.emitget_root_namespace("srcns",
+                "['parrot'; '" + string(join("'; '", self.module)) + "']");
+
         for (string name in self.names)
             e.say(INDENT + "push symbols, '", name, "'");
         e.say(<<:
@@ -9791,8 +9800,9 @@ class NamespacePath
     }
     function samehllas(fromns)
     {
+        var fromkey = fromns.getpath();
         var hll = self.hll;
-        var fromhll = fromns != null ? fromns.hll : null;
+        var fromhll = fromkey != null ? fromkey.hll : null;
         if (hll == null)
             return fromhll == null;
         else
@@ -9842,9 +9852,7 @@ class NamespacePath
     }
     function emit_new(e, fromns, string regnew, string reginit[optional])
     {
-        var fromkey = fromns.getpath();
-        int same_hll = self.samehllas(fromkey);
-        if (same_hll) {
+        if (self.samehllas(fromns)) {
             e.print(INDENT, 'new ', regnew, ", ");
             e.print(self.getparrotkey());
         }
@@ -9857,23 +9865,14 @@ class NamespacePath
     }
     function emit_get_namespace(e, fromns, string result)
     {
-        var fromkey = fromns.getpath();
-        int same_hll = self.samehllas(fromkey);
-        if (same_hll) {
-            e.print(INDENT, 'get_hll_namespace ', result, ", ");
-            e.print(self.getparrotkey());
-        }
-        else {
-            e.print(INDENT, "get_root_namespace ", result, ", ");
-            e.print(self.getparrotrootkey());
-        }
-        e.say();
+        if (self.samehllas(fromns))
+            e.emitget_hll_namespace(result, self.getparrotkey());
+        else
+            e.emitget_root_namespace(result, self.getparrotrootkey());
     }
     function emit_get_global(e, fromns, string result, string name)
     {
-        var fromkey = fromns.getpath();
-        int same_hll = self.samehllas(fromkey);
-        if (same_hll)
+        if (self.samehllas(fromns))
             e.emitget_hll_global(result, name, self.getparrotkey());
         else
             e.emitget_root_global(result, name, self.getparrotrootkey());
