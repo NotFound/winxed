@@ -3444,11 +3444,24 @@ class OpClassExpr : OpExpr
     function checkresult() { return REGvar; }
     function emit(e, result)
     {
+        var owner = self.owner;
         var clspec = self.clspec;
         // In void context use a temporary and get it anyway,
         // to avoid discarding side effects.
         if (result == '')
             result = self.owner.tempreg(REGvar);
+
+        // TODO: cover more class specifiers
+        switch {
+          case clspec instanceof ClassSpecifierId:
+            var clkey = clspec.checknskey(owner);
+            if (clkey != null) {
+                clkey.emit_get_class(e, owner, result);
+                return;
+            }
+            break;
+        }
+
         e.print(INDENT + 'get_class ', result, ', ');
         clspec.emit(e, self.owner);
         e.say();
@@ -6232,7 +6245,6 @@ class NewExpr : NewBaseExpr
                 if (cl != null) {
                     var key = cl.getpath();
                     key.emit_new(e, self, regnew, reginit);
-                    e.say();
                 }
                 else {
                     id = self.scopesearch( [self.value], SEARCH_CLASS);
@@ -6344,7 +6356,6 @@ class NewQualifiedExpr : NewBaseExpr
             regnew = self.tempreg(REGvar);
 
         nskey.emit_new(e, self, regnew);
-        e.say();
 
         if (numinits >= 0) {
             string constructor = nskey.last();
@@ -9390,6 +9401,11 @@ class ClassSpecifierId : ClassSpecifier
         var key = self.key;
         return key[-1];
     }
+    function checknskey(from)
+    {
+        var nskey = from.scopesearch(self.key, SEARCH_CLASS);
+        return nskey != null ? nskey.getpath() : null;
+    }
 
     function emit(e, ns)
     {
@@ -9403,14 +9419,14 @@ class ClassSpecifierId : ClassSpecifier
     }
     function emit_new(e, from, string regnew)
     {
-        var key = from.scopesearch(self.key, SEARCH_CLASS);
-        if (key == null) {
+        var nskey = self.checknskey(from);
+        if (nskey == null) {
             if (self.dowarnings())
                 Warn("class " + join(".", self.key) + " not found at compile time");
-            e.print("new ", regnew, ", ", getparrotkey(self.key));
+            e.say("new ", regnew, ", ", getparrotkey(self.key));
         }
         else {
-            key.getpath().emit_new(e, from, regnew);
+            nskey.emit_new(e, from, regnew);
         }
     }
 }
@@ -9872,6 +9888,7 @@ class NamespacePath
         }
         if (reginit != null && reginit != '')
             e.print(reginit);
+        e.say();
     }
     function emit_get_namespace(e, fromns, string result)
     {
@@ -9879,6 +9896,24 @@ class NamespacePath
             e.emitget_hll_namespace(result, self.getparrotkey());
         else
             e.emitget_root_namespace(result, self.getparrotrootkey());
+    }
+    function emit_get_class(e, fromns, string result)
+    {
+        if (self.samehllas(fromns))
+            e.say(INDENT + "get_class ", result, ", ", self.getparrotkey());
+        else {
+            // There is no get_root_class. This will work for a now.
+            var hll = self.hll;
+            var path = clone(self.path);
+            string name = path.pop();
+            string shll = hll != null ? downcase(hll) : 'parrot';
+            if (elements(path) != 0)
+                e.say(INDENT + "get_root_global ", result, ", ['", shll,
+                    "'; '", join("'; '", path), "'], '", name, "'");
+            else
+                e.say(INDENT + "get_root_global ", result, ", ['", shll,
+                    "'], '", name, "'");
+        }
     }
     function emit_get_global(e, fromns, string result, string name)
     {
