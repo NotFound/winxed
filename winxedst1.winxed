@@ -918,6 +918,10 @@ class Emit
     {
         self.say(INDENT + "if_null ", value, ", ", label);
     }
+    function emitunless_null(string value, string label)
+    {
+        self.say(INDENT + "unless_null ", value, ", ", label);
+    }
     function emitnull(string dst)
     {
         self.say(INDENT + "null ", dst);
@@ -4147,7 +4151,10 @@ class NullCheckerExpr : CheckerExpr
     {
         string reg = self.expr.emit_get(e);
         self.annotate(e);
-        e.say(INDENT, self.positive ? 'unless' : 'if', '_null ', reg, ', ', labelelse);
+        if (self.positive)
+            e.emitunless_null(reg, labelelse);
+        else
+            e.emitif_null(reg, labelelse);
     }
 }
 
@@ -4185,7 +4192,10 @@ class ZeroCheckerExpr : CheckerExpr
             reg = aux;
         }
         self.annotate(e);
-        e.say(INDENT, self.positive ? 'if ' : 'unless ', reg, ', ', labelelse);
+        if (self.positive)
+            e.emitif(reg, labelelse);
+        else
+            e.emitunless(reg, labelelse);
     }
 }
 
@@ -7572,7 +7582,7 @@ class SwitchCaseStatement : SwitchBaseStatement
             string label = self.genlabel();
             push(caselabel, label);
             caseval.emit(e, reg);
-            e.say(INDENT, 'if ', reg, ' goto ', label);
+            e.emitif(reg, label);
         }
         e.emitgoto(defaultlabel);
 
