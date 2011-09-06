@@ -9407,7 +9407,7 @@ class ClassSpecifierId : ClassSpecifier
         if (key == null) {
             if (self.dowarnings())
                 Warn("class " + join(".", self.key) + " not found at compile time");
-            e.print(getparrotkey(self.key));
+            e.print("new ", regnew, ", ", getparrotkey(self.key));
         }
         else {
             key.getpath().emit_new(e, from, regnew);
