@@ -9914,7 +9914,9 @@ class NamespacePath
         if (self.samehllas(fromns))
             e.say(INDENT + "get_class ", result, ", ", self.getparrotkey());
         else {
-            // There is no get_root_class. This will work for a now.
+            // There is no get_root_class. This will work for a now:
+            // Get the namespace as root global object, and then get
+            // its associated class.
             var hll = self.hll;
             var path = clone(self.path);
             string name = path.pop();
@@ -9925,6 +9927,7 @@ class NamespacePath
             else
                 e.say(INDENT + "get_root_global ", result, ", ['", shll,
                     "'], '", name, "'");
+            e.say(INDENT + "get_class ", result, ", ", result);
         }
     }
     function emit_get_global(e, fromns, string result, string name)
