@@ -793,6 +793,7 @@ class Emit
     var line;
     var pendingf;
     var pendingl;
+    var debug;
     var noan;
 
     function Emit(var handle)
@@ -802,6 +803,14 @@ class Emit
         self.line = 0;
         self.pendingf = false;
         self.pendingl = false;
+    }
+    function setDebug()
+    {
+        self.debug = true;
+    }
+    function getDebug()
+    {
+        return self.debug != null;
     }
     function disable_annotations()
     {
@@ -1442,6 +1451,23 @@ function Predef_print(e, owner, start, string result, args)
         e.emitprint(arg);
 }
 
+function Predef_ASSERT(e, owner, start, string result, args)
+{
+    __ASSERT__(elements(args) == 1); // Best place to use it
+
+    if (e.getDebug()) {
+        e.annotate(start);
+        string label = owner.genlabel();
+        e.emitif(args[0], label);
+        e.say(INDENT, "getstderr $P0");
+        e.say(INDENT, "print $P0, \"Assertion failed at '", start.filename(), "' line \"");
+        e.say(INDENT, "print $P0, ", start.linenum());
+        e.say(INDENT, "print $P0, \"\\n\"");
+        e.say(INDENT, "exit 1");
+        e.emitlabel(label);
+    }
+}
+
 // invoke is a quick & dirty way to allow use of multiple return values.
 // It's a wrap around the call that gives the signature object returned.
 function Predef_invoke(e, owner, start, string result, args)
@@ -1912,6 +1938,10 @@ compreg %0, %2
     builder.add(new PredefFunction('cry',
         Predef_cry,
         REGnone, REGarglist
+    ));
+    builder.add(new PredefFunction('__ASSERT__',
+        Predef_ASSERT,
+        REGnone, REGint
     ));
     builder.add(new PredefFunction('invoke',
         Predef_invoke,
@@ -2889,6 +2919,10 @@ class Expr : CommonBase
     function tempreg(type)
     {
         return self.owner.tempreg(type);
+    }
+    function genlabel()
+    {
+        return self.owner.genlabel();
     }
     function optimize()
     {
@@ -10613,7 +10647,7 @@ class WinxedHLL
     {
         return "Winxed " + string(join(".", self.version()));
     }
-    function __private_compile_tail(winxed, target, output, int noan)
+    function __private_compile_tail(winxed, target, output, int debug, int noan)
     {
         if (target == 'parse')
             return winxed;
@@ -10625,6 +10659,8 @@ class WinxedHLL
         else
             handleout = output;
         var emit = new Emit(handleout);
+        if (debug)
+            emit.setDebug();
         if (noan)
             emit.disable_annotations();
         winxed.emit(emit);
@@ -10683,7 +10719,7 @@ class WinxedHLL
         if (target == 'include')
             return self.__private_geninclude(winxed);
         else
-            return self.__private_compile_tail(winxed, target, output, noan);
+            return self.__private_compile_tail(winxed, target, output, debug, noan);
     }
     function compile_from_file(string filename,
             string target[named,optional],
@@ -10706,7 +10742,7 @@ class WinxedHLL
         if (target == 'include')
             return self.__private_geninclude(winxed);
         else
-            return self.__private_compile_tail(winxed, target, output, noan);
+            return self.__private_compile_tail(winxed, target, output, debug, noan);
     }
 }
 
