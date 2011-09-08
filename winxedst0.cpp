@@ -369,7 +369,26 @@ private:
     }
 };
 
+class Predef_ASSERT : public PredefFunction
+{
+public:
+    Predef_ASSERT() : PredefFunction("__ASSERT__", REGnone, 1)
+    { }
+    char paramtype(size_t n) const { return REGint; }
+    void emit(Emit &e, const std::string &,
+        const std::vector<std::string> args) const
+    {
+         if (e.getDebug())
+         {
+             e <<
+                 INDENT ".const 'Sub' __WINXED_ASSERT_check ='__WINXED_ASSERT_check'\n"
+                 INDENT "__WINXED_ASSERT_check(" << args[0] << ")\n";
+         }
+    }
+};
+
 const PredefFunction *PredefFunction::predefs[]= {
+    new Predef_ASSERT(),
     new Predef_print(),
     new Predef_say(),
     new Predef_cry(),
@@ -7393,6 +7412,7 @@ class Winxed
 {
 public:
     Winxed(bool debug) :
+        assertions(debug),
         root_ns(debug),
         cur_nsblock(&root_ns)
     {
@@ -7402,6 +7422,7 @@ public:
     void optimize ();
     void emit (Emit &e);
 private:
+    bool assertions;
     RootNamespaceBlock root_ns;
     NamespaceBlockBase *cur_nsblock;
     NamespaceKey cur_namespace;
@@ -7514,6 +7535,19 @@ void Winxed::emit (Emit &e)
 
     e <<
         ".end\n";
+
+    if (assertions)
+    {
+        e <<
+            ".sub WinxedAssertCheck :anon :subid('__WINXED_ASSERT_check')\n"
+            "    .param int check\n"
+            "    if check goto done\n"
+            "    die 'Assertion failed!'\n"
+            "  done:\n"
+            "    .return()\n"
+            ".end\n";
+    }
+
     e.comment("End of initializations");
     e << "\n\n";
 
@@ -7613,6 +7647,8 @@ void winxed_main (int argc, char **argv)
         }
 
         Emit e(*output);
+        if (debug)
+            e.setDebug();
         if (noan)
             e.omit_annotations();
         winxed.emit(e);

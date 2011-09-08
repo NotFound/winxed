@@ -2,7 +2,7 @@
 #define INCLUDE_EMIT_H
 
 // emit.h
-// Revision 8-nov-2009
+// Revision 8-sep-2011
 
 #include "token.h"
 
@@ -19,9 +19,12 @@ public:
     std::ostream & get() { return o; }
     template <typename T>
     friend Emit & operator << (Emit &e, const T &t);
+    void setDebug();
+    bool getDebug() const;
 private:
     void preemit();
     std::ostream &o;
+    bool debug;
     bool with_an;
     bool pendingf;
     bool pendingl;

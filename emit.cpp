@@ -1,15 +1,26 @@
 // emit.cpp
-// Revision 8-nov-2009
+// Revision 8-sep-2011
 
 #include "emit.h"
 
 Emit::Emit (std::ostream &out) :
     o(out),
+    debug(false),
     with_an(true),
     pendingf(false),
     pendingl(false),
     line(0)
 { }
+
+void Emit::setDebug()
+{
+    debug = true;
+}
+
+bool Emit::getDebug() const
+{
+    return debug;
+}
 
 void Emit::omit_annotations()
 {
