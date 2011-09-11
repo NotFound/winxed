@@ -2,7 +2,11 @@ Winxed news.
 (C) Julián Albo "NotFound"
 
 Version 1.2
-    - Predefined constant __DEBUG__ and --debug command line option
+    - Don't tailcall inside try blocks to avoid losing the exception handler
+    - Fixed and improved HLL namespace modifier
+    - --debug command line option, supporting:
+      - predefined constant __DEBUG__
+      - builtin __ASSERT__
     - Constant propagation in casts to int and string
     - Implict nested namespaces in class and namespace declaration
     - namespace operator
