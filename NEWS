@@ -2,7 +2,9 @@ Winxed news.
 (C) Julián Albo "NotFound"
 
 Version 1.2
-    - Don't tailcall inside try blocks to avoid losing the exception handler
+    - Don't tailcall by defaultinside try blocks to avoid losing the
+      exception handler
+      - allowtailcall modifier to bypass this default
     - Fixed and improved HLL namespace modifier
     - --debug command line option, supporting:
       - predefined constant __DEBUG__
