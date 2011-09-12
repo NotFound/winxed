@@ -7880,6 +7880,10 @@ class TryModifierList : ModifierList
         self.start = start;
         self.ModifierList(tk, owner);
     }
+    function allowtailcall()
+    {
+        return self.pick('allowtailcall') != null;
+    }
     function emitmodifiers(e, string reghandler)
     {
         var modiflist = self.getlist();
@@ -7905,8 +7909,10 @@ class TryModifierList : ModifierList
                 e.say(INDENT, reghandler, ".'", modifname,
                         "'(", join(', ', argregs), ")");
                 break;
+              case 'allowtailcall':
+                break;
               default:
-                SyntaxError("Modifier '" + modifname + "' not valid for try", self);
+                SyntaxError("Modifier '" + modifname + "' not valid for try", self.start);
             }
         }
     }
@@ -7948,7 +7954,10 @@ class TryStatement : BlockStatement
     }
     function allowtailcall()
     {
-        return false;
+        if (self.modifiers != null)
+            return self.modifiers.allowtailcall();
+        else
+            return false;
     }
     function optimize()
     {
