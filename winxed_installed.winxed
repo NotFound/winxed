@@ -23,6 +23,7 @@ class WinxedDriverOptions : [ 'Getopt', 'Obj']
           [ 'target=s', 'Set target type' ],
           [ 'L=s',      'Add to parrot library search path' ],
           [ 'I=s',      'Add to parrot include search path' ],
+          [ 'X=s',      'Add to parrot dynext search path' ],
           [ 'debug',    'Set debug mode' ],
           [ 'nowarn',   'No warnings' ],
           [ 'noan',     'No code annotations' ],
@@ -73,7 +74,17 @@ class WinxedDriverOptions : [ 'Getopt', 'Obj']
 }
 
 
-function extname(string filename, string ext)
+function path_option(options, string opt, int path_type)
+{
+    string value = options.getstring(opt);
+    if (value != null) {
+        var lpaths = getinterp()[IGLOBALS_LIB_PATHS];
+        var pathlib = lpaths[path_type];
+        pathlib.push(value);
+    }
+}
+
+function extname[anon](string filename, string ext)
 {
     // Strip a possible .winxed extension from filename,
     // add ext, and return the result.
@@ -86,7 +97,7 @@ function extname(string filename, string ext)
     return newname;
 }
 
-function getcompiler()
+function getcompiler[anon]()
 {
     var compiler;
     try 
@@ -105,7 +116,7 @@ function getcompiler()
     return compiler;
 }
 
-function main [main] (argv)
+function process_args [anon] (argv)
 {
     var optionset = new WinxedDriverOptions(argv);
 
@@ -120,8 +131,6 @@ function main [main] (argv)
     string target     = optionset.getstring('target');
     string eval       = optionset.getstring('e');
     string objectname = optionset.getstring('o');
-    string opt_L      = optionset.getstring('L');
-    string opt_I      = optionset.getstring('I');
     int debug         = optionset.getbool('debug');
     int nowarn        = optionset.getbool('nowarn');
     int noan          = optionset.getbool('noan');
@@ -131,20 +140,9 @@ function main [main] (argv)
         exit(0);
     }
 
-    if (opt_L != null) {
-        var interp;
-        ${ getinterp interp };
-        var lpaths = interp[IGLOBALS_LIB_PATHS];
-        var pathlib = lpaths[PARROT_LIB_PATH_LIBRARY];
-        pathlib.push(string(opt_L));
-    }
-    if (opt_I != null) {
-        var interp;
-        ${ getinterp interp };
-        var lpaths = interp[IGLOBALS_LIB_PATHS];
-        var pathlib = lpaths[PARROT_LIB_PATH_INCLUDE];
-        pathlib.push(string(opt_I));
-    }
+    path_option(optionset, 'L', PARROT_LIB_PATH_LIBRARY);
+    path_option(optionset, 'I', PARROT_LIB_PATH_INCLUDE);
+    path_option(optionset, 'X', PARROT_LIB_PATH_DYNEXT);
 
     var compileoptions = {
         "debug":  debug,
@@ -248,17 +246,26 @@ function main [main] (argv)
     catch () {
         for (int i = 0; ; ++i) {
             sub = code[i];
-            if (sub == null) break;
-            if (string(sub) == 'main') break;
+            if (sub == null)
+                break;
+            if (string(sub) == 'main')
+                break;
         }
         // Last resource: use first sub as entry point.
         if (sub == null)
             sub = code[0];
     }
+    return sub;
+}
+
+function main [main] (argv)
+{
+    var mainsub = process_args(argv);
+    __ASSERT__(mainsub != null);
 
     int retval = 0;
     try [handle_types_except(CONTROL_EXIT)] {
-        var retvalp = sub(argv);
+        var retvalp = mainsub(argv);
         if (retvalp != null)
             retval = retvalp;
     }
