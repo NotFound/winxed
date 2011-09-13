@@ -49,6 +49,7 @@ class WinxedDriverOptions : ['Getopt', 'Obj']
           [ 'o=s',      'Object name' ],
           [ 'L=s',      'Add to parrot library search path' ],
           [ 'I=s',      'Add to parrot include search path' ],
+          [ 'X=s',      'Add to parrot dynext search path' ],
           [ 'debug',    'Set debug mode' ],
           [ 'noan',     'No code annotations' ],
           [ 'nowarn',   'No warnings' ],
@@ -114,6 +115,7 @@ function driver_main(argv)
     string eval      = options.getstring('e');
     string libs      = options.getstring('L');
     string incs      = options.getstring('I');
+    string dyns      = options.getstring('X');
     string obj       = options.getstring('o', '');
     string target    = options.getstring('target');
 
@@ -342,6 +344,10 @@ function driver_main(argv)
         if (incs != null) {
             runit.push('-I');
             runit.push(incs);
+        }
+        if (dyns != null) {
+            runit.push('-X');
+            runit.push(dyns);
         }
         runit.push(pirfile);
         for (string a in argv)
