@@ -5944,11 +5944,16 @@ class IndexExpr : Expr
     function emit(e, result)
     {
         self.emit_prep(e);
-        string type = self.checkresult();
         self.annotate(e);
         e.print(INDENT, result, ' = ');
         self.emit_aux(e);
         e.say('');
+    }
+    function emit_getint(e)
+    {
+        string result = self.tempreg(REGint);
+        self.emit(e, result);
+        return result;
     }
     function emit_assign(e, string typeright, string rreg)
     {
