@@ -2945,12 +2945,12 @@ class Expr : CommonBase
     }
     function emit_getint(e)
     {
-        string reg;
-        if (self.checkresult() == REGint)
-            reg = self.emit_get(e);
-        else {
-            reg = self.tempreg(REGint);
-            self.emit(e, reg);
+        string reg = self.emit_get_nonull(e);
+        if (self.checkresult() != REGint) {
+            string aux = self.tempreg(REGint);
+            self.annotate(e);
+            e.emitset(aux, reg);
+            reg = aux;
         }
         return reg;
     }
@@ -4002,23 +4002,18 @@ class OpMulToExpr : OpBaseAssignExpr
     function emit_get(e)
     {
         self.checkleft();
-        string ltype = self.lexpr.checkresult();
-        string rtype = self.lexpr.checkresult();
-        string lreg = self.lexpr.emit_get(e);
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        string lreg = lexpr.emit_get(e);
         string rreg;
-        switch (ltype) {
+        switch (lexpr.checkresult()) {
           case REGstring:
-            if (rtype == REGint)
-                rreg = self.rexpr.emit_get(e);
-            else {
-                rreg = self.tempreg(REGint);
-                self.rexpr.emit(e, rreg);
-            }
+            rreg = rexpr.emit_getint(e);
             self.annotate(e);
             e.emitrepeat(lreg, lreg, rreg);
             break;
           default:
-            rreg = self.rexpr.emit_get(e);
+            rreg = rexpr.emit_get(e);
             self.annotate(e);
             e.emitarg2('mul', lreg, rreg);
         }
@@ -4218,13 +4213,7 @@ class ZeroCheckerExpr : CheckerExpr
     function emit(e, result)
     {
         var expr = self.expr;
-        string reg = expr.emit_get(e);
-        if (expr.checkresult() != REGint) {
-            string aux = self.tempreg(REGint);
-            self.annotate(e);
-            e.emitset(aux, reg);
-            reg = aux;
-        }
+        string reg = expr.emit_getint(e);
         if (result != '') {
             self.annotate(e);
             if (self.positive)
@@ -4236,12 +4225,7 @@ class ZeroCheckerExpr : CheckerExpr
     function emit_else(e, string labelelse)
     {
         var expr = self.expr;
-        string reg = expr.emit_get(e);
-        if (expr.checkresult() != REGint) {
-            string aux = self.tempreg(REGint);
-            e.emitset(aux, reg);
-            reg = aux;
-        }
+        string reg = expr.emit_getint(e);
         self.annotate(e);
         if (self.positive)
             e.emitif(reg, labelelse);
@@ -4705,18 +4689,11 @@ class RepeatString : OpBinaryExpr
     {
         var rexpr = self.rexpr;
         string lreg = self.lexpr.emit_get(e);
-        string rreg = rexpr.emit_get(e);
-        string rval;
-        switch (rexpr.checkresult()) {
-          case REGint:
-            rval = rreg;
-            break;
-          default:
-            rval = self.tempreg(REGint);
-            e.emitset(rval, rreg);
+        string rreg = rexpr.emit_getint(e);
+        if (result != '') {
+            self.annotate(e);
+            e.emitrepeat(result, lreg, rreg);
         }
-        self.annotate(e);
-        e.emitrepeat(result, lreg, rval);
     }
 }
 
