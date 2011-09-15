@@ -8079,11 +8079,13 @@ class DeclareBase : Statement
     var basetype;
     var reg;
 
-    function DeclareBase(start, owner, name, string basetype)
+    function DeclareBase(start, owner, name, string basetype, string regtype)
     {
         self.Statement(start, owner);
         self.name = name;
         self.basetype = basetype;
+        var vdata = self.createvar(name, regtype);
+        self.reg = vdata.getreg();
     }
 }
 
@@ -8095,9 +8097,7 @@ class DeclareSingleStatement : DeclareBase
 
     function DeclareSingleStatement(start, owner, name, string basetype, tk)
     {
-        self.DeclareBase(start, owner, name, basetype);
-        var vdata = self.createvar(self.name, self.basetype);
-        self.reg = vdata.getreg();
+        self.DeclareBase(start, owner, name, basetype, basetype);
         var t = tk.get();
         if (t.isop('=')) {
             // Simple initializer
@@ -8172,10 +8172,8 @@ class DeclareArrayStatement : DeclareBase
             name, string basetype, string arraytype,
             tk)
     {
-        self.DeclareBase(start, owner, name, basetype);
+        self.DeclareBase(start, owner, name, basetype, REGvar);
         self.arraytype = arraytype;
-        var vdata = self.createvar(self.name, REGvar);
-        self.reg = vdata.getreg();
         var t = tk.get();
         if (! t.isop(']')) {
             // Fixed length
