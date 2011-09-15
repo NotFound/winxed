@@ -3741,6 +3741,46 @@ class OpNotExpr : OpUnaryExpr
 
 //*********************************************
 
+class OpBinNotExpr : OpUnaryExpr
+{
+    function OpBinNotExpr(owner, start, subexpr)
+    {
+        self.OpUnaryExpr(owner, start, subexpr);
+    }
+    function checkresult()
+    {
+        return REGint;
+    }
+    function set(owner, t, subexpr)
+    {
+        self.OpUnaryExpr(owner, t, subexpr);
+        return self;
+    }
+    function optimize()
+    {
+        self.optimizearg();
+        var subexpr = self.subexpr;
+        if (subexpr.isintegerliteral()) {
+            int n = subexpr.getIntegerValue();
+            return integerValue(self.owner, subexpr.start, ~ n);
+        }
+        if (subexpr.isnegable())
+            return subexpr.negated();
+        return self;
+    }
+    function emit(e, result)
+    {
+        var subexpr = self.subexpr;
+        string reg = subexpr.emit_getint(e);
+        if (result != '') {
+            self.annotate(e);
+            e.emitarg3('bxor', result, reg, -1);
+        }
+    }
+}
+
+//*********************************************
+
 class OpIncDec : OpUnaryExpr
 {
     function checkresult()
@@ -6583,7 +6623,8 @@ const int
     Code_shiftright    = 29,
     Code_mod_assign    = 30,
     Code_delete        = 31,
-    Code_exists        = 32;
+    Code_exists        = 32,
+    Code_bin_not       = 33;
 
 function getOpCode_2(t)
 {
@@ -6600,6 +6641,7 @@ function getOpCode_4(t)
     switch (t.checkop()) {
     case '-':  return Code_minus;
     case '!':  return Code_not;
+    case '~':  return Code_bin_not;
     case '++': return Code_inc;
     case '--': return Code_dec;
     default:
@@ -6760,6 +6802,8 @@ function parseExpr_4(tk, owner)
             return new OpUnaryMinusExpr(owner, t, subexpr);
           case Code_not:
             return new OpNotExpr(owner, t, subexpr);
+          case Code_bin_not:
+            return new OpBinNotExpr(owner, t, subexpr);
           case Code_inc:
             return new OpPreIncExpr(owner, t, subexpr);
           case Code_dec:
