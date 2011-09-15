@@ -5852,6 +5852,33 @@ class MemberRefExpr : MemberExprBase
 
 //*********************************************
 
+class StringIndexExpr : Expr
+{
+    var left;
+    var arg;
+    function StringIndexExpr(owner, start, left, arg)
+    {
+        self.Expr(owner, start);
+        self.left = left;
+        self.arg = arg;
+    }
+    function checkresult()
+    {
+       return REGstring;
+    }
+    function emit(e, result)
+    {
+        string lreg = self.left.emit_get(e);
+        string rreg = self.arg.emit_getint(e);
+        if (result != '') {
+            self.annotate(e);
+            e.say(INDENT, 'substr ', result, ', ', lreg, ', ', rreg, ', ', 1);
+        }
+    }
+}
+
+//*********************************************
+
 class IndexExpr : Expr
 {
     var left;
@@ -5867,7 +5894,7 @@ class IndexExpr : Expr
     }
     function checkresult()
     {
-       return self.left.checkresult() == REGstring ? REGstring: REGvar;
+       return REGvar;
     }
     function optimize()
     {
@@ -5876,18 +5903,22 @@ class IndexExpr : Expr
         var args = self.args;
         args.optimizeargs();
 
-        // Optimize case of string constant indexed with int constant
-        // evaluating it at compile time.
-        if (left.isstringliteral() && args.numargs() == 1) {
+        if (left.checkresult() == REGstring) {
+            if (args.numargs() != 1)
+               SyntaxError('Bad string index', self);
             var arg = args.getarg(0);
-            if (arg.isintegerliteral()) {
+            // Optimize case of string constant indexed with int constant
+            // evaluating it at compile time.
+            if (left.isstringliteral() && arg.isintegerliteral()) {
                 int ival = arg.getIntegerValue();
                 string sval = left.get_value();
                 var t = new TokenQuoted(self.start.file, self.start.line,
                         substr(sval, ival, 1));
                 return new StringLiteral(self.owner, t);
             }
+            return new StringIndexExpr(self.owner, self.start, left, arg);
         }
+
         return self;
     }
     function emit_prep(e)
@@ -5914,21 +5945,10 @@ class IndexExpr : Expr
     {
         self.emit_prep(e);
         string type = self.checkresult();
-        if (type == REGstring) {
-            var argregs = self.argregs;
-            int nargs = elements(argregs);
-            if (nargs != 1)
-               SyntaxError('Bad string index', self);
-            if (result == '')
-                result = self.tempreg(REGstring);
-            e.say(INDENT, 'substr ', result, ', ', self.regleft, ', ', argregs[0], ', ', 1);
-        }
-        else {
-            self.annotate(e);
-            e.print(INDENT, result, ' = ');
-            self.emit_aux(e);
-            e.say('');
-        }
+        self.annotate(e);
+        e.print(INDENT, result, ' = ');
+        self.emit_aux(e);
+        e.say('');
     }
     function emit_assign(e, string typeright, string rreg)
     {
