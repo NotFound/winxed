@@ -6143,22 +6143,21 @@ class HashExpr : Expr
 
         var keys = self.keys;
         var values = self.values;
+        string pnull;
         int n = keys;
         for (int i = 0; i < n; ++i) {
             var key = keys[i];
-            string item;
+            string keyreg;
             if (key.isidentifier()) {
                 string id = key.getName();
-                item = self.tempreg(REGvar);
-                e.emitget_hll_global(item, id);
+                keyreg = self.tempreg(REGvar);
+                e.emitget_hll_global(keyreg, id);
             }
             else
-                item = key.emit_get(e);
+                keyreg = key.emit_get(e);
 
             var value = values[i];
-            string itemreg;
-            string pnull;
-            string aux;
+            string valuereg;
             if (value.isnull()) {
                 if (result != '') {
                     if (pnull == null) {
@@ -6166,12 +6165,12 @@ class HashExpr : Expr
                         e.emitnull(pnull);
                     }
                 }
-                itemreg = pnull;
+                valuereg = pnull;
             }
             else
-                itemreg = value.emit_get(e);
+                valuereg = value.emit_get(e);
             if (result != '')
-                e.say(INDENT, result, '[', item, '] = ', itemreg);
+                e.say(INDENT, result, '[', keyreg, '] = ', valuereg);
         }
     }
     function emit_get(e)
