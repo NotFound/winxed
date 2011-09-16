@@ -6269,11 +6269,12 @@ class NewExpr : NewBaseExpr
         self.annotate(e);
 
         var initializer = self.initializer;
+        var value = self.value;
         int numinits = self.numargs();
 
         const int BYNAME = 0, BYIDENT = 1;
-        int type = self.value.isstring() ? BYNAME :
-                self.value.isidentifier() ? BYIDENT : -1;
+        int type = value.isstring() ? BYNAME :
+                value.isidentifier() ? BYIDENT : -1;
 
         string reginit = '';
         string regnew = result;
@@ -6306,37 +6307,37 @@ class NewExpr : NewBaseExpr
         switch (type) {
           case BYNAME:
             // By name, usually a pmc.
-            string name = self.value.rawstring();
+            string name = value.rawstring();
             var aux = get_class(name);
             if (aux == null && self.dowarnings())
-                Warn("Can't locate class " + name + " at compile time", self.value);
+                Warn("Can't locate class " + name + " at compile time", value);
 
             // Avoid using root_new here for a now.
-            //e.say('root_new ', regnew, ", ['parrot'; ", self.value, " ]", reginit);
-            e.say(INDENT, 'new ', regnew, ", [ ", self.value, " ]", reginit);
+            //e.say('root_new ', regnew, ", ['parrot'; ", value, " ]", reginit);
+            e.say(INDENT, 'new ', regnew, ", [ ", value, " ]", reginit);
             if (numinits > 1) {
-                e.say(regnew, ".'", self.value, "'()");
+                e.say(regnew, ".'", value, "'()");
             }
             break;
           case BYIDENT:
-            var id = self.owner.getvar(self.value);
+            var id = self.owner.getvar(value);
             if (id == null) {
-                var cl = self.owner.checkclass(self.value);
+                var cl = self.owner.checkclass(value);
                 if (cl != null) {
                     var key = cl.getpath();
                     key.emit_new(e, self, regnew, reginit);
                 }
                 else {
-                    id = self.scopesearch( [self.value], SEARCH_CLASS);
+                    id = self.scopesearch( [value], SEARCH_CLASS);
                     if (id != null)
                         e.say(INDENT, 'new ', regnew, ", ", id.getclasskey(), reginit);
                     else {
                         if (self.dowarnings())
                             Warn('Checking: new unknown type');
-                        e.say(INDENT, 'new ', regnew, ", ['", self.value, "']", reginit);
+                        e.say(INDENT, 'new ', regnew, ", ['", value, "']", reginit);
                     }
                 }
-                constructor = self.value;
+                constructor = value;
             }
             else {
                 //say('new with var');
