@@ -2090,6 +2090,42 @@ class CommonBase
 }
 
 //*********************************************
+//             CollectValues
+// Emit an get registers for a collection of
+// values avoiding redundant setting of null
+// registers.
+//*********************************************
+
+class CollectValues
+{
+    var owner;
+    var e;
+    var pnull;
+    function CollectValues(owner, e)
+    {
+        self.owner = owner;
+        self.e = e;
+    }
+    function add(var value)
+    {
+        var e = self.e;
+        string valuereg;
+        if (value.isnull()) {
+            var pnull = self.pnull;
+            if (pnull == null) {
+                string regnull = self.owner.tempreg(REGvar);
+                e.emitnull(regnull);
+                self.pnull = pnull = regnull;
+            }
+            valuereg = pnull;
+        }
+        else
+            valuereg = value.emit_get(e);
+        return valuereg;
+    }
+}
+
+//*********************************************
 //          SimpleArgList
 //*********************************************
 
@@ -5323,19 +5359,9 @@ class ArgumentList
         var argregs = self.argregs;
         if (argregs == null) {
             string argregs[];
-            string pnull = '';
+            var collect = new CollectValues(self.owner, e);
             for (var argitem in self.args) {
-                var arg = argitem.arg;
-                string reg;
-                if (arg.isnull()) {
-                    if (pnull == '') {
-                        pnull = self.owner.tempreg(REGvar);
-                        e.emitnull(pnull);
-                    }
-                    reg = pnull;
-                }
-                else
-                    reg = arg.emit_get(e);
+                string reg = collect.add(argitem.arg);
                 push(argregs, reg);
             }
             self.argregs = argregs;
@@ -6064,8 +6090,6 @@ class ArrayExpr : Expr
     function emit_init(e, string container)
     {
         self.annotate(e);
-        string itemreg;
-        string pnull;
         var values = self.values;
         int size = values == null ? 0 : elements(values);
         if (container != '') {
@@ -6073,22 +6097,13 @@ class ArrayExpr : Expr
             if (size > 0)
                 e.emitassign(container, size);
         }
+        var collect = new CollectValues(self.owner, e);
         int i = 0;
-        for (var item in values) {
-            if (item.isnull()) {
-                if (container != '') {
-                    if (pnull == null) {
-                        pnull = self.tempreg(REGvar);
-                        e.emitnull(pnull);
-                    }
-                }
-                itemreg = pnull;
-            }
-            else
-                itemreg = item.emit_get(e);
+        for (var value in values) {
+            string valuereg = collect.add(value);
             if (container != '') {
                 self.annotate(e);
-                e.say(INDENT, container, "[", i, "] = ", itemreg);
+                e.say(INDENT, container, "[", i, "] = ", valuereg);
                 ++i;
             }
         }
@@ -6143,7 +6158,7 @@ class HashExpr : Expr
 
         var keys = self.keys;
         var values = self.values;
-        string pnull;
+        var collectvalues = new CollectValues(self.owner, e);
         int n = keys;
         for (int i = 0; i < n; ++i) {
             var key = keys[i];
@@ -6156,19 +6171,7 @@ class HashExpr : Expr
             else
                 keyreg = key.emit_get(e);
 
-            var value = values[i];
-            string valuereg;
-            if (value.isnull()) {
-                if (result != '') {
-                    if (pnull == null) {
-                        pnull = self.tempreg(REGvar);
-                        e.emitnull(pnull);
-                    }
-                }
-                valuereg = pnull;
-            }
-            else
-                valuereg = value.emit_get(e);
+            string valuereg = collectvalues.add(values[i]);
             if (result != '')
                 e.say(INDENT, result, '[', keyreg, '] = ', valuereg);
         }
