@@ -750,7 +750,7 @@ const string
     REGfloat =   'N',
     REGstring =  'S',
     REGvar =     'P',
-// Pseudotypes for predefined functions
+// Pseudotypes for builtins
     REGarglist = '*',
     REGany     = '?',
     REGs_v     = 'p', // string or var
@@ -1122,26 +1122,28 @@ function createPredefConstString(scope, string name, string value)
 }
 
 //*********************************************
-//         Predefined functions
+//             Builtins
 //*********************************************
 
-const int PREDEF_arglist = -1, PREDEF_raw1 = -2;
+const int
+    BULTIN_arglist = -1,
+    BULTIN_raw1    = -2;
 
 // Invokable object generated from a string body
-class Predef_frombody
+class Builtin_frombody
 {
     const string resultmark = '%0';
     var body;
     var typeresult;
-    function Predef_frombody(string typeresult, string bodystr)
+    function Builtin_frombody(string typeresult, string bodystr)
     {
         if (__DEBUG__) {
             // Minimal sanity check
             int pos = indexof(bodystr, resultmark);
             if (typeresult == REGnone && pos != -1)
-                InternalError('void predef with ' + resultmark);
+                InternalError('void builtin with ' + resultmark);
             if (typeresult != REGnone && pos == -1)
-                InternalError('non void predef without ' + resultmark);
+                InternalError('non void builtin without ' + resultmark);
         }
 
         // Predecorate output
@@ -1158,11 +1160,11 @@ class Predef_frombody
 
         if (typeresult == REGnone) {
             if (result != null && result != '')
-                SyntaxError('using return value from void predef');
+                SyntaxError('using return value from void builtin');
         }
         else {
             if (result == null || result == '')
-                InternalError('Bad result in non void predef');
+                InternalError('Bad result in non void builtin');
         }
 
         var builder = new ['StringBuilder'];
@@ -1172,7 +1174,7 @@ class Predef_frombody
     }
 }
 
-class PredefBase
+class BuiltinBase
 {
     var name;
     var body;
@@ -1183,7 +1185,7 @@ class PredefBase
     var type3;
     var nparams;
 
-    function PredefBase(string name, body,
+    function BuiltinBase(string name, body,
         string typeresult,
         string type0,
         string type1,
@@ -1192,7 +1194,7 @@ class PredefBase
     {
         self.name = name;
         if (body instanceof 'String')
-            self.body = new Predef_frombody(typeresult, body);
+            self.body = new Builtin_frombody(typeresult, body);
         else
             self.body = body;
         self.typeresult = typeresult;
@@ -1201,12 +1203,12 @@ class PredefBase
             self.type0 = type0;
             switch (type0) {
               case REGarglist:
-                n = PREDEF_arglist;
+                n = BULTIN_arglist;
                 break;
               case REGraw1:
-                n = PREDEF_raw1;
+                n = BULTIN_raw1;
                 if (type1 != null)
-                    InternalError("Invalid predef '" + name + '"');
+                    InternalError("Invalid builtin '" + name + '"');
                 break;
               default:
                 n = 1;
@@ -1249,13 +1251,13 @@ class PredefBase
         case 2: type = self.type2; break;
         case 3: type = self.type3; break;
         default:
-            InternalError('Invalid predef arg');
+            InternalError('Invalid builtin arg');
         }
         return type;
     }
     function expand(var e, var owner, var start, string result, args)
     {
-        e.comment('predefined ' + string(self.name));
+        e.comment('builtin ' + string(self.name));
         string typeresult = self.typeresult;
         if (typeresult != REGnone && result == '')
             result = owner.tempreg(typeresult);
@@ -1264,30 +1266,30 @@ class PredefBase
     }
 }
 
-class PredefFunction : PredefBase
+class BuiltinFunction : BuiltinBase
 {
-    function PredefFunction(string name, body,
+    function BuiltinFunction(string name, body,
         string typeresult,
         string type0[optional],
         string type1[optional],
         string type2[optional],
         string type3[optional])
     {
-        self.PredefBase(name, body, typeresult, type0, type1, type2, type3);
+        self.BuiltinBase(name, body, typeresult, type0, type1, type2, type3);
     }
 }
 
-class PredefFunctionEval : PredefBase
+class BuiltinFunctionEval : BuiltinBase
 {
     var evalfun;
-    function PredefFunctionEval(string name, evalfun, body,
+    function BuiltinFunctionEval(string name, evalfun, body,
         string typeresult,
         string type0[optional],
         string type1[optional],
         string type2[optional],
         string type3[optional])
     {
-        self.PredefBase(name, body, typeresult, type0, type1, type2, type3);
+        self.BuiltinBase(name, body, typeresult, type0, type1, type2, type3);
         self.evalfun = evalfun;
     }
     function iscompileevaluable()
@@ -1296,10 +1298,10 @@ class PredefFunctionEval : PredefBase
     }
 }
 
-class Predef_typecast
+class Builtin_typecast
 {
     var type;
-    function Predef_typecast(string type)
+    function Builtin_typecast(string type)
     {
         self.type = type;
     }
@@ -1307,7 +1309,7 @@ class Predef_typecast
     {
         string type = self.type;
         if (elements(args) != 1)
-            InternalError("Invalid Predef_typecast.invoke call");
+            InternalError("Invalid Builtin_typecast.invoke call");
         var rawarg = args[0];
         string argtype = rawarg.checkresult();
         switch {
@@ -1327,7 +1329,7 @@ class Predef_typecast
     }
 }
 
-function predefeval_stringcast(owner, start, args)
+function builtineval_stringcast(owner, start, args)
 {
     var arg = args[0].arg;
 
@@ -1343,14 +1345,14 @@ function predefeval_stringcast(owner, start, args)
         return arg;
         break;
       default:
-        InternalError('wrong call to predefeval_stringcast', start);
+        InternalError('wrong call to builtineval_stringcast', start);
     }
 
     var t = new TokenQuoted(start.file, start.line, s);
     return new StringLiteral(owner, t);
 }
 
-function predefeval_intcast(owner, start, args)
+function builtineval_intcast(owner, start, args)
 {
     var arg = args[0].arg;
 
@@ -1362,11 +1364,11 @@ function predefeval_intcast(owner, start, args)
       case arg.isstringliteral():
         return integerValue(owner, start, int(arg.get_value()));
       default:
-        InternalError('wrong call to predefeval_intcast', start);
+        InternalError('wrong call to builtineval_intcast', start);
     }
 }
 
-function Predef_varcast(e, owner, start, string result, args)
+function Builtin_varcast(e, owner, start, string result, args)
 {
     if (elements(args) != 1)
         InternalError("Invalid var cast");
@@ -1422,7 +1424,7 @@ function Predef_varcast(e, owner, start, string result, args)
     }
 }
 
-function Predef_say(e, owner, start, string result, args)
+function Builtin_say(e, owner, start, string result, args)
 {
     e.annotate(start);
     int n = elements(args) - 1;
@@ -1435,7 +1437,7 @@ function Predef_say(e, owner, start, string result, args)
         e.emitsay("''");
 }
 
-function Predef_cry(e, owner, start, string result, args)
+function Builtin_cry(e, owner, start, string result, args)
 {
     e.annotate(start);
     e.say(INDENT, "getstderr $P0");
@@ -1444,14 +1446,14 @@ function Predef_cry(e, owner, start, string result, args)
     e.say(INDENT, "print $P0, \"\\n\"");
 }
 
-function Predef_print(e, owner, start, string result, args)
+function Builtin_print(e, owner, start, string result, args)
 {
     e.annotate(start);
     for (string arg in args)
         e.emitprint(arg);
 }
 
-function Predef_ASSERT(e, owner, start, string result, args)
+function Builtin_ASSERT(e, owner, start, string result, args)
 {
     __ASSERT__(elements(args) == 1); // Best place to use it
 
@@ -1470,7 +1472,7 @@ function Predef_ASSERT(e, owner, start, string result, args)
 
 // invoke is a quick & dirty way to allow use of multiple return values.
 // It's a wrap around the call that gives the signature object returned.
-function Predef_invoke(e, owner, start, string result, args)
+function Builtin_invoke(e, owner, start, string result, args)
 {
     var arg = args[0];
     if (! (arg instanceof CallExpr))
@@ -1478,28 +1480,28 @@ function Predef_invoke(e, owner, start, string result, args)
     arg.emit(e, "(" + result + " :call_sig)");
 }
 
-function predefeval_length(owner, start, args)
+function builtineval_length(owner, start, args)
 {
     var arg = args[0].arg;
     string s = arg.get_value();
     return integerValue(owner, start, length(s));
 }
 
-function predefeval_bytelength(owner, start, args)
+function builtineval_bytelength(owner, start, args)
 {
     var arg = args[0].arg;
     string s = arg.get_value();
     return integerValue(owner, start, bytelength(s));
 }
 
-function predefeval_ord(owner, start, args)
+function builtineval_ord(owner, start, args)
 {
     var arg = args[0].arg;
     string s = arg.get_value();
     return integerValue(owner, start, ord(s));
 }
 
-function predefeval_ord_n(owner, start, args)
+function builtineval_ord_n(owner, start, args)
 {
     var arg = args[0].arg;
     string s = arg.get_value();
@@ -1508,7 +1510,7 @@ function predefeval_ord_n(owner, start, args)
     return integerValue(owner, start, ord(s, n));
 }
 
-function predefeval_chr(owner, start, args)
+function builtineval_chr(owner, start, args)
 {
     var arg = args[0].arg;
 
@@ -1519,7 +1521,7 @@ function predefeval_chr(owner, start, args)
     return new StringLiteral(owner, t);
 }
 
-function predefeval_substr(owner, start, args)
+function builtineval_substr(owner, start, args)
 {
     var argstr = args[0].arg;
     var argpos = args[1].arg;
@@ -1530,7 +1532,7 @@ function predefeval_substr(owner, start, args)
     return new StringLiteral(owner, t);
 }
 
-function predefeval_substr_l(owner, start, args)
+function builtineval_substr_l(owner, start, args)
 {
     var argstr = args[0].arg;
     var argpos = args[1].arg;
@@ -1543,7 +1545,7 @@ function predefeval_substr_l(owner, start, args)
     return new StringLiteral(owner, t);
 }
 
-function predefeval_indexof(owner, start, args)
+function builtineval_indexof(owner, start, args)
 {
     var argstrfrom = args[0].arg;
     var argstrsearch = args[1].arg;
@@ -1552,7 +1554,7 @@ function predefeval_indexof(owner, start, args)
     return integerValue(owner, start, indexof(strfrom, strsearch));
 }
 
-function predefeval_indexof_pos(owner, start, args)
+function builtineval_indexof_pos(owner, start, args)
 {
     var argstrfrom = args[0].arg;
     var argstrsearch = args[1].arg;
@@ -1563,80 +1565,80 @@ function predefeval_indexof_pos(owner, start, args)
     return integerValue(owner, start, indexof(strfrom, strsearch, pos));
 }
 
-function getpredefs(builder)
+function getbuiltins(builder)
 {
-    builder.add(new PredefFunctionEval('int',
-        predefeval_intcast,
-        new Predef_typecast(REGint),
+    builder.add(new BuiltinFunctionEval('int',
+        builtineval_intcast,
+        new Builtin_typecast(REGint),
         REGint, REGraw1
     ));
-    builder.add(new PredefFunction('float',
-        new Predef_typecast(REGfloat),
+    builder.add(new BuiltinFunction('float',
+        new Builtin_typecast(REGfloat),
         REGfloat, REGraw1
     ));
-    builder.add(new PredefFunctionEval('string',
-        predefeval_stringcast,
-        new Predef_typecast(REGstring),
+    builder.add(new BuiltinFunctionEval('string',
+        builtineval_stringcast,
+        new Builtin_typecast(REGstring),
         REGstring, REGraw1
     ));
-    builder.add(new PredefFunction('var',
-        Predef_varcast,
+    builder.add(new BuiltinFunction('var',
+        Builtin_varcast,
         REGvar, REGraw1
     ));
-    builder.add(new PredefFunction('die',
+    builder.add(new BuiltinFunction('die',
         'die %1',
         REGnone, REGstring
     ));
-    builder.add(new PredefFunction('exit',
+    builder.add(new BuiltinFunction('exit',
         'exit %1',
         REGnone, REGint
     ));
-    builder.add(new PredefFunction('time',
+    builder.add(new BuiltinFunction('time',
         'time %0',
         REGint
     ));
-    builder.add(new PredefFunction('floattime',
+    builder.add(new BuiltinFunction('floattime',
         'time %0',
         REGfloat
     ));
-    builder.add(new PredefFunction('spawnw',
+    builder.add(new BuiltinFunction('spawnw',
         'spawnw %0, %1',
         REGint, REGvar
     ));
-    builder.add(new PredefFunction('getstdin',
+    builder.add(new BuiltinFunction('getstdin',
         'getstdin %0',
         REGvar
     ));
-    builder.add(new PredefFunction('getstdout',
+    builder.add(new BuiltinFunction('getstdout',
         'getstdout %0',
         REGvar
     ));
-    builder.add(new PredefFunction('getstderr',
+    builder.add(new BuiltinFunction('getstderr',
         'getstderr %0',
         REGvar
     ));
-    builder.add(new PredefFunction('open',
+    builder.add(new BuiltinFunction('open',
 <<:
 root_new %0, ['parrot';'FileHandle']
 %0.'open'(%1)
 :>>
         , REGvar, REGstring
     ));
-    builder.add(new PredefFunction('open',
+    builder.add(new BuiltinFunction('open',
 <<:
 root_new %0, ['parrot';'FileHandle']
 %0.'open'(%1,%2)
 :>>
         , REGvar, REGstring, REGstring
     ));
-    builder.add(new PredefFunction('Error',
+    builder.add(new BuiltinFunction('Error',
 <<:
 root_new %0, ['parrot';'Exception']
 %0['message'] = %1
 :>>
         , REGvar, REGstring
     ));
-    builder.add(new PredefFunction('Error',
+    builder.add(new BuiltinFunction('Error',
 <<:
 root_new %0, ['parrot';'Exception']
 %0['message'] = %1
@@ -1644,7 +1646,7 @@ root_new %0, ['parrot';'Exception']
 :>>
         , REGvar, REGstring, REGint
     ));
-    builder.add(new PredefFunction('Error',
+    builder.add(new BuiltinFunction('Error',
 <<:
 root_new %0, ['parrot';'Exception']
 %0['message'] = %1
@@ -1653,7 +1655,7 @@ root_new %0, ['parrot';'Exception']
 :>>
         , REGvar, REGstring, REGint, REGint
     ));
-    builder.add(new PredefFunction('Error',
+    builder.add(new BuiltinFunction('Error',
 <<:
 root_new %0, ['parrot';'Exception']
 %0['message'] = %1
@@ -1663,22 +1665,22 @@ root_new %0, ['parrot';'Exception']
 :>>
         , REGvar, REGstring, REGint, REGint, REGvar
     ));
-    builder.add(new PredefFunction('elements',
+    builder.add(new BuiltinFunction('elements',
         'elements %0, %1',
         REGint, REGvar
     ));
-    builder.add(new PredefFunctionEval('length',
-        predefeval_length,
+    builder.add(new BuiltinFunctionEval('length',
+        builtineval_length,
         'length %0, %1',
         REGint, REGstring
     ));
-    builder.add(new PredefFunctionEval('bytelength',
-        predefeval_bytelength,
+    builder.add(new BuiltinFunctionEval('bytelength',
+        builtineval_bytelength,
         'bytelength %0, %1',
         REGint, REGstring
     ));
-    builder.add(new PredefFunctionEval('chr',
-        predefeval_chr,
+    builder.add(new BuiltinFunctionEval('chr',
+        builtineval_chr,
 <<:
 chr $S0, %1
 find_encoding $I0, 'utf8'
@@ -1686,49 +1688,49 @@ trans_encoding %0, $S0, $I0
 :>>
         , REGstring, REGint
     ));
-    builder.add(new PredefFunctionEval('ord',
-        predefeval_ord,
+    builder.add(new BuiltinFunctionEval('ord',
+        builtineval_ord,
         'ord %0, %1',
         REGint, REGstring
     ));
-    builder.add(new PredefFunctionEval('ord',
-        predefeval_ord_n,
+    builder.add(new BuiltinFunctionEval('ord',
+        builtineval_ord_n,
         'ord %0, %1, %2',
         REGint, REGstring, REGint
     ));
-    builder.add(new PredefFunctionEval('substr',
-        predefeval_substr,
+    builder.add(new BuiltinFunctionEval('substr',
+        builtineval_substr,
         'substr %0, %1, %2',
         REGstring, REGstring, REGint
     ));
-    builder.add(new PredefFunctionEval('substr',
-        predefeval_substr_l,
+    builder.add(new BuiltinFunctionEval('substr',
+        builtineval_substr_l,
         'substr %0, %1, %2, %3',
         REGstring, REGstring, REGint, REGint
     ));
-    builder.add(new PredefFunction('replace',
+    builder.add(new BuiltinFunction('replace',
         'replace %0, %1, %2, %3, %4',
         REGstring, REGstring, REGint, REGint, REGstring
     ));
-    builder.add(new PredefFunctionEval('indexof',
-        predefeval_indexof,
+    builder.add(new BuiltinFunctionEval('indexof',
+        builtineval_indexof,
         'index %0, %1, %2',
         REGint, REGstring, REGstring
     ));
-    builder.add(new PredefFunctionEval('indexof',
-        predefeval_indexof_pos,
+    builder.add(new BuiltinFunctionEval('indexof',
+        builtineval_indexof_pos,
         'index %0, %1, %2, %3',
         REGint, REGstring, REGstring, REGint
     ));
-    builder.add(new PredefFunction('join',
+    builder.add(new BuiltinFunction('join',
         'join %0, %1, %2',
         REGstring, REGstring, REGvar
     ));
-    builder.add(new PredefFunction('escape',
+    builder.add(new BuiltinFunction('escape',
         'escape %0, %1',
         REGstring, REGstring
     ));
-    builder.add(new PredefFunction('unescape',
+    builder.add(new BuiltinFunction('unescape',
 <<:
 $P0 = new ['String']
 $P0 = %1
@@ -1736,7 +1738,7 @@ $P0 = %1
 :>>
         , REGstring, REGstring
     ));
-    builder.add(new PredefFunction('unescape',
+    builder.add(new BuiltinFunction('unescape',
 <<:
 $P0 = new ['String']
 $P0 = %1
@@ -1744,103 +1746,103 @@ $P0 = %1
 :>>
         , REGstring, REGstring, REGstring
     ));
-    builder.add(new PredefFunction('trans_encoding',
+    builder.add(new BuiltinFunction('trans_encoding',
 <<:
 find_encoding $I0, %2
 trans_encoding %0, %1, $I0
 :>>
         , REGstring, REGstring, REGstring
     ));
-    builder.add(new PredefFunction('encoding_name',
+    builder.add(new BuiltinFunction('encoding_name',
 <<:
 encoding $I0, %1
 encodingname %0, $I0
 :>>
         , REGstring, REGstring
     ));
-    builder.add(new PredefFunction('upcase',
+    builder.add(new BuiltinFunction('upcase',
         'upcase %0, %1',
         REGstring, REGstring
     ));
-    builder.add(new PredefFunction('downcase',
+    builder.add(new BuiltinFunction('downcase',
         'downcase %0, %1',
         REGstring, REGstring
     ));
-    builder.add(new PredefFunction('titlecase',
+    builder.add(new BuiltinFunction('titlecase',
         'titlecase %0, %1',
         REGstring, REGstring
     ));
-    builder.add(new PredefFunction('split',
+    builder.add(new BuiltinFunction('split',
         'split %0, %1, %2',
         REGvar, REGstring, REGstring
     ));
-    builder.add(new PredefFunction('chomp',
+    builder.add(new BuiltinFunction('chomp',
 <<:
 $P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
 %0 = $P0(%1)
 :>>
         , REGstring, REGstring
     ));
-    builder.add(new PredefFunction('chomp',
+    builder.add(new BuiltinFunction('chomp',
 <<:
 $P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
 %0 = $P0(%1, %2)
 :>>
         , REGstring, REGstring, REGstring
     ));
-    builder.add(new PredefFunction('push',
+    builder.add(new BuiltinFunction('push',
         'push %1, %2',
         REGnone, REGvar, REGany
     ));
-    builder.add(new PredefFunction('sqrt',
+    builder.add(new BuiltinFunction('sqrt',
         'sqrt %0, %1',
         REGfloat, REGfloat
     ));
-    builder.add(new PredefFunction('pow',
+    builder.add(new BuiltinFunction('pow',
         'pow %0, %1, %2',
         REGfloat, REGfloat, REGfloat
     ));
-    builder.add(new PredefFunction('exp',
+    builder.add(new BuiltinFunction('exp',
         'exp %0, %1',
         REGfloat, REGfloat
     ));
-    builder.add(new PredefFunction('ln',
+    builder.add(new BuiltinFunction('ln',
         'ln %0, %1',
         REGfloat, REGfloat
     ));
-    builder.add(new PredefFunction('sin',
+    builder.add(new BuiltinFunction('sin',
         'sin %0, %1',
         REGfloat, REGfloat
     ));
-    builder.add(new PredefFunction('cos',
+    builder.add(new BuiltinFunction('cos',
         'cos %0, %1',
         REGfloat, REGfloat
     ));
-    builder.add(new PredefFunction('tan',
+    builder.add(new BuiltinFunction('tan',
         'tan %0, %1',
         REGfloat, REGfloat
     ));
-    builder.add(new PredefFunction('asin',
+    builder.add(new BuiltinFunction('asin',
         'asin %0, %1',
         REGfloat, REGfloat
     ));
-    builder.add(new PredefFunction('acos',
+    builder.add(new BuiltinFunction('acos',
         'acos %0, %1',
         REGfloat, REGfloat
     ));
-    builder.add(new PredefFunction('atan',
+    builder.add(new BuiltinFunction('atan',
         'atan %0, %1',
         REGfloat, REGfloat
     ));
-    builder.add(new PredefFunction('atan',
+    builder.add(new BuiltinFunction('atan',
         'atan %0, %1, %2',
         REGfloat, REGfloat, REGfloat
     ));
-    builder.add(new PredefFunction('getinterp',
+    builder.add(new BuiltinFunction('getinterp',
         'getinterp %0',
         REGvar
     ));
-    builder.add(new PredefFunction('getcontext',
+    builder.add(new BuiltinFunction('getcontext',
 /* Experimental:
 Parrot will probably have a getcontext op in the near future.
 At that point this bulitin will just map to that op.
@@ -1853,98 +1855,98 @@ getinterp $P0
 :>>
         , REGvar
     ));
-    builder.add(new PredefFunction('get_class',
+    builder.add(new BuiltinFunction('get_class',
         'get_class %0, %1',
         REGvar, REGs_v
     ));
-    builder.add(new PredefFunction('typeof',
+    builder.add(new BuiltinFunction('typeof',
         'typeof %0, %1',
         REGvar, REGvar
     ));
-    builder.add(new PredefFunction('getattribute',
+    builder.add(new BuiltinFunction('getattribute',
         'getattribute %0, %1, %2',
         REGvar, REGvar, REGstring
     ));
-    builder.add(new PredefFunction('getattribute',
+    builder.add(new BuiltinFunction('getattribute',
         'getattribute %0, %1, %2, %3',
         REGvar, REGvar, REGvar, REGstring
     ));
-    builder.add(new PredefFunction('setattribute',
+    builder.add(new BuiltinFunction('setattribute',
         'setattribute %1, %2, %3, %4',
         REGnone, REGvar, REGvar, REGstring, REGvar
     ));
-    builder.add(new PredefFunction('find_method',
+    builder.add(new BuiltinFunction('find_method',
         'find_method %0, %1, %2',
         REGvar, REGvar, REGstring
     ));
-    builder.add(new PredefFunction('callmethodwithargs',
+    builder.add(new BuiltinFunction('callmethodwithargs',
         '%0 = %1.%2(%3 :flat)',
         REGvar, REGvar, REGvar, REGvar
     ));
-    builder.add(new PredefFunction('clone',
+    builder.add(new BuiltinFunction('clone',
         'clone %0, %1',
         REGvar, REGvar
     ));
-    builder.add(new PredefFunction('compreg',
+    builder.add(new BuiltinFunction('compreg',
         'compreg %0, %1',
         REGvar, REGstring
     ));
-    builder.add(new PredefFunction('compreg',
+    builder.add(new BuiltinFunction('compreg',
         'compreg %1, %2',
         REGnone, REGstring, REGvar
     ));
-    builder.add(new PredefFunction('load_language',
+    builder.add(new BuiltinFunction('load_language',
 <<:
 load_language %1
 compreg %0, %1
 :>>
         , REGvar, REGstring
     ));
-    builder.add(new PredefFunction('load_language',
+    builder.add(new BuiltinFunction('load_language',
 <<:
 load_language %1
 compreg %0, %2
 :>>
         , REGvar, REGstring, REGstring
     ));
-    builder.add(new PredefFunction('loadlib',
+    builder.add(new BuiltinFunction('loadlib',
         'loadlib %0, %1',
         REGvar, REGstring
     ));
-    builder.add(new PredefFunction('load_bytecode',
+    builder.add(new BuiltinFunction('load_bytecode',
         'load_bytecode %1',
         REGnone, REGstring
     ));
-    builder.add(new PredefFunction('load_packfile',
+    builder.add(new BuiltinFunction('load_packfile',
         'load_bytecode %0, %1',
         REGvar, REGstring
     ));
-    builder.add(new PredefFunction('dlfunc',
+    builder.add(new BuiltinFunction('dlfunc',
         'dlfunc %0, %1, %2, %3',
         REGvar, REGvar, REGstring, REGstring
     ));
-    builder.add(new PredefFunction('sprintf',
+    builder.add(new BuiltinFunction('sprintf',
         'sprintf %0, %1, %2',
         REGstring, REGstring, REGvar
     ));
-    builder.add(new PredefFunction('print',
-        Predef_print,
+    builder.add(new BuiltinFunction('print',
+        Builtin_print,
         REGnone, REGarglist
     ));
-    builder.add(new PredefFunction('say',
-        Predef_say,
+    builder.add(new BuiltinFunction('say',
+        Builtin_say,
         REGnone, REGarglist
     ));
-    builder.add(new PredefFunction('cry',
-        Predef_cry,
+    builder.add(new BuiltinFunction('cry',
+        Builtin_cry,
         REGnone, REGarglist
     ));
-    builder.add(new PredefFunction('__ASSERT__',
-        Predef_ASSERT,
+    builder.add(new BuiltinFunction('__ASSERT__',
+        Builtin_ASSERT,
         REGnone, REGint
     ));
-    builder.add(new PredefFunction('invoke',
-        Predef_invoke,
+    builder.add(new BuiltinFunction('invoke',
+        Builtin_invoke,
         REGvar, REGraw1
     ));
 }
@@ -2063,9 +2065,9 @@ class CommonBase
     {
         return self.owner.getpath();
     }
-    function use_predef(string name)
+    function use_builtin(string name)
     {
-        self.owner.use_predef(name);
+        self.owner.use_builtin(name);
     }
     function generatesubid()
     {
@@ -5395,55 +5397,46 @@ function arglist_hascompilevalue(var arglist)
 
 //*********************************************
 
-class CallPredefExpr : Expr
+class CallBuiltinExpr : Expr
 {
-    var predef;
+    var builtin;
     var args;
 
-    function CallPredefExpr(owner, start, predef, args)
+    function CallBuiltinExpr(owner, start, builtin, args)
     {
         self.Expr(owner, start);
-        self.predef = predef;
+        self.builtin = builtin;
         self.args = args;
     }
     function checkresult()
     {
-        return self.predef.result();
+        return self.builtin.result();
     }
     function emit(e, result)
     {
-        var predef = self.predef;
+        var builtin = self.builtin;
         var args = self.args;
         string argreg[];
         var arg;
-        string pnull = '';
-        switch (predef.params()) {
-          case PREDEF_arglist:
-            for (arg in args) {
-                string reg = arg.arg.emit_get(e);
-                // Special case
-                if (reg == NULL) {
-                    if (pnull == '') {
-                        pnull = self.tempreg(REGvar);
-                        e.emitnull(pnull);
-                    }
-                    reg = pnull;
-                }
-                push(argreg, reg);
-            }
+        switch (builtin.params()) {
+          case BULTIN_arglist:
+            var collectarglist = new CollectValues(self.owner, e);
+            for (arg in args)
+                push(argreg, collectarglist.add(arg.arg));
             break;
-          case PREDEF_raw1:
+          case BULTIN_raw1:
             var rawargs = [];
             for (arg in args)
                 push(rawargs, arg.arg);
-            self.predef.expand(e, self, self.start, result, rawargs);
+            self.builtin.expand(e, self, self.start, result, rawargs);
             return;
           default:
             int n = self.args;
+            var collectdefault = new CollectValues(self.owner, e);
             for (int i = 0; i < n; ++i) {
                 arg = args[i].arg;
                 string argtype = arg.checkresult();
-                string paramtype = predef.paramtype(i);
+                string paramtype = builtin.paramtype(i);
                 string argr;
                 if (arg.isnull()) {
                     switch (paramtype) {
@@ -5454,11 +5447,7 @@ class CallPredefExpr : Expr
                         e.emitnull(argr);
                         break;
                       default:
-                        if (pnull == '') {
-                            pnull = self.tempreg(REGvar);
-                            e.emitnull(pnull);
-                        }
-                        argr = pnull;
+                        argr = collectdefault.add(argr);
                     }
                 }
                 else {
@@ -5467,38 +5456,37 @@ class CallPredefExpr : Expr
                              (argtype == REGstring || argtype == REGvar)))
                         argr = arg.emit_get(e);
                     else {
-                        string aux;
                         if (paramtype == REGs_v)
                             paramtype = REGvar;
-                        argr = self.tempreg(paramtype);
+                        string aux = arg.emit_get(e);
                         switch (paramtype) {
                           case REGvar:
                             switch (argtype) {
                               case REGint:
                               case REGfloat:
                               case REGstring:
-                                aux = arg.emit_get(e);
+                                argr = self.tempreg(paramtype);
                                 e.emitbox(argr, aux);
                                 break;
                               default:
-                                arg.emit(e, argr);
+                                argr = aux;
                             }
                             break;
                           case REGint:
                           case REGfloat:
                           case REGstring:
-                            aux = arg.emit_get(e);
+                            argr = self.tempreg(paramtype);
                             e.emitset(argr, aux);
                             break;
                           default:
-                            arg.emit(e, argr);
+                            argr = aux;
                         }
                     }
                 }
                 push(argreg, argr);
             }
         }
-        self.predef.expand(e, self, self.start, result, argreg);
+        self.builtin.expand(e, self, self.start, result, argreg);
     }
 }
 
@@ -5507,31 +5495,31 @@ class CallPredefExpr : Expr
 function gencallbuiltin(owner, start, builtin, args)
 {
     string callname = builtin.getname();
-    owner.use_predef(callname);
+    owner.use_builtin(callname);
     int nargs = args == null ? 0 : args.numargs();
     var rawargs = nargs == 0 ? [] : args.getrawargs();
 
     var variants = builtin.variants;
-    var predef;
-    for (var p in variants) {
-        int pargs = p.nparams;
-        if (pargs == nargs ||
-                pargs == PREDEF_arglist ||
-                (pargs == PREDEF_raw1 && nargs == 1))
-            predef = p;
+    var variant;
+    for (var v in variants) {
+        int vargs = v.nparams;
+        if (vargs == nargs ||
+                vargs == BULTIN_arglist ||
+                (vargs == BULTIN_raw1 && nargs == 1))
+            variant = v;
     }
-    if (predef == null)
+    if (variant == null)
         SyntaxError("Wrong arguments for builtin", start);
 
     // Check for compile time evaluation.
-    if (predef.iscompileevaluable()) {
+    if (variant.iscompileevaluable()) {
         if (arglist_hascompilevalue(rawargs)) {
-            var evalfun = predef.evalfun;
+            var evalfun = variant.evalfun;
             return evalfun(owner.owner, owner.start, rawargs);
         }
     }
 
-    return new CallPredefExpr(owner, start, predef, rawargs);
+    return new CallBuiltinExpr(owner, start, variant, rawargs);
 }
 
 class CallExpr : Expr
@@ -5589,7 +5577,7 @@ class CallExpr : Expr
         if (funref instanceof MemberRefExpr)
             return new CallMemberRefExpr(self, funref, args);
 
-        // Check for predefined functions
+        // Check for bultins
         if (funref.isidentifier()) {
             if (funref.checkIdentifier() == '') {
                 var sym = self.scopesearch([ funref.getName() ], 0);
@@ -8631,7 +8619,7 @@ class RegisterStore
     function RegisterStore(string type)
     {
         self.type = type;
-        // Registers number 0 are reserved for temporary usage in predefs.
+        // Registers number 0 are reserved for temporary usage in builtins.
         self.nreg = 1;
         string tempreg[];
         string freereg[];
@@ -9642,9 +9630,9 @@ class ClassStatement : ClassBase, VarContainer
     {
         return self.parent.scopesearch(key, flags);
     }
-    function use_predef(string name)
+    function use_builtin(string name)
     {
-        return self.owner.use_predef(name);
+        return self.owner.use_builtin(name);
     }
     function optimize()
     {
@@ -10389,9 +10377,9 @@ class NamespaceStatement : NamespaceBase
     {
         return self.owner.generatesubid();
     }
-    function use_predef(string name)
+    function use_builtin(string name)
     {
-        self.owner.use_predef(name);
+        self.owner.use_builtin(name);
     }
     function addlib(string libname)
     {
@@ -10451,7 +10439,7 @@ class NamespaceStatement : NamespaceBase
 class RootNamespace : NamespaceBase
 {
     var unit;
-    var predefs_used;
+    var bultins_used;
     var libs;
     var loads;
     var subidgen;
@@ -10460,18 +10448,13 @@ class RootNamespace : NamespaceBase
     {
         self.NamespaceBase(new NamespacePath(), null);
         self.unit = unit;
-        self.predefs_used = {};
+        self.bultins_used = {};
         self.subidgen = 0;
     }
-    function use_predef(string name)
+    function use_builtin(string name)
     {
-        var predefs_used = self.predefs_used;
-        predefs_used[name] = 1;
-    }
-    function predef_is_used(string name)
-    {
-        var predefs_used = self.predefs_used;
-        return predefs_used[name] == null ? 0 : 1;
+        var bultins_used = self.bultins_used;
+        bultins_used[name] = true;
     }
 
     function generatesubid()
@@ -10521,18 +10504,18 @@ class RootNamespace : NamespaceBase
     }
     function emit(var e)
     {
-        var predefs_used = self.predefs_used;
+        var bultins_used = self.bultins_used;
 
         // chomp uses a library function, load the libray if chomp is used
-        if (predefs_used['chomp'] != null)
+        if (bultins_used['chomp'] != null)
             self.addload('"String/Utils.pbc"');
 
-        // Load trans opcodes if some of its corresponding predefs are used
+        // Load trans opcodes if some of its corresponding builtins are used
         string trfuncs[] = [
             'acos', 'asin', 'atan', 'cos', 'exp', 'ln', 'sin', 'tan', 'pow'
         ];
         for (string trfun in trfuncs)
-            if (predefs_used[trfun] != null) {
+            if (bultins_used[trfun] != null) {
                 self.addlib("'trans_ops'");
                 break;
             }
@@ -10649,7 +10632,7 @@ class WinxedCompileUnit
         var builtins_ns = rootns.childnamespace(new TokenEof('__builtins__'),
                 "Winxed_Builtins", null);
         var builder = new BuiltinBuilder();
-        getpredefs(builder);
+        getbuiltins(builder);
         builder.put(builtins_ns);
 
         rootns.usenamespace(builtins_ns);
