@@ -8804,8 +8804,12 @@ class FunctionModifierList : ModifierList
     function emit(e)
     {
         for (var m in self.getlist()) {
+            string name = m.getname();
+
+            if (name == 'multi') // Is handled elsewere
+                continue;
             int nargmods = m.numargs();
-            e.print(' :', m.getname());
+            e.print(' :', name);
             if (nargmods > 0) {
                 e.print('(');
                 for (int iargmod = 0; iargmod < nargmods; ++iargmod) {
@@ -8920,6 +8924,11 @@ class FunctionBase : BlockStatement
 
     function optimize()
     {
+        var modifiers = self.modifiers;
+        if (modifiers != null && modifiers.pick('multi') != null) {
+            __ASSERT__(self instanceof FunctionStatement);
+            self.setmulti();
+        }
         for (var used in self.usednamespaces)
             used.fixnamespaces();
         self.body = self.body.optimize();
