@@ -8955,9 +8955,23 @@ class FunctionBase : BlockStatement
     function optimize()
     {
         var modifiers = self.modifiers;
-        if (modifiers != null && modifiers.pick('multi') != null) {
-            __ASSERT__(self instanceof FunctionStatement);
-            self.setmulti();
+        if (modifiers != null) {
+            var multi = modifiers.pick('multi');
+            if (multi != null) {
+                __ASSERT__(self instanceof FunctionStatement);
+                self.setmulti();
+                int nargs = multi.numargs();
+                if (nargs) {
+                    var sig = [];
+                    for (int i = 0; i < nargs; ++i) {
+                        var arg = multi.getarg(i);
+                        if (! arg.isstringliteral())
+                            SyntaxError("unsupported multi signature", self.start);
+                        push(sig, arg.get_value());
+                    }
+                    self.multi_sig = sig;
+                }
+            }
         }
         for (var used in self.usednamespaces)
             used.fixnamespaces();
@@ -9132,8 +9146,8 @@ class FunctionStatement : FunctionBase
 {
     var paramnum;
     var lexnum;
-    var multi_sig;
     var is_multi;
+    var multi_sig;
 
     function FunctionStatement(start, tk, owner)
     {
@@ -9141,21 +9155,7 @@ class FunctionStatement : FunctionBase
         self.paramnum = 0;
         self.lexnum = 0;
         self.parse(tk);
-        self.multi_sig = [];
-        var params = self.params;
         self.is_multi = new ["Boolean"];
-        if (params != null) {
-            var multi_sig = self.multi_sig;
-            int start_idx = 0;
-            if (self.ismethod()) {
-                start_idx = 1;
-                multi_sig[0] = REGvar;
-            }
-            for (int i = 0; i < elements(params); i++) {
-                var param = params[i];
-                multi_sig[i + start_idx] = param.get_type();
-            }
-        }
     }
 
     function isanonymous() { return false; }
@@ -9170,6 +9170,7 @@ class FunctionStatement : FunctionBase
         return int(++self.lexnum);
     }
     function ismethod() { return false; }
+
     function ismulti()
     {
         return self.is_multi ? true : false;
@@ -9178,7 +9179,15 @@ class FunctionStatement : FunctionBase
     {
         self.is_multi =: true;
     }
-
+    function default_multi_sig()
+    {
+        var multi_sig = [];
+        if (self.ismethod())
+            push(multi_sig, "_");
+        for (var param in self.params)
+            push(multi_sig, typetopirname(param.get_type()));
+        return multi_sig;
+    }
     function parse(tk)
     {
         var name = tk.get();
@@ -9205,10 +9214,12 @@ class FunctionStatement : FunctionBase
     {
         if (self.is_multi) {
             var multi_sig = self.multi_sig;
+            if (multi_sig == null)
+                multi_sig = self.default_multi_sig();
             e.print(' :multi(');
             string sep = '';
             for (string mod in multi_sig) {
-                e.print(sep, typetopirname(mod));
+                e.print(sep, mod);
                 sep = ', ';
             }
             e.print(')');
