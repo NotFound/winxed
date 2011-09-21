@@ -1092,7 +1092,7 @@ function floatAsString(float n)
     // stage 1 limitations.
     string aux; aux = n;
 
-    if (indexof(aux, '.') < 0)
+    if (aux.is_integer(aux))
         aux += '.0';
     return aux;
 }
