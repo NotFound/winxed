@@ -3,6 +3,7 @@ Winxed news.
 
 Version 1.3
     - builtin sleep
+    - some more 'multi' features
 
 Version 1.2
     - Don't tailcall by defaultinside try blocks to avoid losing the

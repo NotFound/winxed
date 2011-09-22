@@ -16,12 +16,12 @@
 .annotate 'file', 'setup.winxed'
 .annotate 'line', 28
 # var json: $P1
-# predefined load_language
+# builtin load_language
     load_language 'data_json'
     compreg $P1, 'data_json'
 .annotate 'line', 29
 # var file: $P2
-# predefined open
+# builtin open
     root_new $P2, ['parrot';'FileHandle']
     $P2.'open'(__ARG_1)
 .annotate 'line', 30
@@ -32,7 +32,7 @@
     unless $I1 goto __label_1
 .annotate 'line', 31
     concat $S2, "Can't open ", __ARG_1
-# predefined Error
+# builtin Error
     root_new $P4, ['parrot';'Exception']
     $P4['message'] = $S2
     throw $P4
@@ -109,24 +109,24 @@
 # description: $S3
     $S3 = $P4['description']
 .annotate 'line', 62
-# predefined say
+# builtin say
     print "\tFile: "
     say $S2
 .annotate 'line', 63
     $P5 = $P4['name']
-# predefined say
+# builtin say
     print "\tName: "
     say $P5
 .annotate 'line', 64
-# predefined say
+# builtin say
     print "\tDescription: "
     say $S3
 .annotate 'line', 65
     $P5 = $P4['copyright_holder']
-# predefined say
+# builtin say
     print "\t(C) "
     say $P5
-# predefined say
+# builtin say
 .annotate 'line', 66
     say ''
 # }
