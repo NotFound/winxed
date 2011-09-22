@@ -3548,6 +3548,18 @@ class OpClassExpr : OpExpr
         self.clspec = parseClassSpecifier(tk, owner);
     }
     function checkresult() { return REGvar; }
+    function get_class_raw_key()
+    {
+        var owner = self.owner;
+        var clspec = self.clspec;
+        // TODO: cover more class specifiers
+        switch {
+          case clspec instanceof ClassSpecifierId:
+            var clkey = clspec.checknskey(owner);
+            return clkey != null ? clkey.path : null;
+        }
+        SyntaxError("Testing, unfinished", self.start);
+    }
     function emit(e, result)
     {
         var owner = self.owner;
@@ -8856,6 +8868,40 @@ class FunctionModifierList : ModifierList
     }
 }
 
+function multi_sig_from_multi_modifier(owner, multi)
+{
+    int nargs = multi.numargs();
+    var sig;
+    if (nargs) {
+        sig = [];
+        for (int i = 0; i < nargs; ++i) {
+            var arg = multi.getarg(i);
+            switch {
+              case arg.isstringliteral():
+                push(sig, arg.get_value());
+                break;
+              case arg.isidentifier():
+                string name = arg.getName();
+                if (name == "int" || name == "float" || name == "string" || name == "var")
+                    push(sig, name);
+                else
+                    SyntaxError("unsupported multi signature", arg.start);
+                break;
+              case arg instanceof OpClassExpr:
+                var key = arg.get_class_raw_key();
+                if (key == null)
+                    SyntaxError("class not found", arg.start);
+                __ASSERT__(key instanceof 'ResizableStringArray');
+                push(sig, getparrotkey(key));
+                break;
+              default:
+                SyntaxError("unsupported multi signature", arg.start);
+            }
+        }
+    }
+    return sig;
+}
+
 class FunctionBase : BlockStatement
 {
     var name;
@@ -8960,17 +9006,7 @@ class FunctionBase : BlockStatement
             if (multi != null) {
                 __ASSERT__(self instanceof FunctionStatement);
                 self.setmulti();
-                int nargs = multi.numargs();
-                if (nargs) {
-                    var sig = [];
-                    for (int i = 0; i < nargs; ++i) {
-                        var arg = multi.getarg(i);
-                        if (! arg.isstringliteral())
-                            SyntaxError("unsupported multi signature", self.start);
-                        push(sig, arg.get_value());
-                    }
-                    self.multi_sig = sig;
-                }
+                self.multi_sig = multi_sig_from_multi_modifier(self, multi);
             }
         }
         for (var used in self.usednamespaces)
