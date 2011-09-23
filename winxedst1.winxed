@@ -6193,7 +6193,7 @@ class HashExpr : Expr
         for (int i = 0; i < n; ++i) {
             var key = keys[i];
             string keyreg;
-            if (key.isidentifier()) {
+            if (key.isidentifier() && key.checkIdentifier() == '') {
                 string id = key.getName();
                 keyreg = self.tempreg(REGvar);
                 e.emitget_hll_global(keyreg, id);
