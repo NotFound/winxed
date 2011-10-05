@@ -2140,6 +2140,7 @@ class CollectValues
     }
     function add(var value)
     {
+        __ASSERT__(value instanceof Expr);
         var e = self.e;
         string valuereg;
         if (value.isnull()) {
@@ -5489,7 +5490,7 @@ class CallBuiltinExpr : Expr
                         e.emitnull(argr);
                         break;
                       default:
-                        argr = collectdefault.add(argr);
+                        argr = collectdefault.add(arg);
                     }
                 }
                 else {
