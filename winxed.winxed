@@ -43,7 +43,7 @@ class WinxedDriverOptions : ['Getopt', 'Obj']
     function WinxedDriverOptions(argv, int unused)
     {
         var options = [
-          [ 'stage=i',  'Compiler stage to use' ],
+          [ 'stage=s',  'Compiler stage to use' ],
           [ 'c',        'Compile only. Same as --target=pir' ],
           [ 'e=s',      'Evaluate' ],
           [ 'o=s',      'Object name' ],
@@ -101,7 +101,9 @@ class WinxedDriverOptions : ['Getopt', 'Obj']
 
 function driver_main(argv)
 {
-    const int DEFAULT_STAGE = 2;
+    const int
+        DEFAULT_STAGE = 2,
+        CUSTOM_STAGE  = -1;
 
     var options = new WinxedDriverOptions(argv, 0);
 
@@ -129,13 +131,18 @@ function driver_main(argv)
     string winxedpath = env['WINXED_PATH'];
 
     int stage = DEFAULT_STAGE;
-    if (opt_stage != null)
-        stage = opt_stage;
-    else {
+    if (opt_stage == null) {
         string envstage = env['WINXED_STAGE'];
         if (envstage != '')
-            stage = envstage;
+            opt_stage = envstage;
     }
+    if (opt_stage != null) {
+        if (opt_stage.is_integer(opt_stage))
+            stage = opt_stage;
+        else
+            stage = CUSTOM_STAGE;
+    }
+
     if (version && stage == 0) {
         cry("--version not available in stage 0");
         exit(1);
@@ -202,21 +209,24 @@ function driver_main(argv)
 
     string winxedbin;
     switch (stage) {
-    case 0:
+      case 0:
         winxedbin = 'winxedst0';
         break;
-    case 1:
+      case 1:
         winxedbin = 'winxedst1';
         break;
-    case 2:
+      case 2:
         winxedbin = 'winxedst2';
         break;
-    default:
+      case CUSTOM_STAGE:
+        winxedbin = opt_stage;
+        break;
+      default:
         die('Invalid stage ' + stage + '. Must be 0, 1 or 2 (2 is for testing development only).');
     }
 
     int retval = 0;
-    int use_pbc = stage > 0;
+    int use_pbc = stage > 0 || stage == CUSTOM_STAGE;
 
     if (use_pbc) {
         // Set the -I value now so the $include directive can use it.
@@ -335,7 +345,7 @@ function driver_main(argv)
     string runit[] = [ 'parrot' ];
 
     switch (targettype) {
-    case TargetRun:
+      case TargetRun:
         // Execute result
         if (libs != null) {
             runit.push('-L');
@@ -362,7 +372,7 @@ function driver_main(argv)
             cry('WARNING: cannot delete temporary PIR file: ', e['message']);
         }
         break;
-    case TargetPbc:
+      case TargetPbc:
         // Call parrot to ceate the pbc
         string objfile;
         if (obj != '')
@@ -382,7 +392,7 @@ function driver_main(argv)
             cry('WARNING: cannot delete temporary PIR file: ', e['message']);
         }
         break;
-    default:
+      default:
         ; // Otherwise, nothing to do.
     }
     retval = (retval >> 8) & 0xFF;
