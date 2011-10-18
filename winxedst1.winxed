@@ -10,8 +10,8 @@ namespace Compiler
 {
 
 const int VERSION_MAJOR = 1;
-const int VERSION_MINOR = 3;
-const int VERSION_BUILD = 0;
+const int VERSION_MINOR = 4;
+const int VERSION_BUILD = -1;
 
 //*********************************************
 //          Character test functions
@@ -1257,7 +1257,12 @@ class BuiltinBase
     }
     function expand(var e, var owner, var start, string result, args)
     {
-        e.comment('builtin ' + string(self.name));
+        string name = self.name;
+
+        // Special case for a now.
+        if (name != '__ASSERT__')
+            e.comment('builtin ' + name);
+
         string typeresult = self.typeresult;
         if (typeresult != REGnone && result == '')
             result = owner.tempreg(typeresult);
@@ -1460,7 +1465,9 @@ function Builtin_ASSERT(e, owner, start, string result, args)
     if (e.getDebug()) {
         e.annotate(start);
         string label = owner.genlabel();
-        e.emitif(args[0], label);
+        var arg = args[0];
+        var reg = arg.emit_getint(e);
+        e.emitif(reg, label);
         e.say(INDENT, "getstderr $P0");
         e.say(INDENT, "print $P0, \"Assertion failed at '", start.filename(), "' line \"");
         e.say(INDENT, "print $P0, ", start.linenum());
@@ -1973,7 +1980,7 @@ compreg %0, %2
     ));
     builder.add(new BuiltinFunction('__ASSERT__',
         Builtin_ASSERT,
-        REGnone, REGint
+        REGnone, REGraw1
     ));
     builder.add(new BuiltinFunction('invoke',
         Builtin_invoke,
