@@ -1572,6 +1572,16 @@ function builtineval_indexof_pos(owner, start, args)
     return integerValue(owner, start, indexof(strfrom, strsearch, pos));
 }
 
+function builtineval_escape(owner, start, args)
+{
+    var argstrfrom = args[0].arg;
+    string strfrom = argstrfrom.get_value();
+    // get_value provide a unescaped string. To get a escaped string
+    // in the output we need to escape twice.
+    var t = new TokenQuoted(start.file, start.line, escape(escape(strfrom)));
+    return new StringLiteral(owner, t);
+}
+
 function builtin_sleep(e, owner, start, result, args)
 {
     var expr = args[0];
@@ -1763,7 +1773,8 @@ trans_encoding %0, $S0, $I0
         'join %0, %1, %2',
         REGstring, REGstring, REGvar
     ));
-    builder.add(new BuiltinFunction('escape',
+    builder.add(new BuiltinFunctionEval('escape',
+        builtineval_escape,
         'escape %0, %1',
         REGstring, REGstring
     ));
