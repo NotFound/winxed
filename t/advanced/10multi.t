@@ -2,7 +2,7 @@
 
 // multi syntax
 
-using extern Test.More plan, is;
+using extern Test.More is, done_testing;
 
 function bar(var a) { return "p"; }
 function bar(int a, int b) { return "ii"; }
@@ -22,10 +22,44 @@ class Foo
     function baz(var a, var b) { return "pp"; }
 }
 
+//**********************************************************************
+
+// 'multi' modifier
+
+function mbar(int i)
+{
+    return "int";
+}
+
+function mbar(var i)
+{
+    return "var";
+}
+
+function mbar [multi('String')](var f)
+{
+    return "'String'";
+}
+
+function mbar [multi(class Foo)](var f)
+{
+    return "Foo";
+}
+
+function test_multi()
+{
+    var foo = new Foo;
+
+    is(mbar(0), "int", "multimethod int");
+    is(mbar(var(0)), "var", "multimethod var");
+    is(mbar(var("")), "'String'", "multimethod multi 'String'");
+    is(mbar(foo), "Foo", "multimethod multi class Foo");
+}
+
+//**********************************************************************
+
 function main[main]()
 {
-    plan(10);
-
     is(bar(3, 2), "ii", "multi(int, int)");
     is(bar(3), "i", "multi(int)");
     is(bar("a", "b"), "ss", "multi(string, string)");
@@ -40,6 +74,8 @@ function main[main]()
     is(foo.baz("a", "b"), "ss", "multimethod(string, string)");
     is(foo.baz(foo, foo), "pp", "multimethod(var, var)");
 
+    test_multi();
+    done_testing();
 }
 
 namespace FooBar
