@@ -305,8 +305,7 @@ class Fly
 
         self.things = things;
 
-        float prev;
-        ${ time prev };
+        float prev = floattime();
         self.prev = prev;
         // Inititalize postion for automatic mode, draw can be called
         // before the first timer pulse.
@@ -481,9 +480,8 @@ class Fly
         float dx; float dy; float dz;
         float prev = self.prev;
         float angle;
-        float now;
+        float now = floattime();
         float diff;
-        ${ time now };
         float dis;
         switch (self.auto) {
           case 1:
