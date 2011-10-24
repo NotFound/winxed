@@ -11,8 +11,18 @@ function bar(string a, string b) { return "ss"; }
 
 namespace FooBar
 {
+
 function foo(string value) { return "FooBar.s-" + value; }
+
+class Foo
+{
 }
+
+class Bar
+{
+}
+
+} // namespace FooBar
 
 class Foo
 {
@@ -20,6 +30,10 @@ class Foo
     function baz(float a, float b) { return "nn"; }
     function baz(string a, string b) { return "ss"; }
     function baz(var a, var b) { return "pp"; }
+}
+
+class Bar
+{
 }
 
 //**********************************************************************
@@ -46,14 +60,39 @@ function mbar [multi(class Foo)](var f)
     return "Foo";
 }
 
+function mbar [multi(class ['Bar'])](var f)
+{
+    return "['Bar']";
+}
+
+function mbar [multi(class FooBar.Foo)](var f)
+{
+    return "FooBar.Foo";
+}
+
+function mbar [multi(class ['FooBar','Bar'])](var f)
+{
+    return "['FooBar','Bar']";
+}
+
+function is_mbar(value, string name)
+{
+    is(mbar(value), name, "multimethod multi " + name);
+}
+
 function test_multi()
 {
     var foo = new Foo;
+    var bar = new Bar;
+    var foofoo = new FooBar.Foo;
+    var foobar = new FooBar.Bar;
 
     is(mbar(0), "int", "multimethod int");
-    is(mbar(var(0)), "var", "multimethod var");
-    is(mbar(var("")), "'String'", "multimethod multi 'String'");
-    is(mbar(foo), "Foo", "multimethod multi class Foo");
+    is_mbar(0,       "var");
+    is_mbar("",     "'String'");
+    is_mbar(bar,    "['Bar']");
+    is_mbar(foofoo, "FooBar.Foo");
+    is_mbar(foobar, "['FooBar','Bar']");
 }
 
 //**********************************************************************

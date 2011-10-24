@@ -3571,10 +3571,14 @@ class OpClassExpr : OpExpr
     {
         var owner = self.owner;
         var clspec = self.clspec;
+        var clkey;
         // TODO: cover more class specifiers
         switch {
           case clspec instanceof ClassSpecifierId:
-            var clkey = clspec.checknskey(owner);
+            clkey = clspec.checknskey(owner);
+            return clkey != null ? clkey.path : null;
+          case clspec instanceof ClassSpecifierParrotKey:
+            clkey = clspec.checknskey(owner);
             return clkey != null ? clkey.path : null;
           case clspec instanceof ClassSpecifier:
             SyntaxError(string(typeof(clspec)) + " not supported yet here",
@@ -9571,6 +9575,11 @@ class ClassSpecifierParrotKey : ClassSpecifier
         return int(self.hll != null);
     }
 
+    function checknskey(from)
+    {
+        var nskey = from.scopesearch(self.key, SEARCH_CLASS);
+        return nskey != null ? nskey.getpath() : null;
+    }
     function emit(e, ns)
     {
         e.print(getparrotkey(self.key));
