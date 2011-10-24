@@ -53,16 +53,39 @@ function run_test_list(var args, int verbose, int stage)
         int passed= 0;
         int failed= 0;
         int curr_test= 0;
+        int num_tests = -1;
         var output= run_test(filename, stage);
-        var plan_parts= split('..', output[0]);
-        int num_tests = plan_parts[1];
-        output.shift();
-        if (verbose)
-            say(1 , '..', num_tests);
+
+        var plan_part0;
+        var plan_part1;
+        {
+            var plan_parts= split('..', output[0]);
+            plan_part0 = plan_parts[0];
+            plan_part1 = plan_parts[1];
+        }
+        if (plan_part0.is_integer(plan_part0)) {
+            num_tests = plan_part1;
+            output.shift();
+            if (verbose)
+                say(1 , '..', num_tests);
+        }
+
         for (string line in output) {
             debugmsg(line);
             if (line != '') {
-                if (verbose) say(line);
+                if (verbose)
+                    say(line);
+                if (num_tests < 0) {
+                    var plan_parts= split('..', line);
+                    var p0 = plan_parts[0];
+                    if (p0.is_integer(p0)) {
+                        plan_part0 = plan_parts[0];
+                        plan_part1 = plan_parts[1];
+                        num_tests = plan_part1;
+                        if (verbose)
+                            say(1 , '..', num_tests);
+                    }
+                }
                 var line_parts = split('ok ', line);
                 int test_number= line_parts[1];
                 debugmsg(test_number);
@@ -80,8 +103,8 @@ function run_test_list(var args, int verbose, int stage)
         }
         if (failed)
             say('failed ', failed, '/', num_tests, ' tests');
-        else if (plan_parts[0] != 1 || (num_tests < 0)) {
-            say('INVALID PLAN: ', plan_parts[0], '..', plan_parts[1]);
+        else if (plan_part0 != 1 || (num_tests < 0)) {
+            say('INVALID PLAN: ', plan_part0, '..', plan_part1);
             ++failed_files;
         }
         else
