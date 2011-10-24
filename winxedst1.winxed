@@ -3576,8 +3576,11 @@ class OpClassExpr : OpExpr
           case clspec instanceof ClassSpecifierId:
             var clkey = clspec.checknskey(owner);
             return clkey != null ? clkey.path : null;
+          case clspec instanceof ClassSpecifier:
+            SyntaxError(string(typeof(clspec)) + " not supported yet here",
+                    clspec.start);
         }
-        SyntaxError("Testing, unfinished", self.start);
+        InternalError("Unexpected class key", clspec.start);
     }
     function emit(e, result)
     {
