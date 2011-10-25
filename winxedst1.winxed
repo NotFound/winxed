@@ -10801,7 +10801,15 @@ class WinxedHLL
     }
     function version_string()
     {
-        return "Winxed " + string(join(".", self.version()));
+        var version = self.version();
+        string tail;
+
+        if (version[2] < 0) {
+            version[2] = -int(version[2]) - 1;
+            tail = "-dev";
+        }
+
+        return "Winxed " + string(join(".", version)) + tail;
     }
     function __private_compile_tail(winxed, target, output, int debug, int noan)
     {
