@@ -1129,6 +1129,46 @@ const int
     BULTIN_arglist = -1,
     BULTIN_raw1    = -2;
 
+// Helpers for compile time evaluation
+
+function string_from_literal(arg)
+{
+    string value;
+    switch {
+      case arg.isintegerliteral():
+        value = arg.numval;
+        break;
+      case arg.isfloatliteral():
+        value = arg.getFloatValue();
+        break;
+      case arg.isstringliteral():
+        value = arg.get_value();
+        break;
+      default:
+        InternalError('wrong call to string_from_literal', arg);
+    }
+    return value;
+}
+
+function int_from_literal(arg)
+{
+    int value;
+    switch {
+      case arg.isintegerliteral():
+        value = arg.numval;
+        break;
+      case arg.isfloatliteral():
+        value = arg.getFloatValue();
+        break;
+      case arg.isstringliteral():
+        value = arg.get_value();
+        break;
+      default:
+        InternalError('wrong call to int_from_literal', arg);
+    }
+    return value;
+}
+
 // Invokable object generated from a string body
 class Builtin_frombody
 {
@@ -1337,22 +1377,7 @@ class Builtin_typecast
 function builtineval_stringcast(owner, start, args)
 {
     var arg = args[0].arg;
-
-    string s;
-    switch {
-      case arg.isintegerliteral():
-        s = int(arg.numval);
-        break;
-      case arg.isfloatliteral():
-        s = arg.getFloatValue();
-        break;
-      case arg.isstringliteral():
-        return arg;
-        break;
-      default:
-        InternalError('wrong call to builtineval_stringcast', start);
-    }
-
+    string s = string_from_literal(arg);
     var t = new TokenQuoted(start.file, start.line, s);
     return new StringLiteral(owner, t);
 }
@@ -1360,17 +1385,8 @@ function builtineval_stringcast(owner, start, args)
 function builtineval_intcast(owner, start, args)
 {
     var arg = args[0].arg;
-
-    switch {
-      case arg.isintegerliteral():
-        return arg;
-      case arg.isfloatliteral():
-        return integerValue(owner, start, int(arg.getFloatValue()));
-      case arg.isstringliteral():
-        return integerValue(owner, start, int(arg.get_value()));
-      default:
-        InternalError('wrong call to builtineval_intcast', start);
-    }
+    int value = int_from_literal(arg);
+    return integerValue(owner, start, value);
 }
 
 function Builtin_varcast(e, owner, start, string result, args)
@@ -1556,8 +1572,8 @@ function builtineval_indexof(owner, start, args)
 {
     var argstrfrom = args[0].arg;
     var argstrsearch = args[1].arg;
-    string strfrom = argstrfrom.get_value();
-    string strsearch = argstrsearch.get_value();
+    string strfrom = string_from_literal(argstrfrom);
+    string strsearch = string_from_literal(argstrsearch);
     return integerValue(owner, start, indexof(strfrom, strsearch));
 }
 
@@ -1566,9 +1582,9 @@ function builtineval_indexof_pos(owner, start, args)
     var argstrfrom = args[0].arg;
     var argstrsearch = args[1].arg;
     var argpos = args[2].arg;
-    string strfrom = argstrfrom.get_value();
-    string strsearch = argstrsearch.get_value();
-    int pos = argpos.numval;
+    string strfrom = string_from_literal(argstrfrom);
+    string strsearch = string_from_literal(argstrsearch);
+    int pos = int_from_literal(args[2].arg);
     return integerValue(owner, start, indexof(strfrom, strsearch, pos));
 }
 
