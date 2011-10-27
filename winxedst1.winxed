@@ -82,12 +82,12 @@ class WinxedCompilerError
     }
 }
 
-function Warn(string msg, var pos [optional], int has_pos [opt_flag])
+function Warn(string msg, var pos [optional])
 {
     var stderr = getstderr();
     stderr.print('WARNING: ');
     stderr.print(msg);
-    if (has_pos) {
+    if (pos != null) {
         stderr.print(' near ');
         stderr.print(pos.show());
     }
@@ -795,14 +795,16 @@ class Emit
     var pendingl;
     var debug;
     var noan;
+    var warnings;
 
-    function Emit(var handle)
+    function Emit(var handle, int nowarn)
     {
         self.handle = handle;
         self.file = "";
         self.line = 0;
         self.pendingf = false;
         self.pendingl = false;
+        self.warnings = new ["Boolean"](! nowarn);
     }
     function setDebug()
     {
@@ -819,6 +821,11 @@ class Emit
     function close()
     {
         self.handle = null;
+    }
+    function warn(string msg, var pos [optional])
+    {
+        if (self.warnings)
+            Warn(msg, pos);
     }
     function updateannot()
     {
@@ -6383,8 +6390,8 @@ class NewExpr : NewBaseExpr
             // By name, usually a pmc.
             string name = value.rawstring();
             var aux = get_class(name);
-            if (aux == null && self.dowarnings())
-                Warn("Can't locate class " + name + " at compile time", value);
+            if (aux == null)
+                e.warn("Can't locate class " + name + " at compile time", value);
 
             // Avoid using root_new here for a now.
             //e.say('root_new ', regnew, ", ['parrot'; ", value, " ]", reginit);
@@ -6406,8 +6413,7 @@ class NewExpr : NewBaseExpr
                     if (id != null)
                         e.say(INDENT, 'new ', regnew, ", ", id.getclasskey(), reginit);
                     else {
-                        if (self.dowarnings())
-                            Warn('Checking: new unknown type');
+                        e.warn('Checking: new unknown type');
                         e.say(INDENT, 'new ', regnew, ", ['", value, "']", reginit);
                     }
                 }
@@ -9634,8 +9640,7 @@ class ClassSpecifierId : ClassSpecifier
     {
         var key = ns.scopesearch(self.key, SEARCH_CLASS);
         if (key == null) {
-            if (self.dowarnings())
-                Warn("class " + join(".", self.key) + " not found at compile time");
+            e.warn("class " + join(".", self.key) + " not found at compile time");
             e.print(getparrotkey(self.key));
         }
         else e.print(key.getclasskey());
@@ -9644,8 +9649,7 @@ class ClassSpecifierId : ClassSpecifier
     {
         var nskey = self.checknskey(from);
         if (nskey == null) {
-            if (self.dowarnings())
-                Warn("class " + join(".", self.key) + " not found at compile time");
+            e.warn("class " + join(".", self.key) + " not found at compile time");
             e.say("new ", regnew, ", ", getparrotkey(self.key));
         }
         else {
@@ -10819,7 +10823,7 @@ class WinxedHLL
     {
         return "Winxed " + string(join(".", self.version()));
     }
-    function __private_compile_tail(winxed, target, output, int debug, int noan)
+    function __private_compile_tail(winxed, target, output, int debug, int noan, int nowarn)
     {
         if (target == 'parse')
             return winxed;
@@ -10830,7 +10834,7 @@ class WinxedHLL
         }
         else
             handleout = output;
-        var emit = new Emit(handleout);
+        var emit = new Emit(handleout, nowarn);
         if (debug)
             emit.setDebug();
         if (noan)
@@ -10863,7 +10867,7 @@ class WinxedHLL
     {
         var handleout = new ['StringHandle'];
         handleout.open(EVAL_NAME, 'w');
-        var emit = new Emit(handleout);
+        var emit = new Emit(handleout, true);
         winxed.emitinclude(emit);
         emit.close();
         handleout.close();
@@ -10891,7 +10895,7 @@ class WinxedHLL
         if (target == 'include')
             return self.__private_geninclude(winxed);
         else
-            return self.__private_compile_tail(winxed, target, output, debug, noan);
+            return self.__private_compile_tail(winxed, target, output, debug, noan, nowarn);
     }
     function compile_from_file(string filename,
             string target[named,optional],
@@ -10914,7 +10918,7 @@ class WinxedHLL
         if (target == 'include')
             return self.__private_geninclude(winxed);
         else
-            return self.__private_compile_tail(winxed, target, output, debug, noan);
+            return self.__private_compile_tail(winxed, target, output, debug, noan, nowarn);
     }
 }
 
