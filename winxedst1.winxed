@@ -4629,7 +4629,8 @@ class OpBaseBoolExpr : OpBinaryExpr
 {
     function checkresult()
     {
-        return REGint;
+        return self.lexpr.checkresult() == REGint && self.rexpr.checkresult() == REGint ?
+            REGint : REGvar;
     }
 }
 
@@ -4654,18 +4655,32 @@ class OpBoolAndExpr : OpBaseBoolExpr
     }
     function emit(e, result)
     {
-        string res = result != null ? result : self.tempreg(REGint);
-        if (self.lexpr.issimple() && self.rexpr.issimple()) {
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        string type = self.checkresult();
+        string res = result != null ? result : self.tempreg(type);
+        if (type == REGint && lexpr.issimple() && rexpr.issimple()) {
             string lreg = self.emit_intleft(e);
             string rreg = self.emit_intright(e);
             e.emitbinop('and', res, lreg, rreg);
         }
         else {
-            string l = self.owner.genlabel();
-            self.lexpr.emit(e, res);
-            e.emitunless(res, l);
-            self.rexpr.emit(e, res);
-            e.emitlabel(l);
+            string isfalse = self.owner.genlabel();
+            string done = self.owner.genlabel();
+            string lres = lexpr.emit_get(e);
+            e.emitunless(lres, isfalse);
+            string rres = rexpr.emit_get(e);
+            if (type == REGvar && rexpr.checkresult() != REGvar)
+                e.emitbox(res, rres);
+            else
+                e.emitset(res, rres);
+            e.emitgoto(done);
+            e.emitlabel(isfalse);
+            if (type == REGvar && lexpr.checkresult() != REGvar)
+                e.emitbox(res, lres);
+            else
+                e.emitset(res, lres);
+            e.emitlabel(done);
         }
     }
 }
@@ -4691,22 +4706,32 @@ class OpBoolOrExpr : OpBaseBoolExpr
     }
     function emit(e, result)
     {
-        string res;
-        if (result != null)
-            res = result;
-        else
-            res = self.tempreg(REGint);
-        if (self.lexpr.issimple() && self.rexpr.issimple()) {
+        var lexpr = self.lexpr;
+        var rexpr = self.rexpr;
+        string type = self.checkresult();
+        string res = result != null ? result : self.tempreg(type);
+        if (type == REGint && self.lexpr.issimple() && self.rexpr.issimple()) {
             string lreg = self.emit_intleft(e);
             string rreg = self.emit_intright(e);
             e.emitbinop('or', res, lreg, rreg);
         }
         else {
-            string l = self.owner.genlabel();
-            self.lexpr.emit(e, res);
-            e.emitif(res, l);
-            self.rexpr.emit(e, res);
-            e.emitlabel(l);
+            string istrue = self.owner.genlabel();
+            string done = self.owner.genlabel();
+            string lres = self.lexpr.emit_get(e);
+            e.emitif(lres, istrue);
+            string rres = self.rexpr.emit_get(e);
+            if (type == REGvar && rexpr.checkresult() != REGvar)
+                e.emitbox(res, rres);
+            else
+                e.emitset(res, rres);
+            e.emitgoto(done);
+            e.emitlabel(istrue);
+            if (type == REGvar && lexpr.checkresult() != REGvar)
+                e.emitbox(res, lres);
+            else
+                e.emitset(res, lres);
+            e.emitlabel(done);
         }
     }
 }
