@@ -2,7 +2,7 @@
 
 // Basic tests: bool operators
 
-using extern Test.More done_testing, is, ok;
+using extern Test.More done_testing, is, ok, nok;
 
 //******************************************************
 
@@ -40,6 +40,15 @@ function main()
     // pitfalls of stage 0.
     using something;
 
+    is(! a, 0, "! true gives 0");
+    a = 0;
+    is(! a, 1, "! false gives 1");
+    a = ! a;
+    ok(a, "assign ! a to a - from false");
+    a = ! a;
+    nok(a, "assign ! a to a - from true");
+
+    a = 7;
     is(a && b, 3, '7 && 3 : 3');
     is(b && a, 7, '3 && 7 : 7');
     is(a || b, 7, '7 || 3 : 7');
