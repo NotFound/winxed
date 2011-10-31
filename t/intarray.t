@@ -1,40 +1,38 @@
 #! winxed
-# Basic tests for int array initializer
+
+//  Basic tests for int array
+
+using extern Test.More plan, is;
 
 function main()
 {
-    using extern Test.More;
-    using Test.More.plan;
-    using Test.More.is;
     plan (14);
 
     int noinit [];
-    int n= noinit;
-    is (n, 0, 'size');
-    is (noinit instanceof 'ResizableIntegerArray', 1, 'type');
+    int n;
+    is (noinit instanceof 'ResizableIntegerArray', 1, 'type of non initialized');
+    is (elements(noinit), 0, 'size of non initialized');
 
     int a []= [ 7, 42 ];
-    n= a;
-    is (n, 2, 'size');
-    is (a instanceof 'ResizableIntegerArray', 1, 'type');
+    is (a instanceof 'ResizableIntegerArray', 1, 'type of initialized');
+    is (elements(a), 2, 'size of initialized');
     is (a[0], 7, 'first value');
     is (a[1], 42, 'second value');
 
     int b [2];
-    n= b;
-    is (n, 2, 'size');
-    is (b instanceof 'FixedIntegerArray', 1, 'type');
+    is (b instanceof 'FixedIntegerArray', 1, 'type of non initialized with size');
+    is (elements(b), 2, 'size of non initialized with size');
 
     int c [2] = [ 7, 42 ];
-    n= c;
-    is (n, 2, 'size');
-    is (c instanceof 'FixedIntegerArray', 1, 'type');
+    is (c instanceof 'FixedIntegerArray', 1, 'type of initialized with size');
+    is (elements(c), 2, 'size of initialized with size');
     is (c[0], 7, 'first value');
     is (c[1], 42, 'second value');
 
     int size= 4;
     int d[size];
-    n= d;
-    is (n, size, 'non constant - size');
-    is (c instanceof 'FixedIntegerArray', 1, 'non constant - type');
+    is (c instanceof 'FixedIntegerArray', 1, 'type of non initialized with size non constant');
+    is (elements(d), size, 'size of non initialized with size non constant');
 }
+
+// End
