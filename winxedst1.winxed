@@ -1043,7 +1043,7 @@ class Emit
     }
     function emitstore_lex(string name, string reg)
     {
-        self.say("store_lex '", name, "', ", reg);
+        self.say(INDENT + "store_lex '", name, "', ", reg);
     }
 }
 
@@ -3537,6 +3537,7 @@ class LexicalVolatileExpr : Expr
         }
 
         e.emitstore_lex(desc.getlex(), lreg);
+        return lreg;
     }
     function emit_store(e, reg)
     {
