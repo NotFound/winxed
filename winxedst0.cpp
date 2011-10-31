@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 15-sep-2011
+// Revision 1-nov-2011
 
 // Winxed compiler stage 0.
 
@@ -3573,8 +3573,9 @@ private:
                 else if (rexpr->isinteger() || rexpr->isstring() )
                 {
                     e.annotate(start);
-                    e << INDENT "box " << varname << ", ";
-                    rexpr->emit(e, std::string());
+                    std::string r= gentemp(rexpr->checkresult());
+                    rexpr->emit(e, r);
+                    e << op_box(varname, r);
                     e << '\n';
                     if (! result.empty() )
                         e << INDENT << result << " = " << varname << '\n';
