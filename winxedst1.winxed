@@ -1513,31 +1513,28 @@ function Builtin_invoke(e, owner, start, string result, args)
 function builtineval_length(owner, start, args)
 {
     var arg = args[0].arg;
-    string s = arg.get_value();
+    string s = string_from_literal(arg);
     return integerValue(owner, start, length(s));
 }
 
 function builtineval_bytelength(owner, start, args)
 {
     var arg = args[0].arg;
-    string s = arg.get_value();
+    string s = string_from_literal(arg);
     return integerValue(owner, start, bytelength(s));
 }
 
 function builtineval_ord(owner, start, args)
 {
+    int nargs = elements(args);
     var arg = args[0].arg;
-    string s = arg.get_value();
-    return integerValue(owner, start, ord(s));
-}
-
-function builtineval_ord_n(owner, start, args)
-{
-    var arg = args[0].arg;
-    string s = arg.get_value();
-    var argn = args[1].arg;
-    int n = argn.numval;
-    return integerValue(owner, start, ord(s, n));
+    string s = string_from_literal(arg);
+    int pos = 0;
+    if (nargs > 1) {
+        var argpos = args[1].arg;
+        pos = int_from_literal(argpos);
+    }
+    return integerValue(owner, start, ord(s, pos));
 }
 
 function builtineval_chr(owner, start, args)
@@ -1759,7 +1756,7 @@ trans_encoding %0, $S0, $I0
         REGint, REGstring
     ));
     builder.add(new BuiltinFunctionEval('ord',
-        builtineval_ord_n,
+        builtineval_ord,
         'ord %0, %1, %2',
         REGint, REGstring, REGint
     ));
