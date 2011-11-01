@@ -5626,11 +5626,11 @@ function gencallbuiltin(owner, start, builtin, args)
             var evalfun = variant.evalfun;
             try {
                 return evalfun(owner.owner, owner.start, rawargs);
-           }
-           catch (ex) {
-               SyntaxError("Compile time evaluation of builtin " + callname +
-                       " failed: '" + string(ex["message"]) + "'", start);
-           }
+            }
+            catch (ex) {
+                SyntaxError("Compile time evaluation of builtin " + callname +
+                        " failed: '" + string(ex["message"]) + "'", start);
+            }
         }
     }
 
