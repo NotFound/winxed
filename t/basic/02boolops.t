@@ -29,6 +29,13 @@ function something(int value)
 
 //******************************************************
 
+class Foo
+{
+    var bar;
+}
+
+//******************************************************
+
 function main()
 {
     int a = 7;
@@ -70,6 +77,39 @@ function main()
     a = 0;
     b = a || something(93);
     ok(b == 93 && get_n() == 93, "zero || x evaluate x");
+
+    var v1 = 1;
+    var v2 = 2;
+    var r = v1 || v2;
+    is(r, v1, "|| with var");
+
+    v1 = new Foo;
+    v1.bar = 17;
+    r = v1.bar || v2;
+    is(r, 17, "|| with attribute access on left, true");
+    r = v2 || v1.bar;
+    is(r, 2, "|| with attribute access on right, true");
+    v1.bar = 0;
+    r = v2 || v1.bar;
+    is(r, 2, "|| with attribute access on left, true");
+    v2 = 0;
+    v1.bar = 17;
+    r = v2 || v1.bar;
+    is(r, 17, "|| with attribute access on left, false");
+
+    v1.bar = 17;
+    v2 = 2;
+    r = v1.bar && v2;
+    is(r, 2, "&& with attribute access on left, true");
+    r = v2 && v1.bar;
+    is(r, 17, "&& with attribute access on right, true");
+    v1.bar = 0;
+    r = v2 && v1.bar;
+    is(r, 0, "&& with attribute access on left, true");
+    v2 = 0;
+    v1.bar = 17;
+    r = v2 && v1.bar;
+    is(r, 0, "&& with attribute access on left, false");
 
     done_testing();
 }
