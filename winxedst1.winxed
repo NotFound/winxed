@@ -5624,7 +5624,13 @@ function gencallbuiltin(owner, start, builtin, args)
     if (variant.iscompileevaluable()) {
         if (arglist_hascompilevalue(rawargs)) {
             var evalfun = variant.evalfun;
-            return evalfun(owner.owner, owner.start, rawargs);
+            try {
+                return evalfun(owner.owner, owner.start, rawargs);
+           }
+           catch (ex) {
+               SyntaxError("Compile time evaluation of builtin " + callname +
+                       " failed: '" + string(ex["message"]) + "'", start);
+           }
         }
     }
 
