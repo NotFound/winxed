@@ -1541,7 +1541,7 @@ function builtineval_chr(owner, start, args)
 {
     var arg = args[0].arg;
 
-    int n = arg.numval;
+    int n = int_from_literal(arg);
     string s = chr(n);
 
     var t = new TokenQuoted(start.file, start.line, s);
@@ -1590,8 +1590,8 @@ function builtineval_indexof_pos(owner, start, args)
 function builtineval_escape(owner, start, args)
 {
     var argstrfrom = args[0].arg;
-    string strfrom = argstrfrom.get_value();
-    // get_value provide a unescaped string. To get a escaped string
+    string strfrom = string_from_literal(argstrfrom);
+    // This is a unescaped string. To get a escaped string
     // in the output we need to escape twice.
     var t = new TokenQuoted(start.file, start.line, escape(escape(strfrom)));
     return new StringLiteral(owner, t);
