@@ -6336,6 +6336,11 @@ class NewBaseExpr : Expr
 
 //**********************************************************************
 
+function warn_class_unknown(e, string name, pos)
+{
+    e.warn("class " + name + " not found at compile time", pos);
+}
+
 class NewExpr : NewBaseExpr
 {
     var value;
@@ -6417,7 +6422,7 @@ class NewExpr : NewBaseExpr
             string name = value.rawstring();
             var aux = get_class(name);
             if (aux == null)
-                e.warn("Can't locate class " + name + " at compile time", value);
+                warn_class_unknown(e, name , value);
 
             // Avoid using root_new here for a now.
             //e.say('root_new ', regnew, ", ['parrot'; ", value, " ]", reginit);
@@ -6439,7 +6444,7 @@ class NewExpr : NewBaseExpr
                     if (id != null)
                         e.say(INDENT, 'new ', regnew, ", ", id.getclasskey(), reginit);
                     else {
-                        e.warn('Checking: new unknown type');
+                        warn_class_unknown(e, value.getidentifier(), value);
                         e.say(INDENT, 'new ', regnew, ", ['", value, "']", reginit);
                     }
                 }
@@ -9666,7 +9671,7 @@ class ClassSpecifierId : ClassSpecifier
     {
         var key = ns.scopesearch(self.key, SEARCH_CLASS);
         if (key == null) {
-            e.warn("class " + join(".", self.key) + " not found at compile time");
+            warn_class_unknown(e, join(".", self.key) , self.start);
             e.print(getparrotkey(self.key));
         }
         else e.print(key.getclasskey());
@@ -9675,7 +9680,7 @@ class ClassSpecifierId : ClassSpecifier
     {
         var nskey = self.checknskey(from);
         if (nskey == null) {
-            e.warn("class " + join(".", self.key) + " not found at compile time");
+            warn_class_unknown(e, join(".", self.key) , self.start);
             e.say("new ", regnew, ", ", getparrotkey(self.key));
         }
         else {
