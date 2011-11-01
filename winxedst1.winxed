@@ -1553,25 +1553,20 @@ function builtineval_chr(owner, start, args)
 
 function builtineval_substr(owner, start, args)
 {
+    int nargs = elements(args);
     var argstr = args[0].arg;
     var argpos = args[1].arg;
-    string str = argstr.get_value();
-    int pos = argpos.numval;
-
-    var t = new TokenQuoted(start.file, start.line, substr(str, pos));
-    return new StringLiteral(owner, t);
-}
-
-function builtineval_substr_l(owner, start, args)
-{
-    var argstr = args[0].arg;
-    var argpos = args[1].arg;
-    var arglen = args[2].arg;
-    string str = argstr.get_value();
-    int pos = argpos.numval;
-    int len = arglen.numval;
-
-    var t = new TokenQuoted(start.file, start.line, substr(str, pos, len));
+    string str = string_from_literal(argstr);
+    int pos = int_from_literal(argpos);
+    string result;
+    if (args > 2) {
+        var arglen = args[2].arg;
+        int len = int_from_literal(arglen);
+        result = substr(str, pos, len);
+    }
+    else
+        result = substr(str, pos);
+    var t = new TokenQuoted(start.file, start.line, result);
     return new StringLiteral(owner, t);
 }
 
@@ -1774,7 +1769,7 @@ trans_encoding %0, $S0, $I0
         REGstring, REGstring, REGint
     ));
     builder.add(new BuiltinFunctionEval('substr',
-        builtineval_substr_l,
+        builtineval_substr,
         'substr %0, %1, %2, %3',
         REGstring, REGstring, REGint, REGint
     ));
