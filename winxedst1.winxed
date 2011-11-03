@@ -9192,8 +9192,9 @@ class FunctionBase : BlockStatement
             e.print ("'", name, "'");
         if (self.subid != null)
             e.print(" :subid('", self.subid, "')");
-        if (self.outer != null) {
-            var outer = self.outer;
+
+        var outer = self.outer;
+        if (outer != null && self.usedlexicals != null) {
             var outerid = outer.subid;
             if (outerid != null)
                 e.print(" :outer('", outerid, "')");
