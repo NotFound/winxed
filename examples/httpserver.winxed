@@ -20,25 +20,25 @@ Example of usage as module in a PIR program.
     .param pmc request
     request.'contentType'('text/html')
     request.'print'( <<'END' )
-<html>
-<body>
-<h1>Hello from PIR!</h1>
-<p><a href="other.html">Other</a></p>
-</body>
-</html>
-END
+ <html>
+ <body>
+ <h1>Hello from PIR!</h1>
+ <p><a href="other.html">Other</a></p>
+ </body>
+ </html>
+ END
 .end
 
 .sub 'handler_other'
     .param pmc request
     request.'contentType'('text/html')
     request.'print'( <<'END' )
-<html>
-<body>
-<h1>This is also PIR!</h1>
-<p><a href="/">Return</a></p>
-</body>
-</html>
+ <html>
+ <body>
+ <h1>This is also PIR!</h1>
+ <p><a href="/">Return</a></p>
+ </body>
+ </html>
 END
 .end
 
@@ -92,9 +92,17 @@ Print a line on stderr.
 */
 function Trace(msgs [slurpy])
 {
-    var stderr = getinterp().stdhandle(2);
+    var stderr = getstderr();
     for (var msg in msgs)
         stderr.print(msg);
+    stderr.print("\n");
+}
+
+function warn(string msg)
+{
+    var stderr = getstderr();
+    stderr.print("WARNING: ");
+    stderr.print(msg);
     stderr.print("\n");
 }
 
@@ -203,13 +211,7 @@ namespace HTTP {
 /***********************************************************************
 =head1 class HTTP;Request
 
-=head2 Methods
-
-=over
-
-=item None yet.
-
-=back
+Not documented yet.
 
 =cut
 */
@@ -222,7 +224,7 @@ class Request
     var contype;
     var header_sent;
 
-    function set(server, conn)
+    function Request(server, conn)
     {
         self.server = server;
         self.conn = conn;
@@ -292,13 +294,13 @@ class Server
     var requests;
     var handlers;
 /*
-=item init
+=item Server
 
-Initialize server object.
+Constructor
 
 =cut
 */
-    function init(string host, int port)
+    function Server(string host, int port)
     {
         self.maxrequests = 0;
         if (DEBUG) Trace(host, ':', port);
@@ -353,8 +355,7 @@ Listen and dispatch requests.
             int requests = self.requests;
             self.requests = ++requests;
             string buf = conn.recv();
-            var request = new Request();
-            request.set(self, conn);
+            var request = new Request(self, conn);
             var header = getHeader(buf);
 
             string page = header['page'];
@@ -421,8 +422,7 @@ function createServer(config)
     string hostname = host['name'];
     int port = host['port'];
 
-    var server = new HTTP.Server();
-    server.init(hostname, port);
+    var server = new HTTP.Server(hostname, port);
 
     var debuginfo = config['debuginfo'];
     if (debuginfo != null) {
@@ -457,20 +457,30 @@ function createServer(config)
                 if (language != null) {
                     langname = language;
                     string compname = comp;
-                    compiler = load_language(langname, compname);
+                    try {
+                        compiler = load_language(langname, compname);
+                    }
+                    catch () {
+                        warn("Can't load language: " + langname);
+                    }
                 }
                 else {
-                    langname = comp;
-                    compiler = compreg(string(comp));
+                    try {
+                        langname = comp;
+                        compiler = compreg(string(comp));
+                    }
+                    catch () {
+                        warn("Can't compreg language: " + langname);
+                    }
                 }
-                if (compiler == null)
-                    throw Error("No such language: " + langname);
-                string source = open(filename).readall();
-                int compile = moddata['compile'];
-                var code = compile ? compiler.compile(source) : compiler(source);
-                int prerun = moddata['prerun'];
-                if (prerun)
-                    code();
+                if (compiler != null) {
+                    string source = open(filename).readall();
+                    int compile = moddata['compile'];
+                    var code = compile ? compiler.compile(source) : compiler(source);
+                    int prerun = moddata['prerun'];
+                    if (prerun)
+                        code();
+                }
             }
             else {
                 load_bytecode(filename);
@@ -503,8 +513,9 @@ function createServer(config)
                 }
                 handlerobject = glob[hllname][name];
                 if (handlerobject == null)
-                    throw Error('Handler not found');
-                server.handle(base, handlerobject);
+                    warn("module not found for handler " + name);
+                else
+                    server.handle(base, handlerobject);
                 break;
             default:
                 throw Error('Urecognized handler type');
@@ -558,7 +569,7 @@ function main[main,anon](argv)
 {
     const string OPT_CONFIG = 'config';
     using extern Getopt.Obj;
-    var getopts = new Getopt.Obj;
+    var getopts = new ["Getopt", "Obj"];
     getopts.notOptStop(1);
     getopts.push_string(OPT_CONFIG + '=s');
     argv.shift();
