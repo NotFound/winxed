@@ -8,7 +8,7 @@ httpserver.winxed
 
 =head1 AUTHOR
 
-(C) 2010 Julian Albo
+(C) 2010-2011 Julian Albo
 
 =head1 DESCRIPTION
 
@@ -70,11 +70,7 @@ END
 // When set to 0, if (DEBUG) statements are optimized out.
 const int DEBUG = 0;
 
-// Values from socekt.pasm
-// No way to import yet, just copy here.
-const int PIO_PF_INET     = 2;
-const int PIO_SOCK_STREAM = 1;
-const int PIO_PROTO_TCP   = 6;
+$include_const "socket.pasm";
 
 const string CR = "\r";
 const string LF = "\n";
