@@ -8013,14 +8013,19 @@ class ThrowStatement : Statement
         self.annotate(e);
         switch (excep.checkresult()) {
           case REGvar:
-            e.emitarg1('throw', reg);
+            // Nothing to do here
             break;
           case REGstring:
-            e.emitarg1('die', reg);
+            // Build a Exception with default values and the message provided
+            string msg = reg;
+            reg = self.tempreg(REGvar);
+            e.say(INDENT, 'root_new ', reg, ", ['parrot';'Exception']");
+            e.say(INDENT + reg + "['message'] = ", msg);
             break;
           default:
             SyntaxError("Invalid throw argument", self);
         }
+        e.emitarg1('throw', reg);
     }
 }
 
