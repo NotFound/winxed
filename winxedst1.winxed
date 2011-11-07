@@ -2345,6 +2345,18 @@ function parseSig(start, tk, owner)
     return new MultiAssignStatement(start, owner, params, expr);
 }
 
+function parseClassSpecifier(tk, owner)
+{
+    var t = tk.get();
+    if (t.isstring())
+        return new ClassSpecifierStr(owner, t);
+    if (t.isop('['))
+        return new ClassSpecifierParrotKey(tk, owner, t);
+    if (t.isidentifier())
+        return new ClassSpecifierId(tk, owner, t);
+    SyntaxError('Invalid class', t);
+}
+
 function parseStatement(tk, owner)
 {
     var t = tk.get();
@@ -9691,18 +9703,6 @@ class ClassSpecifierId : ClassSpecifier
             nskey.emit_new(e, from, regnew);
         }
     }
-}
-
-function parseClassSpecifier(tk, owner)
-{
-    var t = tk.get();
-    if (t.isstring())
-        return new ClassSpecifierStr(owner, t);
-    if (t.isop('['))
-        return new ClassSpecifierParrotKey(tk, owner, t);
-    if (t.isidentifier())
-        return new ClassSpecifierId(tk, owner, t);
-    SyntaxError('Invalid class', t);
 }
 
 //*********************************************
