@@ -3312,6 +3312,27 @@ class FloatLiteral : Literal
 
 //*********************************************
 
+function concat_literal(lexpr, rexpr)
+{
+    __ASSERT__(lexpr.isstringliteral());
+    __ASSERT__(rexpr.isstringliteral());
+
+    var etok = lexpr.strval;
+    var rtok = rexpr.strval;
+    // If both are single quoted, result is single quoted.
+    // If one is double quoted, result is double quoted.
+    var t = etok.issinglequoted() && rtok.issinglequoted()
+        ?
+        new TokenSingleQuoted(etok.file, etok.line,
+                string(etok.str) + string(rtok.str))
+        :
+        new TokenQuoted(etok.file, etok.line,
+                string(etok.getasquoted()) + string(rtok.getasquoted()));
+    return new StringLiteral(lexpr.owner, t);
+}
+
+//*********************************************
+
 class IdentifierExpr : SimpleExpr
 {
     var name;
@@ -4825,18 +4846,50 @@ class ConcatString : Expr
           case lexpr instanceof ConcatString:
             self.values = lexpr.values;
             if (rexpr instanceof ConcatString)
-                self.values.append(rexpr.values);
+                self.append(rexpr.values);
             else
-                push(self.values, rexpr);
+                self.pushexpr(rexpr);
             break;
           case rexpr instanceof ConcatString:
             self.values = rexpr.values;
-            self.values.unshift(lexpr);
+            self.unshiftexpr(lexpr);
             break;
           default:
             self.values = [lexpr, rexpr];
         }
     }
+    function pushexpr(rexpr)
+    {
+        var values = self.values;
+        var last = values[-1];
+        if (last.isstringliteral() && rexpr.isstringliteral())
+            values[-1] = concat_literal(last, rexpr);
+        else
+            push(values, rexpr);
+    }
+    function unshiftexpr(lexpr)
+    {
+        var values = self.values;
+        var first = values[0];
+        if (first.isstringliteral() && lexpr.isstringliteral())
+            values[0] = concat_literal(lexpr, first);
+        else
+            unshift(values, lexpr);
+    }
+    function append(rvalues)
+    {
+        var values = self.values;
+        var last = values[-1];
+        if (last.isstringliteral()) {
+            var first = rvalues[0];
+            if (first.isstringliteral()) {
+                values[-1] = concat_literal(last, first);
+                rvalues.shift();
+            }
+        }
+        values.append(rvalues);
+    }
+
     function checkresult() { return REGstring; }
     function getregs(e)
     {
@@ -4912,22 +4965,8 @@ class OpAddExpr : OpBinaryExpr
         string ltype = lexpr.checkresult();
         string rtype = rexpr.checkresult();
         if (lexpr.isliteral() && rexpr.isliteral()) {
-            if (ltype == REGstring && rtype == REGstring) {
-                // Compile time add two literal strings:
-                // If both are single quoted, result is single quoted.
-                // If one is double quoted, result is double quoted,
-                // adding escape char '\' when needed.
-                var etok = lexpr.strval;
-                var rtok = rexpr.strval;
-                var t = etok.issinglequoted() && rtok.issinglequoted()
-                    ?
-                    new TokenSingleQuoted(etok.file, etok.line,
-                            string(etok.str) + string(rtok.str))
-                    :
-                    new TokenQuoted(etok.file, etok.line,
-                            string(etok.getasquoted()) + string(rtok.getasquoted()));
-                return new StringLiteral(self.owner, t);
-            }
+            if (ltype == REGstring && rtype == REGstring)
+                return concat_literal(lexpr, rexpr);
             if (ltype == REGint && rtype == REGint) {
                 int ln = lexpr.getIntegerValue();
                 int rn = rexpr.getIntegerValue();
