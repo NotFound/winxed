@@ -1078,6 +1078,12 @@ function floatValue(var owner, var start, float value)
     return new FloatLiteral(owner, t);
 }
 
+function stringQuotedValue(var owner, var start, string value)
+{
+    var t = new TokenQuoted(start.file, start.line, value);
+    return new StringLiteral(owner, t);
+}
+
 function floatresult(string r1, string r2)
 /*
     Check if the passed types can give a float result in arithmetic
@@ -1384,9 +1390,7 @@ class Builtin_typecast
 function builtineval_stringcast(owner, start, args)
 {
     var arg = args[0].arg;
-    string s = string_from_literal(arg);
-    var t = new TokenQuoted(start.file, start.line, s);
-    return new StringLiteral(owner, t);
+    return stringQuotedValue(owner, start, string_from_literal(arg));
 }
 
 function builtineval_intcast(owner, start, args)
@@ -1540,12 +1544,7 @@ function builtineval_ord(owner, start, args)
 function builtineval_chr(owner, start, args)
 {
     var arg = args[0].arg;
-
-    int n = int_from_literal(arg);
-    string s = chr(n);
-
-    var t = new TokenQuoted(start.file, start.line, s);
-    return new StringLiteral(owner, t);
+    return stringQuotedValue(owner, start, chr(int_from_literal(arg)));
 }
 
 function builtineval_substr(owner, start, args)
@@ -1563,8 +1562,7 @@ function builtineval_substr(owner, start, args)
     }
     else
         result = substr(str, pos);
-    var t = new TokenQuoted(start.file, start.line, result);
-    return new StringLiteral(owner, t);
+    return stringQuotedValue(owner, start, result);
 }
 
 function builtineval_indexof(owner, start, args)
@@ -1590,11 +1588,10 @@ function builtineval_indexof_pos(owner, start, args)
 function builtineval_escape(owner, start, args)
 {
     var argstrfrom = args[0].arg;
-    string strfrom = string_from_literal(argstrfrom);
     // This is a unescaped string. To get a escaped string
     // in the output we need to escape twice.
-    var t = new TokenQuoted(start.file, start.line, escape(escape(strfrom)));
-    return new StringLiteral(owner, t);
+    return stringQuotedValue(owner, start,
+            escape(escape(string_from_literal(argstrfrom))));
 }
 
 function builtin_sleep(e, owner, start, result, args)
@@ -6132,9 +6129,8 @@ class IndexExpr : Expr
             if (left.isstringliteral() && arg.isintegerliteral()) {
                 int ival = arg.getIntegerValue();
                 string sval = left.get_value();
-                var t = new TokenQuoted(self.start.file, self.start.line,
+                return stringQuotedValue(self.owner, self.start,
                         substr(sval, ival, 1));
-                return new StringLiteral(self.owner, t);
             }
             return new StringIndexExpr(self.owner, self.start, left, arg);
         }
