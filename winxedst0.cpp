@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 1-nov-2011
+// Revision 9-nov-2011
 
 // Winxed compiler stage 0.
 
@@ -5683,12 +5683,12 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
         if (value.size() == 1)
         {
             char vtype= value[0]->checkresult();
-            if (vtype == REGint || vtype == REGstring ||
+            if (((vtype == REGint || vtype == REGstring) && vtype == type) ||
                     (dynamic_cast<IndexExpr *>(value[0])))
                 value[0]->emit(e, name);
             else
             {
-                std::string reg= gentemp(REGvar);
+                std::string reg= gentemp(vtype);
                 value[0]->emit(e, reg);
                 e << op_set(name, reg) << '\n';
             }
