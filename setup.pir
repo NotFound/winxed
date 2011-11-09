@@ -27,15 +27,20 @@
 .annotate 'line', 30
     isnull $I1, $P2
     if $I1 goto __label_2
-    $I1 = $P2.'is_closed'()
+    $P5 = $P2.'is_closed'()
+    set $P4, $P5
+    goto __label_3
   __label_2:
-    unless $I1 goto __label_1
+    box $P4, $I1
+  __label_3:
+    if_null $P4, __label_1
+    unless $P4 goto __label_1
 .annotate 'line', 31
     concat $S2, "Can't open ", __ARG_1
 # builtin Error
-    root_new $P4, ['parrot';'Exception']
-    $P4['message'] = $S2
-    throw $P4
+    root_new $P6, ['parrot';'Exception']
+    $P6['message'] = $S2
+    throw $P6
   __label_1: # endif
 .annotate 'line', 32
     $P2.'encoding'('utf8')
@@ -43,9 +48,9 @@
 # jsondata: $S1
     $P4 = $P2.'readall'()
     null $S1
-    if_null $P4, __label_3
+    if_null $P4, __label_4
     set $S1, $P4
-  __label_3:
+  __label_4:
 .annotate 'line', 34
     $P2.'close'()
 .annotate 'line', 35
