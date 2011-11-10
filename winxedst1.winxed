@@ -2952,7 +2952,7 @@ class VarContainer
     var locals;
     var usednamespaces;
 
-    function init [vtable] ()
+    function VarContainer()
     {
         self.locals = {};
     }
@@ -3046,6 +3046,11 @@ class VarContainer
 
 class BlockStatement : VarContainer, Statement
 {
+    function BlockStatement(start, owner)
+    {
+        self.Statement(start, owner);
+        self.VarContainer();
+    }
 }
 
 //*********************************************
@@ -7923,7 +7928,7 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
 
     function ForStatement(start, tk, owner)
     {
-        self.Statement(start, owner);
+        self.BlockStatement(start, owner);
         var t = tk.get();
         if (! t.isop(';')) {
             tk.unget(t);
@@ -8003,7 +8008,7 @@ class ForeachStatement : LoopStatement, BlockStatement
 
     function ForeachStatement(start, tk, owner, name, string type)
     {
-        self.Statement(start, owner);
+        self.BlockStatement(start, owner);
         string sname = name;
         if (type != '') {
             string deftype = typetoregcheck(type);
@@ -8181,7 +8186,7 @@ class TryStatement : BlockStatement
 
     function TryStatement(start, tk, owner)
     {
-        self.Statement(start, owner);
+        self.BlockStatement(start, owner);
         var t = tk.get();
         if (t.isop('['))
             self.modifiers = new TryModifierList(t, tk, self);
@@ -8792,7 +8797,7 @@ class CompoundStatement : MultiStatementBase, BlockStatement
 
     function CompoundStatement(start, tk, owner)
     {
-        self.Statement(start, owner);
+        self.BlockStatement(start, owner);
         self.labels = {};
         self.statements = [];
         var t;
@@ -9116,7 +9121,7 @@ class FunctionBase : BlockStatement
 
     function FunctionBase(start, owner)
     {
-        self.Statement(start, owner);
+        self.BlockStatement(start, owner);
         self.nlabel = 0;
         self.regstI = new RegisterStore(REGint);
         self.regstN = new RegisterStore(REGfloat);
@@ -9835,6 +9840,7 @@ class ClassStatement : ClassBase, VarContainer
     function ClassStatement(start, name, parent, tk)
     {
         self.ClassBase(start, name, parent);
+        self.VarContainer();
         self.parent = parent;
         var functions = [];
         self.functions = functions;
@@ -10304,6 +10310,7 @@ class NamespaceBase : VarContainer
 
     function NamespaceBase(nspath, previous)
     {
+        self.VarContainer();
         self.nspath = nspath;
         if (previous == null) {
             self.namespaces = [];
