@@ -10400,9 +10400,8 @@ class NamespaceBase : VarContainer
 
     function checkclass_base(string name)
     {
-        var classes = self.classes;
         var cl;
-        for (cl in classes)
+        for (cl in self.classes)
             if (cl.name == name)
                 return cl;
         for (var ns in self.usednamespaces)
@@ -10511,9 +10510,7 @@ class NamespaceBase : VarContainer
     function parse(tk)
     {
         var items = self.items;
-        //var functions = self.functions;
         var functions_name = self.functions_name;
-        var classes = self.classes;
         var t;
         for (t = tk.get(); !(t.iseof() || t.isop('}')); t = tk.get())
         {
