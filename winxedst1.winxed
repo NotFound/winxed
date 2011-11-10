@@ -2060,11 +2060,9 @@ compreg %0, %2
 
 function optimize_array(var arr)
 {
-    if (arr != null) {
-        int n = elements(arr);
-        for (int i = 0; i < n; ++i)
-            arr[i] = arr[i].optimize();
-    }
+    int n = arr != null ? elements(arr) : 0;
+    for (int i = 0; i < n; ++i)
+        arr[i] = arr[i].optimize();
 }
 
 function emit_array(e, arr)
@@ -3108,6 +3106,17 @@ class Expr : CommonBase
         }
         return reg;
     }
+    function emit_getvar(e)
+    {
+        string type = self.checkresult();
+        string reg = self.emit_get(e);
+        if (type != REGvar) {
+            string auxreg = reg;
+            reg = self.tempreg(REGvar);
+            e.emitbox(reg, auxreg);
+        }
+        return reg;
+    }
     function emit_assign_get(e, expr)
     {
         NoLeftSide(self);
@@ -3580,24 +3589,27 @@ class LexicalVolatileExpr : Expr
     }
     function emit_assign_get(e, expr)
     {
+        var owner = self.owner;
         var desc = self.desc;
         string typelex = desc.gettype();
-        string lreg = self.owner.tempreg(desc.gettype());
+        string lreg;
         switch {
           case expr.isnull():
+            lreg = owner.tempreg(typelex);
             e.emitnull(lreg);
             break;
           case expr instanceof IndexExpr:
+            lreg = owner.tempreg(typelex);
             expr.emit(e, lreg);
             break;
           default:
-            string typeright = expr.checkresult();
-            if (typelex == typeright || typelex != REGvar)
-                expr.emit(e, lreg);
+            if (typelex == REGvar)
+                lreg = expr.emit_getvar(e);
+            else if (typelex == expr.checkresult())
+                lreg = expr.emit_get(e);
             else {
-                string rreg = expr.emit_get(e);
-                self.annotate(e);
-                e.emitbox(lreg, rreg);
+                lreg = owner.tempreg(typelex);
+                expr.emit(e, lreg);
             }
         }
 
@@ -5950,15 +5962,7 @@ class MemberExprBase : Expr
     }
     function emit_left_get(e)
     {
-        var left = self.left;
-        string type = left.checkresult();
-        string reg = left.emit_get(e);
-        if (type != REGvar) {
-            string auxreg = reg;
-            reg = self.tempreg(REGvar);
-            e.emitbox(reg, auxreg);
-        }
-        return reg;
+        return self.left.emit_getvar(e);
     }
 }
 
@@ -10786,31 +10790,24 @@ class RootNamespace : NamespaceBase
             self.addload('"String/Utils.pbc"');
 
         // Load trans opcodes if some of its corresponding builtins are used
-        string trfuncs[] = [
-            'acos', 'asin', 'atan', 'cos', 'exp', 'ln', 'sin', 'tan', 'pow'
-        ];
-        for (string trfun in trfuncs)
+        for (string trfun in
+                    split(" ", "acos asin atan cos exp ln sin tan pow"))
             if (bultins_used[trfun] != null) {
                 self.addlib("'trans_ops'");
                 break;
             }
 
-        int somelib = false;
         var libs = self.libs;
-        if (libs != null) {
-            somelib = true;
+        if (libs != null)
             e.say(join("\n", transform(libs, [], emit_loadlib)));
-        }
 
-        int someload = false;
         var loads = self.loads;
         if (loads != null) {
-            someload = true;
             e.say("\n.sub initial_load_bytecode :anon :load :init\n",
                 join("\n", transform(loads, [], emit_loadbytecode)),
                 "\n.end\n");
         }
-        if (somelib || someload)
+        if (libs != null || loads != null)
             e.comment('end libs');
 
         self.emit_base(e);
