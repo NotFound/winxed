@@ -51,6 +51,28 @@ function isident(string c)
         c) > -1;
 }
 
+// Algorithms
+
+function for_each(src, func)
+{
+    for (var item in src)
+        func(item);
+}
+
+function transform(src, dest, func)
+{
+    for (var item in src)
+        push(dest, func(item));
+    return dest;
+}
+
+function find(src, value)
+{
+    for (var item in src)
+        if (item == value)
+            return item;
+    return null;
+}
 
 //*********************************************
 //        Error handling exceptions
@@ -1486,13 +1508,17 @@ function Builtin_say(e, owner, start, string result, args)
         e.emitsay("''");
 }
 
+function emit_printP0(string arg)
+{
+    return INDENT + "print $P0, " + arg + "\n";
+}
+
 function Builtin_cry(e, owner, start, string result, args)
 {
     e.annotate(start);
-    e.say(INDENT, "getstderr $P0");
-    for (string arg in args)
-        e.say(INDENT, "print $P0, ", arg);
-    e.say(INDENT, "print $P0, \"\\n\"");
+    e.say(INDENT + "getstderr $P0\n",
+        join("", transform(args, [], emit_printP0)),
+        INDENT + "print $P0, \"\\n\"");
 }
 
 function Builtin_print(e, owner, start, string result, args)
@@ -7729,8 +7755,7 @@ class SwitchBaseStatement : Breakable, Statement
     function optimize_cases()
     {
         optimize_array(self.case_value);
-        for (var casest in self.case_st)
-            optimize_array(casest);
+        for_each(self.case_st, optimize_array);
         optimize_array(self.default_st);
     }
 }
@@ -8997,6 +9022,11 @@ class FunctionExtern : CommonBase
 //            FunctionBase
 //*********************************************
 
+function emit_subid(string subid)
+{
+    return ".const 'Sub' " + subid + ' = "' + subid + '"' + "\n";
+}
+
 class FunctionModifierList : ModifierList
 {
     function FunctionModifierList(var tk, var owner)
@@ -9141,9 +9171,8 @@ class FunctionBase : BlockStatement
             self.usednamespaces = [ ns ];
         }
         else {
-            for (var used in usedns)
-                if (ns === used)
-                    return;
+            if (find(usedns, ns) != null)
+                return;
             push(usedns, ns);
         }
     }
@@ -9314,10 +9343,7 @@ class FunctionBase : BlockStatement
             }
         }
 
-        for (string subid in self.usedsubids) {
-            //cry("Used: ", subid, ' in ', name);
-            e.say(".const 'Sub' ", subid, ' = "', subid, '"');
-        }
+        e.print(join("", transform(self.usedsubids, [], emit_subid)));
 
         var body = self.body;
         if (body.isempty())
@@ -9338,6 +9364,11 @@ class FunctionBase : BlockStatement
 //*********************************************
 //            FunctionStatement
 //*********************************************
+
+function get_pir_type(param)
+{
+    return typetopirname(param.get_type());
+}
 
 class FunctionStatement : FunctionBase
 {
@@ -9381,8 +9412,7 @@ class FunctionStatement : FunctionBase
         var multi_sig = [];
         if (self.ismethod())
             push(multi_sig, "_");
-        for (var param in self.params)
-            push(multi_sig, typetopirname(param.get_type()));
+        transform(self.params, multi_sig, get_pir_type);
         return multi_sig;
     }
     function parse(tk)
@@ -9413,13 +9443,7 @@ class FunctionStatement : FunctionBase
             var multi_sig = self.multi_sig;
             if (multi_sig == null)
                 multi_sig = self.default_multi_sig();
-            e.print(' :multi(');
-            string sep = '';
-            for (string mod in multi_sig) {
-                e.print(sep, mod);
-                sep = ', ';
-            }
-            e.print(')');
+            e.print(' :multi(', join(", ", multi_sig), ')');
         }
     }
 }
@@ -10091,6 +10115,11 @@ function parsensUsing(start, tk, ns)
 
 //*********************************************
 
+function emit_push_symbols(string name)
+{
+    return INDENT + "push symbols, '" + name + "'\n";
+}
+
 class External
 {
     var module;
@@ -10116,8 +10145,7 @@ class External
         e.emitget_root_namespace("srcns",
                 "['parrot'; '" + string(join("'; '", self.module)) + "']");
 
-        for (string name in self.names)
-            e.say(INDENT + "push symbols, '", name, "'");
+        e.print(join("", transform(self.names, [], emit_push_symbols)));
         e.say(<<:
     ex.'destination'(curns)
     ex.'import'(srcns :named('source'), curns :named('destination'), symbols :named('globals'))
@@ -10309,9 +10337,8 @@ class NamespaceBase : VarContainer
         if (nsused === self)
             return;
         var usednamespaces = self.usednamespaces;
-        for (var used in usednamespaces)
-            if (used === nsused)
-                return;
+        if (find(usednamespaces, nsused) != null)
+            return;
         push(usednamespaces, nsused);
     }
     function use(key)
@@ -10674,6 +10701,16 @@ class NamespaceStatement : NamespaceBase
 //            RootNamespace
 //*********************************************
 
+function emit_loadlib(string libname)
+{
+    return '.loadlib ' + libname;
+}
+
+function emit_loadbytecode(string loadname)
+{
+    return INDENT + 'load_bytecode ' + loadname;
+}
+
 class RootNamespace : NamespaceBase
 {
     var unit;
@@ -10762,18 +10799,16 @@ class RootNamespace : NamespaceBase
         var libs = self.libs;
         if (libs != null) {
             somelib = true;
-            for (string libname in libs)
-                e.say('.loadlib ', libname);
+            e.say(join("\n", transform(libs, [], emit_loadlib)));
         }
 
         int someload = false;
         var loads = self.loads;
         if (loads != null) {
             someload = true;
-            e.print("\n.sub initial_load_bytecode :anon :load :init\n");
-            for (string name in loads)
-                e.say(INDENT + 'load_bytecode ', name);
-            e.print(".end\n\n");
+            e.say("\n.sub initial_load_bytecode :anon :load :init\n",
+                join("\n", transform(loads, [], emit_loadbytecode)),
+                "\n.end\n");
         }
         if (somelib || someload)
             e.comment('end libs');
