@@ -10330,6 +10330,10 @@ class NamespaceBase : VarContainer
         }
         self.items = [];
     }
+    function addfunction(func)
+    {
+        push(self.functions, func);
+    }
     function fixnamespaces()
     {
         var ns;
@@ -10357,7 +10361,7 @@ class NamespaceBase : VarContainer
         var sym = self.scopesearch(key, 0);
         if (sym != null) {
             if (sym instanceof FunctionStatement)
-                push(self.functions, sym);
+                self.addfunction(sym);
         }
         else {
             string name = key.pop();
@@ -10507,7 +10511,7 @@ class NamespaceBase : VarContainer
     function parse(tk)
     {
         var items = self.items;
-        var functions = self.functions;
+        //var functions = self.functions;
         var functions_name = self.functions_name;
         var classes = self.classes;
         var t;
@@ -10524,7 +10528,7 @@ class NamespaceBase : VarContainer
               case 'function':
                 var f = new FunctionStatement(t, tk, self);
                 string name = f.name;
-                push(functions, f);
+                self.addfunction(f);
                 push(items, f);
                 var funcs = functions_name[name];
                 if (funcs != null) {
@@ -10547,7 +10551,7 @@ class NamespaceBase : VarContainer
                 RequireIdentifier(t1);
                 ExpectOp(';', tk);
                 var fex = new FunctionExtern(t1, self);
-                push(functions, fex);
+                self.addfunction(fex);
                 break;
               case 'using':
                 parsensUsing(t, tk, self);
@@ -10875,7 +10879,7 @@ class BuiltinBuilder
     {
         var entries = self.entries;
         for (string s in entries)
-            push(ns.functions, entries[s]);
+            ns.addfunction(entries[s]);
     }
 }
 
