@@ -143,6 +143,22 @@ test1: $(DRIVER).pbc winxedst1.pbc
 test2: $(DRIVER).pbc winxedst2.pbc
 	parrot $(DRIVER).pbc --stage=2 t/harness --stage=2 -r t/basic t/advanced t/*.t
 
+#-----------------------------------------------------------------------
+
+# Test the --debug option and the compiler assertions:
+# - First compile stage1 with -debug option
+# - Then use that stage to compile stage1
+# - Then use that new stage to run the tests
+
+testdebug: $(DRIVER).pbc winxedst2.pbc
+	parrot $(DRIVER).pbc --debug -c -o winxedst1_deb1.pir --stage=2 winxedst1.winxed
+	parrot -o winxedst1_deb1.pbc winxedst1_deb1.pir
+	parrot $(DRIVER).pbc --debug -c -o winxedst1_deb2.pir --stage=winxedst1_deb1 winxedst1.winxed
+	parrot -o winxedst1_deb2.pbc winxedst1_deb2.pir
+	parrot $(DRIVER).pbc --debug --stage=winxedst1_deb2 t/harness --debug --stage=winxedst1_deb2 -r t/basic t/advanced t/*.t
+
+#-----------------------------------------------------------------------
+
 clean:
 	rm -f winxedst2$(EXEEXT)
 	rm -f winxedst2$(OBJEXT)
@@ -160,6 +176,10 @@ clean:
 	rm -f winxed.c
 	rm -f $(DRIVER).pbc
 	rm -f $(DRIVER).pir
+	rm -f winxedst1_deb1.pbc
+	rm -f winxedst1_deb1.pir
+	rm -f winxedst1_deb2.pbc
+	rm -f winxedst1_deb2.pir
 	rm -f *$(OBJEXT)
 
 # Makefile end

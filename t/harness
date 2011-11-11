@@ -10,15 +10,18 @@ function debugmsg(string s)
         say(s);
 }
 
-function run_test(string filename, int stage)
+function run_test(string filename, int debug, string stage)
 {
     // If stage is not specified, assume a winxed driver is in PATH
     // and use it.
     // If specified, assume we are in the build tree and use the
     // non installed driver to select stage.
-    string s= stage == -1 ?
-        'winxed ' + filename :
-        'parrot winxedrun.pbc --stage=' + stage + ' ' + filename;
+    string s= stage == "" ?
+        'winxed' :
+        'parrot winxedrun.pbc --stage=' + stage;
+    if (debug)
+        s += " --debug";
+    s += ' ' + filename;
     debugmsg(s);
 
     var fh= open(s, 'rp');
@@ -39,7 +42,7 @@ function max_length(var args)
     return l;
 }
 
-function run_test_list(var args, int verbose, int stage)
+function run_test_list(var args, int verbose, string stage, int debug)
 {
     int total_passed= 0;
     int total_failed= 0;
@@ -54,7 +57,7 @@ function run_test_list(var args, int verbose, int stage)
         int failed= 0;
         int curr_test= 0;
         int num_tests = -1;
-        var output= run_test(filename, stage);
+        var output= run_test(filename, debug, stage);
 
         var plan_part0;
         var plan_part1;
@@ -200,16 +203,19 @@ function main(var argv)
     getopts.notOptStop(1);
     getopts.push_string('v');
     getopts.push_string('r');
-    getopts.push_string('stage=i');
+    getopts.push_string('stage=s');
+    getopts.push_string('debug');
 
     argv.shift();
     var opts = getopts.get_options(argv);
     var optverbose = opts['v'];
     var optrecursive = opts['r'];
+    var optdebug = opts['debug'];
     int verbose = optverbose == null ? 0 : int(optverbose);
     int recursive = optrecursive == null ? 0 : int(optrecursive);
+    int debug = optdebug != null;
     var opt_stage = opts['stage'];
-    int stage = -1;
+    string stage = "";
     if (opt_stage != null)
         stage = opt_stage;
 
@@ -220,7 +226,7 @@ function main(var argv)
     string args[];
     build_file_list(args, argv, recursive);
 
-    run_test_list(args, verbose, stage);
+    run_test_list(args, verbose, stage, debug);
 }
 
 // End
