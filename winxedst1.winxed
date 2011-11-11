@@ -66,10 +66,10 @@ function transform(src, dest, func)
     return dest;
 }
 
-function find(src, value)
+function find_same(src, value)
 {
     for (var item in src)
-        if (item == value)
+        if (item === value)
             return item;
     return null;
 }
@@ -9180,7 +9180,7 @@ class FunctionBase : BlockStatement
             self.usednamespaces = [ ns ];
         }
         else {
-            if (find(usedns, ns) != null)
+            if (find_same(usedns, ns) != null)
                 return;
             push(usedns, ns);
         }
@@ -10352,7 +10352,7 @@ class NamespaceBase : VarContainer
         if (nsused === self)
             return;
         var usednamespaces = self.usednamespaces;
-        if (find(usednamespaces, nsused) != null)
+        if (find_same(usednamespaces, nsused) != null)
             return;
         push(usednamespaces, nsused);
     }
