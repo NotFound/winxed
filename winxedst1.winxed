@@ -678,7 +678,7 @@ class Tokenizer
                 ':': getop
             },
             '+': { '+': getop, '=': getop },
-            '-': { '-': getop, '=': getop },
+            '-': { '-': getop, '=': getop, '>': getop },
             '*': { '=': getop },
             '|': { '|': getop },
             '&': { '&': getop },
@@ -3141,10 +3141,14 @@ class FunctionExpr : Expr
     function FunctionExpr(tk, owner, start)
     {
         self.Expr(owner, start);
-        var t = tk.get();
-        if (!t.isop('('))
-            Expected('anonymous function', t);
-        self.fn = new LocalFunctionStatement(start, tk, owner);
+        if (start.isop('->')) {
+            self.fn = new LambdaFunctionStatement(start, tk, owner);
+        } else {
+            var t = tk.get();
+            if (!t.isop('('))
+                Expected('anonymous function', t);
+            self.fn = new LocalFunctionStatement(start, tk, owner);
+        }
     }
     function checkresult() { return REGvar; }
     function optimize()
@@ -5834,7 +5838,7 @@ class CallExpr : Expr
                     call = sym.emit_get(e, self);
                     break;
                   case sym instanceof Builtin:
-                    InternalError("Builtin unexpeted here", self);
+                    InternalError("Builtin unexpected here", self.start);
                   default:
                     call = join("", [ "'", funref.getName(), "'" ] );
                 }
@@ -6942,6 +6946,8 @@ function parseExpr_0(tk, owner)
         return parseNew(tk, owner, t);
       case t.iskeyword('function'):
         return new FunctionExpr(tk, owner, t);
+      case t.isop('->'):
+        return new FunctionExpr(tk, owner, t);
       case t.iskeyword('class'):
         return new OpClassExpr(tk, owner, t);
       case t.iskeyword('namespace'):
@@ -7361,7 +7367,7 @@ class ReturnYieldStatement : Statement
     {
         var values = self.values;
         if (values != null)
-            values = values.optimize();
+            self.values = values.optimize();
         return self;
     }
     function emit(e)
@@ -7399,6 +7405,39 @@ class ReturnStatement : ReturnYieldStatement
     function emitret(e)
     {
         e.print(INDENT, '.return(');
+    }
+}
+
+class SimpleReturnStatement : ReturnStatement
+{
+    function SimpleReturnStatement(start, tk, owner)
+    {
+        self.Statement(start, owner);
+        self.values = parseExpr(tk, owner);
+    }
+
+    function emit(e)
+    {
+        // Experimental tailcall optimization
+        var value = self.values;
+        if (value.cantailcall()) {
+            self.annotate(e);
+            return value.emit(e, '.tailcall');
+        }
+
+        string reg;
+        if (value.isnull()) {
+            string pnull = self.owner.tempreg(REGvar);
+            e.emitnull(pnull);
+            reg = pnull;
+        }
+        else
+            reg = value.emit_get(e);
+
+        self.annotate(e);
+        self.emitret(e);
+        e.print(reg);
+        e.say(')');
     }
 }
 
@@ -9360,7 +9399,10 @@ class FunctionBase : BlockStatement
         else {
             e.comment('Body');
             body.emit(e);
-            e.annotate(body.getend());
+            int can_getend = 0;
+            ${ can can_getend, body, "getend" };
+            if (can_getend)
+                e.annotate(body.getend());
         }
         e.say("\n.end # ", name, "\n");
 
@@ -9553,6 +9595,36 @@ class LocalFunctionStatement : FunctionBase
         if (r != null && !(r instanceof VarData))
             InternalError('Incorrect data for variable in LocalFunction');
         return r;
+    }
+}
+
+//*********************************************
+//            LambdaFunctionStatement
+//*********************************************
+
+class LambdaFunctionStatement : LocalFunctionStatement
+{
+    function LambdaFunctionStatement(start, tk, owner)
+    {
+        self.FunctionBase(start, owner);
+        self.outer = owner.getouter();
+        self.outer.makesubid();
+        var subid = self.makesubid();
+        self.name = subid;
+        var t = tk.get();
+        if (t.isop('(')) {
+            self.parse_parameters(tk);
+            t = tk.get();
+        } else
+            self.params = [];
+
+        if (t.isop('{'))
+            self.body = new CompoundStatement(t, tk, self);
+        else {
+            tk.unget(t);
+            self.body = new SimpleReturnStatement(t, tk, self);
+        }
+        owner.addlocalfunction(self);
     }
 }
 
