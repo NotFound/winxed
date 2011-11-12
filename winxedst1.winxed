@@ -9234,11 +9234,10 @@ class FunctionBase : BlockStatement
     }
     function usenamespace(ns)
     {
+        __ASSERT__(ns != null);
         var usedns = self.usednamespaces;
-        if (usedns == null) {
-            //cry('use namespace ', ns.name);
+        if (usedns == null)
             self.usednamespaces = [ ns ];
-        }
         else {
             if (find_same(usedns, ns) != null)
                 return;
@@ -9247,9 +9246,8 @@ class FunctionBase : BlockStatement
     }
     function scopesearch(key, int flags)
     {
-        var found;
         for (var ns in self.usednamespaces) {
-            found = ns.scopesearch(key, flags);
+            var found = ns.scopesearch(key, flags);
             if (found != null)
                 return found;
         }
