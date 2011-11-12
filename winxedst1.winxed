@@ -5795,15 +5795,15 @@ class CallExpr : Expr
             args = args.optimize();
 
         if (funref instanceof MemberExpr) {
-            var subid;
             var sym = funref.search_nonmember();
             switch {
               case sym == null:
-                break;
+                return new CallMemberExpr(self, funref, args);
               case sym instanceof FunctionStatement:
                 if (!sym.ismulti()) {
-                    subid = sym.makesubid();
+                    var subid = sym.makesubid();
                     self.usesubid(subid);
+                    return new CallSubid(self, funref, args, subid);
                 }
                 else {
                     self.funref = new FunctionRef(self.owner, self.start, sym);
@@ -5816,8 +5816,9 @@ class CallExpr : Expr
               case sym instanceof Builtin:
                 return gencallbuiltin(self.owner, funref.start, sym, args);
                 break;
+              default:
+                InternalError("unexpected type found in scope", self.start);
             }
-            return new CallMemberExpr(self, funref, args, sym, subid);
         }
         if (funref instanceof MemberRefExpr)
             return new CallMemberRefExpr(self, funref, args);
@@ -5902,30 +5903,35 @@ class CallExpr : Expr
 
 //*********************************************
 
-// Method calls. Always created from CallExpr, never directly.
+// CallExpr variants. Always created from CallExpr, never directly.
 
-// Method call by name.
-class CallMemberExpr : CallExpr
+class CallSubid : CallExpr
 {
-    var sym;
     var subid;
-    function CallMemberExpr(callst, funref, args, sym, subid)
+    function CallSubid(callst, funref, args, subid)
     {
         self.Expr(callst.owner, callst.start);
         self.funref = funref;
         self.args = args;
-        self.sym = sym;
         self.subid = subid;
     }
     function emitcall(e)
     {
-        if (self.sym != null) {
-            if (self.subid != null)
-                return self.subid;
-            var sym = self.sym;
-            if (sym instanceof FunctionExtern)
-                return sym.emit_get(e, self);
-        }
+        return self.subid;
+    }
+}
+
+// Method call by name.
+class CallMemberExpr : CallExpr
+{
+    function CallMemberExpr(callst, funref, args)
+    {
+        self.Expr(callst.owner, callst.start);
+        self.funref = funref;
+        self.args = args;
+    }
+    function emitcall(e)
+    {
         var funref = self.funref;
 
         var first = funref.left;
