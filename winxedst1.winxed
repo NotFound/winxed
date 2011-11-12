@@ -10358,7 +10358,6 @@ class NamespaceBase : VarContainer
     var namespaces;
     var classes;
     var functions;
-    var functions_name;
     var items;
     var owner;
 
@@ -10370,8 +10369,7 @@ class NamespaceBase : VarContainer
             self.namespaces = [];
             self.usednamespaces = [];
             self.classes = [];
-            self.functions = [];
-            self.functions_name = {};
+            self.functions = {};
             createPredefConstString(self, '__NAMESPACE__', nspath.fullname());
         }
         else {
@@ -10380,13 +10378,25 @@ class NamespaceBase : VarContainer
             self.usednamespaces = previous.usednamespaces;
             self.classes = previous.classes;
             self.functions = previous.functions;
-            self.functions_name = previous.functions_name;
         }
         self.items = [];
     }
-    function addfunction(func)
+    function addfunction(newfunc)
     {
-        push(self.functions, func);
+        __ASSERT__((newfunc instanceof Builtin) ||
+                   (newfunc instanceof FunctionStatement) ||
+                   (newfunc instanceof FunctionExtern));
+        var functions = self.functions;
+        string name = newfunc.name;
+        var func = functions[name];
+        if (func == null)
+            functions[name] = newfunc;
+        else {
+            if (func instanceof FunctionStatement)
+                func.setmulti();
+            if (newfunc instanceof FunctionStatement)
+                newfunc.setmulti();
+        }
     }
     function fixnamespaces()
     {
@@ -10468,10 +10478,8 @@ class NamespaceBase : VarContainer
         var sym = self.checkclass_base(name);
         if (sym != null)
             return sym;
-        for (sym in self.functions)
-            if (sym.name == name)
-                return sym;
-        return null;
+        var functions = self.functions;
+        return functions[name];
     }
     function scopesearchlocal(key, int flags, int offset)
     {
@@ -10564,7 +10572,6 @@ class NamespaceBase : VarContainer
     function parse(tk)
     {
         var items = self.items;
-        var functions_name = self.functions_name;
         var t;
         for (t = tk.get(); !(t.iseof() || t.isop('}')); t = tk.get())
         {
@@ -10581,15 +10588,6 @@ class NamespaceBase : VarContainer
                 string name = f.name;
                 self.addfunction(f);
                 push(items, f);
-                var funcs = functions_name[name];
-                if (funcs != null) {
-                    f.setmulti();
-                    if (elements(funcs) == 1)
-                        funcs[0].setmulti();
-                    funcs.push(f);
-                }
-                else
-                    functions_name[name] = [ f ];
                 break;
               case 'class':
                 parseClass(t, tk, self);
