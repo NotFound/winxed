@@ -3387,6 +3387,24 @@ function concat_literal(lexpr, rexpr)
 
 //*********************************************
 
+class FunctionRef : Expr
+{
+    var sym;
+    function FunctionRef(owner, start, sym)
+    {
+        self.Expr(owner, start);
+        self.sym = sym;
+    }
+    function checkresult() { return REGvar; }
+    function emit(e, result)
+    {
+        var sym = self.sym;
+        var path = sym.owner.getpath();
+        self.annotate(e);
+        path.emit_get_global(e, self.owner, result, sym.name);
+    }
+}
+
 class IdentifierExpr : SimpleExpr
 {
     var name;
@@ -3480,13 +3498,21 @@ class IdentifierExpr : SimpleExpr
         }
         else {
             var sym = self.scopesearch([name], 0);
-            if (sym != null && sym instanceof FunctionStatement) {
+            switch {
+              case sym == null:
+                break;
+              case sym instanceof FunctionStatement:
                 if (!sym.ismulti()) {
                     string id = sym.makesubid();
                     self.subid = id;
                     self.usesubid(id);
                     self.owner.createvarnamed(name, REGvar, id);
                 }
+                else
+                    return new FunctionRef(self.owner, self.start, sym);
+                break;
+              case sym instanceof FunctionExtern:
+                return new FunctionRef(self.owner, self.start, sym);
             }
         }
         return self;
@@ -5769,31 +5795,27 @@ class CallExpr : Expr
             args = args.optimize();
 
         if (funref instanceof MemberExpr) {
-            // Check if the first element of the member expression
-            // is an identfier. In that case, if it's not in scope
-            // look for a function in accessible namespaces.
-            var sym;
             var subid;
-            var first = funref.left;
-            while (first instanceof MemberExpr)
-                first = first.left;
-            if (first instanceof IdentifierExpr) {
-                var idfirst = first.checkIdentifier();
-                if (idfirst == null || idfirst == '') {
-                    var key = [ ];
-                    funref.buildkey(key);
-                    sym = self.scopesearch(key, 0);
-                    if (sym != null) {
-                        if (sym instanceof FunctionStatement) {
-                            if (!sym.ismulti()) {
-                                subid = sym.makesubid();
-                                self.usesubid(subid);
-                            }
-                        }
-                        if (sym instanceof Builtin)
-                            return gencallbuiltin(self.owner, funref.start, sym, args);
-                    }
+            var sym = funref.search_nonmember();
+            switch {
+              case sym == null:
+                break;
+              case sym instanceof FunctionStatement:
+                if (!sym.ismulti()) {
+                    subid = sym.makesubid();
+                    self.usesubid(subid);
                 }
+                else {
+                    self.funref = new FunctionRef(self.owner, self.start, sym);
+                    return self;
+                }
+                break;
+              case sym instanceof FunctionExtern:
+                self.funref = new FunctionRef(self.owner, self.start, sym);
+                return self;
+              case sym instanceof Builtin:
+                return gencallbuiltin(self.owner, funref.start, sym, args);
+                break;
             }
             return new CallMemberExpr(self, funref, args, sym, subid);
         }
@@ -5834,7 +5856,7 @@ class CallExpr : Expr
                     call = sym.emit_get(e, self);
                     break;
                   case sym instanceof Builtin:
-                    InternalError("Builtin unexpeted here", self);
+                    InternalError("Builtin unexpected here", self);
                   default:
                     call = join("", [ "'", funref.getName(), "'" ] );
                 }
@@ -5981,9 +6003,41 @@ class MemberExpr : MemberExprBase
         self.right = right;
     }
     function checkresult() { return REGvar; }
+    function search_nonmember()
+    {
+        // Check if the first element of the member expression
+        // is an identfier. In that case, if it's not in scope
+        // look for a function in accessible namespaces.
+        var sym;
+        var subid;
+        var first = self.left;
+        while (first instanceof MemberExpr)
+            first = first.left;
+        if (first instanceof IdentifierExpr) {
+            var idfirst = first.checkIdentifier();
+            if (idfirst == null || idfirst == '') {
+                var key = [ ];
+                self.buildkey(key);
+                return self.scopesearch(key, 0);
+            }
+        }
+        return null;
+    }
     function optimize()
     {
         self.left = self.left.optimize();
+
+        var sym = self.search_nonmember();
+        switch {
+          case sym == null:
+            break;
+          case sym instanceof FunctionStatement:
+            if (sym.ismulti())
+              return new FunctionRef(self.owner, self.start, sym);
+            break;
+          case sym instanceof FunctionExtern:
+            return new FunctionRef(self.owner, self.start, sym);
+        }
         return self;
     }
     function buildkey(key)
