@@ -129,13 +129,6 @@ function InternalError(string msg, var pos [optional], int has_pos [opt_flag])
     throw Error(msg, 2, __WINXED_ERROR__, payload);
 }
 
-function TokenError(string msg, tk, int line)
-{
-    throw Error(msg + ' in ' + string(tk.filename) + ' line ' + string(line),
-            2, __WINXED_ERROR__,
-            new WinxedCompilerError(ERR_TOKEN, msg, tk.filename, line));
-}
-
 function SyntaxError(string msg, var pos)
 {
     int line = pos.linenum();
@@ -479,6 +472,28 @@ class TokenFloat : TokenWithVal
 //       Tokenizer auxiliar functions
 //*********************************************
 
+function TokenError(string msg, tk, int line)
+{
+    throw Error(msg + ' in ' + string(tk.filename) + ' line ' + string(line),
+            2, __WINXED_ERROR__,
+            new WinxedCompilerError(ERR_TOKEN, msg, tk.filename, line));
+}
+
+function UnterminatedString(tk, int line)
+{
+    TokenError('Unterminated string', tk, line);
+}
+
+function UnterminatedHeredoc(tk, int line)
+{
+    TokenError('Unterminated heredoc', tk, line);
+}
+
+function UnclosedComment(tk, int line)
+{
+    TokenError("Unclosed comment", tk, line);
+}
+
 function getquoted(tk, string start, int line)
 {
     string s = '';
@@ -487,12 +502,12 @@ function getquoted(tk, string start, int line)
         switch (c) {
           case "":
           case "\n":
-            TokenError('Unterminated string', tk, line);
+            UnterminatedString(tk, line);
           case '\':
             // Quick fix for escaped double quotes.
             string c2 = tk.getchar();
             if (c2 == '' || c2 == "\n")
-                TokenError('Unterminated string', tk, line);
+                UnterminatedString(tk, line);
             s += c + c2;
             break;
           default:
@@ -508,7 +523,7 @@ function getsinglequoted(tk, string start, int line)
     string c;
     for (c = tk.getchar(); c != "'"; c = tk.getchar()) {
         if (c == "" || c == "\n")
-            TokenError('Unterminated string', tk, line);
+            UnterminatedString(tk, line);
         s += c;
     }
     return new TokenSingleQuoted(tk.filename, line, s);
@@ -521,7 +536,7 @@ function getheredoc(tk, string start, int linenum)
     for (c = tk.getchar(); c != "\n"; c = tk.getchar()) {
         switch (c) {
           case '':
-            TokenError('Unterminated heredoc', tk, linenum);
+            UnterminatedHeredoc(tk, linenum);
           case '"':
           case '\':
             // Encode the mark the same way as the heredoc content
@@ -540,7 +555,7 @@ function getheredoc(tk, string start, int linenum)
         for (c = tk.getchar(); c != "\n"; c = tk.getchar()) {
             switch (c) {
               case '':
-                TokenError('Unterminated heredoc', tk, linenum);
+                UnterminatedHeredoc(tk, linenum);
               case '"':
               case '\':
                 c = '\' + c;
@@ -634,11 +649,11 @@ function getcomment(tk, string start, int line)
        for ( ; c != '' && c != '*'; c = tk.getchar())
             s += c;
         if (c == '')
-            TokenError("Unclosed comment", tk, line);
+            UnclosedComment(tk, line);
         s += c;
         c = tk.getchar();
         if (c == '')
-            TokenError("Unclosed comment", tk, line);
+            UnclosedComment(tk, line);
     } while (c != '/');
     s += '/';
     return new TokenComment(tk.filename, line, s);
