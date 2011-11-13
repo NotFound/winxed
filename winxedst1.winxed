@@ -10591,6 +10591,19 @@ class NamespaceBase : VarContainer
         var child = parent.childnamespace(start, name, modifier);
         child.parse(tk);
     }
+    function parseextern(tk)
+    {
+        //Syntax: extern function_name;
+
+        var t = tk.get();
+        if (!t.iskeyword('function'))
+            SyntaxError('Unsupported extern', t);
+        t = tk.get();
+        RequireIdentifier(t);
+        ExpectOp(';', tk);
+        var funex = new FunctionExtern(t, self);
+        self.addfunction(funex);
+    }
     function parse(tk)
     {
         var items = self.items;
@@ -10615,14 +10628,7 @@ class NamespaceBase : VarContainer
                 parseClass(t, tk, self);
                 break;
               case 'extern':
-                var t1 = tk.get();
-                if (!t1.iskeyword('function'))
-                    SyntaxError('Unsupported extern', t1);
-                t1 = tk.get();
-                RequireIdentifier(t1);
-                ExpectOp(';', tk);
-                var fex = new FunctionExtern(t1, self);
-                self.addfunction(fex);
+                self.parseextern(tk);
                 break;
               case 'using':
                 parsensUsing(t, tk, self);
