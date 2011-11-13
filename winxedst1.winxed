@@ -51,6 +51,13 @@ function isident(string c)
         c) > -1;
 }
 
+function sformat(string format, args[slurpy])
+{
+    var builder = new ['StringBuilder'];
+    builder.append_format(format, args:[flat]);
+    return string(builder);
+}
+
 // Algorithms
 
 function for_each(src, func)
@@ -1274,10 +1281,8 @@ class Builtin_frombody
                 InternalError('Bad result in non void builtin');
         }
 
-        var builder = new ['StringBuilder'];
-        builder.append_format(self.body, result, args:[flat]);
         e.annotate(start);
-        e.say(string(builder));
+        e.say(sformat(self.body, result, args:[flat]));
     }
 }
 
@@ -1525,15 +1530,19 @@ function Builtin_say(e, owner, start, string result, args)
 
 function emit_printP0(string arg)
 {
-    return INDENT + "print $P0, " + arg + "\n";
+    return INDENT + "print $P0, " + arg;
 }
 
 function Builtin_cry(e, owner, start, string result, args)
 {
     e.annotate(start);
-    e.say(INDENT + "getstderr $P0\n",
-        join("", transform(args, [], emit_printP0)),
-        INDENT + "print $P0, \"\\n\"");
+    e.say(sformat(
+<<:
+    getstderr $P0
+%0
+    print $P0, "\n"
+:>>
+        , join("\n", transform(args, [], emit_printP0))));
 }
 
 function Builtin_print(e, owner, start, string result, args)
@@ -1553,11 +1562,14 @@ function Builtin_ASSERT(e, owner, start, string result, args)
         var arg = args[0];
         var reg = arg.emit_getint(e);
         e.emitif(reg, label);
-        e.say(INDENT, "getstderr $P0");
-        e.say(INDENT, "print $P0, \"Assertion failed at '", start.filename(), "' line \"");
-        e.say(INDENT, "print $P0, ", start.linenum());
-        e.say(INDENT, "print $P0, \"\\n\"");
-        e.say(INDENT, "exit 1");
+        e.print(sformat(
+<<:
+    print $P0, "Assertion failed at '%0' line "
+    print $P0, %1
+    print $P0, "\n"
+    exit 1
+:>>
+            , start.filename(), start.linenum()));
         e.emitlabel(label);
     }
 }
@@ -6216,7 +6228,8 @@ class StringIndexExpr : Expr
         string rreg = self.arg.emit_getint(e);
         if (result != '') {
             self.annotate(e);
-            e.say(INDENT, 'substr ', result, ', ', lreg, ', ', rreg, ', ', 1);
+            e.say(sformat(INDENT + "substr %0, %1, %2, 1",
+                    result, lreg, rreg));
         }
     }
 }
@@ -6380,7 +6393,7 @@ class ArrayExpr : Expr
             string valuereg = collect.add(value);
             if (container != '') {
                 self.annotate(e);
-                e.say(INDENT, container, "[", i, "] = ", valuereg);
+                e.say(sformat(INDENT + "%0[%1] = %2", container, i, valuereg));
                 ++i;
             }
         }
@@ -7910,7 +7923,7 @@ class SwitchStatement : SwitchBaseStatement
             string label = self.genlabel();
             push(caselabel, label);
             caseval.emit(e, regval);
-            e.say(INDENT, 'if ', reg, ' == ', regval, ' goto ', label);
+            e.say(sformat(INDENT + "if %0 == %1 goto %2", reg, regval, label));
         }
         e.emitgoto(defaultlabel);
 
@@ -8192,8 +8205,12 @@ class ThrowStatement : Statement
             // Build a Exception with default values and the message provided
             string msg = reg;
             reg = self.tempreg(REGvar);
-            e.say(INDENT, 'root_new ', reg, ", ['parrot';'Exception']");
-            e.say(INDENT + reg + "['message'] = ", msg);
+            e.print(sformat(
+<<:
+    root_new %0, ['parrot';'Exception']
+    %0['message'] = %1
+:>>
+                , reg, msg));
             break;
           default:
             SyntaxError("Invalid throw argument", self);
@@ -8230,8 +8247,8 @@ class TryModifierList : ModifierList
                 if (nargs != 1)
                     SyntaxError('Wrong modifier args', self);
                 var arg = modif.getarg(0);
-                string argreg = arg.emit_get(e);
-                e.say(INDENT, reghandler, ".'", modifname, "'(", argreg, ")");
+                e.say(sformat(INDENT + "%0.'%1'(%2)",
+                        reghandler, modifname, arg.emit_get(e)));
                 break;
               case 'handle_types':
               case 'handle_types_except':
@@ -8240,8 +8257,8 @@ class TryModifierList : ModifierList
                     var arg = modif.getarg(i);
                     push(argregs, arg.emit_get(e));
                 }
-                e.say(INDENT, reghandler, ".'", modifname,
-                        "'(", join(', ', argregs), ")");
+                e.say(sformat(INDENT + "%0.'%1'(%2)",
+                        reghandler, modifname, join(', ', argregs)));
                 break;
               case 'allowtailcall':
                 break;
@@ -8312,9 +8329,12 @@ class TryStatement : BlockStatement
 
         self.annotate(e);
         e.comment('try: create handler');
-
-        e.say(INDENT, 'new ', reghandler, ", 'ExceptionHandler'");
-        e.say(INDENT, 'set_label ', reghandler, ', ', labelhandler);
+        e.print(sformat(
+<<:
+    new %0, 'ExceptionHandler'
+    set_label %0, %1
+:>>
+            , reghandler, labelhandler));
 
         if (self.modifiers != null)
             self.modifiers.emitmodifiers(e, reghandler);
@@ -8512,15 +8532,16 @@ class DeclareArrayStatement : DeclareBase
         var size = self.size;
         var init = self.initarray;
         var basetype = self.basetype;
-        string arraytype = string(self.arraytype) + 'Array';
+        var arraytype = self.arraytype;
         if (size != null) {
             // Fixed size array
-            string regsize = size.emit_get(e);
-            e.say(INDENT, 'new ', reg, ", ['Fixed", arraytype, "'], ", regsize);
+            e.say(sformat(INDENT + "new %0, ['Fixed%1Array'], %2",
+                    reg, arraytype, size.emit_get(e)));
         }
         else {
             // Variable size array
-            e.say(INDENT, 'new ', reg, ", ['Resizable", arraytype, "']");
+            e.say(sformat(INDENT + "new %0, ['Resizable%1Array']",
+                    reg, arraytype));
         }
         if (init != null) {
             string itemreg = self.tempreg(basetype);
@@ -8534,7 +8555,7 @@ class DeclareArrayStatement : DeclareBase
             int i = 0;
             for (var item in init) {
                 item.emit(e, itemreg);
-                e.say(INDENT, reg, '[', i , '] = ', itemreg);
+                e.say(sformat(INDENT + "%0[%1] = %2", reg, i, itemreg));
                 ++i;
             }
         }
@@ -8802,8 +8823,8 @@ class ResizableVarStatement : VarStatement
     {
         self.annotate(e);
         string reg = self.reg;
-        e.comment('var ' + string(self.name) + '[] : ' + reg);
-        e.say(INDENT, 'new ', reg, ", 'ResizablePMCArray'");
+        e.comment(sformat("var %0[] : %1", self.name, reg));
+        e.say(sformat(INDENT + "new %0, 'ResizablePMCArray'", reg));
     }
 }
 
@@ -8828,8 +8849,8 @@ class FixedVarStatement : VarStatement
         string regsize = self.exprsize.emit_get(e);
         self.annotate(e);
         string reg = self.reg;
-        e.comment('var ' + string(self.name) + '[] : ' + reg);
-        e.say(INDENT, 'new ', reg, ", 'FixedPMCArray', ", regsize);
+        e.comment(sformat("var %0[] : %1", self.name, reg));
+        e.say(sformat(INDENT + "new %0, 'FixedPMCArray', %1", reg, regsize));
     }
 }
 
@@ -9416,7 +9437,7 @@ class FunctionBase : BlockStatement
             e.annotate(self.start);
             // lexicals declared in this function and its inner scopes
             for (string l in lexicals)
-                e.say(".lex '", lexicals[l], "', ", l);
+                e.say(sformat(".lex '%0', %1", lexicals[l], l));
             // lexicals from outers used inside
             for (string l in usedlexicals) {
                 if (substr(l, 0, 1) != '$')
@@ -10348,14 +10369,12 @@ class NamespacePath
     }
     function emit_new(e, fromns, string regnew, string reginit[optional])
     {
-        if (self.samehllas(fromns)) {
-            e.print(INDENT, 'new ', regnew, ", ");
-            e.print(self.getparrotkey());
-        }
-        else {
-            e.print(INDENT, 'root_new ', regnew, ", ");
-            e.print(self.getparrotrootkey());
-        }
+        if (self.samehllas(fromns))
+            e.print(sformat(INDENT + "new %0, %1",
+                    regnew, self.getparrotkey()));
+        else
+            e.print(sformat(INDENT + "root_new %0, %1",
+                    regnew, self.getparrotrootkey()));
         if (reginit != null && reginit != '')
             e.print(reginit);
         e.say();
@@ -10370,7 +10389,8 @@ class NamespacePath
     function emit_get_class(e, fromns, string result)
     {
         if (self.samehllas(fromns))
-            e.say(INDENT + "get_class ", result, ", ", self.getparrotkey());
+            e.say(sformat(INDENT + "get_class %0, %1",
+                    result, self.getparrotkey()));
         else {
             // There is no get_root_class. This will work for a now:
             // Get the namespace as root global object, and then get
@@ -10380,12 +10400,14 @@ class NamespacePath
             string name = path.pop();
             string shll = hll != null ? downcase(hll) : 'parrot';
             if (elements(path) != 0)
-                e.say(INDENT + "get_root_global ", result, ", ['", shll,
-                    "'; '", join("'; '", path), "'], '", name, "'");
+                e.say(sformat(
+                        INDENT + "get_root_global %0, ['%1'; '%2'], '%3'",
+                        result, shll, join("'; '", path), name));
             else
-                e.say(INDENT + "get_root_global ", result, ", ['", shll,
-                    "'], '", name, "'");
-            e.say(INDENT + "get_class ", result, ", ", result);
+                e.say(sformat(
+                        INDENT + "get_root_global %0, ['%1'], '%2'",
+                        result, shll, name));
+            e.say(sformat(INDENT + "get_class %0, %0", result));
         }
     }
     function emit_get_global(e, fromns, string result, string name)
@@ -10795,7 +10817,7 @@ class NamespaceStatement : NamespaceBase
     {
         var hll = self.hll;
         if (hll !=  null)
-            e.say(".HLL '", hll, "'");
+            e.say(sformat(".HLL '%0'", hll));
 
         self.emit_base(e);
 
@@ -10906,9 +10928,13 @@ class RootNamespace : NamespaceBase
 
         var loads = self.loads;
         if (loads != null) {
-            e.say("\n.sub initial_load_bytecode :anon :load :init\n",
-                join("\n", transform(loads, [], emit_loadbytecode)),
-                "\n.end\n");
+            e.say(sformat(
+<<:
+.sub initial_load_bytecode :anon :load :init
+%0
+.end
+:>>
+                , join("\n", transform(loads, [], emit_loadbytecode))));
         }
         if (libs != null || loads != null)
             e.comment('end libs');
