@@ -801,6 +801,12 @@ const string
     REGraw1    = '!', // raw mode one arg
     REGnone    = 'v'; // void return
 
+// Register reserved for temporal and dicardable results
+const string DISCARD_IREG = "$I0";
+const string DISCARD_NREG = "$N0";
+const string DISCARD_SREG = "$S0";
+const string DISCARD_PREG = "$P0";
+
 function typetoregcheck(string type)
 {
     switch (type) {
@@ -1422,7 +1428,7 @@ class Builtin_typecast
     {
         self.type = type;
     }
-    function invoke [vtable](e, owner, start, result, args)
+    function invoke [vtable](e, owner, start, string result, args)
     {
         string type = self.type;
         if (elements(args) != 1)
@@ -1681,7 +1687,7 @@ function builtin_sleep(e, owner, start, result, args)
             reg = "0";
         else {
             string aux = expr.emit_get(e);
-            reg = owner.tempreg(REGfloat);
+            reg = DISCARD_NREG;
             e.annotate(start);
             e.emitset(reg, aux);
         }
@@ -2902,7 +2908,7 @@ class ExprStatement : Statement
     }
     function emit(e)
     {
-        self.expr.emit(e, '');
+        self.expr.emit_void(e);
     }
 }
 
@@ -3117,9 +3123,23 @@ class Expr : CommonBase
     function emit_get(e)
     {
         string type = self.checkresult();
-        string reg = type == REGnone ? '' : self.tempreg(type);
+        string reg = self.tempreg(type);
         self.emit(e, reg);
         return reg;
+    }
+    function emit_void(e)
+    {
+        string type = self.checkresult();
+        string reg;
+        switch (type) {
+          case REGint:    reg = DISCARD_IREG; break;
+          case REGfloat:  reg = DISCARD_NREG; break;
+          case REGstring: reg = DISCARD_SREG; break;
+          case REGvar:    reg = DISCARD_PREG; break;
+          default:
+            InternalError("Unexcpected emit_void with type '" + type + "'", self.start);
+        }
+        self.emit(e, reg);
     }
     function emit_get_nonull(e)
     {
@@ -3180,17 +3200,18 @@ class FunctionExpr : Expr
         self.usesubid(self.fn.getsubid());
         return self;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         self.annotate(e);
         var fn = self.fn;
-        if (result != '') {
-            string subid = fn.getsubid();
-            if (fn.needclosure())
-                e.emitarg2('newclosure', result, subid);
-            else
-                e.emitset(result, subid);
-        }
+        string subid = fn.getsubid();
+        if (fn.needclosure())
+            e.emitarg2('newclosure', result, subid);
+        else
+            e.emitset(result, subid);
+    }
+    function emit_void(e)
+    {
     }
 }
 
@@ -3277,6 +3298,7 @@ class Literal : SimpleExpr
 {
     function isliteral() { return true; }
     function hascompilevalue() { return true; }
+    function emit_void(e) { }
 }
 
 //*********************************************
@@ -3305,10 +3327,9 @@ class StringLiteral : Literal
             str = unescape(str);
         return str;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
-        if (result != '')
-            e.emitset(result, self.getPirString());
+        e.emitset(result, self.getPirString());
     }
     function emit_get(e)
     {
@@ -3344,15 +3365,13 @@ class IntegerLiteral : Literal
         float value = self.getIntegerValue();
         return value;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
-        if (result != '') {
-            int value = self.getIntegerValue();
-            if (value == 0)
-                e.emitnull(result);
-            else
-                e.emitset(result, value);
-        }
+        int value = self.getIntegerValue();
+        if (value == 0)
+            e.emitnull(result);
+        else
+            e.emitset(result, value);
     }
     function emit_get(e)
     {
@@ -3377,12 +3396,10 @@ class FloatLiteral : Literal
         float value = self.numval.getfloatvalue();
         return value;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
-        if (result != '') {
-            string n = self.emit_get(e);
-            e.emitset(result, n);
-        }
+        string n = self.emit_get(e);
+        e.emitset(result, n);
     }
     function emit_get(e)
     {
@@ -3423,7 +3440,7 @@ class FunctionRef : Expr
         self.sym = sym;
     }
     function checkresult() { return REGvar; }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var sym = self.sym;
         var path = sym.owner.getpath();
@@ -3563,14 +3580,13 @@ class IdentifierExpr : SimpleExpr
         }
         return id;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
-        if (result != '') {
-            self.annotate(e);
-            string id = self.emit_getid(e);
-            e.emitset(result, id);
-        }
+        self.annotate(e);
+        string id = self.emit_getid(e);
+        e.emitset(result, id);
     }
+    function emit_void() { }
     function emit_get(e)
     {
         self.annotate(e);
@@ -3637,13 +3653,11 @@ class LexicalVolatileExpr : Expr
         e.emitfind_lex(reg, lexname);
         return reg;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
-        if (result != '') {
-            self.annotate(e);
-            string reg = self.emit_get(e);
-            e.emitset(result, reg);
-        }
+        self.annotate(e);
+        string reg = self.emit_get(e);
+        e.emitset(result, reg);
     }
     function emit_assign_get(e, expr)
     {
@@ -3703,7 +3717,7 @@ class OpNamespaceExpr : OpExpr
             Expected('namespace identifier', start);
     }
     function checkresult() { return REGvar; }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var owner = self.owner;
         var sym = owner.scopesearch(self.key, SEARCH_NAMESPACE);
@@ -3745,15 +3759,10 @@ class OpClassExpr : OpExpr
         }
         InternalError("Unexpected class key", clspec.start);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var owner = self.owner;
         var clspec = self.clspec;
-        // In void context use a temporary and get it anyway,
-        // to avoid discarding side effects.
-        if (result == '')
-            result = self.owner.tempreg(REGvar);
-
         // TODO: cover more class specifiers
         switch {
           case clspec instanceof ClassSpecifierId:
@@ -3872,7 +3881,7 @@ class OpDeleteExpr : OpDelExBase
     {
         self.OpUnaryExpr(owner, start, subexpr);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var expr = self.subexpr;
         if (expr instanceof IndexExpr && expr.checkresult() != REGstring) {
@@ -3881,8 +3890,7 @@ class OpDeleteExpr : OpDelExBase
             e.print(INDENT + 'delete ');
             expr.emit_aux(e);
             e.say();
-            if (result != '')
-                e.emitset(result, '1');
+            e.emitset(result, '1');
         }
         else
             SyntaxError("delete with invalid operator", self);
@@ -3895,14 +3903,13 @@ class OpExistsExpr : OpDelExBase
     {
         self.OpUnaryExpr(owner, start, subexpr);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var expr = self.subexpr;
-        string reg = result != '' ? result : self.tempreg(REGint);
         if (expr instanceof IndexExpr && expr.checkresult() != REGstring) {
             expr.emit_prep(e);
             self.annotate(e);
-            e.print(INDENT + 'exists ', reg, ', ');
+            e.print(INDENT + 'exists ', result, ', ');
             expr.emit_aux(e);
             e.say();
         }
@@ -3944,7 +3951,7 @@ class OpUnaryMinusExpr : OpUnaryExpr
         }
         return self;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         string reg = self.subexpr.emit_get(e);
         self.annotate(e);
@@ -3986,7 +3993,7 @@ class OpNotExpr : OpUnaryExpr
     {
         return self.subexpr;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var subexpr = self.subexpr;
         string reg = subexpr.emit_get(e);
@@ -3996,11 +4003,15 @@ class OpNotExpr : OpUnaryExpr
             e.emitarg2('not', result, reg);
             break;
           case REGvar:
+            //e.comment("not var");
+            //die("not var");
             e.emitarg2('isfalse', result, reg);
             break;
           default:
+            //e.comment("not default");
             e.emitarg2('isfalse', result, reg);
         }
+        //e.comment("not END");
     }
 }
 
@@ -4033,14 +4044,12 @@ class OpBinNotExpr : OpUnaryExpr
             return subexpr.negated();
         return self;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var subexpr = self.subexpr;
         string reg = subexpr.emit_getint(e);
-        if (result != '') {
-            self.annotate(e);
-            e.emitarg3('bxor', result, reg, -1);
-        }
+        self.annotate(e);
+        e.emitarg3('bxor', result, reg, -1);
     }
 }
 
@@ -4064,11 +4073,14 @@ class OpIncDec : OpUnaryExpr
 
 class OpPreIncDec : OpIncDec
 {
-    function emit(e, result)
+    function emit(e, string result)
     {
         string reg = self.emit_get(e);
-        if (result != '')
-            e.emitset(result, reg);
+        e.emitset(result, reg);
+    }
+    function emit_void(e)
+    {
+        self.emit_get(e);
     }
 }
 
@@ -4112,15 +4124,21 @@ class OpPostIncExpr : OpIncDec
     {
         self.OpUnaryExpr(owner, start, subexpr);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         string reg = self.subexpr.emit_get(e);
         self.annotate(e);
-        if (result != '')
-            e.emitset(result, reg);
+        e.emitset(result, reg);
         e.emitinc(reg);
         self.iflexical(e, reg);
         return reg;
+    }
+    function emit_void(e)
+    {
+        string reg = self.subexpr.emit_get(e);
+        self.annotate(e);
+        e.emitinc(reg);
+        self.iflexical(e, reg);
     }
 }
 
@@ -4130,15 +4148,21 @@ class OpPostDecExpr : OpIncDec
     {
         self.OpUnaryExpr(owner, start, subexpr);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         string reg = self.subexpr.emit_get(e);
         self.annotate(e);
-        if (result != '')
-            e.emitset(result, reg);
+        e.emitset(result, reg);
         e.emitdec(reg);
         self.iflexical(e, reg);
         return reg;
+    }
+    function emit_void(e)
+    {
+        string reg = self.subexpr.emit_get(e);
+        self.annotate(e);
+        e.emitdec(reg);
+        self.iflexical(e, reg);
     }
 }
 
@@ -4175,13 +4199,11 @@ class OpBaseAssignExpr : Expr
         if (lexpr.isnull() || lexpr.isliteral())
             NoLeftSide(lexpr);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         string reg = self.emit_get(e);
-        if (result != '') {
-            self.annotate(e);
-            e.emitset(result, reg);
-        }
+        self.annotate(e);
+        e.emitset(result, reg);
     }
 }
 
@@ -4195,18 +4217,23 @@ class OpAssignExpr : OpBaseAssignExpr
         var lexpr = self.lexpr;
         return lexpr.emit_assign_get(e, self.rexpr);
     }
+    function emit_void(e)
+    {
+        self.annotate(e);
+        var lexpr = self.lexpr;
+        lexpr.emit_assign_get(e, self.rexpr);
+    }
 }
 
 //*********************************************
 
 class OpAssignToExpr : OpBaseAssignExpr
 {
-    function emit(e, result)
+    function emit(e, string result)
     {
         self.annotate(e);
         string reg = self.emit_get(e);
-        if (result != null && result != '')
-            e.emitassign(result, reg);
+        e.emitassign(result, reg);
     }
     function emit_get(e)
     {
@@ -4219,6 +4246,11 @@ class OpAssignToExpr : OpBaseAssignExpr
         self.annotate(e);
         e.emitassign(reg, reg2);
         return reg;
+    }
+    function emit_void(e)
+    {
+        self.annotate(e);
+        string reg = self.emit_get(e);
     }
 }
 
@@ -4263,6 +4295,10 @@ class OpAddToExpr : OpBaseAssignExpr
             }
         }
         return reg;
+    }
+    function emit_void(e)
+    {
+        self.emit_get(e);
     }
 }
 
@@ -4380,7 +4416,7 @@ class ComparatorBaseExpr : OpBinaryExpr
         }
         return self;
     }
-    function emit_comparator(e, result, int doifelse[optional])
+    function emit_comparator(e, string result, int doifelse[optional])
     {
         string rl = self.lexpr.checkresult();
         string rr = self.rexpr.checkresult();
@@ -4433,7 +4469,7 @@ class ComparatorBaseExpr : OpBinaryExpr
             break;
         }
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         self.emit_comparator(e, result);
     }
@@ -4490,7 +4526,7 @@ class NullCheckerExpr : CheckerExpr
     {
         self.CheckerExpr(base, expr, checknull);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         string reg = self.expr.emit_get(e);
         self.annotate(e);
@@ -4515,17 +4551,15 @@ class ZeroCheckerExpr : CheckerExpr
     {
         self.CheckerExpr(base, expr, positive);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var expr = self.expr;
         string reg = expr.emit_getint(e);
-        if (result != '') {
-            self.annotate(e);
-            if (self.positive)
-                e.emitarg3('iseq', result, reg, 0);
-            else
-                e.emitarg3('isne', result, reg, 0);
-        }
+        self.annotate(e);
+        if (self.positive)
+            e.emitarg3('iseq', result, reg, 0);
+        else
+            e.emitarg3('isne', result, reg, 0);
     }
     function emit_else(e, string labelelse)
     {
@@ -4592,7 +4626,7 @@ class OpEqualExpr : ComparatorBaseExpr, Negable
         self.annotate(e);
         e.emitbinop(self.positive ? 'iseq' : 'isne', result, regl, regr);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         self.annotate(e);
         self.emit_comparator(e, result);
@@ -4631,7 +4665,7 @@ class OpSameExpr : ComparatorBaseExpr, Negable
         string op = positive ? 'issame' : 'isntsame';
         e.emitbinop(op, result, regl, regr);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         self.emit_comparator(e, result);
     }
@@ -4789,33 +4823,31 @@ class OpBoolAndExpr : OpBaseBoolExpr
         }
         return self;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
         string type = self.checkresult();
-        string res = result != null ? result : self.tempreg(type);
         if (type == REGint && lexpr.issimple() && rexpr.issimple()) {
             string lreg = self.emit_intleft(e);
             string rreg = self.emit_intright(e);
-            e.emitbinop('and', res, lreg, rreg);
+            e.emitbinop('and', result, lreg, rreg);
         }
         else {
-            string isfalse = self.owner.genlabel();
             string done = self.owner.genlabel();
-            string lres = lexpr.emit_get(e);
-            e.emitunless(lres, isfalse);
-            string rres = rexpr.emit_get(e);
-            if (type == REGvar && rexpr.checkresult() != REGvar)
-                e.emitbox(res, rres);
+            if (type == REGvar && lexpr.checkresult() != REGvar) {
+                string lres = self.lexpr.emit_get(e);
+                e.emitbox(result, lres);
+            }
             else
-                e.emitset(res, rres);
-            e.emitgoto(done);
-            e.emitlabel(isfalse);
-            if (type == REGvar && lexpr.checkresult() != REGvar)
-                e.emitbox(res, lres);
+                self.lexpr.emit(e, result);
+            e.emitunless(result, done);
+            if (type == REGvar && rexpr.checkresult() != REGvar) {
+                string rres = rexpr.emit_get(e);
+                e.emitbox(result, rres);
+            }
             else
-                e.emitset(res, lres);
+                self.rexpr.emit(e, result);
             e.emitlabel(done);
         }
     }
@@ -4840,33 +4872,31 @@ class OpBoolOrExpr : OpBaseBoolExpr
         }
         return self;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
         string type = self.checkresult();
-        string res = result != null ? result : self.tempreg(type);
         if (type == REGint && self.lexpr.issimple() && self.rexpr.issimple()) {
             string lreg = self.emit_intleft(e);
             string rreg = self.emit_intright(e);
-            e.emitbinop('or', res, lreg, rreg);
+            e.emitbinop('or', result, lreg, rreg);
         }
         else {
-            string istrue = self.owner.genlabel();
             string done = self.owner.genlabel();
-            string lres = self.lexpr.emit_get(e);
-            e.emitif(lres, istrue);
-            string rres = self.rexpr.emit_get(e);
-            if (type == REGvar && rexpr.checkresult() != REGvar)
-                e.emitbox(res, rres);
+            if (type == REGvar && lexpr.checkresult() != REGvar) {
+                string lres = self.lexpr.emit_get(e);
+                e.emitbox(result, lres);
+            }
             else
-                e.emitset(res, rres);
-            e.emitgoto(done);
-            e.emitlabel(istrue);
-            if (type == REGvar && lexpr.checkresult() != REGvar)
-                e.emitbox(res, lres);
+                self.lexpr.emit(e, result);
+            e.emitif(result, done);
+            if (type == REGvar && rexpr.checkresult() != REGvar) {
+                string rres = self.rexpr.emit_get(e);
+                e.emitbox(result, rres);
+            }
             else
-                e.emitset(res, lres);
+                self.rexpr.emit(e, result);
             e.emitlabel(done);
         }
     }
@@ -4886,13 +4916,12 @@ class OpBinAndExpr : OpBaseBinExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
-        string res = result != null ? result : self.tempreg(REGint);
         string lreg = self.emit_intleft(e);
         string rreg = self.emit_intright(e);
         self.annotate(e);
-        e.emitbinop('band', res, lreg, rreg);
+        e.emitbinop('band', result, lreg, rreg);
     }
     function do_op(int left, int right)
     {
@@ -4908,13 +4937,12 @@ class OpBinOrExpr : OpBaseBinExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
-        string res = result != null ? result : self.tempreg(REGint);
         string lreg = self.emit_intleft(e);
         string rreg = self.emit_intright(e);
         self.annotate(e);
-        e.emitbinop('bor', res, lreg, rreg);
+        e.emitbinop('bor', result, lreg, rreg);
     }
     function do_op(int left, int right)
     {
@@ -4930,13 +4958,12 @@ class OpBinXorExpr : OpBaseBinExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
-        string res = result != null ? result : self.tempreg(REGint);
         string lreg = self.emit_intleft(e);
         string rreg = self.emit_intright(e);
         self.annotate(e);
-        e.emitbinop('bxor', res, lreg, rreg);
+        e.emitbinop('bxor', result, lreg, rreg);
     }
     function do_op(int left, int right)
     {
@@ -5011,11 +5038,10 @@ class ConcatString : Expr
             regvalues[i] = string(values[i].emit_get(e));
         return regvalues;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         string auxreg = self.emit_get(e);
-        if (result != '')
-            e.emitset(result, auxreg);
+        e.emitset(result, auxreg);
     }
     function emit_get(e)
     {
@@ -5028,7 +5054,7 @@ class ConcatString : Expr
             e.emitconcat1(auxreg, regvalues[i]);
         return auxreg;
     }
-    function emit_concat_to(e, result)
+    function emit_concat_to(e, string result)
     {
         var regvalues = self.getregs(e);
         int nvalues = elements(regvalues);
@@ -5047,15 +5073,13 @@ class RepeatString : OpBinaryExpr
         self.set(from.owner, from.start, from.lexpr, from.rexpr);
     }
     function checkresult() { return REGstring; }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var rexpr = self.rexpr;
         string lreg = self.lexpr.emit_get(e);
         string rreg = rexpr.emit_getint(e);
-        if (result != '') {
-            self.annotate(e);
-            e.emitrepeat(result, lreg, rreg);
-        }
+        self.annotate(e);
+        e.emitrepeat(result, lreg, rreg);
     }
 }
 
@@ -5109,7 +5133,7 @@ class OpAddExpr : OpBinaryExpr
             return REGfloat;
         return REGint;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
@@ -5196,7 +5220,7 @@ class OpSubExpr : OpBinaryExpr
             return REGint;
         }
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         string type = self.checkresult();
         var lexpr = self.lexpr;
@@ -5271,7 +5295,7 @@ class OpMulExpr : OpBinaryExpr
         else
             return REGfloat;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
@@ -5304,10 +5328,8 @@ class OpMulExpr : OpBinaryExpr
                 rval = self.tempreg(REGfloat);
                 e.emitset(rval, rreg);
             }
-            if (result != '') {
-                self.annotate(e);
-                e.emitmul(result, lreg, rval);
-            }
+            self.annotate(e);
+            e.emitmul(result, lreg, rval);
             return;
         }
 
@@ -5341,8 +5363,6 @@ class OpMulExpr : OpBinaryExpr
             }
         }
         self.annotate(e);
-        if (result == '')
-            result = self.tempreg(self.checkresult());
         e.emitmul(result, lreg, rreg);
     }
 }
@@ -5386,7 +5406,7 @@ class OpDivExpr : OpBinaryExpr
     {
         return REGfloat;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var lexpr = self.lexpr;
         var aux;
@@ -5416,7 +5436,7 @@ class OpModExpr : OpBinaryIntExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         string lreg = self.emit_intleft(e);
         string rreg = self.emit_intright(e);
@@ -5441,7 +5461,7 @@ class OpCModExpr : OpBinaryExpr
     {
         return REGint;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         string lreg = self.emit_intleft(e);
         string rreg = self.emit_intright(e);
@@ -5462,13 +5482,12 @@ class OpShiftleftExpr : OpBinaryIntExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
-        string res = result != null ? result : self.tempreg(REGint);
         string lreg = self.emit_intleft(e);
         string rreg = self.emit_intright(e);
         self.annotate(e);
-        e.emitbinop('shl', res, lreg, rreg);
+        e.emitbinop('shl', result, lreg, rreg);
     }
     function do_op(int left, int right)
     {
@@ -5484,13 +5503,12 @@ class OpShiftrightExpr : OpBinaryIntExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
-        string res = result != null ? result : self.tempreg(REGint);
         string lreg = self.emit_intleft(e);
         string rreg = self.emit_intright(e);
         self.annotate(e);
-        e.emitbinop('shr', res, lreg, rreg);
+        e.emitbinop('shr', result, lreg, rreg);
     }
     function do_op(int left, int right)
     {
@@ -5682,7 +5700,11 @@ class CallBuiltinExpr : Expr
     {
         return self.builtin.result();
     }
-    function emit(e, result)
+    function emit_void(e)
+    {
+        self.emit(e, "");
+    }
+    function emit(e, string result)
     {
         var builtin = self.builtin;
         var args = self.args;
@@ -5908,7 +5930,7 @@ class CallExpr : Expr
             args.emitargs(e);
         e.say(')');
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         string call = self.emitcall(e);
         self.prepareargs(e);
@@ -5916,13 +5938,20 @@ class CallExpr : Expr
         self.annotate(e);
 
         e.print(INDENT);
-        if (result != null && result != '') {
-            if (result == '.tailcall')
-                e.print('.tailcall ');
-            else
-                e.print(result, ' = ');
-        }
+        if (result == '.tailcall')
+            e.print('.tailcall ');
+        else
+            e.print(result, ' = ');
 
+        e.print(call);
+        self.emitargs(e);
+    }
+    function emit_void(e)
+    {
+        string call = self.emitcall(e);
+        self.prepareargs(e);
+        self.annotate(e);
+        e.print(INDENT);
         e.print(call);
         self.emitargs(e);
     }
@@ -6098,14 +6127,14 @@ class MemberExpr : MemberExprBase
         self.emit(e, result);
         return result;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         string obj = self.left.emit_get(e);
         string ident = self.right.getidentifier();
         self.annotate(e);
         e.say(INDENT, 'getattribute ', result, ', ', obj, ", '", ident, "'");
     }
-    function emit_init(e, result)
+    function emit_init(e, string result)
     {
         self.emit(e, result);
     }
@@ -6163,7 +6192,7 @@ class MemberRefExpr : MemberExprBase
         self.right = self.right.optimize();
         return self;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var left = self.left;
         var right = self.right;
@@ -6172,8 +6201,6 @@ class MemberRefExpr : MemberExprBase
         string lreg = left.emit_get_nonull(e);
         string rreg = right.emit_get(e);
         self.annotate(e);
-        if (result == '')
-            result = self.tempreg(REGvar);
         e.say(INDENT, 'getattribute ', result, ', ', lreg, ", ", rreg);
     }
     function emit_assign_get(e, expr)
@@ -6222,15 +6249,13 @@ class StringIndexExpr : Expr
     {
        return REGstring;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         string lreg = self.left.emit_get(e);
         string rreg = self.arg.emit_getint(e);
-        if (result != '') {
-            self.annotate(e);
-            e.say(sformat(INDENT + "substr %0, %1, %2, 1",
-                    result, lreg, rreg));
-        }
+        self.annotate(e);
+        e.say(sformat(INDENT + "substr %0, %1, %2, 1",
+                result, lreg, rreg));
     }
 }
 
@@ -6297,7 +6322,7 @@ class IndexExpr : Expr
         e.print(join('; ', argregs));
         e.print(']');
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         self.emit_prep(e);
         self.annotate(e);
@@ -6358,18 +6383,17 @@ class ArrayExpr : Expr
         optimize_array(self.values);
         return self;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
-        if (result != '') {
-            string value = self.emit_get(e);
-            e.emitset(result, value);
-        }
-        else {
-            // No need to create the container, but the
-            // initializers may have secondary effects,
-            // so they should be evaluated.
-            self.emit_init(e, '');
-        }
+        string value = self.emit_get(e);
+        e.emitset(result, value);
+    }
+    function emit_void(e)
+    {
+        // No need to create the container, but the
+        // initializers may have secondary effects,
+        // so they should be evaluated.
+        self.emit_init(e, '');
     }
     function emit_get(e)
     {
@@ -6436,7 +6460,7 @@ class HashExpr : Expr
         optimize_array(self.values);
         return self;
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         self.annotate(e);
 
@@ -6465,6 +6489,10 @@ class HashExpr : Expr
             if (result != '')
                 e.say(INDENT, result, '[', keyreg, '] = ', valuereg);
         }
+    }
+    function emit_void(e)
+    {
+        self.emit(e, '');
     }
     function emit_get(e)
     {
@@ -6561,7 +6589,7 @@ class NewExpr : NewBaseExpr
         self.optimize_initializer();
         return self;
     }
-    function emit(e, result, int is_init[optional])
+    function emit(e, string result, int is_init[optional])
     {
         self.annotate(e);
 
@@ -6645,11 +6673,11 @@ class NewExpr : NewBaseExpr
         }
         if (numinits > 1 || (numinits >= 0 && type == BYIDENT)) {
             self.emit_constructor(e, regnew, constructor);
-            if (! is_init && result != '')
+            if (! is_init)
                 e.emitset(result, regnew);
         }
     }
-    function emit_init(e, result)
+    function emit_init(e, string result)
     {
         return self.emit(e, result, true);
     }
@@ -6673,7 +6701,7 @@ class NewIndexedExpr : NewBaseExpr
         else
             tk.unget(t);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         string reginit;
         switch (self.numargs()) {
@@ -6688,9 +6716,6 @@ class NewIndexedExpr : NewBaseExpr
             SyntaxError('Multiple init arguments not allowed here', self);
         }
         var nskey = self.nskey;
-
-        if (result == '')
-            result = self.tempreg(REGvar);
 
         e.print(INDENT);
         if (nskey.hasHLL())
@@ -6721,7 +6746,7 @@ class NewQualifiedExpr : NewBaseExpr
         else
             tk.unget(t);
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         int numinits = self.numargs();
         string regnew = result;
@@ -6737,8 +6762,7 @@ class NewQualifiedExpr : NewBaseExpr
         if (numinits >= 0) {
             string constructor = nskey.last();
             self.emit_constructor(e, regnew, constructor);
-            if (result != '')
-                e.emitset(result, regnew);
+            e.emitset(result, regnew);
         }
     }
 }
@@ -6792,7 +6816,7 @@ class OpInstanceOfExpr : Expr
         return self;
     }
     function checkresult() { return REGint; }
-    function emit(e, result)
+    function emit(e, string result)
     {
         var lexpr = self.lexpr;
         string ltype = lexpr.checkresult();
@@ -6800,10 +6824,9 @@ class OpInstanceOfExpr : Expr
             SyntaxError('Invalid instanceof left operand', lexpr);
         var checked = self.checked;
 
-        string r = result == '' ? self.tempreg(REGint) : result;
         string check = lexpr.emit_get(e);
         self.annotate(e);
-        e.print(INDENT + 'isa ', r, ', ', check, ', ');
+        e.print(INDENT + 'isa ', result, ', ', check, ', ');
         checked.emit(e, self.owner);
         e.say();
     }
@@ -6847,7 +6870,7 @@ class OpConditionalExpr : Expr
         else
             return etrue.checkresult();
     }
-    function emit(e, result)
+    function emit(e, string result)
     {
         string cond_end = self.owner.genlabel();
         string cond_false = self.owner.genlabel();
