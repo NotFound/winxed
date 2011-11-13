@@ -8750,7 +8750,18 @@ class ConstStatement : Statement
     }
     function emit(e)
     {
-        e.comment('Constant ' + string(self.name) + ' evaluated at compile time');
+        if (__DEBUG__) {
+            var val = self.data.getvalue();
+            string sval;
+            switch (self.type) {
+              case REGint:    sval = val.getIntegerValue(); break;
+              case REGfloat:  sval = val.getFloatValue(); break;
+              case REGstring: sval = val.getPirString(); break;
+              default: __ASSERT__(false);
+            }
+            e.comment("Constant '" + string(self.name) +
+                    "' set to: " + sval);
+        }
     }
 }
 
@@ -9996,8 +10007,6 @@ class ClassStatement : ClassBase, VarContainer
         self.items = items;
         var members = [];
         self.members = members;
-        var constants = [];
-        self.constants = constants;
 
         var t = tk.get();
         if (t.isop(':')) {
@@ -10026,7 +10035,7 @@ class ClassStatement : ClassBase, VarContainer
                 break;
               case 'const':
                 var cst = parseConst(t, tk, self);
-                push(constants, cst);
+                push(items, cst);
                 break;
               default:
                 Unexpected("item in class", t);
@@ -10056,7 +10065,6 @@ class ClassStatement : ClassBase, VarContainer
     }
     function optimize()
     {
-        optimize_array(self.constants);
         optimize_array(self.items);
         return self;
     }
