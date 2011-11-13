@@ -9887,26 +9887,58 @@ class ClassBase : CommonBase
     }
 }
 
+class FunctionContainer
+{
+    var functions;
+    function FunctionContainer()
+    {
+        self.functions = {};
+    }
+    function addfunction(newfunc)
+    {
+        __ASSERT__((newfunc instanceof Builtin) ||
+                   (newfunc instanceof FunctionStatement) ||
+                   (newfunc instanceof FunctionExtern));
+        var functions = self.functions;
+        string name = newfunc.name;
+        var func = functions[name];
+        if (func == null)
+            functions[name] = newfunc;
+        else {
+            if (func instanceof FunctionStatement)
+                func.setmulti();
+            if (newfunc instanceof FunctionStatement)
+                newfunc.setmulti();
+        }
+    }
+    function find(string name)
+    {
+        var functions = self.functions;
+        return functions[name];
+    }
+}
+
 class ClassStatement : ClassBase, VarContainer
 {
     var parent;
     var bases;
     var constants;
-    var functions;
+    var items;
     var members;
+    var funcont;
 
     function ClassStatement(start, name, parent, tk)
     {
         self.ClassBase(start, name, parent);
         self.VarContainer();
+        self.funcont = new FunctionContainer();
         self.parent = parent;
-        var functions = [];
-        self.functions = functions;
+        var items = [];
+        self.items = items;
         var members = [];
         self.members = members;
         var constants = [];
         self.constants = constants;
-        var seen_functions = {};
 
         var t = tk.get();
         if (t.isop(':')) {
@@ -9921,14 +9953,8 @@ class ClassStatement : ClassBase, VarContainer
             switch (t.checkkeyword()) {
               case 'function':
                 var f = new MethodStatement(t, tk, self);
-                push(functions, f);
-                var first_func = seen_functions[f.name];
-                if (first_func == null)
-                    seen_functions[f.name] = f;
-                else {
-                    first_func.setmulti();
-                    f.setmulti();
-                }
+                self.addmethod(f);
+                push(items, f);
                 break;
               case 'var':
                 var name = tk.get();
@@ -9947,6 +9973,11 @@ class ClassStatement : ClassBase, VarContainer
                 Unexpected("item in class", t);
             }
         }
+    }
+    function addmethod(func)
+    {
+        __ASSERT__(func instanceof MethodStatement);
+        self.funcont.addfunction(func);
     }
     function generatesubid()
     {
@@ -9967,13 +9998,13 @@ class ClassStatement : ClassBase, VarContainer
     function optimize()
     {
         optimize_array(self.constants);
-        optimize_array(self.functions);
+        optimize_array(self.items);
         return self;
     }
     function emit(var e)
     {
         self.classns.emitnamespace(e);
-        emit_array(e, self.functions);
+        emit_array(e, self.items);
 
         e.say('.sub Winxed_class_init :anon :load :init');
 
@@ -10361,7 +10392,7 @@ class NamespaceBase : VarContainer
     var externals;
     var namespaces;
     var classes;
-    var functions;
+    var funcont;
     var items;
     var owner;
 
@@ -10373,7 +10404,7 @@ class NamespaceBase : VarContainer
             self.namespaces = [];
             self.usednamespaces = [];
             self.classes = [];
-            self.functions = {};
+            self.funcont = new FunctionContainer();
             createPredefConstString(self, '__NAMESPACE__', nspath.fullname());
         }
         else {
@@ -10381,26 +10412,13 @@ class NamespaceBase : VarContainer
             self.namespaces = previous.namespaces;
             self.usednamespaces = previous.usednamespaces;
             self.classes = previous.classes;
-            self.functions = previous.functions;
+            self.funcont = previous.funcont;
         }
         self.items = [];
     }
     function addfunction(newfunc)
     {
-        __ASSERT__((newfunc instanceof Builtin) ||
-                   (newfunc instanceof FunctionStatement) ||
-                   (newfunc instanceof FunctionExtern));
-        var functions = self.functions;
-        string name = newfunc.name;
-        var func = functions[name];
-        if (func == null)
-            functions[name] = newfunc;
-        else {
-            if (func instanceof FunctionStatement)
-                func.setmulti();
-            if (newfunc instanceof FunctionStatement)
-                newfunc.setmulti();
-        }
+        self.funcont.addfunction(newfunc);
     }
     function fixnamespaces()
     {
@@ -10482,8 +10500,8 @@ class NamespaceBase : VarContainer
         var sym = self.checkclass_base(name);
         if (sym != null)
             return sym;
-        var functions = self.functions;
-        return functions[name];
+        var funcont = self.funcont;
+        return funcont.find(name);
     }
     function scopesearchlocal(key, int flags, int offset)
     {
