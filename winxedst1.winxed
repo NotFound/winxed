@@ -1384,9 +1384,11 @@ class BuiltinBase
     {
         string name = self.name;
 
-        // Special case for a now.
-        if (name != '__ASSERT__')
-            e.comment('builtin ' + name);
+        if (e.getDebug()) {
+            // Special case for a now.
+            if (name != '__ASSERT__')
+                e.comment('builtin ' + name);
+        }
 
         string typeresult = self.typeresult;
         if (typeresult != REGnone && result == '')
@@ -2726,7 +2728,8 @@ class PiropStatement : Statement
     {
         string opname = self.opname;
         self.annotate(e);
-        e.comment('pirop ' + opname);
+        if (e.getDebug())
+            e.comment('pirop ' + opname);
         var args = self.args;
         e.print(INDENT);
         if (args == null)
@@ -7744,7 +7747,8 @@ class WhileStatement : LoopStatement, ConditionalStatement
             self.emit_infinite(e);
             break;
           case CONDisfalse:
-            e.comment('while(false) optimized out');
+            if (e.getDebug())
+                e.comment('while(false) optimized out');
             break;
           default:
             string breaklabel = self.genbreaklabel();
@@ -7951,7 +7955,8 @@ class SwitchStatement : SwitchBaseStatement
         if (type == '')
             type = condtype;
 
-        e.comment('switch');
+        if (e.getDebug())
+            e.comment('switch');
         string reg = self.tempreg(type);
         if (condtype == type)
             condition.emit(e, reg);
@@ -8013,7 +8018,8 @@ class SwitchCaseStatement : SwitchBaseStatement
         string defaultlabel = self.genlabel();
         string caselabel[];
 
-        e.comment('switch-case');
+        if (e.getDebug())
+            e.comment('switch-case');
         string reg = self.tempreg(REGint);
         for (var caseval in self.case_value) {
             string label = self.genlabel();
@@ -8110,7 +8116,8 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
             self.emit_infinite(e);
             return;
         }
-        e.comment('for loop');
+        if (e.getDebug())
+            e.comment('for loop');
         string continuelabel = self.gencontinuelabel();
         string breaklabel = self.genbreaklabel();
         string condlabel = has_iteration ?
@@ -8378,8 +8385,10 @@ class TryStatement : BlockStatement
             self.getvar(self.exname).getreg() :
             self.tempreg(REGvar);
 
+        int edebug = e.getDebug();
         self.annotate(e);
-        e.comment('try: create handler');
+        if (edebug)
+            e.comment('try: create handler');
         e.print(sformat(
 <<:
     new %0, 'ExceptionHandler'
@@ -8391,22 +8400,26 @@ class TryStatement : BlockStatement
             self.modifiers.emitmodifiers(e, reghandler);
 
         e.emitarg1('push_eh', reghandler);
-        e.comment('try: begin');
+        if (edebug)
+            e.comment('try: begin');
         self.stry.emit(e);
-        e.comment('try: end');
+        if (edebug)
+            e.comment('try: end');
         e.say(INDENT, 'pop_eh');
 
         self.annotate(e);
         e.emitgoto(labelpasthandler);
 
-        e.comment('catch');
+        if (edebug)
+            e.comment('catch');
         e.emitlabel(labelhandler);
         e.say(INDENT, '.get_results(', exreg, ')');
         e.emitarg1('finalize', exreg);
         e.say(INDENT, 'pop_eh');
         self.scatch.emit(e);
 
-        e.comment('catch end');
+        if (edebug)
+            e.comment('catch end');
         e.emitlabel(labelpasthandler);
     }
 }
@@ -8480,7 +8493,8 @@ class DeclareSingleStatement : DeclareBase
         string ireg;
         string basetype = self.basetype;
         var init = self.init;
-        e.comment(name + ': ' + reg);
+        if (e.getDebug())
+            e.comment(name + ': ' + reg);
 
         if (init == null || init.isnull())
             e.emitnull(reg);
@@ -8778,7 +8792,7 @@ class ConstStatement : Statement
     }
     function emit(e)
     {
-        if (__DEBUG__) {
+        if (e.getDebug()) {
             var val = self.data.getvalue();
             string sval;
             switch (self.type) {
@@ -8845,7 +8859,8 @@ class VarStatement : VarBaseStatement
         string name =  self.name;
         string reg = self.reg;
         var init = self.init;
-        e.comment('var ' + name + ': ' + reg);
+        if (e.getDebug())
+            e.comment('var ' + name + ': ' + reg);
         if (init != null)
             if (init.isnull())
                 init = null;
@@ -8885,7 +8900,8 @@ class ResizableVarStatement : VarStatement
     {
         self.annotate(e);
         string reg = self.reg;
-        e.comment(sformat("var %0[] : %1", self.name, reg));
+        if (e.getDebug())
+            e.comment(sformat("var %0[] : %1", self.name, reg));
         e.say(sformat(INDENT + "new %0, 'ResizablePMCArray'", reg));
     }
 }
@@ -8911,7 +8927,8 @@ class FixedVarStatement : VarStatement
         string regsize = self.exprsize.emit_get(e);
         self.annotate(e);
         string reg = self.reg;
-        e.comment(sformat("var %0[] : %1", self.name, reg));
+        if (e.getDebug())
+            e.comment(sformat("var %0[] : %1", self.name, reg));
         e.say(sformat(INDENT + "new %0, 'FixedPMCArray', %1", reg, regsize));
     }
 }
@@ -8991,12 +9008,15 @@ class CompoundStatement : MultiStatementBase, BlockStatement
     function getend() { return self.end; }
     function emit(var e)
     {
-        e.comment('{');
+        int edebug = e.getDebug();
+        if (edebug)
+            e.comment('{');
         for (var st in self.statements) {
             st.emit(e);
             self.freetemps();
         }
-        e.comment('}');
+        if (edebug)
+            e.comment('}');
     }
 }
 
@@ -9510,11 +9530,15 @@ class FunctionBase : BlockStatement
 
         e.print(join("", transform(self.usedsubids, [], emit_subid)));
 
+        int edebug = e.getDebug();
         var body = self.body;
-        if (body.isempty())
-            e.comment('Empty body');
+        if (body.isempty()) {
+            if (edebug)
+                e.comment('Empty body');
+        }
         else {
-            e.comment('Body');
+            if (edebug)
+                e.comment('Body');
             body.emit(e);
             e.annotate(body.getend());
         }
