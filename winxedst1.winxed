@@ -1264,6 +1264,13 @@ class Builtin_frombody
                 InternalError('void builtin with ' + resultmark);
             if (typeresult != REGnone && pos == -1)
                 InternalError('non void builtin without ' + resultmark);
+            switch (typeresult) {
+              case REGint: case REGfloat: case REGstring:
+              case REGvar: case REGnone:
+                break;
+              default:
+                InternalError("Invalid result type in builtin");
+            }
         }
 
         // Predecorate output
@@ -5704,6 +5711,22 @@ class CallBuiltinExpr : Expr
     {
         self.emit(e, "");
     }
+    function emit_get(e)
+    {
+        string type = self.checkresult();
+        switch (type)
+        {
+          case REGint: case REGfloat: case REGstring: case REGvar:
+            break;
+          case REGnone:
+            SyntaxError("Can't use result of a void builtin", self.start);
+          default:
+            InternalError("Unexpected result type '" + type + "'", self.start);
+        }
+        string reg = self.tempreg(type);
+        self.emit(e, reg);
+        return reg;
+    }
     function emit(e, string result)
     {
         var builtin = self.builtin;
@@ -9391,7 +9414,7 @@ class FunctionBase : BlockStatement
           case REGvar:
             store = self.regstP; break;
           default:
-            InternalError('Invalid type in createreg: ' + type);
+            InternalError("Invalid type in createreg: " + type);
         }
         string reg = store.createreg();
         return reg;
@@ -9409,7 +9432,7 @@ class FunctionBase : BlockStatement
           case REGvar:
             store = self.regstP; break;
           default:
-            InternalError("Invalid type '" + type + "' in tempreg");
+            InternalError("Invalid type in tempreg: " + type);
         }
         string reg = store.tempreg();
         return reg;
