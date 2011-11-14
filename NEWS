@@ -5,6 +5,7 @@ Version 1.4
     - 'multi' modifier improved
     - Fixes and improvements in builtins compile time evaluation
     - throw "string" now emits throw instead of die
+    - Several minor optimizations of generated code
 
 Version 1.3
     - builtin sleep
