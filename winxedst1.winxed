@@ -4013,15 +4013,11 @@ class OpNotExpr : OpUnaryExpr
             e.emitarg2('not', result, reg);
             break;
           case REGvar:
-            //e.comment("not var");
-            //die("not var");
             e.emitarg2('isfalse', result, reg);
             break;
           default:
-            //e.comment("not default");
             e.emitarg2('isfalse', result, reg);
         }
-        //e.comment("not END");
     }
 }
 
