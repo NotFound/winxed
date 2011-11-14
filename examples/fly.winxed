@@ -516,9 +516,14 @@ class Fly
             dis = 180.3;
             diff = now / 7.2 + 0.012;
             float dismod = dis + 3.0 * sin(diff * 4.0) + 7.0 * sin(diff * 8.0);
+            // Shake a bit horizontally and vertically to improve the
+            // illusion of being mounted on a train.
+            // Use different periods, each a non integer multiple of the time,
+            // to add variety.
+            dismod += sin(diff * 30.43) * 0.02;
+            y = 1.8 + pow(sin(diff * 20.27), 2) * 0.014;;
             x = sin(diff) * dismod;
             z = cos(diff) * dismod;
-            y = 1.8;
             float angle1 = diff + 0.01;
             float dismod1 = dis + 3.0 * sin(angle1 * 4.0) + 7.0 * sin(angle1 * 8.0);
             float xt1 = sin(angle1) * dismod1;
