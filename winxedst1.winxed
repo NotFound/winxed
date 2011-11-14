@@ -126,6 +126,7 @@ function Warn(string msg, var pos [optional])
 function InternalError(string msg, var pos [optional], int has_pos [opt_flag])
 {
     if (has_pos) {
+        pos = pos.getstart();
         string desc = pos.show();
         msg = msg + ' near ' + desc;
     }
@@ -138,8 +139,10 @@ function InternalError(string msg, var pos [optional], int has_pos [opt_flag])
 
 function SyntaxError(string msg, var pos)
 {
-    int line = pos.linenum();
-    string file = pos.filename();
+    if (pos != null)
+        pos = pos.getstart();
+    int line = pos != null ? pos.linenum() : -1;
+    string file = pos != null ? pos.filename() : "UNKNOWN";
     string desc = ' near ' + string(pos.viewable());
     throw Error(msg + ' in ' + file + ' line ' + string(line) + desc,
             2, __WINXED_ERROR__,
@@ -220,6 +223,7 @@ class Token
         self.file = file;
         self.line = line;
     }
+    function getstart() { return self; }
 
     function iseof()          { return false; }
     function iscomment()      { return false; }
@@ -1287,7 +1291,7 @@ class Builtin_frombody
 
         if (typeresult == REGnone) {
             if (result != null && result != '')
-                SyntaxError('using return value from void builtin');
+                SyntaxError('using return value from void builtin', start);
         }
         else {
             if (result == null || result == '')
@@ -2179,19 +2183,9 @@ class CommonBase
         self.start = start;
         self.owner = owner;
     }
-    function filename()
+    function getstart()
     {
-        if (self.start != null)
-            return self.start.filename();
-        else
-            return "unknown";
-    }
-    function linenum()
-    {
-        if (self.start != null)
-            return self.start.linenum();
-        else
-            return 0;
+        return self.start;
     }
     function viewable()
     {
@@ -3525,7 +3519,7 @@ class IdentifierExpr : SimpleExpr
     {
         var value = self.checkIdentifier();
         if (value == '')
-            UndefinedVariable(self.name);
+            UndefinedVariable(self);
         return value;
     }
     function optimize()
@@ -3732,7 +3726,7 @@ class OpNamespaceExpr : OpExpr
         var owner = self.owner;
         var sym = owner.scopesearch(self.key, SEARCH_NAMESPACE);
         if (sym == null)
-            SyntaxError('unknown namespace', self.start);
+            SyntaxError('unknown namespace', self);
         var path = sym.getpath();
         path.emit_get_namespace(e, owner, result);
     }
@@ -5718,9 +5712,9 @@ class CallBuiltinExpr : Expr
           case REGint: case REGfloat: case REGstring: case REGvar:
             break;
           case REGnone:
-            SyntaxError("Can't use result of a void builtin", self.start);
+            SyntaxError("Can't use result of a void builtin", self);
           default:
-            InternalError("Unexpected result type '" + type + "'", self.start);
+            InternalError("Unexpected result type '" + type + "'", self);
         }
         string reg = self.tempreg(type);
         self.emit(e, reg);
@@ -8326,7 +8320,7 @@ class TryModifierList : ModifierList
               case 'allowtailcall':
                 break;
               default:
-                SyntaxError("Modifier '" + modifname + "' not valid for try", self.start);
+                SyntaxError("Modifier '" + modifname + "' not valid for try", self);
             }
         }
     }
@@ -8884,9 +8878,9 @@ class VarStatement : VarBaseStatement
                 e.emitbox(reg, value);
                 break;
               case REGnone:
-                SyntaxError("Can't use void function as initializer", self.name);
+                SyntaxError("Can't use void function as initializer", self);
               default:
-                SyntaxError("Invalid var initializer", self.name);
+                SyntaxError("Invalid var initializer", self);
             }
         }
         else
@@ -9267,17 +9261,17 @@ function multi_sig_from_multi_modifier(owner, multi)
                 if (name == "int" || name == "float" || name == "string" || name == "var")
                     push(sig, name);
                 else
-                    SyntaxError("unsupported multi signature", arg.start);
+                    SyntaxError("unsupported multi signature", arg);
                 break;
               case arg instanceof OpClassExpr:
                 var key = arg.get_class_raw_key();
                 if (key == null)
-                    SyntaxError("class not found", arg.start);
+                    SyntaxError("class not found", arg);
                 __ASSERT__(key instanceof 'ResizableStringArray');
                 push(sig, getparrotkey(key));
                 break;
               default:
-                SyntaxError("unsupported multi signature", arg.start);
+                SyntaxError("unsupported multi signature", arg);
             }
         }
     }
@@ -10276,7 +10270,7 @@ function include_parrot(var start, var tk, var ns)
 function include_winxed(var start, var tk, var ns)
 {
     if (! (ns instanceof RootNamespace))
-        SyntaxError("Must be used at root namespace level");
+        SyntaxError("Must be used at root namespace level", start);
     var tfile = tk.get();
     if (!tfile.isstring())
         Expected('literal string', tfile);
