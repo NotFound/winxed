@@ -8080,16 +8080,19 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
     }
     function emit(e)
     {
+        int has_iteration = self.iteration != null;
         if (self.initializer == null &&
                 self.condexpr == null &&
-                self.iteration == null) {
+                !(has_iteration)) {
             self.emit_infinite(e);
             return;
         }
         e.comment('for loop');
         string continuelabel = self.gencontinuelabel();
         string breaklabel = self.genbreaklabel();
-        string condlabel = self.genlabel();
+        string condlabel = has_iteration ?
+                string(self.genlabel()) :
+                continuelabel;
         if (self.initializer != null)
             self.initializer.emit(e);
 
@@ -8098,9 +8101,11 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
             self.emit_else(e, breaklabel);
 
         self.body.emit(e);
-        e.emitlabel(continuelabel, 'for iteration');
-        if (self.iteration != null)
-            string unused = self.iteration.emit_get(e);
+        if (has_iteration) {
+            e.emitlabel(continuelabel, 'for iteration');
+            if (self.iteration != null)
+                self.iteration.emit_void(e);
+        }
         e.emitgoto(condlabel);
 
         e.emitlabel(breaklabel, 'for end');
