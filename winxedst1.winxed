@@ -682,14 +682,16 @@ function getop(tk, string start, int line)
 
 class Tokenizer
 {
+    var warnings;
     var h;
     var pending;
     var select;
     var stacked;
     var filename;
     var line;
-    function Tokenizer(handle, string filename)
+    function Tokenizer(handle, string filename, int nowarn)
     {
+        self.warnings = new ["Boolean"](! nowarn);
         self.h = handle;
         self.pending = '';
         self.stacked = [];
@@ -721,6 +723,11 @@ class Tokenizer
             '#': getlinecomment
         };
         self.select = select;
+    }
+    function warn(string msg, var pos [optional])
+    {
+        if (self.warnings)
+            Warn(msg, pos);
     }
     function getchar()
     {
@@ -10323,7 +10330,7 @@ function include_winxed(var start, var tk, var ns)
     string filename = tfile.rawstring();
     var file = open_include(filename, start);
 
-    var tkinc = new Tokenizer(file, filename);
+    var tkinc = new Tokenizer(file, filename, false);
     ns.parse(tkinc);
 
     file.close();
@@ -10352,7 +10359,8 @@ function parsensUsing(start, tk, ns)
     t = tk.get();
     switch {
       case t.isstring():
-        // This usage will be deprecated, use $loadlib instead.
+        tk.warn("using extern 'file'; is deprecated, use $loadlib instead.",
+                t);
         string reqlib = t;
         ns.addlib(reqlib);
         ExpectOp(';', tk);
@@ -11275,7 +11283,7 @@ class WinxedHLL
         handlein.puts(code);
         handlein.close();
         handlein.open(EVAL_NAME, 'r');
-        var tk = new Tokenizer(handlein, EVAL_NAME);
+        var tk = new Tokenizer(handlein, EVAL_NAME, nowarn);
         var winxed = new WinxedCompileUnit(nowarn, debug);
         winxed.parse(tk);
         handlein.close();
@@ -11298,7 +11306,7 @@ class WinxedHLL
         var handlein = new ['FileHandle'];
         handlein.open(filename, 'r');
         handlein.encoding('utf8');
-        var tk = new Tokenizer(handlein, filename);
+        var tk = new Tokenizer(handlein, filename, nowarn);
         var winxed = new WinxedCompileUnit(nowarn, debug);
         winxed.parse(tk);
         handlein.close();
