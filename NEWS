@@ -9,6 +9,9 @@ Version 1.4
     - throw "string" now emits throw instead of die
     - Several minor optimizations of generated code
   Build 1.4.0
+     - Candidate
+  Build 1.4.1
+    - Fixed bug in __ASSERT__
     - Bundled with parrot 3.10.0
 
 Version 1.3
