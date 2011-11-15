@@ -27037,7 +27037,7 @@
     $P1[0] = $I1
     set $I1, 4
     $P1[1] = $I1
-    null $I1
+    set $I1, 1
     $P1[2] = $I1
 .annotate 'line', 11171
     .return($P1)
