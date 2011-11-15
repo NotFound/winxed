@@ -3929,19 +3929,27 @@ class OpDeleteExpr : OpDelExBase
     {
         self.OpUnaryExpr(owner, start, subexpr);
     }
-    function emit(e, string result)
+    function optimize()
+    {
+        self.optimizearg();
+        var expr = self.subexpr;
+        if ((!(expr instanceof IndexExpr)) || expr.checkresult() == REGstring)
+            SyntaxError("delete with invalid operator", self);
+        return self;
+    }
+    function emit_void(e)
     {
         var expr = self.subexpr;
-        if (expr instanceof IndexExpr && expr.checkresult() != REGstring) {
-            expr.emit_prep(e);
-            self.annotate(e);
-            e.print(INDENT + 'delete ');
-            expr.emit_aux(e);
-            e.say();
-            e.emitset(result, '1');
-        }
-        else
-            SyntaxError("delete with invalid operator", self);
+        expr.emit_prep(e);
+        self.annotate(e);
+        e.print(INDENT + 'delete ');
+        expr.emit_aux(e);
+        e.say();
+    }
+    function emit(e, string result)
+    {
+        self.emit_void(e);
+        e.emitset(result, '1');
     }
 }
 
