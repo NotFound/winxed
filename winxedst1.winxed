@@ -4257,6 +4257,10 @@ class OpBaseAssignExpr : Expr
         self.annotate(e);
         e.emitset(result, reg);
     }
+    function emit_void(e)
+    {
+        self.emit_get(e);
+    }
 }
 
 //*********************************************
@@ -4346,11 +4350,9 @@ class OpAddToExpr : OpBaseAssignExpr
                 e.emitaddto(reg, reg2);
             }
         }
+        if (lexpr instanceof LexicalVolatileExpr)
+            lexpr.emit_store(e, reg);
         return reg;
-    }
-    function emit_void(e)
-    {
-        self.emit_get(e);
     }
 }
 
@@ -4384,6 +4386,8 @@ class OpSubToExpr : OpBaseAssignExpr
           default:
             e.emitsubto(reg, reg2);
         }
+        if (lexpr instanceof LexicalVolatileExpr)
+            lexpr.emit_store(e, reg);
         return reg;
     }
 }
@@ -4410,6 +4414,8 @@ class OpMulToExpr : OpBaseAssignExpr
             self.annotate(e);
             e.emitarg2('mul', lreg, rreg);
         }
+        if (lexpr instanceof LexicalVolatileExpr)
+            lexpr.emit_store(e, lreg);
         return lreg;
     }
 }
@@ -4421,11 +4427,13 @@ class OpDivToExpr : OpBaseAssignExpr
     function emit_get(e)
     {
         self.checkleft();
-        string type = self.lexpr.checkresult();
-        string reg = self.lexpr.emit_get(e);
+        var lexpr = self.lexpr;
+        string reg = lexpr.emit_get(e);
         string reg2 = self.rexpr.emit_get(e);
         self.annotate(e);
         e.emitarg2('div', reg, reg2);
+        if (lexpr instanceof LexicalVolatileExpr)
+            lexpr.emit_store(e, reg);
         return reg;
     }
 }
@@ -4437,11 +4445,13 @@ class OpModToExpr : OpBaseAssignExpr
     function emit_get(e)
     {
         self.checkleft();
-        string type = self.lexpr.checkresult();
-        string reg = self.lexpr.emit_get(e);
+        var lexpr = self.lexpr;
+        string reg = lexpr.emit_get(e);
         string reg2 = self.rexpr.emit_get(e);
         self.annotate(e);
         e.emitarg2('mod', reg, reg2);
+        if (lexpr instanceof LexicalVolatileExpr)
+            lexpr.emit_store(e, reg);
         return reg;
     }
 }
