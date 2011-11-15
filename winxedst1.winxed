@@ -1583,6 +1583,7 @@ function Builtin_ASSERT(e, owner, start, string result, args)
         e.emitif(reg, label);
         e.print(sformat(
 <<:
+    getstderr $P0
     print $P0, "Assertion failed at '%0' line "
     print $P0, %1
     print $P0, "\n"
