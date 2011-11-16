@@ -8187,8 +8187,12 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
         t = tk.get();
         if (! t.isop(')')) {
             tk.unget(t);
-            self.iteration = parseExpr(tk, self);
-            ExpectOp(')', tk);
+            var iteration = [];
+            do {
+                push(iteration, parseExpr(tk, self));
+            } while ((t = tk.get()).isop(','));
+            self.iteration = iteration;
+            RequireOp(')', t);
         }
         self.parsebody(tk);
     }
@@ -8206,14 +8210,14 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
                     return new EmptyStatement;
             }
         }
-        if (self.iteration != null)
-            self.iteration = self.iteration.optimize();
+        optimize_array(self.iteration);
         self.body = self.body.optimize();
         return self;
     }
     function emit(e)
     {
-        int has_iteration = self.iteration != null;
+        var iteration = self.iteration;
+        int has_iteration = iteration != null;
         if (self.initializer == null &&
                 self.condexpr == null &&
                 !(has_iteration)) {
@@ -8237,8 +8241,8 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
         self.body.emit(e);
         if (has_iteration) {
             e.emitlabel(continuelabel, 'for iteration');
-            if (self.iteration != null)
-                self.iteration.emit_void(e);
+            for (var it in iteration)
+                it.emit_void(e);
         }
         e.emitgoto(condlabel);
 
