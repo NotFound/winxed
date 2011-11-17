@@ -8031,11 +8031,22 @@ class SwitchStatement : SwitchBaseStatement
     function emit(e)
     {
         // Get case common type
+        // If all cases are literal strings of length 1, convert to
+        // the code of the first char
         string type = '';
         for (var value in self.case_value) {
             string t = value.checkresult();
             if (t == REGfloat)
                 SyntaxError("Invalid type in case", self);
+            if (t == REGstring) {
+                if (type == '' || type == 'char')
+                {
+                    if (value.isstringliteral() && length(string_from_literal(value)) == 1)
+                        t = 'char';
+                    else
+                        type = REGstring;
+                }
+            }
             if (type == '')
                 type = t;
             else if (type != t)
@@ -8052,8 +8063,32 @@ class SwitchStatement : SwitchBaseStatement
 
         if (e.getDebug())
             e.comment('switch');
+        string defaultlabel = self.genlabel();
         string reg;
-        if (condtype == type)
+        if (type == 'char') {
+            if ((condition instanceof CallBuiltinExpr) &&
+                        condition.builtin.name() == "chr") {
+                var args = condition.args;
+                var arg = args[0].arg;
+                reg = arg.emit_getint(e);
+            }
+            else {
+                string regs;
+                if (condtype != REGstring) {
+                    string regcond = condition.emit_get(e);
+                    regs = self.tempreg(REGstring);
+                    e.emitset(regs, regcond);
+                }
+                else
+                    regs = condition.emit_get(e);
+                e.emitif_null(regs, defaultlabel);
+                reg = self.tempreg(REGint);
+                e.emitarg2('length', reg, regs);
+                e.emitarg3('ne', reg, "1", defaultlabel);
+                e.emitarg2('ord', reg, regs);
+            }
+        }
+        else if (condtype == type)
             reg = condition.emit_get(e);
         else {
             reg = self.tempreg(type);
@@ -8063,15 +8098,20 @@ class SwitchStatement : SwitchBaseStatement
 
         // Prpeare labels and check values
         self.genbreaklabel();
-        string defaultlabel = self.genlabel();
         string caselabel[];
-        string regval = self.tempreg(type);
+        string regval;
+        if (type != 'char')
+            self.tempreg(type);
         for (var caseval in self.case_value) {
             string label = self.genlabel();
             push(caselabel, label);
             string casereg;
             if (type == REGint)
                 casereg = caseval.emit_getint(e);
+            else if (type == 'char') {
+                int code = ord(string_from_literal(caseval));
+                casereg = code;
+            }
             else if (type == caseval.checkresult())
                 casereg = caseval.emit_get(e);
             else {
