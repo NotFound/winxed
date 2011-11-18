@@ -3620,7 +3620,6 @@ class IdentifierExpr : SimpleExpr
               case sym instanceof FunctionStatement:
                 if (!sym.ismulti()) {
                     string id = sym.makesubid();
-                    //self.subid = id;
                     self.usesubid(id);
                     self.owner.createvarnamed(name, REGvar, id);
                     return new FunctionId(self.owner, self.start, name, id);
