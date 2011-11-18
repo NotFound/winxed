@@ -3228,6 +3228,16 @@ class SimpleExpr : Expr
     function issimple() { return true; }
 }
 
+
+class FinalExpr : Expr
+// An expr crated during optimize, never parsed
+{
+    function optimize()
+    {
+        InternalError("misuse of " + string(typeof(self)), self);
+    }
+}
+
 //**********************************************************************
 
 class FunctionExpr : Expr
@@ -3479,7 +3489,7 @@ function concat_literal(lexpr, rexpr)
 
 //*********************************************
 
-class FunctionRef : Expr
+class FunctionRef : FinalExpr
 {
     var sym;
     function FunctionRef(owner, start, sym)
@@ -3681,7 +3691,7 @@ class IdentifierExpr : SimpleExpr
 
 //*********************************************
 
-class LexicalVolatileExpr : Expr
+class LexicalVolatileExpr : FinalExpr
 {
     var desc;
     function LexicalVolatileExpr(idexpr, desc)
@@ -5071,7 +5081,7 @@ class OpBinXorExpr : OpBaseBinExpr
 
 //*********************************************
 
-class ConcatString : Expr
+class ConcatString : FinalExpr
 {
     var values;
     function ConcatString(owner, start, lexpr, rexpr)
@@ -5783,7 +5793,7 @@ function arglist_hascompilevalue(var arglist)
 
 //*********************************************
 
-class CallBuiltinExpr : Expr
+class CallBuiltinExpr : FinalExpr
 {
     var builtin;
     var args;
