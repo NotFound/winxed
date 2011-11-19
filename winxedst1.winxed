@@ -205,9 +205,9 @@ function ExpectKeyword(string name, var tk)
     RequireKeyword(name, t);
 }
 
-function UndefinedVariable(name)
+function UndefinedVariable(string name, var t)
 {
-    SyntaxError("Variable '" + string(name) + "' is not defined", name);
+    SyntaxError("Variable '" + name + "' is not defined", t);
 }
 
 //*********************************************
@@ -3587,7 +3587,7 @@ class IdentifierExpr : SimpleExpr
     {
         var value = self.checkIdentifier();
         if (value == '')
-            UndefinedVariable(self);
+            UndefinedVariable(self.name, self);
         return value;
     }
     function optimize()
@@ -8359,7 +8359,7 @@ class ForeachStatement : LoopStatement, BlockStatement
 
         var itvar = self.getvar(self.varname);
         if (itvar == null)
-            UndefinedVariable(self.varname);
+            UndefinedVariable(self.varname, self);
 
         string iterator = self.createreg(REGvar);
         string continuelabel = self.gencontinuelabel();
