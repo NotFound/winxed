@@ -7009,8 +7009,9 @@ class OpConditionalExpr : Expr
     }
     function emit(e, string result)
     {
-        string cond_end = self.owner.genlabel();
-        string cond_false = self.owner.genlabel();
+        var owner = self.owner;
+        string cond_end = owner.genlabel();
+        string cond_false = owner.genlabel();
         self.condition.emit_else(e, cond_false);
         var etrue = self.etrue;
         string tres = self.checkresult();
@@ -7039,6 +7040,18 @@ class OpConditionalExpr : Expr
                     efalse.emit(e, result);
             }
         }
+        e.emitlabel(cond_end);
+    }
+    function emit_void(e)
+    {
+        var owner = self.owner;
+        string cond_end = owner.genlabel();
+        string cond_false = owner.genlabel();
+        self.condition.emit_else(e, cond_false);
+        self.etrue.emit_void(e);
+        e.emitgoto(cond_end);
+        e.emitlabel(cond_false);
+        self.efalse.emit_void(e);
         e.emitlabel(cond_end);
     }
 }
