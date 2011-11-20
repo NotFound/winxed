@@ -40,12 +40,22 @@ class Bar
 
 // 'multi' modifier
 
-function mbar(int i)
+function mbar[multi(int)](int i)
 {
     return "int";
 }
 
-function mbar(var i)
+function mbar[multi(float)](float n)
+{
+    return "float";
+}
+
+function mbar[multi(string)](string s)
+{
+    return "string";
+}
+
+function mbar[multi(var)](var i)
 {
     return "var";
 }
@@ -87,8 +97,10 @@ function test_multi()
     var foofoo = new FooBar.Foo;
     var foobar = new FooBar.Bar;
 
-    is(mbar(0), "int", "multimethod int");
-    is_mbar(0,       "var");
+    is(mbar(0),     "int",    "multimethod multi int");
+    is(mbar(1.1),   "float",  "multimethod multi float");
+    is(mbar(""),    "string", "multimethod multi string");
+    is_mbar(0,      "var");
     is_mbar("",     "'String'");
     is_mbar(bar,    "['Bar']");
     is_mbar(foofoo, "FooBar.Foo");

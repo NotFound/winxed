@@ -9436,10 +9436,16 @@ function multi_sig_from_multi_modifier(owner, multi)
                 break;
               case arg.isidentifier():
                 string name = arg.getName();
-                if (name == "int" || name == "float" || name == "string" || name == "var")
-                    push(sig, name);
-                else
+                switch (name) {
+                  case "int": case "string":
+                    push(sig, name); break;
+                  case "float":
+                    push(sig, "num"); break;
+                  case "var":
+                    push(sig, "pmc"); break;
+                  default:
                     SyntaxError("unsupported multi signature", arg);
+                }
                 break;
               case arg instanceof OpClassExpr:
                 var key = arg.get_class_raw_key();
