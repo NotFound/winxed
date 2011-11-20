@@ -98,7 +98,7 @@ class Thing
             glVertex3f(-width, height, -width);
             glVertex3f(-width, 0.0,    -width);
 
-            f = 0.3;
+            f = 0.84;
             glColor3f(r * f, g * f, b * f);
             glVertex3f(-width, 0.0,    -width);
             glVertex3f(-width, height, -width);
@@ -141,7 +141,8 @@ function train(float angle, float dis, float fuzz)
     float dismod2 = dis + 3.0 * sin(angle2 * 4.0) + 7.0 * sin(angle2 * 8.0);
     float xt2 = sin(angle2) * dismod2;
     float zt2 = cos(angle2) * dismod2;
-    glRotatef((atan(xt1 - xt2, zt1 - zt2)) / ToRad + 90.0, 0.0, 1.0, 0.0);
+    float carangle = atan(xt1 - xt2, zt1 - zt2);
+    glRotatef(carangle / ToRad + 90.0, 0.0, 1.0, 0.0);
 
     // Cheat a bit: change the wagon length instead of adjusting its
     // angular position
@@ -169,7 +170,10 @@ function train(float angle, float dis, float fuzz)
     glVertex3f(lenb, height,  width / 2);
     glEnd();
 
-    glColor3f(0.7, 0.7, fuzz * 0.7);
+    // Left side
+    float base = carangle + 1.0 * (PI / 8.0);
+    float color = 0.75 + 0.15 * sin(base);
+    glColor3f(color, color, fuzz * color);
     glBegin(GL_QUAD_STRIP);
     glVertex3f(lena, height,  width / 2);
     glVertex3f(lenb, height,  width / 2);
@@ -177,7 +181,10 @@ function train(float angle, float dis, float fuzz)
     glVertex3f(lenb, 0.0,     width / 2);
     glEnd();
 
-    glColor3f(0.8, 0.8, fuzz * 0.8);
+    // Right side
+    base = carangle + 9.0 * (PI / 8.0);
+    color = 0.75 + 0.15 * sin(base);
+    glColor3f(color, color, fuzz * color);
     glBegin(GL_QUAD_STRIP);
     glVertex3f(lena, 0.0,    -width / 2);
     glVertex3f(lenb, 0.0,    -width / 2);
@@ -185,14 +192,20 @@ function train(float angle, float dis, float fuzz)
     glVertex3f(lenb, height, -width / 2);
     glEnd();
 
-    glColor3f(0.6, 0.6, fuzz *0.6);
+    // Back
+    base = carangle + 5.0 * (PI / 8.0);
+    color = 0.75 + 0.15 * sin(base);
+    glColor3f(color, color, fuzz * color);
     glBegin(GL_QUADS);
     glVertex3f(lena, height, -width / 2);
     glVertex3f(lena, height,  width / 2);
     glVertex3f(lena, 0.0,     width / 2);
     glVertex3f(lena, 0.0,     -width / 2);
 
-    glColor3f(0.5, 0.5, fuzz *0.5);
+    // Front
+    base = carangle + 13.0 * (PI / 8.0);
+    color = 0.75 + 0.15 * sin(base);
+    glColor3f(color, color, fuzz * color);
     glVertex3f(lenb, 0.0,    -width / 2);
     glVertex3f(lenb, 0.0,     width / 2);
     glVertex3f(lenb, height,  width / 2);
