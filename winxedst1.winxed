@@ -9014,6 +9014,7 @@ function parseConst(start, tk, owner)
         multi = addtomulti(multi,
                 new ConstStatement(t, owner, type, name, value));
     } while ((t = tk.get()).isop(','));
+    RequireOp(';', t);
     return multi;
 }
 
