@@ -3175,6 +3175,12 @@ class Expr : CommonBase
         return self;
     }
     function cantailcall() { return false; }
+    function emit_init(e, string result)
+    {
+        // By default does the same as plane emit, some expressions
+        // can override it for optimization.
+        self.emit(e, result);
+    }
     function emit_get(e)
     {
         string type = self.checkresult();
@@ -5175,6 +5181,15 @@ class ConcatString : FinalExpr
             e.emitconcat1(auxreg, regvalues[i]);
         return auxreg;
     }
+    function emit_init(e, string result)
+    {
+        var regvalues = self.getregs(e);
+        int nvalues = elements(regvalues);
+        self.annotate(e);
+        e.emitconcat(result, regvalues[0], regvalues[1]);
+        for (int i = 2; i < nvalues; ++i)
+            e.emitconcat1(result, regvalues[i]);
+    }
     function emit_concat_to(e, string result)
     {
         var regvalues = self.getregs(e);
@@ -6278,10 +6293,6 @@ class MemberExpr : MemberExprBase
         self.annotate(e);
         e.say(INDENT, 'getattribute ', result, ', ', obj, ", '", ident, "'");
     }
-    function emit_init(e, string result)
-    {
-        self.emit(e, result);
-    }
     function emit_assign(e, string typeright, string rreg)
     {
         string obj = self.__emit_get_left(e);
@@ -6820,10 +6831,6 @@ class NewExpr : NewBaseExpr
             if (! is_init)
                 e.emitset(result, regnew);
         }
-    }
-    function emit_init(e, string result)
-    {
-        return self.emit(e, result, true);
     }
 }
 
@@ -8685,7 +8692,7 @@ class DeclareSingleStatement : DeclareBase
         else {
             string itype = init.checkresult();
             if (itype == basetype)
-                init.emit(e, reg);
+                init.emit_init(e, reg);
             else {
                 if (init instanceof IndexExpr) {
                     // Use the declared type for the indexing
@@ -9051,10 +9058,7 @@ class VarStatement : VarBaseStatement
         if (init != null) {
             switch (init.checkresult()) {
               case REGvar:
-                if ((init instanceof MemberExpr) || (init instanceof ArrayExpr) || (init instanceof NewExpr))
-                    init.emit_init(e, reg);
-                else
-                    init.emit(e, reg);
+                init.emit_init(e, reg);
                 break;
               case REGstring:
               case REGint:
