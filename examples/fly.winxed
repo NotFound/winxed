@@ -129,37 +129,30 @@ function train(float angle, float dis, float fuzz)
     // Central position
     float xt = sin(angle) * dismod;
     float zt = cos(angle) * dismod;
-    glTranslatef(xt, 0.0, zt);
 
-    // Approximate the tangent
-    const float delta = 0.0001;
-    float angle1 = angle + delta;
-    float dismod1 = dis + 3.0 * sin(angle1 * 4.0) + 7.0 * sin(angle1 * 8.0);
-    float xt1 = sin(angle1) * dismod1;
-    float zt1 = cos(angle1) * dismod1;
-    float angle2 = angle - delta;
-    float dismod2 = dis + 3.0 * sin(angle2 * 4.0) + 7.0 * sin(angle2 * 8.0);
-    float xt2 = sin(angle2) * dismod2;
-    float zt2 = cos(angle2) * dismod2;
-    float carangle = atan(xt1 - xt2, zt1 - zt2);
+    // Derivative
+    float cosa = cos(angle);
+    float sina = sin(angle);
+    float cos4a = cos(4.0 * angle);
+    float sin4a = sin(4.0 * angle);
+    float cos8a = cos(8.0 * angle);
+    float sin8a = sin(8.0 * angle);
+    float xtt =  cosa * (dis + 7.0 * sin8a + 3.0 * sin4a) +  
+                 sina * (56.0 * cos8a + 12.0 * cos4a);
+    float ztt = -sina * (dis + 7.0 * sin8a + 3.0 * sin4a) +
+                 cosa * (56.0 * cos8a + 12 * cos4a);
+    float carangle = atan(xtt, ztt);
+
+    glTranslatef(xt, 0.0, zt);
     glRotatef(carangle / ToRad + 90.0, 0.0, 1.0, 0.0);
 
     // Cheat a bit: change the wagon length instead of adjusting its
     // angular position
-    const float halfangle = 0.0278;
-    float anglea = angle + halfangle;
-    float dismoda = dis + 3.0 * sin(anglea * 4.0) + 7.0 * sin(anglea * 8.0);
-    float xa = sin(anglea) * dismoda;
-    float za = cos(anglea) * dismoda;
-    float lena = sqrt((xt-xa)*(xt-xa) + (zt-za)*(zt-za));
+    float adjust = sqrt(xtt * xtt + ztt * ztt) / dis;
+    float lena =  5.0 * adjust;
+    float lenb = -5.0 * adjust;
 
-    float angleb = angle - halfangle;
-    float dismodb = dis + 3.0 * sin(angleb * 4.0) + 7.0 * sin(angleb * 8.0);
-    float xb = sin(angleb) * dismoda;
-    float zb = cos(angleb) * dismoda;
-    float lenb = - sqrt((xt-xb)*(xt-xb) + (zt-zb)*(zt-zb));
-
-    const float height = 1.2);
+    const float height = 1.2;
     const float width = 0.8;
 
     glColor3f(1.0, 1.0, fuzz);
