@@ -2946,17 +2946,24 @@ class ExprStatement : Statement
     function ExprStatement(start, tk, owner)
     {
         self.Statement(start, owner);
-        self.expr = parseExpr(tk, self);
-        ExpectOp(';', tk);
+        var expr = [];
+        var t;
+        do {
+            var newexpr = parseExpr(tk, self);
+            expr.push(newexpr);
+        } while((t = tk.get()).isop(','));
+        RequireOp(';', t);
+        self.expr = expr;
     }
     function optimize()
     {
-        self.expr = self.expr.optimize();
+        optimize_array(self.expr);
         return self;
     }
     function emit(e)
     {
-        self.expr.emit_void(e);
+        for (var item in self.expr)
+            item.emit_void(e);
     }
 }
 
