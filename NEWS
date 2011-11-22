@@ -2,6 +2,9 @@ Winxed news.
 (C) Julián Albo "NotFound"
 
 Version 1.5
+    - comma operator alike in for initialization and iteration parts
+    - fix postfix ++ and ++ operators with var
+    - Minor optimizations of generated code
 
 Version 1.4
     - 'multi' modifier improved
