@@ -4209,10 +4209,28 @@ class OpPostIncExpr : OpIncDec
     {
         string reg = self.subexpr.emit_get(e);
         self.annotate(e);
-        e.emitset(result, reg);
+        if (self.checkresult() == REGvar) {
+            string aux = self.tempreg(REGvar);
+            e.emitarg2('clone', aux, reg);
+            e.emitset(result, aux);
+        }
+        else
+            e.emitset(result, reg);
         e.emitinc(reg);
         self.iflexical(e, reg);
-        return reg;
+    }
+    function emit_get(e)
+    {
+        string reg = self.subexpr.emit_get(e);
+        self.annotate(e);
+        string result = self.tempreg(self.checkresult());
+        if (self.checkresult() == REGvar)
+            e.emitarg2('clone', result, reg);
+        else
+            e.emitset(result, reg);
+        e.emitinc(reg);
+        self.iflexical(e, reg);
+        return result;
     }
     function emit_void(e)
     {
@@ -4233,10 +4251,29 @@ class OpPostDecExpr : OpIncDec
     {
         string reg = self.subexpr.emit_get(e);
         self.annotate(e);
-        e.emitset(result, reg);
+        if (self.checkresult() == REGvar) {
+            string aux = self.tempreg(REGvar);
+            e.emitarg2('clone', aux, reg);
+            e.emitset(result, aux);
+        }
+        else
+            e.emitset(result, reg);
         e.emitdec(reg);
         self.iflexical(e, reg);
         return reg;
+    }
+    function emit_get(e)
+    {
+        string reg = self.subexpr.emit_get(e);
+        self.annotate(e);
+        string result = self.tempreg(self.checkresult());
+        if (self.checkresult() == REGvar)
+            e.emitarg2('clone', result, reg);
+        else
+            e.emitset(result, reg);
+        e.emitdec(reg);
+        self.iflexical(e, reg);
+        return result;
     }
     function emit_void(e)
     {
