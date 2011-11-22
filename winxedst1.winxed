@@ -4626,6 +4626,15 @@ class NullCheckerExpr : CheckerExpr
         if (! self.positive)
             e.emitarg1('not', result);
     }
+    function emit_if(e, string labelif)
+    {
+        string reg = self.expr.emit_get(e);
+        self.annotate(e);
+        if (self.positive)
+            e.emitif_null(reg, labelif);
+        else
+            e.emitunless_null(reg, labelif);
+    }
     function emit_else(e, string labelelse)
     {
         string reg = self.expr.emit_get(e);
@@ -4652,6 +4661,16 @@ class ZeroCheckerExpr : CheckerExpr
             e.emitarg3('iseq', result, reg, 0);
         else
             e.emitarg3('isne', result, reg, 0);
+    }
+    function emit_if(e, string labelif)
+    {
+        var expr = self.expr;
+        string reg = expr.emit_getint(e);
+        self.annotate(e);
+        if (self.positive)
+            e.emitunless(reg, labelif);
+        else
+            e.emitif(reg, labelif);
     }
     function emit_else(e, string labelelse)
     {
