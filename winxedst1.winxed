@@ -4608,6 +4608,7 @@ class CheckerExpr : Expr, Negable
         self.Negable(positive);
         self.expr = expr;
     }
+    function isnegable() { return true; }
     function checkresult() { return REGint; }
 }
 
@@ -4673,6 +4674,7 @@ class OpEqualExpr : ComparatorBaseExpr, Negable
         self.set(owner, start, lexpr, rexpr);
         self.Negable(positive);
     }
+    function isnegable() { return true; }
     function optimize()
     {
         self.optimizearg();
@@ -4745,6 +4747,7 @@ class OpSameExpr : ComparatorBaseExpr, Negable
         self.initbinary(owner, t, lexpr, rexpr);
         self.Negable(positive);
     }
+    function isnegable() { return true; }
     function int_op(int left, int right)
     {
         return self.positive ? (left == right) : (left != right);
