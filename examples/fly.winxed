@@ -30,6 +30,11 @@ function close(int handle)
 const float PI = 3.1415926;
 const float ToRad = PI / 180.0;
 
+inline distance_modified(const float distance, float angle) return float
+{
+    return distance + 3.0 * sin(angle * 4.0) + 7.0 * sin(angle * 8.0);
+}
+
 $include_const 'opengl_defines.pasm';
 
 //**********************************************************************
@@ -125,7 +130,7 @@ function train(float angle, float dis, float fuzz)
 {
     glPushMatrix();
 
-    float dismod = dis + 3.0 * sin(angle * 4.0) + 7.0 * sin(angle * 8.0);
+    float dismod = distance_modified(dis, angle);
     // Central position
     float xt = sin(angle) * dismod;
     float zt = cos(angle) * dismod;
@@ -299,7 +304,7 @@ class Fly
         const float pwidth = 0.18;
         for (int i = 0;  i < 360; i+=8) {
             float angle = float(i) * ToRad;
-            float dismod = dis + 3.0 * sin(angle * 4.0) + 7.0 * sin(angle * 8.0);
+            float dismod = distance_modified(dis, angle);
             float xi = dismod * sin(angle);
             float zi = dismod * cos(angle);
             things.push(new Thing(r, g, b, xi, zi, pheight, pwidth));
@@ -521,7 +526,7 @@ class Fly
           case 3:
             dis = 180.3;
             diff = now / 7.2 + 0.012;
-            float dismod = dis + 3.0 * sin(diff * 4.0) + 7.0 * sin(diff * 8.0);
+            float dismod = distance_modified(dis, diff);
             // Shake a bit horizontally and vertically to improve the
             // illusion of being mounted on a train.
             // Use different periods, each a non integer multiple of the time,
@@ -531,7 +536,7 @@ class Fly
             x = sin(diff) * dismod;
             z = cos(diff) * dismod;
             float angle1 = diff + 0.01;
-            float dismod1 = dis + 3.0 * sin(angle1 * 4.0) + 7.0 * sin(angle1 * 8.0);
+            float dismod1 = distance_modified(dis, angle1);
             float xt1 = sin(angle1) * dismod1;
             float zt1 = cos(angle1) * dismod1;
             dx = xt1 - x;
