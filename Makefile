@@ -140,13 +140,13 @@ test0: $(DRIVER).pbc
 	parrot $(DRIVER).pbc --stage=0 t/harness --stage=0 -r t/basic t/*.t
 
 test1: $(DRIVER).pbc winxedst1.pbc
-	parrot $(DRIVER).pbc --stage=1 t/harness --stage=1 -r t/basic t/advanced t/*.t
+	parrot $(DRIVER).pbc --stage=1 t/harness --stage=1 -r t/basic t/medium t/advanced t/*.t
 
 test2: $(DRIVER).pbc winxedst2.pbc
-	parrot $(DRIVER).pbc --stage=2 t/harness --stage=2 -r t/basic t/advanced t/*.t
+	parrot $(DRIVER).pbc --stage=2 t/harness --stage=2 -r t/basic t/medium t/advanced t/*.t
 
 test3: $(DRIVER).pbc winxedst3.pbc
-	parrot $(DRIVER).pbc --stage=3 t/harness --stage=3 -r t/basic t/advanced t/*.t
+	parrot $(DRIVER).pbc --stage=3 t/harness --stage=3 -r t/basic t/medium t/advanced t/*.t
 
 test: test3
 
@@ -162,7 +162,7 @@ testdebug: $(DRIVER).pbc winxedst2.pbc
 	parrot -o winxedst1_deb1.pbc winxedst1_deb1.pir
 	parrot $(DRIVER).pbc --debug -c -o winxedst1_deb2.pir --stage=winxedst1_deb1 winxedst1.winxed
 	parrot -o winxedst1_deb2.pbc winxedst1_deb2.pir
-	parrot $(DRIVER).pbc --debug --stage=winxedst1_deb2 t/harness --debug --stage=winxedst1_deb2 -r t/basic t/advanced t/*.t
+	parrot $(DRIVER).pbc --debug --stage=winxedst1_deb2 t/harness --debug --stage=winxedst1_deb2 -r t/basic t/medium t/advanced t/*.t
 
 #-----------------------------------------------------------------------
 

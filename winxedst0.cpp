@@ -1697,54 +1697,6 @@ private:
 
 //**********************************************************************
 
-class PiropStatement : public SubStatement
-{
-public:
-    PiropStatement(Block & block, const Token &st, Tokenizer &tk) :
-            SubStatement(block),
-            start(st),
-            args(0)
-    {
-        Token t = tk.get();
-        if (! t.isop('{'))
-            throw SyntaxError("Invalid '$' statement", start);
-        t = tk.get();
-        opname = t.identifier();
-        t = tk.get();
-        if (! t.isop('}'))
-        {
-            tk.unget(t);
-            args = new ArgumentList(block, tk, '}');
-        }
-        ExpectOp(';', tk);
-    }
-private:
-    PiropStatement * optimize()
-    {
-        if (args)
-            args->optimize();
-        return this;
-    }
-    void emit (Emit &e)
-    {
-        if (args)
-            args->prepare(e);
-        e.annotate(start);
-        e << INDENT << opname;
-        if (args) {
-            e << ' ';
-            args->emit(e);
-        }
-        e << '\n';
-    }
-
-    const Token start;
-    std::string opname;
-    ArgumentList *args;
-};
-
-//**********************************************************************
-
 class ExprStatement : public BaseStatement
 {
 public:
@@ -2355,8 +2307,6 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
         return new EmptyStatement();
     if (t.isop('{') )
         return new CompoundStatement(block, tk);
-    if (t.isop('$') )
-        return new PiropStatement(block, t, tk);
     if (t.iskeyword("using"))
         return parseUsing(block, tk);
 
