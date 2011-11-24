@@ -552,9 +552,6 @@ const PredefFunction *PredefFunction::predefs[]= {
     new PredefFunctionFixargs("load_bytecode",
         "load_bytecode {arg0}",
         REGvar, REGstring),
-    new PredefFunctionFixargs("dlfunc",
-        "dlfunc {res}, {arg0}, {arg1}, {arg2}",
-        REGvar, REGvar, REGstring, REGstring),
     new PredefFunctionFixargs("sprintf",
         "sprintf {res}, {arg0}, {arg1}",
         REGstring, REGstring, REGvar)

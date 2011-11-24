@@ -1271,20 +1271,18 @@ class Builtin_frombody
     var typeresult;
     function Builtin_frombody(string typeresult, string bodystr)
     {
-        if (__DEBUG__) {
-            // Minimal sanity check
-            int pos = indexof(bodystr, resultmark);
-            if (typeresult == REGnone && pos != -1)
-                InternalError('void builtin with ' + resultmark);
-            if (typeresult != REGnone && pos == -1)
-                InternalError('non void builtin without ' + resultmark);
-            switch (typeresult) {
-              case REGint: case REGfloat: case REGstring:
-              case REGvar: case REGnone:
-                break;
-              default:
-                InternalError("Invalid result type in builtin");
-            }
+        // Minimal sanity check
+        int pos = indexof(bodystr, resultmark);
+        if (typeresult == REGnone && pos != -1)
+            InternalError('void builtin with ' + resultmark);
+        if (typeresult != REGnone && pos == -1)
+            InternalError('non void builtin without ' + resultmark);
+        switch (typeresult) {
+          case REGint: case REGfloat: case REGstring:
+          case REGvar: case REGnone:
+            break;
+          default:
+            InternalError("Invalid result type in builtin");
         }
 
         // Predecorate output
@@ -2116,10 +2114,6 @@ compreg %0, %2
     builder.add(new BuiltinFunction('load_packfile',
         'load_bytecode %0, %1',
         REGvar, REGstring
-    ));
-    builder.add(new BuiltinFunction('dlfunc',
-        'dlfunc %0, %1, %2, %3',
-        REGvar, REGvar, REGstring, REGstring
     ));
     builder.add(new BuiltinFunction('sprintf',
         'sprintf %0, %1, %2',
@@ -8498,10 +8492,8 @@ class TryStatement : BlockStatement
             self.getvar(self.exname).getreg() :
             self.tempreg(REGvar);
 
-        int edebug = e.getDebug();
         self.annotate(e);
-        if (edebug)
-            e.comment('try: create handler');
+        e.comment('try: create handler');
         e.print(sformat(
 <<:
     new %0, 'ExceptionHandler'
@@ -8513,26 +8505,22 @@ class TryStatement : BlockStatement
             self.modifiers.emitmodifiers(e, reghandler);
 
         e.emitarg1('push_eh', reghandler);
-        if (edebug)
-            e.comment('try: begin');
+        e.comment('try: begin');
         self.stry.emit(e);
-        if (edebug)
-            e.comment('try: end');
+        e.comment('try: end');
         e.say(INDENT, 'pop_eh');
 
         self.annotate(e);
         e.emitgoto(labelpasthandler);
 
-        if (edebug)
-            e.comment('catch');
+        e.comment('catch');
         e.emitlabel(labelhandler);
         e.say(INDENT, '.get_results(', exreg, ')');
         e.emitarg1('finalize', exreg);
         e.say(INDENT, 'pop_eh');
         self.scatch.emit(e);
 
-        if (edebug)
-            e.comment('catch end');
+        e.comment('catch end');
         e.emitlabel(labelpasthandler);
     }
 }
@@ -9119,15 +9107,12 @@ class CompoundStatement : MultiStatementBase, BlockStatement
     function getend() { return self.end; }
     function emit(var e)
     {
-        int edebug = e.getDebug();
-        if (edebug)
-            e.comment('{');
+        e.comment('{');
         for (var st in self.statements) {
             st.emit(e);
             self.freetemps();
         }
-        if (edebug)
-            e.comment('}');
+        e.comment('}');
     }
 }
 
@@ -9647,15 +9632,11 @@ class FunctionBase : BlockStatement
 
         e.print(join("", transform(self.usedsubids, [], emit_subid)));
 
-        int edebug = e.getDebug();
         var body = self.body;
-        if (body.isempty()) {
-            if (edebug)
-                e.comment('Empty body');
-        }
+        if (body.isempty())
+            e.comment('Empty body');
         else {
-            if (edebug)
-                e.comment('Body');
+            e.comment('Body');
             body.emit(e);
             e.annotate(body.getend());
         }
