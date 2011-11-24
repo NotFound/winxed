@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 9-nov-2011
+// Revision 24-nov-2011
 
 // Winxed compiler stage 0.
 
@@ -4273,6 +4273,41 @@ private:
 
 //**********************************************************************
 
+class OpShiftlrightExpr : public CommonBinOpExpr
+{
+public:
+    OpShiftlrightExpr(BlockBase &block,
+            Token t, Expr *first, Expr *second) :
+        CommonBinOpExpr(block, t, first, second)
+    {
+    }
+private:
+    bool isinteger() const { return true; }
+    Expr * optimize()
+    {
+        optimize_operands();
+        if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
+        {
+            return new IntegerExpr(*this, start,
+                (unsigned int)lexpr->getintegervalue() >> (unsigned int)rexpr->getintegervalue());
+        }
+        return this;
+    }
+    void emit(Emit &e, const std::string &result)
+    {
+        std::string res= result.empty() ? gentemp(REGint) : result;
+        std::string op1= gentemp(REGint);
+        std::string op2= gentemp(REGint);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
+        e << INDENT << res << " = lsr " << op1 << ", " << op2;
+        if (!result.empty())
+            e << '\n';
+    }
+};
+
+//**********************************************************************
+
 class ArrayExpr : public Expr
 {
 public:
@@ -5374,6 +5409,11 @@ Expr * parseExpr_7(BlockBase &block, Tokenizer &tk)
     {
         Expr *subexpr2= parseExpr_7(block, tk);
         subexpr= new OpShiftrightExpr(block, t, subexpr, subexpr2);
+    }
+    else if (t.isop(">>>"))
+    {
+        Expr *subexpr2= parseExpr_7(block, tk);
+        subexpr= new OpShiftlrightExpr(block, t, subexpr, subexpr2);
     }
     else
     {
