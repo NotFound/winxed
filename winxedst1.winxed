@@ -1692,32 +1692,6 @@ function builtineval_escape(owner, start, args)
             escape(escape(string_from_literal(argstrfrom))));
 }
 
-function builtin_sleep(e, owner, start, result, args)
-{
-    var expr = args[0];
-    string reg;
-    string type = expr.checkresult();
-    switch (type) {
-      case REGint:
-        reg = expr.emit_getint(e);
-        break;
-      case REGfloat:
-        reg = expr.emit_get(e);
-        break;
-      default:
-        if (expr.isnull())
-            reg = "0";
-        else {
-            string aux = expr.emit_get(e);
-            reg = DISCARD_NREG;
-            e.annotate(start);
-            e.emitset(reg, aux);
-        }
-    }
-    e.annotate(start);
-    e.emitarg1('sleep', reg);
-}
-
 function getbuiltins(builder)
 {
     builder.add(new BuiltinFunctionEval('int',
@@ -1753,10 +1727,6 @@ function getbuiltins(builder)
     builder.add(new BuiltinFunction('floattime',
         'time %0',
         REGfloat
-    ));
-    builder.add(new BuiltinFunction('sleep',
-        builtin_sleep,
-        REGnone, REGraw1
     ));
     builder.add(new BuiltinFunction('spawnw',
         'spawnw %0, %1',
