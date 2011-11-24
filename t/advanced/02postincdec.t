@@ -14,7 +14,7 @@ function main()
     is(d, 0, 'post ++ gives previous value - var');
     is(v, 1, 'post ++ increments - var');
     d = v--;
-    is(d, 2, 'post -- gives previous value - var');
+    is(d, 1, 'post -- gives previous value - var');
     is(v, 0, 'post -- increments - var');
 }
 
