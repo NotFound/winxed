@@ -6951,10 +6951,7 @@ class NewIndexedExpr : NewBaseExpr
         }
         var nskey = self.nskey;
 
-        e.print(INDENT);
-        if (nskey.hasHLL())
-            e.print("root_");
-        e.print("new ", result, ", ");
+        e.print(INDENT + "new ", result, ", ");
         nskey.emit(e, null);
         if (reginit != null)
             e.print(', ', reginit);
@@ -10176,7 +10173,6 @@ class ClassSpecifierStr : ClassSpecifier
 class ClassSpecifierParrotKey : ClassSpecifier
 {
     var key;
-    var hll;
     function ClassSpecifierParrotKey(tk, owner, start)
     {
         self.ClassSpecifier(owner, start);
@@ -10188,8 +10184,6 @@ class ClassSpecifierParrotKey : ClassSpecifier
         t = tk.get();
         if (! t.isop(']')) {
             switch (t.checkop()) {
-              case ':':
-                self.hll = true;
               case ',':
                 break;
               default:
@@ -10206,10 +10200,6 @@ class ClassSpecifierParrotKey : ClassSpecifier
         self.key = key;
     }
     function reftype() { return CLASSSPECIFIER_parrotkey; }
-    function hasHLL()
-    {
-        return int(self.hll != null);
-    }
 
     function checknskey(from)
     {
@@ -10665,46 +10655,25 @@ class External
 
 class NamespacePath
 {
-    var hll;
     var path;
 
-    function NamespacePath(string name[optional], int is_hll[optional])
+    function NamespacePath()
     {
         string path[];
-        if (is_hll)
-            self.hll = name;
-        else {
-            if (name != null)
-                push(path, name);
-        }
         self.path = path;
     }
     function createchild(string name)
     {
         var child = new NamespacePath;
-        child.hll = self.hll;
         var path = clone(self.path);
         push(path, name);
         child.path = path;
         return child;
     }
-    function samehllas(fromns)
-    {
-        var fromkey = fromns.getpath();
-        var hll = self.hll;
-        var fromhll = fromkey != null ? fromkey.hll : null;
-        if (hll == null)
-            return fromhll == null;
-        else
-            return fromhll == null ? false : hll == fromhll;
-    }
     function fullname()
     {
         string name = join('.', self.path);
-        if (self.hll != null)
-            return string(self.hll) + '.' + name;
-        else
-            return name;
+        return name;
     }
     function getparrotkey()
     {
@@ -10712,24 +10681,6 @@ class NamespacePath
         string r;
         if (elements(path) != 0)
             r = "[ '" + string(join("'; '", path)) + "' ]";
-        return r;
-    }
-    function getparrotrootkey()
-    {
-        var path = self.path;
-        var hll = self.hll;
-        string r = "[ '";
-        if (hll != null) {
-            // HLL namespace is stored in the root namespace
-            // using its name in lower case as key.
-            r = r + downcase(hll);
-        }
-        else
-            r = r + "parrot";
-        r = r + "'";
-        if (elements(path) != 0)
-            r = r + "; '" + string(join("'; '", path)) + "'";
-        r = r + " ]";
         return r;
     }
     function emitnamespace(e)
@@ -10742,53 +10693,24 @@ class NamespacePath
     }
     function emit_new(e, fromns, string regnew, string reginit[optional])
     {
-        if (self.samehllas(fromns))
-            e.print(sformat(INDENT + "new %0, %1",
-                    regnew, self.getparrotkey()));
-        else
-            e.print(sformat(INDENT + "root_new %0, %1",
-                    regnew, self.getparrotrootkey()));
+        e.print(sformat(INDENT + "new %0, %1",
+                regnew, self.getparrotkey()));
         if (reginit != null && reginit != '')
             e.print(reginit);
         e.say();
     }
     function emit_get_namespace(e, fromns, string result)
     {
-        if (self.samehllas(fromns))
-            e.emitget_hll_namespace(result, self.getparrotkey());
-        else
-            e.emitget_root_namespace(result, self.getparrotrootkey());
+        e.emitget_hll_namespace(result, self.getparrotkey());
     }
     function emit_get_class(e, fromns, string result)
     {
-        if (self.samehllas(fromns))
-            e.say(sformat(INDENT + "get_class %0, %1",
-                    result, self.getparrotkey()));
-        else {
-            // There is no get_root_class. This will work for a now:
-            // Get the namespace as root global object, and then get
-            // its associated class.
-            var hll = self.hll;
-            var path = clone(self.path);
-            string name = path.pop();
-            string shll = hll != null ? downcase(hll) : 'parrot';
-            if (elements(path) != 0)
-                e.say(sformat(
-                        INDENT + "get_root_global %0, ['%1'; '%2'], '%3'",
-                        result, shll, join("'; '", path), name));
-            else
-                e.say(sformat(
-                        INDENT + "get_root_global %0, ['%1'], '%2'",
-                        result, shll, name));
-            e.say(sformat(INDENT + "get_class %0, %0", result));
-        }
+        e.say(sformat(INDENT + "get_class %0, %1",
+                result, self.getparrotkey()));
     }
     function emit_get_global(e, fromns, string result, string name)
     {
-        if (self.samehllas(fromns))
-            e.emitget_hll_global(result, name, self.getparrotkey());
-        else
-            e.emitget_root_global(result, name, self.getparrotrootkey());
+        e.emitget_hll_global(result, name, self.getparrotkey());
     }
 }
 
@@ -11113,22 +11035,16 @@ class NamespaceStatement : NamespaceBase
     var start;
     var name;
     var modifier;
-    var hll;
 
     function NamespaceStatement(var parent, var start, var previous,
             string name, var modifier)
     {
         self.modifier = modifier;
-        int is_hll = false;
         if (modifier != null) {
-            if (modifier.pick('HLL') != null) {
-                self.hll = name;
-                is_hll = true;
-            }
+            if (modifier.pick('HLL') != null)
+                SyntaxError("HLL modifier not supported in stage 1", self.start);
         }
-        var nspath = is_hll ?
-            new NamespacePath(name, true) :
-            parent.getpath().createchild(name);
+        var nspath = parent.getpath().createchild(name);
         self.NamespaceBase(nspath, previous);
 
         self.parent = parent;
@@ -11188,14 +11104,7 @@ class NamespaceStatement : NamespaceBase
     }
     function emit(var e)
     {
-        var hll = self.hll;
-        if (hll !=  null)
-            e.say(sformat(".HLL '%0'", hll));
-
         self.emit_base(e);
-
-        if (hll !=  null)
-            e.say(".HLL 'parrot'");
     }
 }
 
