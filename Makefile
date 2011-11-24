@@ -167,15 +167,10 @@ testdebug: $(DRIVER).pbc winxedst2.pbc
 #-----------------------------------------------------------------------
 
 clean:
-	rm -f winxedst2$(EXEEXT)
-	rm -f winxedst2$(OBJEXT)
-	rm -f winxedst2.c
-	rm -f winxedst1$(EXEEXT)
-	rm -f winxedst1$(OBJEXT)
-	rm -f winxedst1.c
-	rm -f winxedst0$(EXEEXT)
+	rm -f winxedst3.pbc
 	rm -f winxedst2.pbc
 	rm -f winxedst1.pbc
+	rm -f winxedst3.pir
 	rm -f winxedst2.pir
 	rm -f winxedst1.pir
 	rm -f winxed$(EXEEXT)
@@ -187,6 +182,7 @@ clean:
 	rm -f winxedst1_deb1.pir
 	rm -f winxedst1_deb2.pbc
 	rm -f winxedst1_deb2.pir
+	rm -f winxedst0$(EXEEXT)
 	rm -f *$(OBJEXT)
 
 # Makefile end
