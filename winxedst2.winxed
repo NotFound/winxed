@@ -4039,11 +4039,9 @@ class OpUnaryMinusExpr : OpUnaryExpr
             int i = subexpr.getIntegerValue();
             return integerValue(self.owner, subexpr.start, -i);
         }
-        if (__STAGE__ != '0') {
-            if (subexpr.isfloatliteral()) {
-                float n = subexpr.getFloatValue();
-                return floatValue(self.owner, subexpr.start, -n);
-            }
+        if (subexpr.isfloatliteral()) {
+            float n = subexpr.getFloatValue();
+            return floatValue(self.owner, subexpr.start, -n);
         }
         return self;
     }
@@ -5312,12 +5310,10 @@ class OpAddExpr : OpBinaryExpr
                 int rn = rexpr.getIntegerValue();
                 return integerValue(self.owner, self.start, ln + rn);
             }
-            if (__STAGE__ != '0') {
-                if (floatresult(ltype, rtype)) {
-                    float lf = lexpr.getFloatValue();
-                    float rf = rexpr.getFloatValue();
-                    return floatValue(self.owner, self.start, lf + rf);
-                }
+            if (floatresult(ltype, rtype)) {
+                float lf = lexpr.getFloatValue();
+                float rf = rexpr.getFloatValue();
+                return floatValue(self.owner, self.start, lf + rf);
             }
         }
         if (ltype == REGstring && rtype == REGstring) {
@@ -5477,12 +5473,10 @@ class OpMulExpr : OpBinaryExpr
                 int rn = rexpr.getIntegerValue();
                 return integerValue(self.owner, self.start, ln * rn);
             }
-            if (__STAGE__ != '0') {
-                if (floatresult(ltype, rtype)) {
-                    float lf = lexpr.getFloatValue();
-                    float rf = rexpr.getFloatValue();
-                    return floatValue(self.owner, self.start, lf * rf);
-                }
+            if (floatresult(ltype, rtype)) {
+                float lf = lexpr.getFloatValue();
+                float rf = rexpr.getFloatValue();
+                return floatValue(self.owner, self.start, lf * rf);
             }
         }
         if (ltype == REGstring)
@@ -5597,13 +5591,11 @@ class OpDivExpr : OpBinaryExpr
                 if (rn != 0)
                     return integerValue(self.owner, self.start, ln / rn);
             }
-            if (__STAGE__ != '0') {
-                if (floatresult(ltype, rtype)) {
-                    float lf = lexpr.getFloatValue();
-                    float rf = rexpr.getFloatValue();
-                    if (rf != 0)
-                        return floatValue(self.owner, self.start, lf / rf);
-                }
+            if (floatresult(ltype, rtype)) {
+                float lf = lexpr.getFloatValue();
+                float rf = rexpr.getFloatValue();
+                if (rf != 0)
+                    return floatValue(self.owner, self.start, lf / rf);
             }
         }
         return self;

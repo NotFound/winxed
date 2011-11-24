@@ -3964,12 +3964,6 @@ class OpUnaryMinusExpr : OpUnaryExpr
             int i = subexpr.getIntegerValue();
             return integerValue(self.owner, subexpr.start, -i);
         }
-        if (__STAGE__ != '0') {
-            if (subexpr.isfloatliteral()) {
-                float n = subexpr.getFloatValue();
-                return floatValue(self.owner, subexpr.start, -n);
-            }
-        }
         return self;
     }
     function emit(e, string result)
@@ -5237,13 +5231,6 @@ class OpAddExpr : OpBinaryExpr
                 int rn = rexpr.getIntegerValue();
                 return integerValue(self.owner, self.start, ln + rn);
             }
-            if (__STAGE__ != '0') {
-                if (floatresult(ltype, rtype)) {
-                    float lf = lexpr.getFloatValue();
-                    float rf = rexpr.getFloatValue();
-                    return floatValue(self.owner, self.start, lf + rf);
-                }
-            }
         }
         if (ltype == REGstring && rtype == REGstring) {
             return new ConcatString(self.owner, self.start, lexpr, rexpr);
@@ -5392,25 +5379,7 @@ class OpMulExpr : OpBinaryExpr
     function optimize()
     {
         self.optimizearg();
-        var lexpr = self.lexpr;
-        var rexpr = self.rexpr;
-        string ltype = lexpr.checkresult();
-        string rtype = rexpr.checkresult();
-        if (lexpr.isliteral() && rexpr.isliteral()) {
-            if (ltype == REGint && rtype == REGint) {
-                int ln = lexpr.getIntegerValue();
-                int rn = rexpr.getIntegerValue();
-                return integerValue(self.owner, self.start, ln * rn);
-            }
-            if (__STAGE__ != '0') {
-                if (floatresult(ltype, rtype)) {
-                    float lf = lexpr.getFloatValue();
-                    float rf = rexpr.getFloatValue();
-                    return floatValue(self.owner, self.start, lf * rf);
-                }
-            }
-        }
-        if (ltype == REGstring)
+        if (self.checkresult() == REGstring)
             return new RepeatString(self);
         return self;
     }
@@ -5509,28 +5478,6 @@ class OpDivExpr : OpBinaryExpr
     function optimize()
     {
         self.optimizearg();
-        var lexpr = self.lexpr;
-        var rexpr = self.rexpr;
-        if (lexpr.isliteral() && rexpr.isliteral()) {
-            string ltype = lexpr.checkresult();
-            string rtype = rexpr.checkresult();
-            var lval;
-            var rval;
-            if (ltype == REGint && rtype == REGint) {
-                int ln = lexpr.getIntegerValue();
-                int rn = rexpr.getIntegerValue();
-                if (rn != 0)
-                    return integerValue(self.owner, self.start, ln / rn);
-            }
-            if (__STAGE__ != '0') {
-                if (floatresult(ltype, rtype)) {
-                    float lf = lexpr.getFloatValue();
-                    float rf = rexpr.getFloatValue();
-                    if (rf != 0)
-                        return floatValue(self.owner, self.start, lf / rf);
-                }
-            }
-        }
         return self;
     }
     function checkresult()
@@ -6460,14 +6407,6 @@ class IndexExpr : Expr
             if (args.numargs() != 1)
                SyntaxError('Bad string index', self);
             var arg = args.getarg(0);
-            // Optimize case of string constant indexed with int constant
-            // evaluating it at compile time.
-            if (left.isstringliteral() && arg.isintegerliteral()) {
-                int ival = arg.getIntegerValue();
-                string sval = left.get_value();
-                return stringQuotedValue(self.owner, self.start,
-                        substr(sval, ival, 1));
-            }
             return new StringIndexExpr(self.owner, self.start, left, arg);
         }
 
@@ -7015,16 +6954,9 @@ class OpConditionalExpr : Expr
     function optimize()
     {
         self.condition = self.condition.optimize();
-        switch (self.condition.getvalue()) {
-          case CONDistrue:
-            return self.etrue.optimize();
-          case CONDisfalse:
-            return self.efalse.optimize();
-          default:
-            self.etrue = self.etrue.optimize();
-            self.efalse = self.efalse.optimize();
-            return self;
-        }
+        self.etrue = self.etrue.optimize();
+        self.efalse = self.efalse.optimize();
+        return self;
     }
     function checkresult()
     {
@@ -7899,25 +7831,15 @@ class WhileStatement : LoopStatement, ConditionalStatement
     }
     function emit(e)
     {
-        switch (self.getvalue()) {
-          case CONDistrue:
-            self.emit_infinite(e);
-            break;
-          case CONDisfalse:
-            if (e.getDebug())
-                e.comment('while(false) optimized out');
-            break;
-          default:
-            string breaklabel = self.genbreaklabel();
-            string continuelabel = self.gencontinuelabel();
+        string breaklabel = self.genbreaklabel();
+        string continuelabel = self.gencontinuelabel();
 
-            self.annotate(e);
-            e.emitlabel(continuelabel, 'while');
-            self.emit_else(e, breaklabel);
-            self.body.emit(e);
-            e.emitgoto(continuelabel);
-            e.emitlabel(breaklabel, 'endwhile');
-        }
+        self.annotate(e);
+        e.emitlabel(continuelabel, 'while');
+        self.emit_else(e, breaklabel);
+        self.body.emit(e);
+        e.emitgoto(continuelabel);
+        e.emitlabel(breaklabel, 'endwhile');
     }
 }
 
@@ -7937,10 +7859,7 @@ class DoStatement : LoopStatement, ConditionalStatement
     function optimize()
     {
         self.optimize_condition();
-        var body = self.body.optimize();
-        if (body.isempty() && self.getvalue() == CONDisfalse)
-            return new EmptyStatement;
-        self.body = body;
+        self.body = self.body.optimize();
         return self;
     }
     function emit(e)
@@ -8302,16 +8221,9 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
     {
         var initializer = self.initializer;
         if (initializer != null)
-            self.initializer = initializer = initializer.optimize();
-        if (self.condexpr != null) {
+            self.initializer = initializer.optimize();
+        if (self.condexpr != null)
             self.optimize_condition();
-            if (self.getvalue() == CONDisfalse) {
-                if (initializer != null)
-                    return initializer;
-                else
-                    return new EmptyStatement;
-            }
-        }
         optimize_array(self.iteration);
         self.body = self.body.optimize();
         return self;
@@ -8378,16 +8290,7 @@ class ForeachStatement : LoopStatement, BlockStatement
     }
     function optimize()
     {
-        var container = self.container.optimize();
-
-        // Optimize out iterating on compile time eveluated
-        // null values and empty strings.
-        if (container.isnull() ||
-                (container.isstringliteral() &&
-                length(container.get_value()) == 0))
-            return new EmptyStatement;
-
-        self.container = container;
+        self.container = self.container.optimize();
         self.body = self.body.optimize();
         return self;
     }
