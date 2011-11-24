@@ -52,7 +52,7 @@ function run_test_list(var args, int verbose, string stage, int debug)
     int l= max_length(args) + 2;
     for (string filename in args) {
         print(filename, '.' * (l - length(filename)));
-        ++total_files;
+        total_files = total_files + 1;
         int passed= 0;
         int failed= 0;
         int curr_test= 0;
@@ -95,12 +95,12 @@ function run_test_list(var args, int verbose, string stage, int debug)
                 string part= line_parts[0];
                 debugmsg(part);
                 if (part == 'not ') {
-                    ++failed;
-                    ++curr_test;
+                    failed = failed + 1;
+                    curr_test = curr_test + 1;
                 }
                 else if (test_number == (curr_test + 1)) {
-                    ++passed;
-                    ++curr_test;
+                    passed = passed + 1;
+                    curr_test = curr_test + 1;
                 }
             }
         }
@@ -108,7 +108,7 @@ function run_test_list(var args, int verbose, string stage, int debug)
             say('failed ', failed, '/', num_tests, ' tests');
         else if (plan_part0 != 1 || (num_tests < 0)) {
             say('INVALID PLAN: ', plan_part0, '..', plan_part1);
-            ++failed_files;
+            failed_files = failed_files + 1;
         }
         else
             say('passed ', curr_test, ' tests');

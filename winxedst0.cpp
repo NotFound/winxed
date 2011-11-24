@@ -2823,139 +2823,6 @@ private:
 
 //**********************************************************************
 
-class IncDecOp : public OpUnaryBaseExpr
-{
-protected:
-    IncDecOp(BlockBase &block, Token t, Expr *subexpr) :
-        OpUnaryBaseExpr(block, t, subexpr)
-    {
-    }
-    std::string getvar()
-    {
-        if ( (! expr->isidentifier() ) || expr->isstring())
-            throw SyntaxError("invalid type", start);
-        return expr->getidentifier();
-    }
-private:
-    bool isinteger () const { return expr->isinteger(); }
-};
-
-//**********************************************************************
-
-class OpPreIncExpr : public IncDecOp
-{
-public:
-    OpPreIncExpr(BlockBase &block, Token t, Expr *subexpr) :
-        IncDecOp(block, t, subexpr)
-    {
-    }
-private:
-    void emit(Emit &e, const std::string &result)
-    {
-        std::string var;
-        if (expr->isidentifier())
-            var = getvar();
-        else
-            var = expr->emit_get(e);
-        annotate(e);
-        e << op_inc(var) << '\n';
-        if (! result.empty())
-            e << INDENT << result << " = " << var << '\n';
-    }
-    std::string emit_get(Emit &e)
-    {
-        std::string var;
-        if (expr->isidentifier())
-            var = getvar();
-        else
-            var = expr->emit_get(e);
-        annotate(e);
-        e << op_inc(var) << '\n';
-        return var;
-    }
-};
-
-//**********************************************************************
-
-class OpPreDecExpr : public IncDecOp
-{
-public:
-    OpPreDecExpr(BlockBase &block, Token t, Expr *subexpr) :
-        IncDecOp(block, t, subexpr)
-    {
-    }
-private:
-    void emit(Emit &e, const std::string &result)
-    {
-        std::string var;
-        if (expr->isidentifier())
-            var = getvar();
-        else
-            var = expr->emit_get(e);
-        annotate(e);
-        e << op_dec(var) << '\n';
-        if (! result.empty())
-            e << INDENT << result << " = " << var << '\n';
-    }
-    std::string emit_get(Emit &e)
-    {
-        std::string var;
-        if (expr->isidentifier())
-            var = getvar();
-        else
-            var = expr->emit_get(e);
-        annotate(e);
-        e << op_dec(var) << '\n';
-        return var;
-    }
-};
-
-//**********************************************************************
-
-class OpPostIncExpr : public IncDecOp
-{
-public:
-    OpPostIncExpr(BlockBase &block, Token t, Expr *subexpr) :
-        IncDecOp(block, t, subexpr)
-    {
-    }
-private:
-    void emit(Emit &e, const std::string &result)
-    {
-        std::string var= getvar();
-        std::string reg= gentemp(REGint);
-        annotate(e);
-        e << INDENT << reg << " = " << var << '\n' <<
-            op_inc(var) << '\n';
-        if (! result.empty())
-            e << INDENT << result << " = " << reg << '\n';
-    }
-};
-
-//**********************************************************************
-
-class OpPostDecExpr : public IncDecOp
-{
-public:
-    OpPostDecExpr(BlockBase &block, Token t, Expr *subexpr) :
-        IncDecOp(block, t, subexpr)
-    {
-    }
-private:
-    void emit(Emit &e, const std::string &result)
-    {
-        std::string var= getvar();
-        std::string reg= gentemp(REGint);
-        annotate(e);
-        e << reg << " = " << var << '\n' <<
-            op_dec(var) << '\n';
-        if (! result.empty())
-            e << result << " = " << reg << '\n';
-    }
-};
-
-//**********************************************************************
-
 class BinOpExpr : public OpBaseExpr
 {
 protected:
@@ -5108,7 +4975,6 @@ Expr * parseExpr_6(BlockBase &block, Tokenizer &tk);
 Expr * parseExpr_7(BlockBase &block, Tokenizer &tk);
 Expr * parseExpr_5(BlockBase &block, Tokenizer &tk);
 Expr * parseExpr_4(BlockBase &block, Tokenizer &tk);
-Expr * parseExpr_3(BlockBase &block, Tokenizer &tk);
 Expr * parseExpr_2(BlockBase &block, Tokenizer &tk);
 Expr * parseExpr_0(BlockBase &block, Tokenizer &tk);
 
@@ -5179,21 +5045,6 @@ Expr *parseExpr_2(BlockBase &block, Tokenizer &tk)
     return subexpr;
 }
 
-Expr *parseExpr_3(BlockBase &block, Tokenizer &tk)
-{
-    Expr *subexpr= parseExpr_2(block, tk);
-    Token t= tk.get();
-    if (t.isop("++") )
-        return new OpPostIncExpr(block, t, subexpr);
-    else if (t.isop("--") )
-        return new OpPostDecExpr(block, t, subexpr);
-    else
-    {
-        tk.unget(t);
-        return subexpr;
-    }
-}
-
 Expr * parseExpr_4(BlockBase &block, Tokenizer &tk)
 {
     Token t= tk.get();
@@ -5212,16 +5063,6 @@ Expr * parseExpr_4(BlockBase &block, Tokenizer &tk)
         Expr *subexpr= parseExpr_4(block, tk);
         return new OpBinNotExpr(block, t, subexpr);
     }
-    else if (t.isop("++"))
-    {
-        Expr *subexpr= parseExpr_4(block, tk);
-        return new OpPreIncExpr(block, t, subexpr);
-    }
-    else if (t.isop("--"))
-    {
-        Expr *subexpr= parseExpr_4(block, tk);
-        return new OpPreDecExpr(block, t, subexpr);
-    }
     else if (t.iskeyword("delete"))
     {
         throw UnsupportedInStage("operator delete", t);
@@ -5233,9 +5074,10 @@ Expr * parseExpr_4(BlockBase &block, Tokenizer &tk)
     else
     {
         tk.unget(t);
-        return parseExpr_3(block, tk);
+        return parseExpr_2(block, tk);
     }
 }
+
 
 Expr * parseExpr_5(BlockBase &block, Tokenizer &tk)
 {

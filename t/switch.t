@@ -17,22 +17,23 @@ next:
     case 0:
         is(a[i], 'a', 'int 1');
         is(j, 0, 'int 2');
-        ++j;
+        j = j + 1;
         break;
     case 1:
         is(a[i], 'b', 'int 3');
         is(j, 1, 'int 4');
-        ++j;
+        j = j + 1;
         break;
     case 2:
         is(a[i], 'c', 'int 5');
         is(j, 2, 'int 6');
-        ++j;
+        j = j + 1;
         break;
     default:
         is(j, 3, 'int 7');
     }
-    if (++i < 4) goto next;
+    i = i + 1;
+    if (i < 4) goto next;
     is(j, 3, 'int 8');
 
     i= 0;
@@ -51,5 +52,6 @@ next2:
     default:
         is (i, 3, 'string 4');
     }
-    if (++i < 4) goto next2;
+    i = i + 1;
+    if (i < 4) goto next2;
 }

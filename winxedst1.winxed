@@ -742,7 +742,7 @@ class Tokenizer
             var h = self.h;
             c = h.read(1);
             if (c == "\n")
-                ++self.line;
+                self.line = self.line + 1;
         }
         return c;
     }
@@ -1353,15 +1353,15 @@ class BuiltinBase
                 n = 1;
                 if (type1 != null) {
                     self.type1 = type1;
-                    ++n;
+                    n = n + 1;
                 }
                 if (type2 != null) {
                     self.type2 = type2;
-                    ++n;
+                    n = n + 1;
                 }
                 if (type3 != null) {
                     self.type3 = type3;
-                    ++n;
+                    n = n + 1;
                 }
             }
         }
@@ -1549,7 +1549,7 @@ function Builtin_say(e, owner, start, string result, args)
     e.annotate(start);
     int n = elements(args) - 1;
     if (n >= 0) {
-        for (int i = 0; i < n; ++i)
+        for (int i = 0; i < n; i = i + 1)
             e.emitprint(args[i]);
         e.emitsay(args[n]);
     }
@@ -2154,7 +2154,7 @@ compreg %0, %2
 function optimize_array(var arr)
 {
     int n = arr != null ? elements(arr) : 0;
-    for (int i = 0; i < n; ++i)
+    for (int i = 0; i < n; i = i + 1)
         arr[i] = arr[i].optimize();
 }
 
@@ -2678,7 +2678,7 @@ class MultiStatementBase
         var statements = self.statements;
         int n = elements(statements);
         int empty = true;
-        for (int i = 0; i < n; ++i) {
+        for (int i = 0; i < n; i = i + 1) {
             var st = statements[i].optimize();
             if (empty && ! st.isempty())
                 empty = false;
@@ -5223,7 +5223,7 @@ class ConcatString : FinalExpr
         int nvalues = elements(values);
         string regvalues[nvalues];
         int i;
-        for (i = 0; i < nvalues; ++i)
+        for (i = 0; i < nvalues; i = i + 1)
             regvalues[i] = string(values[i].emit_get(e));
         return regvalues;
     }
@@ -5239,7 +5239,7 @@ class ConcatString : FinalExpr
         string auxreg = self.tempreg(REGstring);
         self.annotate(e);
         e.emitconcat(auxreg, regvalues[0], regvalues[1]);
-        for (int i = 2; i < nvalues; ++i)
+        for (int i = 2; i < nvalues; i = i + 1)
             e.emitconcat1(auxreg, regvalues[i]);
         return auxreg;
     }
@@ -5249,7 +5249,7 @@ class ConcatString : FinalExpr
         int nvalues = elements(regvalues);
         self.annotate(e);
         e.emitconcat(result, regvalues[0], regvalues[1]);
-        for (int i = 2; i < nvalues; ++i)
+        for (int i = 2; i < nvalues; i = i + 1)
             e.emitconcat1(result, regvalues[i]);
     }
     function emit_concat_to(e, string result)
@@ -5257,7 +5257,7 @@ class ConcatString : FinalExpr
         var regvalues = self.getregs(e);
         int nvalues = elements(regvalues);
         self.annotate(e);
-        for (int i = 0; i < nvalues; ++i)
+        for (int i = 0; i < nvalues; i = i + 1)
             e.emitconcat1(result, regvalues[i]);
     }
 }
@@ -5884,7 +5884,7 @@ class ArgumentList
 
         string sep = '';
         int n = self.numargs();
-        for (int i = 0; i < n; ++i) {
+        for (int i = 0; i < n; i = i + 1) {
             e.print(sep, argreg[i]);
             var modifiers = args[i].modifiers;
             if (modifiers != null)
@@ -5960,7 +5960,7 @@ class CallBuiltinExpr : FinalExpr
           default:
             int n = self.args;
             var collectdefault = new CollectValues(self.owner, e);
-            for (int i = 0; i < n; ++i) {
+            for (int i = 0; i < n; i = i + 1) {
                 arg = args[i].arg;
                 string argtype = arg.checkresult();
                 string paramtype = builtin.paramtype(i);
@@ -6656,7 +6656,7 @@ class ArrayExpr : Expr
             if (container != '') {
                 self.annotate(e);
                 e.say(sformat(INDENT + "%0[%1] = %2", container, i, valuereg));
-                ++i;
+                i = i + 1;
             }
         }
     }
@@ -6712,7 +6712,7 @@ class HashExpr : Expr
         var values = self.values;
         var collectvalues = new CollectValues(self.owner, e);
         int n = keys;
-        for (int i = 0; i < n; ++i) {
+        for (int i = 0; i < n; i = i + 1) {
             var key = keys[i];
             string keyreg;
             if (key.isidentifier() && key.checkIdentifier() == '') {
@@ -8258,7 +8258,7 @@ class SwitchStatement : SwitchBaseStatement
         self.annotate(e);
         var case_st = self.case_st;
         int n = case_st;
-        for (int i = 0; i < n; ++i) {
+        for (int i = 0; i < n; i = i + 1) {
             e.emitlabel(caselabel[i], 'case');
             emit_array(e, case_st[i]);
         }
@@ -8309,7 +8309,7 @@ class SwitchCaseStatement : SwitchBaseStatement
         self.annotate(e);
         var case_st = self.case_st;
         int n = case_st;
-        for (int i = 0; i < n; ++i) {
+        for (int i = 0; i < n; i = i + 1) {
             e.emitlabel(caselabel[i], 'case');
             emit_array(e, case_st[i]);
         }
@@ -8591,7 +8591,7 @@ class TryModifierList : ModifierList
               case 'handle_types':
               case 'handle_types_except':
                 string argregs [];
-                for (int i = 0; i < nargs; ++i) {
+                for (int i = 0; i < nargs; i = i + 1) {
                     var arg = modif.getarg(i);
                     push(argregs, arg.emit_get(e));
                 }
@@ -8901,7 +8901,7 @@ class DeclareArrayStatement : DeclareBase
             for (var item in init) {
                 item.emit(e, itemreg);
                 e.say(sformat(INDENT + "%0[%1] = %2", reg, i, itemreg));
-                ++i;
+                i = i + 1;
             }
         }
     }
@@ -9320,10 +9320,9 @@ class RegisterStore
     }
     function createreg()
     {
-        var n = self.nreg;
-        int i = n;
-        string reg = i++;
-        n =: i;
+        int n = int(self.nreg) + 1;
+        string reg = n;
+        self.nreg =: n;
         return '$' + string(self.type) + reg;
     }
     function tempreg()
@@ -9343,7 +9342,7 @@ class RegisterStore
         var freereg = self.freereg;
         var tempreg = self.tempreg;
         int n = elements(tempreg);
-        for (int i = n - 1; i >= 0; --i) {
+        for (int i = n - 1; i >= 0; i = i - 1) {
             string s = tempreg[i];
             push(freereg, s);
         }
@@ -9509,7 +9508,7 @@ class FunctionModifierList : ModifierList
             e.print(' :', name);
             if (nargmods > 0) {
                 e.print('(');
-                for (int iargmod = 0; iargmod < nargmods; ++iargmod) {
+                for (int iargmod = 0; iargmod < nargmods; iargmod = iargmod + 1) {
                     var argmod = m.getarg(iargmod);
                     if (!argmod.isstringliteral())
                         SyntaxError('Invalid modifier', argmod);
@@ -9529,7 +9528,7 @@ function multi_sig_from_multi_modifier(owner, multi)
     var sig;
     if (nargs) {
         sig = [];
-        for (int i = 0; i < nargs; ++i) {
+        for (int i = 0; i < nargs; i = i + 1) {
             var arg = multi.getarg(i);
             switch {
               case arg.isstringliteral():
@@ -9748,7 +9747,8 @@ class FunctionBase : BlockStatement
     }
     function genlabel()
     {
-        int n = ++self.nlabel;
+        int n = int(self.nlabel) + 1;
+        self.nlabel =: n;
         return '__label_' + string(n);
     }
     function getbreaklabel(pos)
@@ -9863,12 +9863,16 @@ class FunctionStatement : FunctionBase
     function getparamnum()
     {
         // Get a number to assign unique internal names to params.
-        return int(++self.paramnum);
+        int n = int(self.paramnum) + 1;
+        self.paramnum =: n;
+        return n;
     }
     function getlexnum()
     {
         // Get a number to assign unique internal names to lexicals.
-        return int(++self.lexnum);
+        int n = int(self.lexnum) + 1;
+        self.lexnum =: n;
+        return n;
     }
     function ismethod() { return false; }
 
@@ -10415,7 +10419,8 @@ class ClassStatement : ClassBase, VarContainer
         int n = 1;
         for (var base in self.bases) {
             base.annotate(e);
-            string reg = "$P" + n++;
+            string reg = "$P" + n;
+            n = n + 1;
             e.print(INDENT, 'get_class ', reg, ', ');
             base.emit(e, self.parent);
             e.say();
@@ -10518,20 +10523,20 @@ function include_parrot(var start, var tk, var ns)
             int pos = length(MACRO_CONST);
             string c;
             while ((c = substr(line, pos, 1)) == " " || c == "\t")
-                ++pos;
+                pos = pos + 1;
             int pos2 = pos;
             while ((c = substr(line, pos2, 1)) != " " && c != "\t" &&
                     c != "\n" && c != "\r" && c != "")
-                ++pos2;
+                pos2 = pos2 + 1;
             if (pos2 == pos)
                 continue;
             string name = substr(line, pos, pos2 - pos);
             while ((c = substr(line, pos2, 1)) == " " || c == "\t")
-                ++pos2;
+                pos2 = pos2 + 1;
             pos = pos2;
             while ((c = substr(line, pos2, 1)) != " " && c != "\t" &&
                     c != "\n" && c != "\r" && c != "")
-                ++pos2;
+                pos2 = pos2 + 1;
             if (pos2 == pos)
                 continue;
             string value = substr(line, pos, pos2- pos);
@@ -11231,7 +11236,8 @@ class RootNamespace : NamespaceBase
 
     function generatesubid()
     {
-        int idgen = ++self.subidgen;
+        int idgen = int(self.subidgen) + 1;
+        self.subidgen =: idgen;
         return 'WSubId_' + string(idgen);
     }
 

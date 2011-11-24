@@ -537,26 +537,6 @@ Token Tokenizer::getany ()
         if (is)
             ungetchar(c);
         return Token(TokenTInteger, s, linenum, name);
-    case '+':
-        switch ((c= getchar()))
-        {
-        case '+':
-            s+= c;
-            break;
-        default:
-            ungetchar(c);
-        }
-        break;
-    case '-':
-        switch ((c= getchar()))
-        {
-        case '-':
-            s+= c;
-            break;
-        default:
-            ungetchar(c);
-        }
-        break;
     case '!':
         if ((c= getchar()) == '=') {
             s+= c;

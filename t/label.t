@@ -20,12 +20,12 @@ next:
 	{
 		int j= 0;
 	next:
-		++j;
+		j = j + 1;
 		if (j < 7) goto next;
 		if (i == 0)
 			is (j, 7, 'nested label: in block');
 	}
-	++i;
+	i = i + 1;
 	if (i < 10) goto next;
 	is (i, 10, 'nested label: out of block');
 }

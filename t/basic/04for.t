@@ -10,30 +10,30 @@ function main()
 
     int check = 0;
     for (;;) {
-        ++check;
+        check = check + 1;
         is(check, 1, 'for (;;)');
         break;
     }
 
     string s;
     int i;
-    for (i = 0; i < 5; ++i)
+    for (i = 0; i < 5; i = i + 1)
         s = s + 'x';
     is(s, 'xxxxx', 'simple counting');
     i = 0;
     s = '';
-    for (; i < 5; ++i)
+    for (; i < 5; i = i + 1)
         s = s + 'x';
     is(s, 'xxxxx', 'simple counting without initialization');
 
     s = '';
-    for (i = 0; i < 0; ++i)
+    for (i = 0; i < 0; i = i + 1)
         s = s + 'x';
     is(s, '', 'condition false at start');
 
     i = 0;
     s = '';
-    for (; i < 0; ++i)
+    for (; i < 0; i = i + 1)
         s = s + 'x';
     is(s, '', 'condition false at start without initialization');
     for (; i < 0;)
