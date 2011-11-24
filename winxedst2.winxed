@@ -89,6 +89,11 @@ function find_if(src, fun)
     return null;
 }
 
+function addprefix(string prefix)
+{
+    return function (string str) { return prefix + str; };
+}
+
 //*********************************************
 //        Error handling exceptions
 //*********************************************
@@ -1565,11 +1570,6 @@ function Builtin_say(e, owner, start, string result, args)
         e.emitsay("''");
 }
 
-function emit_printP0(string arg)
-{
-    return INDENT + "print $P0, " + arg;
-}
-
 function Builtin_cry(e, owner, start, string result, args)
 {
     e.annotate(start);
@@ -1579,7 +1579,7 @@ function Builtin_cry(e, owner, start, string result, args)
 %0
     print $P0, "\n"
 :>>
-        , join("\n", transform(args, [], emit_printP0))));
+        , join("\n", transform(args, [], addprefix(INDENT + "print $P0, ")))));
 }
 
 function Builtin_print(e, owner, start, string result, args)
@@ -11197,16 +11197,6 @@ class NamespaceStatement : NamespaceBase
 //            RootNamespace
 //*********************************************
 
-function emit_loadlib(string libname)
-{
-    return '.loadlib ' + libname;
-}
-
-function emit_loadbytecode(string loadname)
-{
-    return INDENT + 'load_bytecode ' + loadname;
-}
-
 class RootNamespace : NamespaceBase
 {
     var unit;
@@ -11291,7 +11281,7 @@ class RootNamespace : NamespaceBase
 
         var libs = self.libs;
         if (libs != null)
-            e.say(join("\n", transform(libs, [], emit_loadlib)));
+            e.say(join("\n", transform(libs, [], addprefix(".loadlib "))));
 
         var loads = self.loads;
         if (loads != null) {
@@ -11301,7 +11291,8 @@ class RootNamespace : NamespaceBase
 %0
 .end
 :>>
-                , join("\n", transform(loads, [], emit_loadbytecode))));
+                , join("\n", transform(loads, [],
+                       addprefix(INDENT + 'load_bytecode ')))));
         }
         if (libs != null || loads != null)
             e.comment('end libs');
