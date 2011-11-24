@@ -2486,8 +2486,6 @@ function parseStatement(tk, owner)
         return new EmptyStatement;
     if (t.isop('{'))
         return new CompoundStatement(t, tk, owner);
-    if (t.isop('${'))
-        return new PiropStatement(t, tk, owner);
     if (t.isop(':')) {
         var open = tk.get();
         if (! open.isop('('))
@@ -2716,71 +2714,6 @@ function addtomulti(var multi, var newst)
         return multi.push(newst);
       default:
         return new MultiStatement(multi, newst);
-    }
-}
-
-//*********************************************
-//           PiropStatement
-//*********************************************
-
-function parsePiropArg(tk, owner)
-{
-    var arg;
-    var t = tk.get();
-    if (t.isop(':')) {
-        t = tk.get();
-        string label = t.getidentifier();
-        arg = new Reflabel(owner, label);
-    }
-    else {
-        tk.unget(t);
-        arg = parseExpr(tk, owner);
-    }
-    return arg;
-}
-
-class PiropStatement : Statement
-{
-    var opname;
-    var args;
-
-    function PiropStatement(start, tk, owner)
-    {
-        self.Statement(start, owner);
-        var t = tk.get();
-        int dotted = t.isop('.');
-        if (dotted)
-            t = tk.get();
-        string opname = t.getidentifier();
-        self.opname = (dotted ? '.' : '') + opname;
-        t = tk.get();
-        if (! t.isop('}')) {
-            tk.unget(t);
-            self.args = parseList(tk, owner, parsePiropArg, '}');
-        }
-        ExpectOp(';', tk);
-    }
-    function optimize()
-    {
-        optimize_array(self.args);
-        return self;
-    }
-    function emit(e)
-    {
-        string opname = self.opname;
-        self.annotate(e);
-        if (e.getDebug())
-            e.comment('pirop ' + opname);
-        var args = self.args;
-        e.print(INDENT);
-        if (args == null)
-            e.say(opname);
-        else {
-            var argreg = [];
-            for (var a in  args)
-                push(argreg, a.emit_get(e));
-            e.say(opname, ' ', join(', ', argreg));
-        }
     }
 }
 
