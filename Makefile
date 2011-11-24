@@ -126,22 +126,16 @@ install: preinstall
 
 #-----------------------------------------------------------------------
 
-# Useful for some tests
-%.pir: %.winxed winxed
-	./winxedst0$(EXEEXT) $<
-
-
-test: $(DRIVER).pbc
+test0: $(DRIVER).pbc
 	parrot $(DRIVER).pbc --stage=0 t/harness --stage=0 -r t/basic t/*.t
-
-testv: $(DRIVER).pbc
-	parrot $(DRIVER).pbc t/harness -rv t/basic t/*.t
 
 test1: $(DRIVER).pbc winxedst1.pbc
 	parrot $(DRIVER).pbc --stage=1 t/harness --stage=1 -r t/basic t/advanced t/*.t
 
 test2: $(DRIVER).pbc winxedst2.pbc
 	parrot $(DRIVER).pbc --stage=2 t/harness --stage=2 -r t/basic t/advanced t/*.t
+
+test: test2
 
 #-----------------------------------------------------------------------
 
