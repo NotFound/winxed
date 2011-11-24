@@ -218,11 +218,14 @@ function driver_main(argv)
       case 2:
         winxedbin = 'winxedst2';
         break;
+      case 3:
+        winxedbin = 'winxedst3';
+        break;
       case CUSTOM_STAGE:
         winxedbin = opt_stage;
         break;
       default:
-        die('Invalid stage ' + stage + '. Must be 0, 1 or 2 (2 is for testing development only).');
+        die('Invalid stage ' + stage + '. Must be 0, 1, 2 or 3 .');
     }
 
     int retval = 0;

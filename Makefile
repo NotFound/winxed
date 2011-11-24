@@ -15,7 +15,7 @@ DRIVER = winxedrun
 
 #-----------------------------------------------------------------------
 
-default: stage0 driver winxedst1.pbc winxedst2.pbc
+default: stage0 driver winxedst1.pbc winxedst2.pbc winxedst3.pbc
 
 all: default
 
@@ -76,8 +76,18 @@ winxedst1.pir: winxedst0$(EXEEXT) winxedst1.winxed
 winxedst2.pbc: winxedst2.pir
 	parrot -o winxedst2.pbc winxedst2.pir
 
-winxedst2.pir: winxedst1.winxed winxedst1.pbc $(DRIVER).pbc
-	parrot $(DRIVER).pbc --stage=1 -c -o winxedst2.pir winxedst1.winxed
+winxedst2.pir: winxedst2.winxed winxedst1.pbc $(DRIVER).pbc
+	parrot $(DRIVER).pbc --stage=1 -c -o winxedst2.pir winxedst2.winxed
+
+#-------------------------------
+#    Compiler stage 3
+#-------------------------------
+
+winxedst3.pbc: winxedst3.pir
+	parrot -o winxedst3.pbc winxedst3.pir
+
+winxedst3.pir: winxedst2.winxed winxedst2.pbc $(DRIVER).pbc
+	parrot $(DRIVER).pbc --stage=2 -c -o winxedst3.pir winxedst2.winxed
 
 #-------------------------------
 #      Driver
@@ -107,15 +117,15 @@ preinstall: \
     pir/winxed_installed.pir 
 
 # Installed compiler is stage 1 built with stage 2
-pir/winxed_compiler.pir: winxedst2.pbc $(DRIVER).pbc
-	parrot $(DRIVER).pbc -c -o pir/winxed_compiler.pir winxedst1.winxed
+pir/winxed_compiler.pir: winxedst3.pbc $(DRIVER).pbc
+	parrot $(DRIVER).pbc -c -o pir/winxed_compiler.pir winxedst2.winxed
 
 # Installed driver
-pir/winxed_installed.pir: winxed_installed.winxed winxedst2.pbc $(DRIVER).pbc
+pir/winxed_installed.pir: winxed_installed.winxed winxedst3.pbc $(DRIVER).pbc
 	parrot $(DRIVER).pbc -c -o pir/winxed_installed.pir winxed_installed.winxed
 
 # setup.pir for use from plumage
-setup.pir: setup.winxed winxedst2.pbc $(DRIVER).pbc
+setup.pir: setup.winxed winxedst3.pbc $(DRIVER).pbc
 	parrot $(DRIVER).pbc -c -o setup.pir setup.winxed
 
 # Install
@@ -135,7 +145,10 @@ test1: $(DRIVER).pbc winxedst1.pbc
 test2: $(DRIVER).pbc winxedst2.pbc
 	parrot $(DRIVER).pbc --stage=2 t/harness --stage=2 -r t/basic t/advanced t/*.t
 
-test: test2
+test3: $(DRIVER).pbc winxedst3.pbc
+	parrot $(DRIVER).pbc --stage=3 t/harness --stage=3 -r t/basic t/advanced t/*.t
+
+test: test3
 
 #-----------------------------------------------------------------------
 
