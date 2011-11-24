@@ -6,9 +6,9 @@ using extern Test.More plan, is;
 
 // :multi
 
-function Foo(a, b) { return a + b; }
+function foo(a, b) { return a + b; }
 
-function Foo(a) { return a; }
+function foo(a) { return a; }
 
 class Bar
 {
@@ -39,8 +39,6 @@ function main[main]()
 {
     plan(6);
 
-    var foo;
-    ${ get_global foo, "Foo" };
     is(foo(5), 5, "Can get 1-arity multi");
     is(foo(4,5), 9, "Can get 2-arity multi");
 
