@@ -404,9 +404,6 @@ Token Tokenizer::getany ()
     case '/':
         switch((c = getchar()))
         {
-        case '=':
-            s+= c;
-            break;
         case '/':
             for (; (!is.eof()) && c != '\n'; c= getchar())
                 s+= c;
@@ -496,7 +493,7 @@ Token Tokenizer::getany ()
     case '&':
         switch ((c= getchar()))
         {
-        case '&': case '=':
+        case '&':
             s+= c;
             break;
         default:
@@ -506,7 +503,7 @@ Token Tokenizer::getany ()
     case '|':
         switch ((c= getchar()))
         {
-        case '|': case '=':
+        case '|':
             s+= c;
             break;
         default:
@@ -543,7 +540,7 @@ Token Tokenizer::getany ()
     case '+':
         switch ((c= getchar()))
         {
-        case '+': case '=':
+        case '+':
             s+= c;
             break;
         default:
@@ -553,17 +550,7 @@ Token Tokenizer::getany ()
     case '-':
         switch ((c= getchar()))
         {
-        case '-': case '=':
-            s+= c;
-            break;
-        default:
-            ungetchar(c);
-        }
-        break;
-    case '*':
-        switch ((c= getchar()))
-        {
-        case '=':
+        case '-':
             s+= c;
             break;
         default:
@@ -584,7 +571,7 @@ Token Tokenizer::getany ()
     case '%':
         switch (c= getchar())
         {
-        case '%': case '=':
+        case '%':
             s+= c;
             break;
         default:

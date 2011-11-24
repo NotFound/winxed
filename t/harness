@@ -20,8 +20,8 @@ function run_test(string filename, int debug, string stage)
         'winxed' :
         'parrot winxedrun.pbc --stage=' + stage;
     if (debug)
-        s += " --debug";
-    s += ' ' + filename;
+        s = s + " --debug";
+    s = s + ' ' + filename;
     debugmsg(s);
 
     var fh= open(s, 'rp');

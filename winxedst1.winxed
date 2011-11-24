@@ -406,7 +406,7 @@ class TokenSingleQuoted : TokenString
                 c = '\' + c;
                 break;
             }
-            s += c;
+            s = s + c;
         }
         return s;
     }
@@ -427,7 +427,7 @@ class TokenSingleQuoted : TokenString
             string result = '';
             for (string c in str) {
                 if (c == '\')
-                    result += '\\';
+                    result = result + '\\';
                 else
                 {
                     int n = ord(c);
@@ -435,10 +435,10 @@ class TokenSingleQuoted : TokenString
                         if (n > 127)
                             need_encoding = true;
                         string h = n.get_as_base(16);
-                        result += '\x{' + h + '}';
+                        result = result + '\x{' + h + '}';
                     }
                     else
-                        result += c;
+                        result = result + c;
                 }
             }
             str = result;
@@ -519,10 +519,10 @@ function getquoted(tk, string start, int line)
             string c2 = tk.getchar();
             if (c2 == '' || c2 == "\n")
                 UnterminatedString(tk, line);
-            s += c + c2;
+            s = s + c + c2;
             break;
           default:
-            s += c;
+            s = s + c;
         }
     }
     return new TokenQuoted(tk.filename, line, s);
@@ -535,7 +535,7 @@ function getsinglequoted(tk, string start, int line)
     for (c = tk.getchar(); c != "'"; c = tk.getchar()) {
         if (c == "" || c == "\n")
             UnterminatedString(tk, line);
-        s += c;
+        s = s + c;
     }
     return new TokenSingleQuoted(tk.filename, line, s);
 }
@@ -572,10 +572,10 @@ function getheredoc(tk, string start, int linenum)
                 c = '\' + c;
                 break;
             }
-            line += c;
+            line = line + c;
         }
         if (line != mark)
-            content += line + '\n';
+            content = content + line + '\n';
     } while (line != mark);
     return new TokenQuoted(tk.filename, linenum, content);
 }
@@ -585,7 +585,7 @@ function getident(tk, string start, int line)
     string s = start;
     string c;
     for (c = tk.getchar(); isident(c); c = tk.getchar())
-        s += c;
+        s = s + c;
     tk.ungetchar(c);
     return new TokenIdentifier(tk.filename, line, s);
 }
@@ -595,14 +595,14 @@ function getnumber(tk, string start, int line)
     string s;
     string c = start;
     do {
-        s += c;
+        s = s+ c;
         c = tk.getchar();
     } while (isdigit(c));
     if (s == '0' && (c == 'x' || c == 'X')) {
         int hexval = 0, h;
         for (c = tk.getchar(); (h = hexdigit(c)) >= 0; c = tk.getchar()) {
             hexval = hexval * 16 + h;
-            s += c;
+            s = s + c;
         }
         tk.ungetchar(c);
         s = hexval;
@@ -610,30 +610,30 @@ function getnumber(tk, string start, int line)
     }
     if (c == '.') {
         do {
-            s += c;
+            s = s + c;
             c = tk.getchar();
         } while (isdigit(c));
         if (c == 'e' || c == 'E') {
-            s += 'E';
+            s = s + 'E';
             if ((c = tk.getchar()) == '+' || c == '-') {
-                s += c;
+                s = s + c;
                 c = tk.getchar();
             }
             for ( ; isdigit(c); c = tk.getchar())
-                s += c;
+                s = s + c;
         }
         tk.ungetchar(c);
         return new TokenFloat(tk.filename, line, s);
     }
     else {
         if (c == 'e' || c == 'E') {
-            s += 'E';
+            s = s + 'E';
             if ((c = tk.getchar()) == '+' || c == '-') {
-                s += c;
+                s = s + c;
                 c = tk.getchar();
             }
             for ( ; isdigit(c); c = tk.getchar())
-                s += c;
+                s = s + c;
             tk.ungetchar(c);
             return new TokenFloat(tk.filename, line, s);
         }
@@ -648,7 +648,7 @@ function getlinecomment(tk, string start, int line)
 {
     string s = start;
     for (string c = tk.getchar(); c != '' && c != "\n"; c = tk.getchar())
-        s += c;
+        s = s + c;
     return new TokenComment(tk.filename, line, s);
 }
 
@@ -658,15 +658,15 @@ function getcomment(tk, string start, int line)
     string c = tk.getchar();
     do {
        for ( ; c != '' && c != '*'; c = tk.getchar())
-            s += c;
+            s = s + c;
         if (c == '')
             UnclosedComment(tk, line);
-        s += c;
+        s = s + c;
         c = tk.getchar();
         if (c == '')
             UnclosedComment(tk, line);
     } while (c != '/');
-    s += '/';
+    s = s + '/';
     return new TokenComment(tk.filename, line, s);
 }
 
@@ -779,7 +779,7 @@ class Tokenizer
                 current = select[''];
             }
             else
-                op += c;
+                op = op + c;
         }
         return current != null ?
             current(self, op, line) :
@@ -1170,7 +1170,7 @@ function floatAsString(float n)
     string aux; aux = n;
 
     if (aux.is_integer(aux))
-        aux += '.0';
+        aux = aux + '.0';
     return aux;
 }
 
@@ -10717,14 +10717,14 @@ class NamespacePath
         if (hll != null) {
             // HLL namespace is stored in the root namespace
             // using its name in lower case as key.
-            r += downcase(hll);
+            r = r + downcase(hll);
         }
         else
-            r += "parrot";
-        r += "'";
+            r = r + "parrot";
+        r = r + "'";
         if (elements(path) != 0)
-            r += "; '" + string(join("'; '", path)) + "'";
-        r += " ]";
+            r = r + "; '" + string(join("'; '", path)) + "'";
+        r = r + " ]";
         return r;
     }
     function emitnamespace(e)

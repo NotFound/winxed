@@ -18,30 +18,30 @@ function main()
     string s;
     int i;
     for (i = 0; i < 5; ++i)
-        s+= 'x';
+        s = s + 'x';
     is(s, 'xxxxx', 'simple counting');
     i = 0;
     s = '';
     for (; i < 5; ++i)
-        s+= 'x';
+        s = s + 'x';
     is(s, 'xxxxx', 'simple counting without initialization');
 
     s = '';
     for (i = 0; i < 0; ++i)
-        s+= 'x';
+        s = s + 'x';
     is(s, '', 'condition false at start');
 
     i = 0;
     s = '';
     for (; i < 0; ++i)
-        s+= 'x';
+        s = s + 'x';
     is(s, '', 'condition false at start without initialization');
     for (; i < 0;)
-        s+= 'x';
+        s = s + 'x';
     is(s, '', 'condition false at start - condition only');
 
     for (s = ''; length(s) < 4;)
-        s+= 'x';
+        s = s + 'x';
     is (s, 'xxxx', 'without increment');
 }
 

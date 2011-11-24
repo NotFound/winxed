@@ -3656,79 +3656,6 @@ private:
 
 //**********************************************************************
 
-class OpAddToExpr : public CommonBinOpExpr
-{
-public:
-    OpAddToExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CommonBinOpExpr(block, t, first, second)
-    {
-    }
-private:
-    bool isinteger() const { return lexpr->isinteger(); }
-    bool isstring() const { return lexpr->isstring(); }
-    Expr *optimize()
-    {
-        optimize_operands();
-        return this;
-    }
-    void emit(Emit &e, const std::string &result)
-    {
-        if (lexpr->isidentifier())
-        {
-            if (lexpr->isstring())
-            {
-                std::string reg= gentemp(REGstring);
-                rexpr->emit(e, reg);
-                std::string dest = lexpr->getidentifier();
-                e << INDENT "concat " << dest << ", " << dest << ", " << reg << '\n';
-            }
-            else
-            {
-                e << INDENT "add " << lexpr->getidentifier() << ", ";
-                rexpr->emit(e, "");
-                e << '\n';
-            }
-            if (! result.empty())
-                e << INDENT "assign " << result << ", " <<
-                    lexpr->getidentifier() << '\n';
-        }
-    }
-};
-
-//**********************************************************************
-
-class OpSubToExpr : public CommonBinOpExpr
-{
-public:
-    OpSubToExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CommonBinOpExpr(block, t, first, second)
-    {
-    }
-private:
-    bool isinteger() const { return true; }
-    Expr *optimize()
-    {
-        optimize_operands();
-        return this;
-    }
-    void emit(Emit &e, const std::string &result)
-    {
-        if (lexpr->isidentifier())
-        {
-            e << INDENT "sub " << lexpr->getidentifier() << ", ";
-            rexpr->emit(e, "");
-            e << '\n';
-            if (! result.empty())
-                e << INDENT "assign " << result << ", " <<
-                    lexpr->getidentifier() << '\n';
-        }
-    }
-};
-
-//**********************************************************************
-
 class OpAddExpr : public CommonBinOpExpr
 {
 public:
@@ -5554,20 +5481,13 @@ Expr * parseExpr_14(BlockBase &block, Tokenizer &tk)
 }
 
 enum AssignOp { AssignOpNone,
-    SimpleAssignOp, AssignToOp,
-    AddAssignOp, SubAssignOp,
-    MulAssignOp, DivAssignOp, ModAssignOp
+    SimpleAssignOp, AssignToOp
 };
 
 AssignOp getAssignOp(const Token &t)
 {
     if (t.isop('=')) return SimpleAssignOp;
     if (t.isop("=:")) return AssignToOp;
-    if (t.isop("+=")) return AddAssignOp;
-    if (t.isop("-=")) return SubAssignOp;
-    if (t.isop("*=")) return MulAssignOp;
-    if (t.isop("/=")) return DivAssignOp;
-    if (t.isop("%=")) return ModAssignOp;
     return AssignOpNone;
 }
 
@@ -5603,12 +5523,6 @@ Expr * parseExpr_16(BlockBase &block, Tokenizer &tk)
             break;
         case AssignToOp:
             subexpr= new OpAssignToExpr(block, t, subexpr, subexpr2);
-            break;
-        case AddAssignOp:
-            subexpr= new OpAddToExpr(block, t, subexpr, subexpr2);
-            break;
-        case SubAssignOp:
-            subexpr= new OpSubToExpr(block, t, subexpr, subexpr2);
             break;
         default:
             throw UnsupportedInStage("operator " + t.str(), t);
