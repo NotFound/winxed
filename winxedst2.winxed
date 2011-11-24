@@ -81,6 +81,14 @@ function find_same(src, value)
     return null;
 }
 
+function find_if(src, fun)
+{
+    for (var item in src)
+        if (fun(item))
+            return item;
+    return null;
+}
+
 //*********************************************
 //        Error handling exceptions
 //*********************************************
@@ -10866,16 +10874,15 @@ class NamespaceBase : VarContainer
     }
     function getusedns(string name)
     {
-        for (var ns in self.usednamespaces)
-            if (ns.name == name)
-                return ns;
-        return null;
+        return find_if(self.usednamespaces,
+            function (ns) { return ns.name == name; } );
     }
     function getlocalns(string name)
     {
-        for (var ns in self.namespaces)
-            if (ns.name == name)
-                return ns;
+        var ns = find_if(self.namespaces,
+            function (ns) { return ns.name == name; } );
+        if (ns != null)
+            return ns;
         return self.getusedns(name);
     }
 
