@@ -11357,129 +11357,44 @@ class WinxedCompileUnit
 
 //*********************************************
 
-class WinxedHLL
-{
-    function version()
-    {
-        int version[3] = [ VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD ];
-        return version;
-    }
-    function version_string()
-    {
-        return "Winxed " + string(join(".", self.version()));
-    }
-    function __private_compile_tail(winxed, target, output, int debug, int noan, int nowarn)
-    {
-        if (target == 'parse')
-            return winxed;
-        var handleout;
-        if (output == null) {
-            handleout  = new ['StringHandle'];
-            handleout.open(EVAL_NAME, 'w');
-        }
-        else
-            handleout = output;
-        var emit = new Emit(handleout, nowarn);
-        if (debug)
-            emit.setDebug();
-        if (noan)
-            emit.disable_annotations();
-        winxed.emit(emit);
-        emit.close();
-        if (output != null)
-            return output;
-        else {
-            handleout.close();
-            string pircode = handleout.read(0);
-            var object;
-            switch (target) {
-              case 'pir':
-                object = new ['String'];
-                object =: pircode;
-                break;
-              case 'pbc':
-              case '':
-                var pircomp = compreg('PIR');
-                object = pircomp(pircode);
-                break;
-              default:
-                die('Invalid target: ' + string(target));
-            }
-            return object;
-        }
-    }
-    function __private_geninclude(winxed)
-    {
-        var handleout = new ['StringHandle'];
-        handleout.open(EVAL_NAME, 'w');
-        var emit = new Emit(handleout, true);
-        winxed.emitinclude(emit);
-        emit.close();
-        handleout.close();
-        return handleout.read(0);
-    }
-    function compile(string code,
-            string target[named,optional],
-            output[named,optional],
-            int debug[named,optional],
-            int noan[named,optional],
-            int nowarn[named,optional] )
-    {
-        if (target == null)
-            target = '';
-        var handlein = new ['StringHandle'];
-        handlein.open(EVAL_NAME, 'w');
-        handlein.puts(code);
-        handlein.close();
-        handlein.open(EVAL_NAME, 'r');
-        var tk = new Tokenizer(handlein, EVAL_NAME, nowarn);
-        var winxed = new WinxedCompileUnit(nowarn, debug);
-        winxed.parse(tk);
-        handlein.close();
-        winxed.optimize();
-        if (target == 'include')
-            return self.__private_geninclude(winxed);
-        else
-            return self.__private_compile_tail(winxed, target, output, debug, noan, nowarn);
-    }
-    function compile_from_file(string filename,
-            string target[named,optional],
-            output[named,optional],
-            int debug[named,optional],
-            int noan[named,optional],
-            int nowarn[named,optional] )
-    {
-        // output is supposed to be used with pir target for a now,.
-        if (target == null)
-            target = '';
-        var handlein = new ['FileHandle'];
-        handlein.open(filename, 'r');
-        handlein.encoding('utf8');
-        var tk = new Tokenizer(handlein, filename, nowarn);
-        var winxed = new WinxedCompileUnit(nowarn, debug);
-        winxed.parse(tk);
-        handlein.close();
-        winxed.optimize();
-        if (target == 'include')
-            return self.__private_geninclude(winxed);
-        else
-            return self.__private_compile_tail(winxed, target, output, debug, noan, nowarn);
-    }
-}
-
-//*********************************************
-//            Initialization
-//*********************************************
-
-function initializer [init,load]()
-{
-    var comp = new WinxedHLL;
-    compreg('winxed', comp);
-}
-
-//*********************************************
-
 } // namespace Compiler
 } // namespace Winxed
+
+//*********************************************
+
+function main [main](args)
+{
+    var require_o = args[1];
+    if (require_o == null || require_o != "-o")
+        throw "option -o is mandatory";
+    var obj = args[2];
+    if (obj == null)
+        throw "invalid obj";
+    string objname = obj;
+    var src = args[3];
+    if (src == null)
+        throw "invalid src";
+    string srcname = src;
+
+    int nowarn = 0;
+    int debug = 0;
+
+    var handlein = new ["FileHandle"];
+    handlein.open(srcname, "r");
+    handlein.encoding("utf8");
+    var tk = new Winxed.Compiler.Tokenizer(handlein, srcname, nowarn);
+    var winxed = new Winxed.Compiler.WinxedCompileUnit(nowarn, debug);
+    winxed.parse(tk);
+    handlein.close();
+    winxed.optimize();
+
+    var output = new ["FileHandle"];
+    output.open(objname, "w");
+    var emit = new Winxed.Compiler.Emit(output, nowarn);
+    winxed.emit(emit);
+    emit.close();
+    output.close();
+    exit(0);
+}
 
 // End

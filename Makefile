@@ -76,8 +76,8 @@ winxedst1.pir: winxedst0$(EXEEXT) winxedst1.winxed
 winxedst2.pbc: winxedst2.pir
 	parrot -o winxedst2.pbc winxedst2.pir
 
-winxedst2.pir: winxedst2.winxed winxedst1.pbc $(DRIVER).pbc
-	parrot $(DRIVER).pbc --stage=1 -c -o winxedst2.pir winxedst2.winxed
+winxedst2.pir: winxedst2.winxed winxedst1.pbc
+	parrot winxedst1.pbc -o winxedst2.pir winxedst2.winxed
 
 #-------------------------------
 #    Compiler stage 3

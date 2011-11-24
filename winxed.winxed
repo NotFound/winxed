@@ -102,7 +102,7 @@ class WinxedDriverOptions : ['Getopt', 'Obj']
 function driver_main(argv)
 {
     const int
-        DEFAULT_STAGE = 2,
+        DEFAULT_STAGE = 3,
         CUSTOM_STAGE  = -1;
 
     var options = new WinxedDriverOptions(argv, 0);
@@ -229,7 +229,7 @@ function driver_main(argv)
     }
 
     int retval = 0;
-    int use_pbc = stage > 0 || stage == CUSTOM_STAGE;
+    int use_pbc = stage > 1 || stage == CUSTOM_STAGE;
 
     if (use_pbc) {
         // Set the -I value now so the $include directive can use it.
@@ -298,28 +298,34 @@ function driver_main(argv)
     }
     else {
         string cmd[]; // Command to execute
-        // First look in WINXED_PATH.
-        // If not, simple heuristic: if the compiler is in the current
-        // directory and has no extension, use it.
-        // If not, assume it's in the PATH or we are on Windows.
-        var check = null;
-        if (winxedpath != null && winxedpath != '' &&os != null) {
-            string checkbin = winxedpath + '/' + winxedbin;
-            check = os.stat(checkbin);
-            if (check == null) {
-                checkbin = winxedpath + "\\" + winxedbin + ".exe";
+	if (stage == 1) {
+	    cmd.push("parrot");
+	    cmd.push("winxedst1.pbc");
+	}
+	else {
+            // First look in WINXED_PATH.
+            // If not, simple heuristic: if the compiler is in the current
+            // directory and has no extension, use it.
+            // If not, assume it's in the PATH or we are on Windows.
+            var check = null;
+            if (winxedpath != null && winxedpath != '' &&os != null) {
+                string checkbin = winxedpath + '/' + winxedbin;
                 check = os.stat(checkbin);
+                if (check == null) {
+                    checkbin = winxedpath + "\\" + winxedbin + ".exe";
+                    check = os.stat(checkbin);
+                }
+                if (check != null)
+                    winxedbin = checkbin;
             }
-            if (check != null)
-                winxedbin = checkbin;
-        }
-        if (check == null) {
-            if (os != null)
-                check = os.stat(winxedbin);
-            if (check != null)
-                winxedbin = './' + winxedbin;
-        }
-        cmd.push(winxedbin);
+            if (check == null) {
+                if (os != null)
+                    check = os.stat(winxedbin);
+                if (check != null)
+                    winxedbin = './' + winxedbin;
+            }
+            cmd.push(winxedbin);
+	}
 
         if (targettype == TargetConst)
             die('target include unavailable in stage 0');
