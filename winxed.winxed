@@ -30,8 +30,7 @@ function getOS()
         os = new ['OS'];
     }
     catch() { }
-    for (;;)
-        yield os;
+    return os;
 }
 
 class WinxedDriverOptions : ['Getopt', 'Obj']

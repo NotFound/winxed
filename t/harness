@@ -139,8 +139,7 @@ function getOS()
         os = new ['OS'];
     }
     catch() { }
-    for (;;)
-        yield os;
+    return os;
 }
 
 function add_file(var result, string path)

@@ -1846,47 +1846,14 @@ private:
 
 //**********************************************************************
 
-class ReturnYieldStatement : public SubStatement
+class ReturnStatement : public SubStatement
 {
 public:
-    ReturnYieldStatement(Block & block, Tokenizer &tk);
+    ReturnStatement(Block & block, Tokenizer &tk);
     BaseStatement *optimize();
     void emit (Emit &e);
 private:
-    virtual void emitret(Emit &e) = 0;
     ArgumentList *values;
-};
-
-//**********************************************************************
-
-class ReturnStatement : public ReturnYieldStatement
-{
-public:
-    ReturnStatement(Block & block, Tokenizer &tk) :
-            ReturnYieldStatement(block, tk)
-    {
-    }
-private:
-    void emitret(Emit &e)
-    {
-        e << INDENT ".return (";
-    }
-};
-
-//**********************************************************************
-
-class YieldStatement : public ReturnYieldStatement
-{
-public:
-    YieldStatement(Block & block, Tokenizer &tk) :
-            ReturnYieldStatement(block, tk)
-    {
-    }
-private:
-    void emitret(Emit &e)
-    {
-        e << INDENT ".yield (";
-    }
 };
 
 //**********************************************************************
@@ -2327,8 +2294,6 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
 
     if (t.iskeyword("return"))
         return new ReturnStatement(block, tk);
-    if (t.iskeyword("yield"))
-        return new YieldStatement(block, tk);
     if (t.iskeyword("goto"))
         return new GotoStatement(block, t, tk);
     if (t.iskeyword("break"))
@@ -5746,7 +5711,7 @@ void UsingStatement::emit (Emit &e)
 
 //**********************************************************************
 
-ReturnYieldStatement::ReturnYieldStatement(Block & block, Tokenizer &tk) :
+ReturnStatement::ReturnStatement(Block & block, Tokenizer &tk) :
     SubStatement (block), values(0)
 {
     Token t= tk.get();
@@ -5757,18 +5722,18 @@ ReturnYieldStatement::ReturnYieldStatement(Block & block, Tokenizer &tk) :
     }
 }
 
-BaseStatement *ReturnYieldStatement::optimize()
+BaseStatement *ReturnStatement::optimize()
 {
     if (values)
         values->optimize();
     return this;
 }
 
-void ReturnYieldStatement::emit (Emit &e)
+void ReturnStatement::emit (Emit &e)
 {
     if (values)
         values->prepare(e);
-    emitret(e);
+    e << INDENT ".return (";
     if (values)
         values->emit(e);
     e << " )\n";
