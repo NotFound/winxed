@@ -874,7 +874,7 @@ function typetoregcheck(string type)
 
 function typetopirname(string regtype)
 {
-    switch(regtype) {
+    switch (regtype) {
     case REGint:    return 'int';
     case REGfloat:  return 'num';
     case REGstring: return 'string';
@@ -3006,7 +3006,7 @@ class ExprStatement : Statement
         do {
             var newexpr = parseExpr(tk, self);
             expr.push(newexpr);
-        } while((t = tk.get()).isop(','));
+        } while ((t = tk.get()).isop(','));
         RequireOp(';', t);
         self.expr = expr;
     }
@@ -5395,8 +5395,7 @@ class ConcatString : FinalExpr
         var values = self.values;
         int nvalues = elements(values);
         string regvalues[nvalues];
-        int i;
-        for (i = 0; i < nvalues; ++i)
+        for (int i = 0; i < nvalues; ++i)
             regvalues[i] = string(values[i].emit_get(e));
         return regvalues;
     }
@@ -7600,7 +7599,7 @@ function parseExpr_2(tk, owner)
     var start;
     int code;
     while ((code = getOpCode_2(t = tk.get())) != Code_none ) {
-        switch(code) {
+        switch (code) {
           case Code_paren:
             subexp = new CallExpr(tk, owner, t, subexp);
             break;
@@ -10251,7 +10250,7 @@ class FunctionBase : BlockStatement
         if (self.isanonymous())
             e.print("'' :anon");
         else
-            e.print ("'", name, "'");
+            e.print("'", name, "'");
         if (self.subid != null)
             e.print(" :subid('", self.subid, "')");
 
