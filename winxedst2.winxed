@@ -4192,6 +4192,10 @@ class OpBinNotExpr : OpUnaryExpr
     {
         self.OpUnaryExpr(owner, start, subexpr);
     }
+    function clone(owner)
+    {
+        return self.cloneunary(new OpBinNotExpr, owner);
+    }
     function checkresult()
     {
         return REGint;
@@ -4279,6 +4283,10 @@ class OpPreDecExpr : OpPreIncDec
     {
         self.OpUnaryExpr(owner, start, subexpr);
     }
+    function clone(owner)
+    {
+        return self.cloneunary(new OpPreDecExpr, owner);
+    }
     function emit_get(e)
     {
         string reg = self.subexpr.emit_get(e);
@@ -4296,6 +4304,10 @@ class OpPostIncExpr : OpIncDec
     function OpPostIncExpr(owner, start, subexpr)
     {
         self.OpUnaryExpr(owner, start, subexpr);
+    }
+    function clone(owner)
+    {
+        return self.cloneunary(new OpPostIncExpr, owner);
     }
     function emit(e, string result)
     {
@@ -4338,6 +4350,10 @@ class OpPostDecExpr : OpIncDec
     function OpPostDecExpr(owner, start, subexpr)
     {
         self.OpUnaryExpr(owner, start, subexpr);
+    }
+    function clone(owner)
+    {
+        return self.cloneunary(new OpPostDecExpr, owner);
     }
     function emit(e, string result)
     {
@@ -5014,6 +5030,10 @@ class OpGreaterExpr : ComparatorBaseExpr
 
 class OpLessEqualExpr : ComparatorBaseExpr
 {
+    function clone(owner)
+    {
+        return self.clonebinary(new OpLessEqualExpr, owner);
+    }
     function isnegable() { return true; }
     function negated()
     {
@@ -5086,6 +5106,10 @@ class OpBoolAndExpr : OpBaseBoolExpr
     function OpBoolAndExpr(owner, start, lexpr, rexpr)
     {
         self.set(owner, start, lexpr, rexpr);
+    }
+    function clone(owner)
+    {
+        return self.clonebinary(new OpBoolAndExpr, owner);
     }
     function optimize()
     {
@@ -5231,6 +5255,10 @@ class OpBinAndExpr : OpBaseBinExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
+    function clone(owner)
+    {
+        return self.clonebinary(new OpBinAndExpr, owner);
+    }
     function emit(e, string result)
     {
         string lreg = self.emit_intleft(e);
@@ -5251,6 +5279,10 @@ class OpBinOrExpr : OpBaseBinExpr
     function OpBinOrExpr(owner, start, lexpr, rexpr)
     {
         self.set(owner, start, lexpr, rexpr);
+    }
+    function clone(owner)
+    {
+        return self.clonebinary(new OpBinOrExpr, owner);
     }
     function emit(e, string result)
     {
@@ -5513,6 +5545,10 @@ class OpSubExpr : OpBinaryExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
+    function clone(owner)
+    {
+        return self.clonebinary(new OpSubExpr, owner);
+    }
     function optimize()
     {
         self.optimizearg();
@@ -5703,6 +5739,10 @@ class OpDivExpr : OpBinaryExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
+    function clone(owner)
+    {
+        return self.clonebinary(new OpDivExpr, owner);
+    }
     function optimize()
     {
         self.optimizearg();
@@ -5787,6 +5827,10 @@ class OpCModExpr : OpBinaryExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
+    function clone(owner)
+    {
+        return self.clonebinary(new OpCModExpr, owner);
+    }
     function checkresult()
     {
         return REGint;
@@ -5812,6 +5856,10 @@ class OpShiftleftExpr : OpBinaryIntExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
+    function clone(owner)
+    {
+        return self.clonebinary(new OpShiftleftExpr, owner);
+    }
     function emit(e, string result)
     {
         string lreg = self.emit_intleft(e);
@@ -5833,6 +5881,10 @@ class OpShiftrightExpr : OpBinaryIntExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
+    function clone(owner)
+    {
+        return self.clonebinary(new OpShiftrightExpr, owner);
+    }
     function emit(e, string result)
     {
         string lreg = self.emit_intleft(e);
@@ -5853,6 +5905,10 @@ class OpShiftlrightExpr : OpBinaryIntExpr
     function OpShiftlrightExpr(owner, start, lexpr, rexpr)
     {
         self.set(owner, start, lexpr, rexpr);
+    }
+    function clone(owner)
+    {
+        return self.clonebinary(new OpShiftlrightExpr, owner);
     }
     function emit(e, string result)
     {
