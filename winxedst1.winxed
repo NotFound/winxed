@@ -3413,6 +3413,7 @@ class FunctionId : FinalExpr
     }
     function emit(e, string result)
     {
+        self.annotate(e);
         e.emitset(result, self.subid);
     }
 }
