@@ -3123,7 +3123,6 @@ class VarContainer
     }
     function makelexicalself()
     {
-        var lexowner = self;
         const string lexname = '__WLEX_self';
         self.setlex(lexname, SELF);
         return lexname;
