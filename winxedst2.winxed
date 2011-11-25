@@ -81,12 +81,36 @@ inline find_same(var src, var value) return var
     return null;
 }
 
-function find_if(src, fun)
+inline find_if(var src, var fun) return var
 {
     for (var item in src)
         if (fun(item))
             return item;
     return null;
+}
+
+function bindfirst(fun, argfirst[slurpy])
+{
+    return function(arglast[slurpy])
+    {
+        return fun(argfirst:[flat], arglast:[flat]);
+    };
+}
+
+function bindlast(fun, arglast[slurpy])
+{
+    return function(argfirst[slurpy])
+    {
+        return fun(argfirst:[flat], arglast:[flat]);
+    };
+}
+
+function bindmethod(string name)
+{
+    return function(obj, args[slurpy])
+    {
+        return obj.*name(args:[flat]);
+    };
 }
 
 function addprefix(string prefix)
@@ -96,10 +120,7 @@ function addprefix(string prefix)
 
 inline clone_array(var src, var owner) return var
 {
-    var dest = [];
-    for (var item in src)
-        push(dest, item.clone(owner));
-    return dest;
+    return transform(src, [], bindlast(bindmethod("clone"), owner));
 }
 
 //*********************************************
@@ -2171,8 +2192,7 @@ inline optimize_array(var arr)
 
 inline emit_array(var e, var arr)
 {
-    for (var item in arr)
-        item.emit(e);
+    for_each(arr, bindlast(bindmethod("emit"), e));
 }
 
 function parseDotted(tk)
@@ -2222,8 +2242,7 @@ function parseIdentifier(tk, unused)
 function toIdentifierList(var tlist)
 {
     string list[];
-    for (var t in tlist)
-        push(list, t.getidentifier());
+    transform(tlist, list, bindmethod("getidentifier"));
     return list;
 }
 
@@ -2360,10 +2379,7 @@ class SimpleArgList
     }
     function getargvalues(var e)
     {
-        var argreg = [];
-        for (var a in self.args)
-            push(argreg, a.emit_get(e));
-        return argreg;
+        return transform(self.args, [], bindlast(bindmethod("emit_get"), e));
     }
     function emitargs(var e)
     {
@@ -10025,8 +10041,7 @@ class FunctionBase : BlockStatement
                 self.multi_sig = multi_sig_from_multi_modifier(self, multi);
             }
         }
-        for (var used in self.usednamespaces)
-            used.fixnamespaces();
+        for_each(self.usednamespaces, bindmethod("fixnamespaces"));
         self.body = self.body.optimize();
         return self;
     }
@@ -10101,8 +10116,8 @@ class FunctionBase : BlockStatement
     }
     function freetemps()
     {
-        for (var st in [ self.regstI, self.regstN, self.regstS, self.regstP ] )
-            st.freetemps();
+        for_each([ self.regstI, self.regstN, self.regstS, self.regstP ],
+            bindmethod("freetemps"));
     }
     function genlabel()
     {
@@ -10187,8 +10202,7 @@ class FunctionBase : BlockStatement
         e.say("\n.end # ", name, "\n");
 
         // Local functions
-        for (var fn in self.localfun)
-            fn.emit(e);
+        for_each(self.localfun, bindlast(bindmethod("emit"), e));
     }
 }
 
@@ -10304,10 +10318,7 @@ class LocalFunctionStatement : FunctionBase
     {
         if (self.lexicals != null || self.usedlexicals != null)
             return true;
-        for (var fn in self.localfun)
-            if (fn.needclosure())
-                return true;
-        return false;
+        return null != find_if(self.localfun, bindmethod("needclosure"));
     }
     function getsubid()
     {
