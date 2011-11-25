@@ -10467,13 +10467,14 @@ function parseClass(start, tk, parent)
 //        Namespace classes and functions
 //*********************************************
 
+$include_const "libpaths.pasm";
+$include_const "iglobals.pasm";
+
 function open_include(string filename, start)
 {
     var interp = getinterp();
 
     // Search for the file in the parrot include paths
-    const int IGLOBALS_LIB_PATHS = 9;
-    const int PARROT_LIB_PATH_INCLUDE = 0;
     var libpaths = interp[IGLOBALS_LIB_PATHS];
     var paths = libpaths[PARROT_LIB_PATH_INCLUDE];
     var file;
