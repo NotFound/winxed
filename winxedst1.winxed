@@ -9720,8 +9720,10 @@ class LocalFunctionStatement : FunctionBase
             return data;
         string reg = data.getreg();
         //TEMPORARY WORKAROUND
-        if (substr(reg, 0, 6) == 'WSubId')
+        if (substr(reg, 0, 6) == 'WSubId') {
+            self.usesubid(reg);
             return data;
+        }
         var scope = data.getscope();
         var ownerscope = scope.getouter();
         var outer = self.outer;

@@ -113,6 +113,15 @@ function bindmethod(string name)
     };
 }
 
+function method_fun(obj, string methodname)
+{
+    var method = find_method(obj, methodname);
+    return function (args[slurpy])
+    {
+        return obj.*method(args:[flat]);
+    };
+}
+
 function addprefix(string prefix)
 {
     return function (string str) { return prefix + str; };
@@ -10317,11 +10326,6 @@ class FunctionBase : BlockStatement
 //            FunctionStatement
 //*********************************************
 
-function get_pir_type(param)
-{
-    return typetopirname(param.get_type());
-}
-
 class FunctionStatement : FunctionBase
 {
     var paramnum;
@@ -10364,7 +10368,12 @@ class FunctionStatement : FunctionBase
         var multi_sig = [];
         if (self.ismethod())
             push(multi_sig, "_");
-        transform(self.params, multi_sig, get_pir_type);
+        transform(self.params, multi_sig,
+                function (param)
+                {
+                    return typetopirname(param.get_type());
+                }
+        );
         return multi_sig;
     }
     function parse(tk)
@@ -10450,8 +10459,10 @@ class LocalFunctionStatement : FunctionBase
             return data;
         string reg = data.getreg();
         //TEMPORARY WORKAROUND
-        if (substr(reg, 0, 6) == 'WSubId')
+        if (substr(reg, 0, 6) == 'WSubId') {
+            self.usesubid(reg);
             return data;
+        }
         var scope = data.getscope();
         var ownerscope = scope.getouter();
         var outer = self.outer;
@@ -11397,11 +11408,6 @@ function parsensUsing(start, tk, ns)
 
 //*********************************************
 
-function emit_push_symbols(string name)
-{
-    return INDENT + "push symbols, '" + name + "'\n";
-}
-
 class External
 {
     var module;
@@ -11427,7 +11433,12 @@ class External
         e.emitget_root_namespace("srcns",
                 "['parrot'; '" + string(join("'; '", self.module)) + "']");
 
-        e.print(join("", transform(self.names, [], emit_push_symbols)));
+        for_each(self.names,
+                function (string name)
+                {
+                    e.say(INDENT + "push symbols, '", name, "'");
+                }
+        );
         e.say(<<:
     ex.'destination'(curns)
     ex.'import'(srcns :named('source'), curns :named('destination'), symbols :named('globals'))
@@ -11606,12 +11617,10 @@ class NamespaceBase : VarContainer
     }
     function fixnamespaces()
     {
-        var ns;
-        for (ns in self.namespaces)
-            ns.fixnamespaces();
-        for (ns in self.usednamespaces)
-            for (var used in ns.usednamespaces)
-                self.usenamespace(used);
+        for_each(self.namespaces, bindmethod("fixnamespaces"));
+        var usens = method_fun(self, "usenamespace");
+        for_each(self.usednamespaces,
+                function (ns) { for_each(ns.usednamespaces, usens); } );
     }
     function getpath()
     {
@@ -11669,10 +11678,10 @@ class NamespaceBase : VarContainer
 
     function checkclass_base(string name)
     {
-        var cl;
-        for (cl in self.classes)
-            if (cl.name == name)
-                return cl;
+        var cl = find_if(self.classes,
+                function (cl) { return cl.name == name; } );
+        if (cl != null)
+            return cl;
         for (var ns in self.usednamespaces)
             if ((cl = ns.checkclass_base(name)) != null)
                 return cl;
