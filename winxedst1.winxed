@@ -1395,11 +1395,9 @@ class BuiltinBase
     {
         string name = self.name;
 
-        if (e.getDebug()) {
-            // Special case for a now.
-            if (name != '__ASSERT__')
-                e.comment('builtin ' + name);
-        }
+        // Special case for a now.
+        if (name != '__ASSERT__')
+            e.comment('builtin ' + name);
 
         string typeresult = self.typeresult;
         if (typeresult != REGnone && result == '')
@@ -7972,8 +7970,7 @@ class SwitchStatement : SwitchBaseStatement
         if (type == '')
             type = condtype;
 
-        if (e.getDebug())
-            e.comment('switch');
+        e.comment('switch');
         string defaultlabel = self.genlabel();
         string reg;
         if (type == 'char') {
@@ -8073,8 +8070,7 @@ class SwitchCaseStatement : SwitchBaseStatement
         string defaultlabel = self.genlabel();
         string caselabel[];
 
-        if (e.getDebug())
-            e.comment('switch-case');
+        e.comment('switch-case');
         string reg = self.tempreg(REGint);
         for (var caseval in self.case_value) {
             string label = self.genlabel();
@@ -8168,8 +8164,7 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
             self.emit_infinite(e);
             return;
         }
-        if (e.getDebug())
-            e.comment('for loop');
+        e.comment('for loop');
         string continuelabel = self.gencontinuelabel();
         string breaklabel = self.genbreaklabel();
         string condlabel = has_iteration ?
@@ -8530,8 +8525,7 @@ class DeclareSingleStatement : DeclareBase
         string ireg;
         string basetype = self.basetype;
         var init = self.init;
-        if (e.getDebug())
-            e.comment(name + ': ' + reg);
+        e.comment(name + ': ' + reg);
 
         if (init == null || init.isnull())
             e.emitnull(reg);
@@ -8828,18 +8822,15 @@ class ConstStatement : Statement
     }
     function emit(e)
     {
-        if (e.getDebug()) {
-            var val = self.data.getvalue();
-            string sval;
-            switch (self.type) {
-              case REGint:    sval = val.getIntegerValue(); break;
-              case REGfloat:  sval = val.getFloatValue(); break;
-              case REGstring: sval = val.getPirString(); break;
-              default: __ASSERT__(false);
-            }
-            e.comment("Constant '" + string(self.name) +
-                    "' set to: " + sval);
+        var val = self.data.getvalue();
+        string sval;
+        switch (self.type) {
+          case REGint:    sval = val.getIntegerValue(); break;
+          case REGfloat:  sval = val.getFloatValue(); break;
+          case REGstring: sval = val.getPirString(); break;
+          default: __ASSERT__(false);
         }
+        e.comment("Constant '" + string(self.name) + "' set to: " + sval);
     }
 }
 
@@ -8895,8 +8886,7 @@ class VarStatement : VarBaseStatement
         string name =  self.name;
         string reg = self.reg;
         var init = self.init;
-        if (e.getDebug())
-            e.comment('var ' + name + ': ' + reg);
+        e.comment('var ' + name + ': ' + reg);
         if (init != null)
             if (init.isnull())
                 init = null;
@@ -8933,8 +8923,7 @@ class ResizableVarStatement : VarStatement
     {
         self.annotate(e);
         string reg = self.reg;
-        if (e.getDebug())
-            e.comment(sformat("var %0[] : %1", self.name, reg));
+        e.comment(sformat("var %0[] : %1", self.name, reg));
         e.say(sformat(INDENT + "new %0, 'ResizablePMCArray'", reg));
     }
 }
@@ -8960,8 +8949,7 @@ class FixedVarStatement : VarStatement
         string regsize = self.exprsize.emit_get(e);
         self.annotate(e);
         string reg = self.reg;
-        if (e.getDebug())
-            e.comment(sformat("var %0[] : %1", self.name, reg));
+        e.comment(sformat("var %0[] : %1", self.name, reg));
         e.say(sformat(INDENT + "new %0, 'FixedPMCArray', %1", reg, regsize));
     }
 }
