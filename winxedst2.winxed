@@ -2733,6 +2733,13 @@ class MultiStatement : MultiStatementBase
     {
         self.statements = [st1, st2];
     }
+    function clone(owner)
+    {
+        var cloned = new MultiStatement;
+        cloned.statements = clone_array(self.statements, owner);
+        return cloned;
+    }
+    
     function isempty() { return false; }
     function push(var statement)
     {
@@ -2797,6 +2804,14 @@ class PiropStatement : Statement
             self.args = parseList(tk, owner, parsePiropArg, '}');
         }
         ExpectOp(';', tk);
+    }
+    function clone(owner)
+    {
+        var cloned = new PiropStatement;
+        cloned.Statement(self.start, owner);
+        cloned.opname = self.opname;
+        cloned.args = clone_array(self.args, owner);
+        return cloned;
     }
     function optimize()
     {
