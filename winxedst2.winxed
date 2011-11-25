@@ -9049,7 +9049,6 @@ class ConstStatement : Statement
     function optimize()
     {
         var value = self.value;
-        var name = self.name;
         string type = self.type;
         value = value.optimize();
         if (! value.hascompilevalue()) {
@@ -9089,8 +9088,7 @@ function parseConst(start, tk, owner)
 
     var multi = null;
     do {
-        t = tk.get();
-        var name = t;
+        var name = tk.get();
         ExpectOp('=', tk);
         var value = parseExpr(tk, owner);
         multi = addtomulti(multi,
