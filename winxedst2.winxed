@@ -8324,6 +8324,14 @@ class WhileStatement : LoopStatement, ConditionalStatement
         self.parsecondition(tk);
         self.parsebody(tk);
     }
+    function clone(owner)
+    {
+        var cloned = new WhileStatement;
+        cloned.Statement(self.start, owner);
+        cloned.condexpr = self.condexpr.clone(cloned);
+        cloned.body = self.body.clone(cloned);
+        return cloned;
+    }
     function optimize()
     {
         self.optimize_condition();
@@ -8366,6 +8374,14 @@ class DoStatement : LoopStatement, ConditionalStatement
         self.parsebody(tk);
         ExpectKeyword('while', tk);
         self.parsecondition(tk);
+    }
+    function clone(owner)
+    {
+        var cloned = new DoStatement;
+        cloned.Statement(self.start, owner);
+        cloned.condexpr = self.condexpr.clone(cloned);
+        cloned.body = self.body.clone(cloned);
+        return cloned;
     }
     function optimize()
     {
@@ -8412,6 +8428,12 @@ class ContinueStatement : Statement
         self.Statement(start, owner);
         ExpectOp(';', tk);
     }
+    function clone(owner)
+    {
+        var cloned = new ContinueStatement;
+        cloned.Statement(self.start, owner);
+        return cloned;
+    }
     function optimize() { return self; }
     function emit(e)
     {
@@ -8431,6 +8453,12 @@ class BreakStatement : Statement
     {
         self.Statement(start, owner);
         ExpectOp(';', tk);
+    }
+    function clone(owner)
+    {
+        var cloned = new BreakStatement;
+        cloned.Statement(self.start, owner);
+        return cloned;
     }
     function optimize() { return self; }
     function emit(e)
