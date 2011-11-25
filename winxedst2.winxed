@@ -485,9 +485,7 @@ class TokenFloat : TokenWithVal
     function isfloat() { return true; }
     function getfloatvalue()
     {
-        // Cast to float fails in stage 1, use an aux var instead.
-        float value = self.str;
-        return value;
+        return float(self.str);
     }
 }
 
@@ -1178,10 +1176,7 @@ function floatAsString(float n)
     PIR compiler, adding a dot if needed.
 */
 {
-    // Use assignment instead of initializations to work around
-    // stage 1 limitations.
-    string aux; aux = n;
-
+    string aux = n;
     if (aux.is_integer(aux))
         aux += '.0';
     return aux;
@@ -2700,8 +2695,7 @@ class MultiStatement : MultiStatementBase
 {
     function MultiStatement(var st1, var st2)
     {
-        var statements = [st1, st2];
-        self.statements = statements;
+        self.statements = [st1, st2];
     }
     function isempty() { return false; }
     function push(var statement)
@@ -2841,10 +2835,9 @@ class StaticStatement : Statement
     function emit(e)
     {
         self.annotate(e);
-        for (var name in self.names) {
-            var v = self.getvar(name);
-            e.say(".const 'Sub' ", v.getreg(), " = '", name, "'");
-        }
+        for (var name in self.names)
+            e.say(".const 'Sub' ", self.getvar(name).getreg(),
+                    " = '", name, "'");
     }
 }
 
