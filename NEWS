@@ -2,6 +2,8 @@ Winxed news.
 (C) Julián Albo "NotFound"
 
 Version 1.5
+    - added one more bootstrap stage
+    - inline functions
     - comma operator alike in for initialization and iteration parts
     - fix postfix ++ and ++ operators with var
     - Minor optimizations of generated code
