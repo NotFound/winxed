@@ -17,24 +17,24 @@ const int VERSION_BUILD = -1;
 //          Character test functions
 //*********************************************
 
-function isspace(string c)
+inline isspace(string c) return int
 {
     return c == ' ' || c == "\n" || c == "\t";
 }
 
-function isdigit(string c)
+inline isdigit(string c) return int
 {
     return indexof('0123456789', c) > -1;
 }
 
-function hexdigit(string c)
+inline hexdigit(string c) return int
 {
     int i = indexof('0123456789abcdef0123456789ABCDEF', c);
     if (i >= 0) i = i % 16;
     return i;
 }
 
-function isidentstart(string c)
+inline isidentstart(string c) return int
 {
     return indexof(
         'abcdefghijklmnopqrstuvwxyz' +
@@ -42,7 +42,7 @@ function isidentstart(string c)
         c) > -1;
 }
 
-function isident(string c)
+inline isident(string c) return int
 {
     return indexof(
         'abcdefghijklmnopqrstuvwxyz' +
@@ -60,20 +60,20 @@ function sformat(string format, args[slurpy])
 
 // Algorithms
 
-function for_each(src, func)
+inline for_each(var src, var func)
 {
     for (var item in src)
         func(item);
 }
 
-function transform(src, dest, func)
+inline transform(var src, var dest, var func) return var
 {
     for (var item in src)
         push(dest, func(item));
     return dest;
 }
 
-function find_same(src, value)
+inline find_same(var src, var value) return var
 {
     for (var item in src)
         if (item === value)
@@ -92,6 +92,14 @@ function find_if(src, fun)
 function addprefix(string prefix)
 {
     return function (string str) { return prefix + str; };
+}
+
+inline clone_array(var src, var owner) return var
+{
+    var dest = [];
+    for (var item in src)
+        push(dest, item.clone(owner));
+    return dest;
 }
 
 //*********************************************
@@ -2154,14 +2162,14 @@ compreg %0, %2
 //               Auxiliar functions
 //*********************************************
 
-function optimize_array(var arr)
+inline optimize_array(var arr)
 {
     int n = arr != null ? elements(arr) : 0;
     for (int i = 0; i < n; ++i)
         arr[i] = arr[i].optimize();
 }
 
-function emit_array(e, arr)
+inline emit_array(var e, var arr)
 {
     for (var item in arr)
         item.emit(e);
@@ -2329,6 +2337,12 @@ class SimpleArgList
     {
         self.args = parseList(tk, owner, parseExpr, oper_end);
     }
+    function clone(owner)
+    {
+        var cloned = new SimpleArgList;
+        cloned.args = clone_array(self.args, owner);
+        return cloned;
+    }
 
     function numargs()
     {
@@ -2435,7 +2449,7 @@ class ModifierList
 //       Auxiliary classes and functions
 //*********************************************
 
-function getparrotkey(var path)
+inline getparrotkey(var path) return string
 {
     string r;
     if (elements(path) != 0)
@@ -2532,7 +2546,7 @@ function parseStatement(tk, owner)
             return parseFloat(t, tk, owner);
         break;
       case 'return':
-        return new ReturnStatement(t, tk, owner);
+        return parseReturn(t, tk, owner);
       case 'yield':
         return new YieldStatement(t, tk, owner);
       case 'goto':
@@ -2661,6 +2675,7 @@ class Statement : CommonBase
 class EmptyStatement : Statement
 {
     function isempty() { return true; }
+    function clone(owner) { return self; }
     function annotate(e)
     {
         InternalError('Attempt to annotate empty statement');
@@ -2709,7 +2724,7 @@ class MultiStatement : MultiStatementBase
     }
 }
 
-function addtomulti(var multi, var newst)
+inline addtomulti(var multi, var newst) return var
 {
     switch {
       case multi == null:
@@ -2958,6 +2973,13 @@ class ExprStatement : Statement
         } while((t = tk.get()).isop(','));
         RequireOp(';', t);
         self.expr = expr;
+    }
+    function clone(owner)
+    {
+        var cloned = new ExprStatement;
+        cloned.Statement(self.start, owner);
+        cloned.expr = clone_array(self.expr, owner);
+        return cloned;
     }
     function optimize()
     {
@@ -3385,6 +3407,10 @@ class StringLiteral : Literal
         self.Expr(owner, t);
         self.strval = t;
     }
+    function clone(owner)
+    {
+        return new StringLiteral(owner, self.strval);
+    }
     function isstringliteral() { return true; }
     function checkresult() { return REGstring; }
     function getPirString()
@@ -3424,6 +3450,10 @@ class IntegerLiteral : Literal
         int n = value;
         self.numval = n;
     }
+    function clone(owner)
+    {
+        return new IntegerLiteral(owner, self.pos, self.numval);
+    }
     function isintegerliteral() { return true; }
     function isintegerzero()
     {
@@ -3462,6 +3492,10 @@ class FloatLiteral : Literal
     {
         self.Expr(owner, t);
         self.numval = t;
+    }
+    function clone(owner)
+    {
+        return new FloatLiteral(owner, self.numval);
     }
     function isfloatliteral() { return true; }
     function checkresult() { return REGfloat; }
@@ -3550,6 +3584,13 @@ class IdentifierExpr : SimpleExpr
     {
         self.Expr(owner, t);
         self.name = t;
+    }
+    function clone(owner)
+    {
+        var cloned = new IdentifierExpr;
+        cloned.Expr(owner, self.start);
+        cloned.name = self.name;
+        return cloned;
     }
     function isnull()
     {
@@ -3649,6 +3690,8 @@ class IdentifierExpr : SimpleExpr
                 break;
               case sym instanceof FunctionExtern:
                 return new FunctionRef(self.owner, self.start, sym);
+              case sym instanceof InlineStatement:
+                return new InlineRef(self.owner, self.start, sym);
             }
         }
         return self;
@@ -3659,7 +3702,7 @@ class IdentifierExpr : SimpleExpr
         self.annotate(e);
         e.emitset(result, reg);
     }
-    function emit_void() { }
+    function emit_void(e) { }
     function emit_get(e)
     {
         string reg;
@@ -3874,6 +3917,11 @@ class OpUnaryExpr : OpExpr
         self.initop(owner, start);
         self.subexpr = subexpr;
     }
+    function cloneunary(cloned, owner)
+    {
+        cloned.OpUnaryExpr(owner, self.start, self.subexpr.clone(owner));
+        return cloned;
+    }
     function optimizearg()
     {
         self.subexpr = self.subexpr.optimize();
@@ -3901,6 +3949,12 @@ class OpBinaryExpr : OpExpr
     {
         self.initbinary(owner, t, lexpr, rexpr);
         return self;
+    }
+    function clonebinary(cloned, owner)
+    {
+        cloned.initbinary(owner, self.start,
+                self.lexpr.clone(owner), self.rexpr.clone(owner));
+        return cloned;
     }
     function setfrom(from)
     {
@@ -4018,6 +4072,10 @@ class OpUnaryMinusExpr : OpUnaryExpr
     {
         self.OpUnaryExpr(owner, start, subexpr);
     }
+    function clone(owner)
+    {
+        return self.cloneunary(new OpUnaryMinusExpr, owner);
+    }
     function checkresult()
     {
         return self.subexpr.checkresult();
@@ -4056,6 +4114,10 @@ class OpNotExpr : OpUnaryExpr
     function OpNotExpr(owner, start, subexpr)
     {
         self.OpUnaryExpr(owner, start, subexpr);
+    }
+    function clone(owner)
+    {
+        return self.cloneunary(new OpNotExpr, owner);
     }
     function isnegable() { return true; }
     function checkresult()
@@ -4175,6 +4237,10 @@ class OpPreIncExpr : OpPreIncDec
     function OpPreIncExpr(owner, start, subexpr)
     {
         self.OpUnaryExpr(owner, start, subexpr);
+    }
+    function clone(owner)
+    {
+        return self.cloneunary(new OpPreIncExpr, owner);
     }
     function emit_get(e)
     {
@@ -4302,6 +4368,11 @@ class OpBaseAssignExpr : Expr
         self.rexpr = rexpr;
         return self;
     }
+    function cloneassign(cloned, owner)
+    {
+        return cloned.set(owner, self.start,
+                self.lexpr.clone(owner), self.rexpr.clone(owner));
+    }
     function checkresult()
     {
         return self.lexpr.checkresult();
@@ -4338,6 +4409,10 @@ class OpBaseAssignExpr : Expr
 
 class OpAssignExpr : OpBaseAssignExpr
 {
+    function clone(owner)
+    {
+        return self.cloneassign(new OpAssignExpr, owner);
+    }
     function emit_get(e)
     {
         self.annotate(e);
@@ -4735,6 +4810,12 @@ class OpEqualExpr : ComparatorBaseExpr, Negable
         self.set(owner, start, lexpr, rexpr);
         self.Negable(positive);
     }
+    function clone(owner)
+    {
+        var cloned = self.clonebinary(new OpEqualExpr, owner);
+        cloned.Negable(self.positive);
+        return cloned;
+    }
     function isnegable() { return true; }
     function optimize()
     {
@@ -4808,6 +4889,12 @@ class OpSameExpr : ComparatorBaseExpr, Negable
         self.initbinary(owner, t, lexpr, rexpr);
         self.Negable(positive);
     }
+    function clone(owner)
+    {
+        var cloned = self.clonebinary(new OpSameExpr, owner);
+        cloned.Negable(self.positive);
+        return cloned;
+    }
     function isnegable() { return true; }
     function int_op(int left, int right)
     {
@@ -4844,6 +4931,10 @@ class OpSameExpr : ComparatorBaseExpr, Negable
 
 class OpLessExpr : ComparatorBaseExpr
 {
+    function clone(owner)
+    {
+        return self.clonebinary(new OpLessExpr, owner);
+    }
     function isnegable() { return true; }
     function negated()
     {
@@ -4871,6 +4962,10 @@ class OpLessExpr : ComparatorBaseExpr
 
 class OpGreaterExpr : ComparatorBaseExpr
 {
+    function clone(owner)
+    {
+        return self.clonebinary(new OpGreaterExpr, owner);
+    }
     function isnegable() { return true; }
     function negated()
     {
@@ -4925,6 +5020,10 @@ class OpLessEqualExpr : ComparatorBaseExpr
 
 class OpGreaterEqualExpr : ComparatorBaseExpr
 {
+    function clone(owner)
+    {
+        return self.clonebinary(new OpGreaterEqualExpr, owner);
+    }
     function isnegable() { return true; }
     function negated()
     {
@@ -5033,6 +5132,10 @@ class OpBoolOrExpr : OpBaseBoolExpr
     function OpBoolOrExpr(owner, start, lexpr, rexpr)
     {
         self.set(owner, start, lexpr, rexpr);
+    }
+    function clone(owner)
+    {
+        return self.clonebinary(new OpBoolOrExpr, owner);
     }
     function optimize()
     {
@@ -5291,6 +5394,10 @@ class OpAddExpr : OpBinaryExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
+    function clone(owner)
+    {
+        return self.clonebinary(new OpAddExpr, owner);
+    }
     function optimize()
     {
         self.optimizearg();
@@ -5455,6 +5562,10 @@ class OpMulExpr : OpBinaryExpr
     function OpMulExpr(owner, start, lexpr, rexpr)
     {
         self.set(owner, start, lexpr, rexpr);
+    }
+    function clone(owner)
+    {
+        return self.clonebinary(new OpMulExpr, owner);
     }
     function optimize()
     {
@@ -5630,6 +5741,10 @@ class OpModExpr : OpBinaryIntExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
+    function clone(owner)
+    {
+        return self.clonebinary(new OpModExpr, owner);
+    }
     function emit(e, string result)
     {
         string lreg = self.emit_intleft(e);
@@ -5789,6 +5904,12 @@ class Argument
         self.arg = arg;
         self.modifiers = modifiers;
     }
+    function clone(owner)
+    {
+        var cloned = new Argument;
+        cloned.arg = self.arg.clone(owner);
+        return cloned;
+    }
     function optimize()
     {
         self.arg = self.arg.optimize();
@@ -5834,6 +5955,16 @@ class ArgumentList
             tk.unget(t);
             self.args = parseList(tk, owner, parseArgument, delimiter);
         }
+    }
+    function clone(owner)
+    {
+        var cloned = new ArgumentList;
+        cloned.owner = owner;
+        cloned.start = self.start;
+        var args = self.args;
+        if (args != null)
+            cloned.args = clone_array(args, owner);
+        return cloned;
     }
     function numargs()
     {
@@ -6066,6 +6197,16 @@ class CallExpr : Expr
             self.args = new ArgumentList(owner, start, tk, ')');
         }
     }
+    function clone(owner)
+    {
+        var cloned = new CallExpr;
+        cloned.Expr(owner, self.start);
+        cloned.funref = self.funref.clone(owner);
+        var args = self.args;
+        if (args != null)
+            cloned.args = args.clone(owner);
+        return cloned;
+    }
     function checkresult() { return REGvar; }
     function optimize()
     {
@@ -6102,6 +6243,8 @@ class CallExpr : Expr
         }
         if (funref instanceof MemberRefExpr)
             return new CallMemberRefExpr(self, funref, args);
+        if (funref instanceof InlineRef)
+            return new CallInlineExpr(self, funref, args);
 
         // Check for bultins
         if (funref.isidentifier()) {
@@ -6294,6 +6437,13 @@ class MemberExpr : MemberExprBase
     {
         self.MemberExprBase(owner, start, subexp);
         self.right = right;
+    }
+    function clone(owner)
+    {
+        var cloned = new MemberExpr;
+        cloned.MemberExprBase(owner, self.start, self.left.clone(owner));
+        cloned.right = self.right;
+        return cloned;
     }
     function checkresult() { return REGvar; }
     function search_nonmember()
@@ -6508,6 +6658,14 @@ class IndexExpr : Expr
         self.left = subexp;
         self.args = new SimpleArgList(tk, owner, ']');
     }
+    function clone(owner)
+    {
+        var cloned = new IndexExpr;
+        cloned.Expr(owner, self.start);
+        cloned.left = self.left.clone(owner);
+        cloned.args = self.args.clone(owner);
+        return cloned;
+    }
     function checkresult()
     {
        return REGvar;
@@ -6610,6 +6768,14 @@ class ArrayExpr : Expr
             tk.unget(t);
             self.values = parseList(tk, owner, parseExpr, ']');
         }
+    }
+    function clone(owner)
+    {
+        var cloned = new ArrayExpr;
+        cloned.Expr(owner, self.start);
+        if (self.values != null)
+            cloned.values = clone_array(self.values, owner);
+        return cloned;
     }
     function checkresult() { return REGvar; }
     function optimize()
@@ -6805,6 +6971,15 @@ class NewExpr : NewBaseExpr
             self.parseinitializer(tk);
         else
             tk.unget(t);
+    }
+    function clone(owner)
+    {
+        var cloned = new NewExpr;
+        cloned.Expr(owner, self.start);
+        cloned.value = self.value;
+        if (self.initializer != null)
+            cloned.initializer = self.initializer.clone(owner);
+        return cloned;
     }
     function optimize()
     {
@@ -7040,6 +7215,14 @@ class OpInstanceOfExpr : Expr
         self.lexpr = lexpr;
         self.checked = parseClassSpecifier(tk, self);
     }
+    function clone(owner)
+    {
+        var cloned = new OpInstanceOfExpr;
+        cloned.Expr(owner, self.start);
+        cloned.lexpr = self.lexpr.clone(owner);
+        cloned.checked = self.checked.clone(self);
+        return cloned;
+    }
     function optimize()
     {
         self.lexpr = self.lexpr.optimize();
@@ -7077,6 +7260,15 @@ class OpConditionalExpr : Expr
         self.etrue = etrue;
         self.efalse = efalse;
         return self;
+    }
+    function clone(owner)
+    {
+        var cloned = new OpConditionalExpr;
+        cloned.Expr(owner, self.start);
+        cloned.condition = (new Condition).set(self.condition.condexpr.clone(owner));
+        cloned.etrue = self.etrue.clone(owner);
+        cloned.efalse = self.efalse.clone(owner);
+        return cloned;
     }
     function optimize()
     {
@@ -7774,6 +7966,76 @@ class YieldStatement : ReturnYieldStatement
     }
 }
 
+class InlineReturnStatement : Statement
+{
+    var expr;
+    function InlineReturnStatement(start, tk, owner)
+    {
+        self.Statement(start, owner);
+        var t = tk.get();
+        tk.unget(t);
+        if (!t.isop(";"))
+            self.expr = parseExpr(tk, owner);
+    }
+    function clone(owner)
+    {
+        var cloned = new InlineReturnStatement;
+        cloned.Statement(self.start, owner);
+        var expr = self.expr;
+        if (expr != null)
+            cloned.expr = expr.clone(owner);
+        return cloned;
+    }
+    function optimize()
+    {
+        var expr = self.expr;
+        if (expr != null)
+            self.expr = expr.optimize();
+        return self;
+    }
+    function emit(e)
+    {
+        var outer = self.owner.getouter();
+        var expr = self.expr;
+        string rettype = outer.getrettype();
+        self.annotate(e);
+        if (expr != null) {
+            var retreg = outer.getretreg();
+            if (retreg == null)
+                expr.emit_void(e);
+            else {
+                if (expr.isnull())
+                    e.emitnull(retreg);
+                else {
+                    string type = expr.checkresult();
+                    if (type == rettype)
+                        expr.emit(e, retreg);
+                    else {
+                        string reg = expr.emit_get(e);
+                        self.annotate(e);
+                        if (rettype == REGvar)
+                            e.emitbox(retreg, reg);
+                        else
+                            e.emitset(retreg, reg);
+                    }
+                }
+            }
+        }
+        string retlabel = outer.getendlabel();
+        self.annotate(e);
+        e.emitgoto(retlabel);
+    }
+}
+
+function parseReturn(start, tk, owner)
+{
+    var outer = owner.getouter();
+    if (outer instanceof InlineStatement)
+        return new InlineReturnStatement(start, tk, owner);
+    else
+        return new ReturnStatement(start, tk, owner);
+}
+
 //*********************************************
 //            LabelStatement
 //*********************************************
@@ -7883,6 +8145,15 @@ class IfStatement : ConditionalStatement
             self.falsebranch = new EmptyStatement;
             tk.unget(t);
         }
+    }
+    function clone(owner)
+    {
+        var cloned = new IfStatement;
+        cloned.Statement(self.start, owner);
+        cloned.condexpr = self.condexpr.clone(owner);
+        cloned.truebranch = self.truebranch.clone(owner);
+        cloned.falsebranch = self.falsebranch.clone(owner);
+        return cloned;
     }
     function optimize()
     {
@@ -8091,6 +8362,17 @@ class SwitchBaseStatement : Breakable, Statement
         self.case_st = [];
         self.default_st = [];
     }
+    function cloneswitchto(cloned, owner)
+    {
+        cloned.Statement(self.start, owner);
+        cloned.case_value = clone_array(self.case_value, owner);
+        var case_st = [];
+        for (var case in self.case_st)
+            push(case_st, clone_array(case, owner));
+        cloned.case_st = case_st;
+        cloned.default_st = clone_array(self.default_st, owner);
+        return cloned;
+    }
     function parse_cases(tk)
     {
         var t;
@@ -8125,7 +8407,9 @@ class SwitchBaseStatement : Breakable, Statement
     function optimize_cases()
     {
         optimize_array(self.case_value);
-        for_each(self.case_st, optimize_array);
+        //for_each(self.case_st, optimize_array);
+        for (var case in self.case_st)
+            optimize_array(case);
         optimize_array(self.default_st);
     }
 }
@@ -8149,6 +8433,12 @@ class SwitchStatement : SwitchBaseStatement
         if (! t.isop('{'))
             Expected("'{' in switch", t);
         self.parse_cases(tk);
+    }
+    function clone(owner)
+    {
+        var cloned = self.cloneswitchto(new SwitchStatement, owner);
+        cloned.condition = self.condition.clone(cloned);
+        return cloned;
     }
     function optimize()
     {
@@ -8278,6 +8568,10 @@ class SwitchCaseStatement : SwitchBaseStatement
         self.SwitchBaseStatement(start, owner);
         self.parse_cases(tk);
     }
+    function clone(owner)
+    {
+        return self.cloneswitchto(new SwitchCaseStatement, owner);
+    }
     function optimize()
     {
         self.optimize_cases();
@@ -8364,6 +8658,19 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
         }
         self.parsebody(tk);
     }
+    function clone(owner)
+    {
+        var cloned = new ForStatement;
+        cloned.BlockStatement(self.start, owner);
+        if (self.initializer != null)
+            cloned.initializer = self.initializer.clone(cloned);
+        if (self.condexpr != null)
+            cloned.condexpr = self.condexpr.clone(cloned);
+        if (self.iteration != null)
+            cloned.iteration = clone_array(self.iteration, cloned);
+        cloned.body = self.body.clone(cloned);
+        return cloned;
+    }
     function optimize()
     {
         var initializer = self.initializer;
@@ -8431,16 +8738,29 @@ class ForeachStatement : LoopStatement, BlockStatement
     function ForeachStatement(start, tk, owner, name, string type)
     {
         self.BlockStatement(start, owner);
-        string sname = name;
         if (type != '') {
             string deftype = typetoregcheck(type);
-            self.createvar(sname, deftype);
+            self.createvar(name, deftype);
             self.deftype = deftype;
         }
         self.varname = name;
         self.container = parseExpr(tk, self);
         ExpectOp(')', tk);
         self.parsebody(tk);
+    }
+    function clone(owner)
+    {
+        var cloned = new ForeachStatement;
+        cloned.BlockStatement(self.start, owner);
+        var deftype = self.deftype;
+        var varname = self.varname;
+        if (deftype != null)
+            cloned.createvar(varname, deftype);
+        cloned.deftype = deftype;
+        cloned.varname = varname;
+        cloned.container = self.container.clone(cloned);
+        cloned.body = self.body.clone(cloned);
+        return cloned;
     }
     function optimize()
     {
@@ -8520,6 +8840,13 @@ class ThrowStatement : Statement
     {
         self.Statement(start, owner);
         self.excep = parseExpr(tk, self);
+    }
+    function clone(owner)
+    {
+        var cloned = new ThrowStatement;
+        cloned.Statement(self.start, owner);
+        cloned.excep = self.excep.clone(owner);
+        return cloned;
     }
     function optimize()
     {
@@ -8708,12 +9035,14 @@ class VarBaseStatement : Statement
 {
     var name;
     var reg;
+    var flags;
     function initvarbase(start, owner, name, int flags[optional])
     {
         self.Statement(start, owner);
         self.name = name;
         var vdata = self.createvar(name, REGvar, flags);
         self.reg = vdata.getreg();
+        self.flags = flags;
     }
 }
 
@@ -8725,6 +9054,7 @@ class DeclareBase : Statement
 {
     var name;
     var basetype;
+    var regtype;
     var reg;
 
     function DeclareBase(start, owner, name, string basetype, string regtype)
@@ -8732,6 +9062,7 @@ class DeclareBase : Statement
         self.Statement(start, owner);
         self.name = name;
         self.basetype = basetype;
+        self.regtype = regtype;
         var vdata = self.createvar(name, regtype);
         self.reg = vdata.getreg();
     }
@@ -8753,6 +9084,14 @@ class DeclareSingleStatement : DeclareBase
         }
         else
             tk.unget(t);
+    }
+    function clonedeclare(cloned, owner)
+    {
+        cloned.DeclareBase(self.start, owner,
+            self.name, self.basetype, self.regtype);
+        if (self.init != null)
+            cloned.init = self.init.clone(owner);
+        return cloned;
     }
     function optimize()
     {
@@ -8935,6 +9274,10 @@ class IntStatement : DeclareSingleStatement
     {
         self.DeclareSingleStatement(start, owner, name, REGint, tk);
     }
+    function clone(owner)
+    {
+        return self.clonedeclare(new IntStatement, owner);
+    }
 }
 
 class IntArrayStatement : DeclareArrayStatement
@@ -9002,6 +9345,10 @@ class StringStatement : DeclareSingleStatement
     function StringStatement(start, owner, name, tk)
     {
         self.DeclareSingleStatement(start, owner, name, REGstring, tk);
+    }
+    function clone(owner)
+    {
+        return self.clonedeclare(new StringStatement, owner);
     }
 }
 
@@ -9117,6 +9464,14 @@ class VarStatement : VarBaseStatement
             t = tk.get();
         }
         RequireOp(';', t);
+    }
+    function clone(owner)
+    {
+        var cloned = new VarStatement;
+        cloned.initvarbase(self.start, owner, self.name, self.flags);
+        if (self.init != null)
+            cloned.init = self.init.clone(cloned);
+        return cloned;
     }
     function optimize_init()
     {
@@ -9256,6 +9611,15 @@ class CompoundStatement : MultiStatementBase, BlockStatement
             push(self.statements, c);
         }
         self.end = t;
+    }
+    function clone(owner)
+    {
+        var cloned = new CompoundStatement;
+        cloned.BlockStatement(self.start, owner);
+        cloned.labels = {};
+        cloned.end = self.end;
+        cloned.statements = clone_array(self.statements, owner);
+        return cloned;
     }
     function getlabel(var name)
     {
@@ -10028,6 +10392,298 @@ class MethodStatement : FunctionStatement
 }
 
 //*********************************************
+//            InlineStatement
+//*********************************************
+
+class InlineParam : CommonBase
+{
+    var flags;
+    var type;
+    var name;
+    function InlineParam(tk, owner)
+    {
+        int flags = 0;
+        var name = tk.get();
+        self.initbase(name, owner);
+        if (name.getidentifier() == "const") {
+            flags = flags | 1;
+            name = tk.get();
+        }
+        string type;
+        var t = tk.get();
+        if (t.isop(",") || t.isop(")")) {
+            type = REGany;
+            tk.unget(t);
+        }
+        else {
+            type = typetoregcheck(name.getidentifier());
+            name = t;
+        }
+        self.flags = flags;
+        self.type = type;
+        self.name = name;
+    }
+    function isconst()
+    {
+        return int(self.flags) & 1;
+    }
+    function getname()
+    {
+        return self.name;
+    }
+    function gettype()
+    {
+        return self.type;
+    }
+}
+
+class InlineStatement : BlockStatement, VarContainer
+{
+    var name;
+    var rettype;
+    var body;
+    var params;
+    function InlineStatement(start, tk, owner)
+    {
+        self.BlockStatement(start, owner);
+        var name = tk.get();
+        ExpectOp("(", tk);
+        var t = tk.get();
+        var params;
+        if (! t.isop(")")) {
+            tk.unget(t);
+            params = [];
+            do {
+                var param = new InlineParam(tk, self);
+                params.push(param);
+            } while ((t = tk.get()).isop(","));
+            RequireOp(")", t);
+        }
+        t = tk.get();
+        string type;
+        if (t.iskeyword('return')) {
+            t = tk.get();
+            string nametype = t.getidentifier();
+            type = typetoregcheck(nametype);
+            if (type == '')
+                SyntaxError("Invalid return type", t);
+            t = tk.get();
+        }
+        else
+            type = REGnone;
+        RequireOp("{", t);
+        tk.unget(t);
+        var body = parseStatement(tk, self);
+
+        self.name = name;
+        self.rettype = type;
+        self.params = params;
+        self.body = body;
+    }
+    function getouter() { return self; }
+    function createreg(string type) { return "FAKEREG"; }
+}
+
+class InlinedBlock : BlockStatement
+{
+    var inliner;
+    var inlined;
+    var usedsubids;
+    var params;
+    var args;
+    var body;
+    var endlabel;
+    var retreg;
+    function InlinedBlock(inlined, inliner, args)
+    {
+        self.BlockStatement(inliner.start, inlined);
+        self.inliner = inliner;
+        self.inlined = inlined;
+        var params = inlined.params;
+        int nparams = params == null ? 0 : elements(params);
+        int nargs = args.numargs();
+        if (nparams != nargs)
+            SyntaxError("Wrong arguments in inline expansion", inliner);
+        for (int i = 0; i < nparams; ++i) {
+            var param = params[i];
+            var name = param.getname();
+            var arg = args.getfreearg(i);
+            string type = param.gettype();
+            if (type == REGany)
+                type = arg.checkresult();
+            int isconst = param.isconst();
+            if (isconst && arg.hascompilevalue()) {
+                var cdata = self.createconst(name, type);
+                cdata.setvalue(arg);
+            }
+            else
+                self.createvar(name, type, 0);
+        }
+        self.params = params;
+        self.args = args;
+        var body = inlined.body;
+        body = body.clone(self);
+        body = body.optimize();
+        self.body = body;
+    }
+    function getouter() { return self; }
+    function createreg(string type)
+    {
+        return self.inliner.owner.createreg(type);
+    }
+    function tempreg(string type)
+    {
+        return self.inliner.tempreg(type);
+    }
+    function freetemps()
+    {
+        self.inliner.owner.freetemps();
+    }
+    function usesubid(string id)
+    {
+        var used = self.usedsubids;
+        if (used == null)
+            self.usedsubids = used = {};
+        used[id] = 1;
+    }
+    function genlabel()
+    {
+        return self.inliner.genlabel();
+    }
+
+    function getendlabel()
+    {
+        return self.endlabel;
+    }
+    function getrettype()
+    {
+        return self.inlined.rettype;
+    }
+    function checkresult()
+    {
+        return self.inlined.rettype;
+    }
+    function getretreg()
+    {
+        return self.retreg;
+    }
+    function emit_it(e)
+    {
+        if (e.getDebug())
+            e.comment("inlined start");
+        self.endlabel = self.genlabel();
+        var params = self.params;
+        var args = self.args;
+        int nparams = params == null ? 0 : elements(params);
+        for (int i = 0; i < nparams; ++i) {
+            var param = params[i];
+            var arg = args.getfreearg(i);
+            if (param.isconst() && arg.hascompilevalue())
+                continue;
+            string type = param.gettype();
+            string argtype = arg.checkresult();
+            string reg = self.getvar(param.getname()).getreg();
+            if (type == REGany || argtype == type)
+                arg.emit_init(e, reg);
+            else {
+                string aux = arg.emit_get(e);
+                if (type == REGvar)
+                    e.emitbox(reg, aux);
+                else
+                    e.emitset(reg, aux);
+            }
+        }
+        e.print(join("", transform(self.usedsubids, [], emit_subid)));
+        self.body.emit(e);
+        e.emitlabel(self.endlabel);
+    }
+    function emit(e, string result)
+    {
+        string type = self.getrettype();
+        self.retreg = result;
+        int edebug = e.getDebug();
+        self.emit_it(e);
+        if (e.getDebug())
+            e.comment("inlined end");
+    }
+    function emit_void(e)
+    {
+        self.emit_it(e);
+        if (e.getDebug())
+            e.comment("inlined end");
+    }
+    function emit_get(e)
+    {
+        string type = self.checkresult();
+        if (type == REGnone)
+            SyntaxError("Cannot get a result from a void inline", self);
+        string reg = self.createreg(type);
+        self.retreg = reg;
+        self.emit_it(e);
+        if (type == REGvar) {
+            // Let the value be garbage collected when no more used
+            var aux = self.tempreg(REGvar);
+            e.emitset(aux, reg);
+            reg = aux;
+        }
+        if (e.getDebug())
+            e.comment("inlined end");
+        return reg;
+    }
+}
+
+class InlineRef : FinalExpr
+{
+    var inlined;
+    function InlineRef(owner, start, sym)
+    {
+        __ASSERT__(sym instanceof InlineStatement);
+        self.Expr(start, owner);
+        self.inlined = sym;
+    }
+    function checkresult() { return REGnone; }
+    function misused()
+    {
+        SyntaxError("inline used by reference", self.start);
+    }
+    function emit_void(e)
+    {
+        self.misused();
+    }
+    function emit_get(e)
+    {
+        self.misused();
+    }
+    function emit(e, string result)
+    {
+        self.misused();
+    }
+}
+
+class CallInlineExpr : FinalExpr
+{
+     var block;
+     function CallInlineExpr(owner, funref, args)
+     {
+        self.Expr(funref.start, owner);
+        self.block = new InlinedBlock(funref.inlined, owner, args);
+     }
+     function checkresult() { return self.block.checkresult(); }
+     function emit_void(e)
+     {
+         self.block.emit_void(e);
+     }
+     function emit_get(e)
+     {
+         return self.block.emit_get(e);
+     }
+     function emit(e, string result)
+     {
+         self.block.emit(e, result);
+     }
+}
+
+//*********************************************
 //            MultiAssignStatement
 //*********************************************
 
@@ -10226,6 +10882,13 @@ class ClassSpecifierId : ClassSpecifier
         }
         tk.unget(t);
         self.key = key;
+    }
+    function clone(owner)
+    {
+        var cloned = new ClassSpecifierId;
+        cloned.ClassSpecifier(owner, self.start);
+        cloned.key = self.key;
+        return cloned;
     }
     function reftype() { return CLASSSPECIFIER_id; }
 
@@ -11022,6 +11685,10 @@ class NamespaceBase : VarContainer
                 string name = f.name;
                 self.addfunction(f);
                 push(items, f);
+                break;
+              case 'inline':
+                var inl = new InlineStatement(t, tk, self);
+                self.addfunction(inl);
                 break;
               case 'class':
                 parseClass(t, tk, self);
