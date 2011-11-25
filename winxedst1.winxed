@@ -3831,11 +3831,6 @@ class OpBinaryIntExpr : OpBinaryExpr
         self.optimizearg();
         var lexpr = self.lexpr;
         var rexpr = self.rexpr;
-        if (lexpr.isintegerliteral() && rexpr.isintegerliteral()) {
-            int li = lexpr.getIntegerValue();
-            int ri = rexpr.getIntegerValue();
-            return integerValue(self.owner, self.start, self.do_op(li, ri));
-        }
         return self;
     }
 }
@@ -5002,10 +4997,6 @@ class OpBinAndExpr : OpBaseBinExpr
         self.annotate(e);
         e.emitbinop('band', result, lreg, rreg);
     }
-    function do_op(int left, int right)
-    {
-        return left & right;
-    }
 }
 
 //*********************************************
@@ -5023,10 +5014,6 @@ class OpBinOrExpr : OpBaseBinExpr
         self.annotate(e);
         e.emitbinop('bor', result, lreg, rreg);
     }
-    function do_op(int left, int right)
-    {
-        return left | right;
-    }
 }
 
 //*********************************************
@@ -5043,10 +5030,6 @@ class OpBinXorExpr : OpBaseBinExpr
         string rreg = self.emit_intright(e);
         self.annotate(e);
         e.emitbinop('bxor', result, lreg, rreg);
-    }
-    function do_op(int left, int right)
-    {
-        return left ^ right;
     }
 }
 
@@ -5484,10 +5467,6 @@ class OpModExpr : OpBinaryIntExpr
         self.annotate(e);
         e.emitbinop('mod', result, lreg, rreg);
     }
-    function do_op(int left, int right)
-    {
-        return left % right;
-    }
 }
 
 //*********************************************
@@ -5530,10 +5509,6 @@ class OpShiftleftExpr : OpBinaryIntExpr
         self.annotate(e);
         e.emitbinop('shl', result, lreg, rreg);
     }
-    function do_op(int left, int right)
-    {
-        return left << right;
-    }
 }
 
 //*********************************************
@@ -5551,10 +5526,6 @@ class OpShiftrightExpr : OpBinaryIntExpr
         self.annotate(e);
         e.emitbinop('shr', result, lreg, rreg);
     }
-    function do_op(int left, int right)
-    {
-        return left >> right;
-    }
 }
 
 //*********************************************
@@ -5571,10 +5542,6 @@ class OpShiftlrightExpr : OpBinaryIntExpr
         string rreg = self.emit_intright(e);
         self.annotate(e);
         e.emitbinop('lsr', result, lreg, rreg);
-    }
-    function do_op(int left, int right)
-    {
-        return left >>> right;
     }
 }
 

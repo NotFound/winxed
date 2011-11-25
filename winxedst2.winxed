@@ -1136,8 +1136,8 @@ const int
 // Var flags
 const int
     VAR_is_volatile = 1,      // volatile qualifier
-    VAR_is_lexical  = 1 << 1, // lexicalized local variable
-    VAR_is_extern   = 1 << 2; // externaly defined constant, do not export
+    VAR_is_lexical  = 2,      // lexicalized local variable
+    VAR_is_extern   = 4;      // externaly defined constant, do not export
 
 const string
     NULL = 'null',
