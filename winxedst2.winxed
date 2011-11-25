@@ -10302,8 +10302,11 @@ class LocalFunctionStatement : FunctionBase
     function LocalFunctionStatement(start, tk, owner)
     {
         self.FunctionBase(start, owner);
-        self.outer = owner.getouter();
-        self.outer.makesubid();
+        var outer = owner.getouter();
+        if (outer instanceof InlineStatement)
+            throw SyntaxError("local functions not allowed in inline", self);
+        outer.makesubid();
+        self.outer = outer;
         var subid = self.makesubid();
         self.name = subid;
         self.parse_parameters(tk);
