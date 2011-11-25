@@ -3383,58 +3383,6 @@ private:
 
 //**********************************************************************
 
-class OpAssignToExpr : public CommonBinOpExpr
-{
-public:
-    OpAssignToExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CommonBinOpExpr(block, t, first, second)
-    {
-    }
-private:
-    Expr *optimize()
-    {
-        optimize_operands();
-        return this;
-    }
-    void emit(Emit &e, const std::string &/*result*/)
-    {
-        if (lexpr->isidentifier())
-        {
-            std::string varname= lexpr->getidentifier();
-            char type= checklocal(varname);
-            switch(type)
-            {
-            case REGint:
-            case REGstring:
-                if (!(rexpr->isinteger() || rexpr->isstring()))
-                {
-                    std::string r= gentemp(type == REGstring ? REGstring : REGvar);
-                    rexpr->emit(e, r);
-                    e.annotate(start);
-                    e << INDENT << varname << " = " << r << '\n';
-                }
-                else
-                    rexpr->emit(e, varname);
-                break;
-            default:
-                e.annotate(start);
-                e << INDENT "assign " << varname << ", ";
-                rexpr->emit(e, std::string());
-                e << '\n';
-            }
-        }
-        else {
-            std::string lreg = gentemp(REGvar);
-            lexpr->emit(e, lreg);
-            std::string rreg = rexpr->emit_get(e);
-            e << op_assign(lreg, rreg) << '\n';
-        }
-    }
-};
-
-//**********************************************************************
-
 class OpAddExpr : public CommonBinOpExpr
 {
 public:
@@ -5274,9 +5222,6 @@ Expr * parseExpr_16(BlockBase &block, Tokenizer &tk)
         {
         case SimpleAssignOp:
             subexpr= new OpAssignExpr(block, t, subexpr, subexpr2);
-            break;
-        case AssignToOp:
-            subexpr= new OpAssignToExpr(block, t, subexpr, subexpr2);
             break;
         default:
             throw UnsupportedInStage("operator " + t.str(), t);

@@ -25,8 +25,7 @@ function retint()
 
 function retinteger()
 {
-    var p = new 'Integer';
-    p =: 69;
+    var p = 69;
     return p;
 }
 

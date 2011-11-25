@@ -734,10 +734,9 @@ class Tokenizer
     }
     function getchar()
     {
-        var pending = self.pending;
-        string c = pending;
+        string c = self.pending;
         if (c != '')
-            pending =: '';
+            self.pending = '';
         else {
             var h = self.h;
             c = h.read(1);
@@ -748,7 +747,7 @@ class Tokenizer
     }
     function ungetchar(string c)
     {
-        self.pending =: c;
+        self.pending = c;
     }
     function get_token()
     {
@@ -899,7 +898,7 @@ class Emit
                 self.file,
                 "'\n" ]
             ));
-            self.pendingf =: false;
+            self.pendingf = false;
         }
         if (self.pendingl) {
             self.handle.print(join("", [
@@ -907,7 +906,7 @@ class Emit
                 self.line,
                 "\n" ]
             ));
-            self.pendingl =: false;
+            self.pendingl = false;
         }
     }
     function vprint(var args)
@@ -930,18 +929,18 @@ class Emit
     {
         if (self.noan == null)
         {
-            var file = self.file;
-            var line = self.line;
+            string file = self.file;
+            int line = self.line;
             string tfile = t.file;
             int tline = t.line;
             if (file != tfile) {
-                file =: tfile;
-                self.pendingf =: true;
-                line =: 0;
+                self.file = tfile;
+                self.pendingf = true;
+                line = 0;
             }
             if (line != tline) {
-                line =: tline;
-                self.pendingl =: true;
+                self.line = tline;
+                self.pendingl = true;
             }
         }
     }
@@ -4519,7 +4518,7 @@ class Negable
     function negated()
     {
         int positive = ! self.positive;
-        self.positive =: positive;
+        self.positive = positive;
         return self;
     }
 }
@@ -9110,7 +9109,7 @@ class RegisterStore
     {
         int n = int(self.nreg) + 1;
         string reg = n;
-        self.nreg =: n;
+        self.nreg = n;
         return '$' + string(self.type) + reg;
     }
     function tempreg()
@@ -9134,7 +9133,8 @@ class RegisterStore
             string s = tempreg[i];
             push(freereg, s);
         }
-        tempreg =: 0;
+	string newtempreg[];
+        self.tempreg = newtempreg;
     }
 }
 
@@ -9536,7 +9536,7 @@ class FunctionBase : BlockStatement
     function genlabel()
     {
         int n = int(self.nlabel) + 1;
-        self.nlabel =: n;
+        self.nlabel = n;
         return '__label_' + string(n);
     }
     function getbreaklabel(pos)
@@ -9648,14 +9648,14 @@ class FunctionStatement : FunctionBase
     {
         // Get a number to assign unique internal names to params.
         int n = int(self.paramnum) + 1;
-        self.paramnum =: n;
+        self.paramnum = n;
         return n;
     }
     function getlexnum()
     {
         // Get a number to assign unique internal names to lexicals.
         int n = int(self.lexnum) + 1;
-        self.lexnum =: n;
+        self.lexnum = n;
         return n;
     }
     function ismethod() { return false; }
@@ -9666,7 +9666,7 @@ class FunctionStatement : FunctionBase
     }
     function setmulti()
     {
-        self.is_multi =: true;
+        self.is_multi = true;
     }
     function default_multi_sig()
     {
@@ -10933,7 +10933,7 @@ class RootNamespace : NamespaceBase
     function generatesubid()
     {
         int idgen = int(self.subidgen) + 1;
-        self.subidgen =: idgen;
+        self.subidgen = idgen;
         return 'WSubId_' + string(idgen);
     }
 
