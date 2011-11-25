@@ -7981,6 +7981,10 @@ class YieldStatement : ReturnYieldStatement
     {
         self.parse(start, tk, owner);
     }
+    function clone(owner)
+    {
+        SyntaxError("inlined yield not allowed", self);
+    }
     function emitret(e)
     {
         e.print(INDENT, '.yield(');
