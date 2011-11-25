@@ -961,8 +961,7 @@ class Emit
     }
     function vprint(var args)
     {
-        for (var s in args)
-            self.handle.print(s);
+        for_each(args, method_fun(self.handle, "print"));
     }
     function print(var args [slurpy])
     {
@@ -1618,8 +1617,7 @@ function Builtin_cry(e, owner, start, string result, args)
 function Builtin_print(e, owner, start, string result, args)
 {
     e.annotate(start);
-    for (string arg in args)
-        e.emitprint(arg);
+    for_each(args, method_fun(e, "emitprint"));
 }
 
 function Builtin_ASSERT(e, owner, start, string result, args)
@@ -2837,12 +2835,10 @@ class PiropStatement : Statement
         e.print(INDENT);
         if (args == null)
             e.say(opname);
-        else {
-            var argreg = [];
-            for (var a in  args)
-                push(argreg, a.emit_get(e));
-            e.say(opname, ' ', join(', ', argreg));
-        }
+        else
+            e.say(opname, ' ', join(', ',
+                    transform(args, [], bindlast(bindmethod("emit_get"), e))
+            ));
     }
 }
 
@@ -3033,8 +3029,7 @@ class ExprStatement : Statement
     }
     function emit(e)
     {
-        for (var item in self.expr)
-            item.emit_void(e);
+        for_each(self.expr, bindlast(bindmethod("emit_void"), e));
     }
 }
 
@@ -8498,10 +8493,8 @@ class SwitchBaseStatement : Breakable, Statement
     {
         cloned.Statement(self.start, owner);
         cloned.case_value = clone_array(self.case_value, owner);
-        var case_st = [];
-        for (var case in self.case_st)
-            push(case_st, clone_array(case, owner));
-        cloned.case_st = case_st;
+        cloned.case_st = transform(self.case_st, [],
+                function (case) { return clone_array(case, owner); } );
         cloned.default_st = clone_array(self.default_st, owner);
         return cloned;
     }
