@@ -3411,6 +3411,10 @@ class FunctionId : FinalExpr
     {
         return self.subid;
     }
+    function emit(e, string result)
+    {
+        e.emitset(result, self.subid);
+    }
 }
 
 class FunctionRef : FinalExpr
