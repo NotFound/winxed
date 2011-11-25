@@ -9590,12 +9590,12 @@ class FunctionStatement : FunctionBase
     var is_multi;
     var multi_sig;
 
-    function FunctionStatement(start, tk, owner)
+    function FunctionStatement(start, tk, owner, int is_inline[optional])
     {
         self.FunctionBase(start, owner);
         self.paramnum = 0;
         self.lexnum = 0;
-        self.parse(tk);
+        self.parse(tk, is_inline);
         self.is_multi = new ["Boolean"];
     }
 
@@ -9632,7 +9632,7 @@ class FunctionStatement : FunctionBase
         transform(self.params, multi_sig, get_pir_type);
         return multi_sig;
     }
-    function parse(tk)
+    function parse(tk, int is_inline[optional])
     {
         var name = tk.get();
         self.name = name;
@@ -9648,6 +9648,10 @@ class FunctionStatement : FunctionBase
         createPredefConstString(self, '__FUNCTION__', path.fullname());
 
         t = tk.get();
+	if (t.iskeyword("return") && is_inline) {
+            t = tk.get();
+            t = tk.get();
+        }
         if (!t.isop('{'))
             ExpectedOp('{', t);
         self.body = new CompoundStatement(t, tk, self);
@@ -10695,6 +10699,12 @@ class NamespaceBase : VarContainer
                 break;
               case 'function':
                 var f = new FunctionStatement(t, tk, self);
+                string name = f.name;
+                self.addfunction(f);
+                push(items, f);
+                break;
+              case 'inline':
+                var f = new FunctionStatement(t, tk, self, true);
                 string name = f.name;
                 self.addfunction(f);
                 push(items, f);
