@@ -2260,6 +2260,11 @@ class CommonBase
         self.start = start;
         self.owner = owner;
     }
+    function clone(owner)
+    {
+        SyntaxError("Cannot use " + string(typeof(self)) + " in inline (yet)",
+                self);
+    }
     function getstart()
     {
         return self.start;
