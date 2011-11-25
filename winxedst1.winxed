@@ -3518,6 +3518,11 @@ class FunctionId : FinalExpr
     {
         return self.subid;
     }
+    function emit(e, result)
+    {
+        self.annotate(e);
+        e.emitset(result, self.subid);
+    }
 }
 
 class FunctionRef : FinalExpr
