@@ -10630,7 +10630,7 @@ class InlinedBlock : BlockStatement
         self.inlined = inlined;
         var params = inlined.params;
         int nparams = params == null ? 0 : elements(params);
-        int nargs = args.numargs();
+        int nargs = args == null ? 0 : args.numargs();
         if (nparams != nargs)
             SyntaxError("Wrong arguments in inline expansion", inliner);
         for (int i = 0; i < nparams; ++i) {
