@@ -9437,6 +9437,10 @@ class FloatStatement : DeclareSingleStatement
     {
         self.DeclareSingleStatement(start, owner, name, REGfloat, tk);
     }
+    function clone(owner)
+    {
+        return self.clonedeclare(new FloatStatement, owner);
+    }
 }
 
 class FloatArrayStatement : DeclareArrayStatement
