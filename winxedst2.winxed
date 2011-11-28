@@ -9322,6 +9322,17 @@ class DeclareArrayStatement : DeclareBase
         else
             tk.unget(t);
     }
+    function clonedeclare(cloned, owner)
+    {
+        cloned.DeclareBase(self.start, owner,
+            self.name, self.basetype, REGvar);
+        cloned.arraytype = self.arraytype;
+        if (self.size)
+            cloned.size = self.size.clone(cloned);
+        if (self.initarray != null)
+            cloned.initarray = clone_array(self.initarray, owner);
+        return cloned;
+    }
     function optimize()
     {
         if (self.size != null)
@@ -9338,6 +9349,7 @@ class DeclareArrayStatement : DeclareBase
         var init = self.initarray;
         var basetype = self.basetype;
         var arraytype = self.arraytype;
+        __ASSERT__(arraytype != null);
         if (size != null) {
             // Fixed size array
             e.say(sformat(INDENT + "new %0, ['Fixed%1Array'], %2",
@@ -9411,6 +9423,10 @@ class IntArrayStatement : DeclareArrayStatement
     {
         self.DeclareArrayStatement(start, owner, name, REGint, 'Integer', tk);
     }
+    function clone(owner)
+    {
+        return self.clonedeclare(new IntArrayStatement, owner);
+    }
 }
 
 
@@ -9449,6 +9465,10 @@ class FloatArrayStatement : DeclareArrayStatement
     {
         self.DeclareArrayStatement(start, owner, name, REGfloat, 'Float', tk);
     }
+    function clone(owner)
+    {
+        return self.clonedeclare(new FloatArrayStatement, owner);
+    }
 }
 
 
@@ -9486,6 +9506,10 @@ class StringArrayStatement : DeclareArrayStatement
     function StringArrayStatement(start, owner, name, tk)
     {
         self.DeclareArrayStatement(start, owner, name, REGstring, 'String', tk);
+    }
+    function clone(owner)
+    {
+        return self.clonedeclare(new StringArrayStatement, owner);
     }
 }
 
