@@ -158,11 +158,13 @@ test: test3
 # - Then use that new stage to run the tests
 
 testdebug: $(DRIVER).pbc winxedst2.pbc
-	parrot $(DRIVER).pbc --debug -c -o winxedst1_deb1.pir --stage=2 winxedst1.winxed
+	parrot $(DRIVER).pbc --debug -c -o winxedst1_deb1.pir --stage=1 winxedst1.winxed
 	parrot -o winxedst1_deb1.pbc winxedst1_deb1.pir
-	parrot $(DRIVER).pbc --debug -c -o winxedst1_deb2.pir --stage=winxedst1_deb1 winxedst1.winxed
-	parrot -o winxedst1_deb2.pbc winxedst1_deb2.pir
-	parrot $(DRIVER).pbc --debug --stage=winxedst1_deb2 t/harness --debug --stage=winxedst1_deb2 -r t/basic t/medium t/advanced t/*.t
+	parrot winxedst1_deb1.pbc --debug -o winxedst2_deb1.pir winxedst2.winxed
+	parrot -o winxedst2_deb1.pbc winxedst2_deb1.pir
+	parrot $(DRIVER).pbc -c --debug --stage=winxedst2_deb1 -o winxedst2_deb2.pir winxedst2.winxed
+	parrot -o winxedst2_deb2.pbc winxedst2_deb2.pir
+	parrot $(DRIVER).pbc --debug --stage=winxedst2_deb2 t/harness --debug --stage=winxedst2_deb2 -r t/basic t/medium t/advanced t/*.t
 
 #-----------------------------------------------------------------------
 
@@ -180,8 +182,10 @@ clean:
 	rm -f $(DRIVER).pir
 	rm -f winxedst1_deb1.pbc
 	rm -f winxedst1_deb1.pir
-	rm -f winxedst1_deb2.pbc
-	rm -f winxedst1_deb2.pir
+	rm -f winxedst2_deb1.pbc
+	rm -f winxedst2_deb1.pir
+	rm -f winxedst2_deb2.pbc
+	rm -f winxedst2_deb2.pir
 	rm -f winxedst0$(EXEEXT)
 	rm -f *$(OBJEXT)
 
