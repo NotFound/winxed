@@ -10702,15 +10702,13 @@ class NamespaceBase : VarContainer
                 break;
               case 'function':
                 var f = new FunctionStatement(t, tk, self);
-                string name = f.name;
                 self.addfunction(f);
                 push(items, f);
                 break;
               case 'inline':
-                var f = new FunctionStatement(t, tk, self, true);
-                string name = f.name;
-                self.addfunction(f);
-                push(items, f);
+                var fin = new FunctionStatement(t, tk, self, true);
+                self.addfunction(fin);
+                push(items, fin);
                 break;
               case 'class':
                 parseClass(t, tk, self);

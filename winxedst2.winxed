@@ -11833,7 +11833,6 @@ class NamespaceBase : VarContainer
                 break;
               case 'function':
                 var f = new FunctionStatement(t, tk, self);
-                string name = f.name;
                 self.addfunction(f);
                 push(items, f);
                 break;
