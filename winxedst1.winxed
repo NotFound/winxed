@@ -9090,7 +9090,7 @@ class RegisterStore
             string s = tempreg[i];
             push(freereg, s);
         }
-	string newtempreg[];
+        string newtempreg[];
         self.tempreg = newtempreg;
     }
 }
@@ -9649,7 +9649,7 @@ class FunctionStatement : FunctionBase
         createPredefConstString(self, '__FUNCTION__', path.fullname());
 
         t = tk.get();
-	if (t.iskeyword("return") && is_inline) {
+        if (t.iskeyword("return") && is_inline) {
             t = tk.get();
             t = tk.get();
         }
