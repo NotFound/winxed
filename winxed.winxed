@@ -248,7 +248,11 @@ function driver_main(argv)
                 winxedbin = winxedpath + '/' + winxedbin;
                 try {
                     load_bytecode(winxedbin + '.pbc');
-                } catch () { }
+                }
+                catch (e) {
+                    if (__DEBUG__)
+                        cry("Cannot load ", winxedbin, ": ", e["message"]);
+                }
                 compiler = compreg('winxed');
             }
             if (compiler == null)
