@@ -2746,7 +2746,7 @@ class MultiStatement : MultiStatementBase
         cloned.statements = clone_array(self.statements, owner);
         return cloned;
     }
-    
+
     function isempty() { return false; }
     function push(var statement)
     {
@@ -12255,7 +12255,7 @@ class WinxedHLL
     {
         return "Winxed " + string(join(".", self.version()));
     }
-    function __private_compile_tail(winxed, target, output, int debug, int noan, int nowarn)
+    function __private_compile_tail(winxed, target, output, string filename, int debug, int noan, int nowarn)
     {
         if (target == 'parse')
             return winxed;
@@ -12287,7 +12287,7 @@ class WinxedHLL
               case 'pbc':
               case '':
                 var pircomp = compreg('PIR');
-                object = pircomp(pircode);
+                object = pircomp.compile(pircode, filename);
                 break;
               default:
                 die('Invalid target: ' + string(target));
@@ -12327,7 +12327,7 @@ class WinxedHLL
         if (target == 'include')
             return self.__private_geninclude(winxed);
         else
-            return self.__private_compile_tail(winxed, target, output, debug, noan, nowarn);
+            return self.__private_compile_tail(winxed, target, output, "", debug, noan, nowarn);
     }
     function compile_from_file(string filename,
             string target[named,optional],
@@ -12350,7 +12350,7 @@ class WinxedHLL
         if (target == 'include')
             return self.__private_geninclude(winxed);
         else
-            return self.__private_compile_tail(winxed, target, output, debug, noan, nowarn);
+            return self.__private_compile_tail(winxed, target, output, filename, debug, noan, nowarn);
     }
 }
 
