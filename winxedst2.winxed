@@ -6772,7 +6772,8 @@ class IndexExpr : Expr
         var args = self.args;
         args.optimizeargs();
 
-        if (left.checkresult() == REGstring) {
+        switch (left.checkresult()) {
+          case REGstring:
             if (args.numargs() != 1)
                SyntaxError('Bad string index', self);
             var arg = args.getarg(0);
@@ -6785,6 +6786,10 @@ class IndexExpr : Expr
                         substr(sval, ival, 1));
             }
             return new StringIndexExpr(self.owner, self.start, left, arg);
+          case REGvar:
+            break;
+          default:
+            SyntaxError("Type not valid for indexing", left);
         }
 
         return self;
