@@ -860,6 +860,7 @@ const string
 // Pseudotypes for builtins
     REGarglist = '*',
     REGany     = '?',
+    REGsame    = ':', // same as argument
     REGs_v     = 'p', // string or var
     REGraw1    = '!', // raw mode one arg
     REGnone    = 'v'; // void return
@@ -1327,6 +1328,9 @@ class Builtin_frombody
               case REGint: case REGfloat: case REGstring:
               case REGvar: case REGnone:
                 break;
+              case REGsame:
+                // TODO: must check it has one argument
+                break;
               default:
                 InternalError("Invalid result type in builtin");
             }
@@ -1618,6 +1622,23 @@ function Builtin_print(e, owner, start, string result, args)
 {
     e.annotate(start);
     for_each(args, method_fun(e, "emitprint"));
+}
+
+function Builtin_abs(e, owner, start, string result, args)
+{
+    var arg = args[0];
+    string argreg = arg.emit_get(e);
+    if (arg.checkresult() == REGstring) {
+        string aux = owner.tempreg(REGfloat);
+        e.annotate(start);
+        e.emitset(aux, argreg);
+        e.emitarg2('abs', aux, aux);
+        e.emitset(result, aux);
+    }
+    else {
+        e.annotate(start);
+        e.emitarg2('abs', result, argreg);
+    }
 }
 
 function Builtin_ASSERT(e, owner, start, string result, args)
@@ -2029,6 +2050,10 @@ $P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
         'shift %0, %1',
         REGstring, REGvar
     ));
+    builder.add(new BuiltinFunction('abs',
+        Builtin_abs,
+        REGsame, REGraw1
+    ));
     builder.add(new BuiltinFunction('sqrt',
         'sqrt %0, %1',
         REGfloat, REGfloat
@@ -2072,6 +2097,18 @@ $P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
     builder.add(new BuiltinFunction('atan',
         'atan %0, %1, %2',
         REGfloat, REGfloat, REGfloat
+    ));
+    builder.add(new BuiltinFunction('sinh',
+        'sinh %0, %1',
+        REGfloat, REGfloat
+    ));
+    builder.add(new BuiltinFunction('cosh',
+        'cosh %0, %1',
+        REGfloat, REGfloat
+    ));
+    builder.add(new BuiltinFunction('tanh',
+        'tanh %0, %1',
+        REGfloat, REGfloat
     ));
     builder.add(new BuiltinFunction('getinterp',
         'getinterp %0',
@@ -6139,7 +6176,10 @@ class CallBuiltinExpr : FinalExpr
     }
     function checkresult()
     {
-        return self.builtin.result();
+        string result = self.builtin.result();
+        if (result == REGsame)
+            result = self.args[0].arg.checkresult();
+        return result;
     }
     function emit_void(e)
     {
@@ -12089,8 +12129,8 @@ class RootNamespace : NamespaceBase
             self.addload('"String/Utils.pbc"');
 
         // Load trans opcodes if some of its corresponding builtins are used
-        for (string trfun in
-                    split(" ", "acos asin atan cos exp ln sin tan pow"))
+        for (string trfun in split(" ",
+                    "acos asin atan cos exp ln sin tan pow sinh cosh tanh"))
             if (bultins_used[trfun] != null) {
                 self.addlib("'trans_ops'");
                 break;

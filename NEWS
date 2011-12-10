@@ -5,6 +5,7 @@ Version 1.5
     - added one more bootstrap stage
     - inline functions
     - comma operator alike in for initialization and iteration parts
+    - builtins abs, sinh, cosh and tanh
     - fix postfix ++ and ++ operators with var
     - Minor optimizations of generated code
 
