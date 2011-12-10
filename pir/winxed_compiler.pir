@@ -31200,9 +31200,10 @@
         .param pmc __ARG_1
         .param pmc __ARG_2
         .param pmc __ARG_3
-        .param int __ARG_4
+        .param string __ARG_4
         .param int __ARG_5
         .param int __ARG_6
+        .param int __ARG_7
 .annotate 'line', 12260
     set $S2, __ARG_2
     ne $S2, 'parse', __label_1
@@ -31224,15 +31225,15 @@
   __label_3: # endif
 .annotate 'line', 12269
     new $P5, [ 'Winxed'; 'Compiler'; 'Emit' ]
-    $P5.'Emit'($P1, __ARG_6)
+    $P5.'Emit'($P1, __ARG_7)
     set $P2, $P5
 .annotate 'line', 12270
-    unless __ARG_4 goto __label_4
+    unless __ARG_5 goto __label_4
 .annotate 'line', 12271
     $P2.'setDebug'()
   __label_4: # endif
 .annotate 'line', 12272
-    unless __ARG_5 goto __label_5
+    unless __ARG_6 goto __label_5
 .annotate 'line', 12273
     $P2.'disable_annotations'()
   __label_5: # endif
@@ -31272,7 +31273,7 @@
 .annotate 'line', 12289
     compreg $P4, 'PIR'
 .annotate 'line', 12290
-    $P3 = $P4($S1)
+    $P3 = $P4.'compile'($S1, __ARG_4)
     goto __label_10 # break
   __label_9: # default
 .annotate 'line', 12293
@@ -31354,7 +31355,7 @@
     goto __label_3
   __label_2: # else
 .annotate 'line', 12330
-    .tailcall self.'__private_compile_tail'($P3, __ARG_2, __ARG_3, __ARG_4, __ARG_5, __ARG_6)
+    .tailcall self.'__private_compile_tail'($P3, __ARG_2, __ARG_3, "", __ARG_4, __ARG_5, __ARG_6)
   __label_3: # endif
 .annotate 'line', 12331
 
@@ -31400,7 +31401,7 @@
     goto __label_3
   __label_2: # else
 .annotate 'line', 12353
-    .tailcall self.'__private_compile_tail'($P3, __ARG_2, __ARG_3, __ARG_4, __ARG_5, __ARG_6)
+    .tailcall self.'__private_compile_tail'($P3, __ARG_2, __ARG_3, __ARG_1, __ARG_4, __ARG_5, __ARG_6)
   __label_3: # endif
 .annotate 'line', 12354
 
