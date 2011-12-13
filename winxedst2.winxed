@@ -6587,7 +6587,6 @@ class MemberExpr : MemberExprBase
         // is an identfier. In that case, if it's not in scope
         // look for a function in accessible namespaces.
         var sym;
-        var subid;
         var first = self.left;
         while (first instanceof MemberExpr)
             first = first.left;
