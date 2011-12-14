@@ -6614,6 +6614,8 @@ class MemberExpr : MemberExprBase
             break;
           case sym instanceof FunctionExtern:
             return new FunctionRef(self.owner, self.start, sym);
+          case sym.isconst():
+            return sym.getvalue();
         }
         return self;
     }
@@ -11758,7 +11760,11 @@ class NamespaceBase : VarContainer
         if (sym != null)
             return sym;
         var funcont = self.funcont;
-        return funcont.find(name);
+        if ((sym = funcont.find(name)) != null)
+            return sym;
+        if ((sym = self.getlocalvar(name)) != null)
+            return sym;
+        return null;
     }
     function scopesearchlocal(key, int flags, int offset)
     {
