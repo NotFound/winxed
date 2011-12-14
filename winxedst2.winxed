@@ -5812,7 +5812,7 @@ class OpDivExpr : OpBinaryExpr
                 int ln = lexpr.getIntegerValue();
                 int rn = rexpr.getIntegerValue();
                 if (rn != 0)
-                    return integerValue(self.owner, self.start, ln / rn);
+                    return floatValue(self.owner, self.start, ln / rn);
             }
             if (floatresult(ltype, rtype)) {
                 float lf = lexpr.getFloatValue();
