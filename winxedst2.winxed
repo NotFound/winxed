@@ -12188,6 +12188,7 @@ class Builtin {
         self.name = name;
         self.variants = [ variant ];
     }
+    function isconst() { return false; }
     function getname() { return string(self.name); }
     function addvariant(variant)
     {
