@@ -3733,6 +3733,7 @@ class IdentifierExpr : SimpleExpr
         var name = self.name;
         var desc = self.owner.getvar(name);
         if (desc != null) {
+            __ASSERT__(desc instanceof VarData);
             if (desc.isconst())
                 return desc.getvalue();
             int flags = desc.getflags();
@@ -6614,7 +6615,7 @@ class MemberExpr : MemberExprBase
             break;
           case sym instanceof FunctionExtern:
             return new FunctionRef(self.owner, self.start, sym);
-          case sym.isconst():
+          case (sym instanceof VarData) && sym.isconst():
             return sym.getvalue();
         }
         return self;
@@ -12193,7 +12194,6 @@ class Builtin {
         self.name = name;
         self.variants = [ variant ];
     }
-    function isconst() { return false; }
     function getname() { return string(self.name); }
     function addvariant(variant)
     {
