@@ -116,13 +116,13 @@ preinstall: \
     pir/winxed_compiler.pir \
     pir/winxed_installed.pir 
 
-# Installed compiler is stage 1 built with stage 2
+# Installed compiler is stage 2 built with stage 3
 pir/winxed_compiler.pir: winxedst3.pbc $(DRIVER).pbc
-	parrot $(DRIVER).pbc -c -o pir/winxed_compiler.pir winxedst2.winxed
+	parrot $(DRIVER).pbc --noan -c -o pir/winxed_compiler.pir winxedst2.winxed
 
 # Installed driver
 pir/winxed_installed.pir: winxed_installed.winxed winxedst3.pbc $(DRIVER).pbc
-	parrot $(DRIVER).pbc -c -o pir/winxed_installed.pir winxed_installed.winxed
+	parrot $(DRIVER).pbc --noan -c -o pir/winxed_installed.pir winxed_installed.winxed
 
 # setup.pir for use from plumage
 setup.pir: setup.winxed winxedst3.pbc $(DRIVER).pbc
