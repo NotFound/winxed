@@ -12351,15 +12351,24 @@ class WinxedHLL
             return object;
         }
     }
-    function __private_geninclude(winxed)
+    function __private_geninclude(winxed, output)
     {
-        var handleout = new ['StringHandle'];
-        handleout.open(EVAL_NAME, 'w');
+        var handleout;
+        if (output == null) {
+            handleout = new ['StringHandle'];
+            handleout.open(EVAL_NAME, 'w');
+        }
+        else
+            handleout = output;
         var emit = new Emit(handleout, true);
         winxed.emitinclude(emit);
         emit.close();
-        handleout.close();
-        return handleout.read(0);
+        if (output != null)
+            return output;
+        else {
+            handleout.close();
+            return handleout.read(0);
+        }
     }
     function compile(string code,
             string target[named,optional],
@@ -12381,7 +12390,7 @@ class WinxedHLL
         handlein.close();
         winxed.optimize();
         if (target == 'include')
-            return self.__private_geninclude(winxed);
+            return self.__private_geninclude(winxed, output);
         else
             return self.__private_compile_tail(winxed, target, output, debug, noan, nowarn);
     }
@@ -12404,7 +12413,7 @@ class WinxedHLL
         handlein.close();
         winxed.optimize();
         if (target == 'include')
-            return self.__private_geninclude(winxed);
+            return self.__private_geninclude(winxed, output);
         else
             return self.__private_compile_tail(winxed, target, output, debug, noan, nowarn);
     }
