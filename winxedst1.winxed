@@ -8078,7 +8078,12 @@ class SwitchCaseStatement : SwitchBaseStatement
         for (var caseval in self.case_value) {
             string label = self.genlabel();
             push(caselabel, label);
-            caseval.emit(e, reg);
+            if (caseval.checkresult() == REGint)
+                caseval.emit(e, reg);
+            else {
+                string auxreg = caseval.emit_get(e);
+                e.emitset(reg, auxreg);
+            }
             e.emitif(reg, label);
         }
         e.emitgoto(defaultlabel);
