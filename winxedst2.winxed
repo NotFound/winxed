@@ -10,7 +10,7 @@ namespace Compiler
 {
 
 const int VERSION_MAJOR = 1;
-const int VERSION_MINOR = 5;
+const int VERSION_MINOR = 6;
 const int VERSION_BUILD = -1;
 
 //*********************************************
