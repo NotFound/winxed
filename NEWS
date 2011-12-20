@@ -8,6 +8,8 @@ Version 1.5
     - builtins abs, sinh, cosh and tanh
     - fix postfix ++ and ++ operators with var
     - Minor optimizations of generated code
+  Build 1.5.0
+    - Bundled with parrot 3.11.0
 
 Version 1.4
     - 'multi' modifier improved
