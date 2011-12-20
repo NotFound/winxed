@@ -9,10 +9,6 @@ namespace Winxed
 namespace Compiler
 {
 
-const int VERSION_MAJOR = 1;
-const int VERSION_MINOR = 5;
-const int VERSION_BUILD = -1;
-
 //*********************************************
 //          Character test functions
 //*********************************************
