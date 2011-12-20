@@ -142,8 +142,8 @@ function driver_main(argv)
             stage = CUSTOM_STAGE;
     }
 
-    if (version && stage == 0) {
-        cry("--version not available in stage 0");
+    if (version && (stage == 0 || stage == 1)) {
+        cry("--version not available in stages 0 and 1");
         exit(1);
     }
 
@@ -259,7 +259,10 @@ function driver_main(argv)
                 die("Cannot load stage " + winxedbin);
         }
         if (version) {
-            say(compiler.version_string());
+            var ver = compiler.version_string();
+            if (ver == null)
+                ver = "CANNOT GET VERSION";
+            say(ver);
             exit(0);
         }
         string ctarget = targettype == TargetConst ? 'include' : 'pir';
