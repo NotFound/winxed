@@ -12311,7 +12311,9 @@ class WinxedHLL
     {
         return "Winxed " + string(join(".", self.version()));
     }
-    function __private_compile_tail(winxed, target, output, int debug, int noan, int nowarn)
+    function __private_compile_tail(winxed, target, output,
+            string filename,
+            int debug, int noan, int nowarn)
     {
         if (target == 'parse')
             return winxed;
@@ -12392,7 +12394,8 @@ class WinxedHLL
         if (target == 'include')
             return self.__private_geninclude(winxed, output);
         else
-            return self.__private_compile_tail(winxed, target, output, debug, noan, nowarn);
+            return self.__private_compile_tail(winxed, target, output,
+                    EVAL_NAME, debug, noan, nowarn);
     }
     function compile_from_file(string filename,
             string target[named,optional],
@@ -12415,7 +12418,8 @@ class WinxedHLL
         if (target == 'include')
             return self.__private_geninclude(winxed, output);
         else
-            return self.__private_compile_tail(winxed, target, output, debug, noan, nowarn);
+            return self.__private_compile_tail(winxed, target, output,
+                    filename, debug, noan, nowarn);
     }
 }
 
