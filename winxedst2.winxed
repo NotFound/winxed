@@ -9980,6 +9980,7 @@ class FunctionParameter
     var name;
     var modifiers;
     var type;
+    var defaultexpr;
     function FunctionParameter(func, tk)
     {
         self.func = func;
@@ -9995,28 +9996,76 @@ class FunctionParameter
 
         self.name = string(t);
         t = tk.get();
-        if (t.isop('['))
+        switch {
+          case t.isop('['):
             self.modifiers = new ParameterModifierList(tk, func.owner);
-        else
+            break;
+          case t.isop('='):
+            self.defaultexpr = new FunctionParameterDefault(tk, self);
+            break;
+          default:
             tk.unget(t);
+        }
     }
     function emit(e)
     {
         var func = self.func;
         string paramname = self.name;
-        var param = func.getvar(paramname);
+        var param = self.getvar();
         string ptype = typetopirname(param.gettype());
         e.print(INDENT + INDENT + '.param ', ptype, ' ', param.getreg());
         var modarg = self.modifiers;
         if (modarg != null)
             modarg.emitmodifiers(e, func.start, paramname);
+        if (self.defaultexpr != null)
+            e.print(" :optional\n" + INDENT + INDENT + ".param int __opt_flag",
+                    param.getreg(), " :opt_flag");
         e.say('');
     }
     function get_type()
     {
         return self.type;
     }
+    function getvar()
+    {
+        return self.func.getvar(self.name);
+    }
+    function get_default()
+    {
+        return self.defaultexpr;
+    }
+}
 
+class FunctionParameterDefault
+{
+    var param;
+    var expr;
+    function FunctionParameterDefault(tk, param)
+    {
+        self.param = param;
+        self.expr = parseExpr(tk, param.func);
+    }
+    function emit(e)
+    {
+        var expr = self.expr;
+        if (! expr.isnull()) {
+            var param = self.param;
+            string label = param.func.genlabel();
+            string reg = param.getvar().getreg();
+            e.emitif("__opt_flag" + reg, label);
+            string type = param.get_type();
+            if (type == expr.checkresult())
+                expr.emit_init(e, reg);
+            else {
+                var defreg = expr.emit_get(e);
+                if (type == REGvar)
+                    e.emitbox(reg, defreg);
+                else
+                    e.emitset(reg, defreg);
+            }
+            e.emitlabel(label);
+        }
+    }
 }
 
 function parseParameter(tk, owner)
@@ -10357,7 +10406,13 @@ class FunctionBase : BlockStatement
         e.say();
 
         // Parameters
-        emit_array(e, self.params);
+        var params = self.params;
+        emit_array(e, params);
+        for (var param in params) {
+            var def = param.get_default();
+            if (def != null)
+                def.emit(e);
+        }
 
         var lexicals = self.lexicals;
         var usedlexicals = self.usedlexicals;
