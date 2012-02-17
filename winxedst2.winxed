@@ -2783,7 +2783,7 @@ class MultiStatement : MultiStatementBase
         cloned.statements = clone_array(self.statements, owner);
         return cloned;
     }
-    
+
     function isempty() { return false; }
     function push(var statement)
     {
@@ -12400,7 +12400,7 @@ class WinxedHLL
               case 'pbc':
               case '':
                 var pircomp = compreg('PIR');
-                object = pircomp(pircode);
+                object = pircomp.compile(pircode);
                 break;
               default:
                 die('Invalid target: ' + string(target));
