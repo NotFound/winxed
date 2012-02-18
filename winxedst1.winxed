@@ -3075,8 +3075,7 @@ class Expr : CommonBase
     }
     function emit_get(e)
     {
-        string type = self.checkresult();
-        string reg = self.tempreg(type);
+        string reg = self.tempreg(self.checkresult());
         self.emit(e, reg);
         return reg;
     }
