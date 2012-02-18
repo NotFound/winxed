@@ -12379,7 +12379,7 @@ class WinxedHLL
               case 'pbc':
               case '':
                 var pircomp = compreg('PIR');
-                object = pircomp(pircode);
+                object = pircomp.compile(pircode);
                 break;
               default:
                 die('Invalid target: ' + string(target));
