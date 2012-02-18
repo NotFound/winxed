@@ -9961,6 +9961,8 @@ class FunctionParameter
     var defaultexpr;
     function FunctionParameter(func, tk)
     {
+        // Syntax: [type] name [modifiers] [ = default]
+
         self.func = func;
         var t = tk.get();
         string type = typetoregcheck(t.checkkeyword());
@@ -9971,19 +9973,19 @@ class FunctionParameter
         self.type = type;
         string argname = '__ARG_' + string(func.getparamnum());
         func.createvarnamed(t, type, argname);
-
         self.name = string(t);
+
+        // Modifiers
         t = tk.get();
-        switch {
-          case t.isop('['):
+        if (t.isop('[')) {
             self.modifiers = new ParameterModifierList(tk, func.owner);
-            break;
-          case t.isop('='):
-            self.defaultexpr = new FunctionParameterDefault(tk, self);
-            break;
-          default:
-            tk.unget(t);
+            t = tk.get();
         }
+        // Default value
+        if (t.isop('='))
+            self.defaultexpr = new FunctionParameterDefault(tk, self);
+        else
+            tk.unget(t);
     }
     function emit(e)
     {
