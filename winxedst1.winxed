@@ -3095,8 +3095,7 @@ class Expr : CommonBase
     }
     function emit_get_nonull(e)
     {
-        if (self.isnull())
-            SyntaxError("Invalid 'null' usage", self);
+        // Must be overriden by any possible null
         return self.emit_get(e);
     }
     function emit_getint(e)
@@ -3339,6 +3338,11 @@ class IntegerLiteral : Literal
     {
         return self.getIntegerValue();
     }
+    function emit_getint(e)
+    {
+        // Just a shortcut
+        return self.getIntegerValue();
+    }
 }
 
 //*********************************************
@@ -3446,6 +3450,12 @@ class IdentifierExpr : SimpleExpr
         if (self.owner.getvar(name) != null)
             return false;
         return name.iskeyword(NULL);
+    }
+    function emit_get_nonull(e)
+    {
+        if (self.isnull())
+            SyntaxError("Invalid 'null' usage", self);
+        return self.emit_get(e);
     }
     function checkresult()
     {
