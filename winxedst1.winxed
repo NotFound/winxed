@@ -6164,12 +6164,6 @@ class MemberExpr : MemberExprBase
             SyntaxError("non-var at left of '.'", self);
         return left.emit_get_nonull(e);
     }
-    function __emit_assign_aux(e, string obj, string value)
-    {
-        string ident = self.right.getidentifier();
-        self.annotate(e);
-        e.say(INDENT, "setattribute ", obj, ", '", ident, "', ", value);
-    }
     function emit_get(e)
     {
         string result = self.tempreg(REGvar);
@@ -6182,24 +6176,6 @@ class MemberExpr : MemberExprBase
         string ident = self.right.getidentifier();
         self.annotate(e);
         e.say(INDENT, 'getattribute ', result, ', ', obj, ", '", ident, "'");
-    }
-    function emit_assign(e, string typeright, string rreg)
-    {
-        string obj = self.__emit_get_left(e);
-        string value;
-        if (typeright == REGvar) {
-            // Special case temporarily
-            if (rreg == NULL) {
-                rreg = self.tempreg(REGvar);
-                e.emitnull(rreg);
-            }
-            value = rreg;
-        }
-        else {
-            value = self.tempreg(REGvar);
-            e.emitbox(value, rreg);
-        }
-        self.__emit_assign_aux(e, obj, value);
     }
     function emit_assign_get(e, expr)
     {
@@ -6214,7 +6190,9 @@ class MemberExpr : MemberExprBase
             else
                 value = rreg;
         }
-        self.__emit_assign_aux(e, obj, value);
+        string ident = self.right.getidentifier();
+        self.annotate(e);
+        e.say(INDENT, "setattribute ", obj, ", '", ident, "', ", value);
         return value;
     }
 }
@@ -6372,14 +6350,6 @@ class IndexExpr : Expr
         string result = self.tempreg(REGint);
         self.emit(e, result);
         return result;
-    }
-    function emit_assign(e, string typeright, string rreg)
-    {
-        self.emit_prep(e);
-        self.annotate(e);
-        e.print(INDENT);
-        self.emit_aux(e);
-        e.say(' = ', rreg);
     }
     function emit_assign_get(e, expr)
     {
