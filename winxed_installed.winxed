@@ -100,7 +100,7 @@ function extname[anon](string filename, string ext)
 function getcompiler[anon]()
 {
     var compiler;
-    try 
+    try
         compiler = load_language('winxed');
     catch () { }
     if (compiler == null) {
@@ -241,19 +241,13 @@ function process_args [anon] (argv)
     // Use get_main if available, else use the old heuristic.
     var sub;
     try {
-        sub = code.get_main();
+        for (var load_sub in code.subs_by_tag("load"))
+            load_sub();
+        code.mark_initialized("load");
+        sub = code.main_sub();
     }
     catch () {
-        for (int i = 0; ; ++i) {
-            sub = code[i];
-            if (sub == null)
-                break;
-            if (string(sub) == 'main')
-                break;
-        }
-        // Last resource: use first sub as entry point.
-        if (sub == null)
-            sub = code[0];
+        cry("Cannot find main sub");
     }
     return sub;
 }
