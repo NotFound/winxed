@@ -9987,6 +9987,13 @@ class FunctionParameter
         else
             tk.unget(t);
     }
+    function optimize()
+    {
+        var defaultexpr = self.defaultexpr;
+        if (defaultexpr != null)
+            defaultexpr.optimize();
+        return self;
+    }
     function emit(e)
     {
         var func = self.func;
@@ -10024,6 +10031,10 @@ class FunctionParameterDefault
     {
         self.param = param;
         self.expr = parseExpr(tk, param.func);
+    }
+    function optimize()
+    {
+        self.expr = self.expr.optimize();
     }
     function emit(e)
     {
@@ -10259,6 +10270,7 @@ class FunctionBase : BlockStatement
                 self.multi_sig = multi_sig_from_multi_modifier(self, multi);
             }
         }
+        optimize_array(self.params);
         for_each(self.usednamespaces, bindmethod("fixnamespaces"));
         self.body = self.body.optimize();
         return self;
