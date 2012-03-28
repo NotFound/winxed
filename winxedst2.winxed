@@ -10397,15 +10397,21 @@ class FunctionBase : BlockStatement
         self.emit_extra_modifiers(e);
         e.say();
 
-        // Parameters
+        // Emit Parameters
         var params = self.params;
         emit_array(e, params);
+
+        // Emit .const 'Sub' declarations for used subs
+        e.print(join("", transform(self.usedsubids, [], emit_subid)));
+
+        // Emit default values for optional params
         for (var param in params) {
             var def = param.get_default();
             if (def != null)
                 def.emit(e);
         }
 
+        // Emit lexicals
         var lexicals = self.lexicals;
         var usedlexicals = self.usedlexicals;
         if (lexicals != null || usedlexicals != null) {
@@ -10420,8 +10426,6 @@ class FunctionBase : BlockStatement
                 e.emitfind_lex(l, usedlexicals[l]);
             }
         }
-
-        e.print(join("", transform(self.usedsubids, [], emit_subid)));
 
         int edebug = e.getDebug();
         var body = self.body;
