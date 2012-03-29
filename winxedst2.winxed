@@ -10009,6 +10009,12 @@ class FunctionParameter
                     param.getreg(), " :opt_flag");
         e.say('');
     }
+    function emitdefault(e)
+    {
+        var def = self.defaultexpr;
+        if (def != null)
+            def.emit(e);
+    }
     function get_type()
     {
         return self.type;
@@ -10016,10 +10022,6 @@ class FunctionParameter
     function getvar()
     {
         return self.func.getvar(self.name);
-    }
-    function get_default()
-    {
-        return self.defaultexpr;
     }
 }
 
@@ -10041,10 +10043,11 @@ class FunctionParameterDefault
         var expr = self.expr;
         if (! expr.isnull()) {
             var param = self.param;
+            var pvar = param.getvar();
             string label = param.func.genlabel();
-            string reg = param.getvar().getreg();
+            string reg = pvar.getreg();
             e.emitif("__opt_flag" + reg, label);
-            string type = param.get_type();
+            string type = pvar.gettype();
             if (type == expr.checkresult())
                 expr.emit_init(e, reg);
             else {
@@ -10405,11 +10408,7 @@ class FunctionBase : BlockStatement
         e.print(join("", transform(self.usedsubids, [], emit_subid)));
 
         // Emit default values for optional params
-        for (var param in params) {
-            var def = param.get_default();
-            if (def != null)
-                def.emit(e);
-        }
+        for_each(params, bindlast(bindmethod("emitdefault"), e));
 
         // Emit lexicals
         var lexicals = self.lexicals;
