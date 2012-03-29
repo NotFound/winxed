@@ -47,6 +47,10 @@ function foo(var x = Bar.baz())
     return x;
 }
 
+function retvoid()
+{
+}
+
 //**********************************************************************
 
 function main [main](args)
@@ -57,6 +61,12 @@ function main [main](args)
     is(theAnswer(), 42, "user defined constant");
     is(new Foo().bar(), "Hi", "self in default value");
     is(foo(), "baz", "namespace qualified function in default value");
+
+    // Multi assign
+    :(int i = 42) = retvoid();
+    is (i, 42, "multi return - get 1 from 0");
+    :(int j, i = 7) = ret_int();
+    is (i, 7, "multi return - get 2 from 1");
 
     done_testing();
 }

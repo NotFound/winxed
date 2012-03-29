@@ -9983,15 +9983,17 @@ class FunctionParameter
         }
         // Default value
         if (t.isop('='))
-            self.defaultexpr = new FunctionParameterDefault(tk, self);
+            self.defaultexpr = new FunctionParameterDefault(tk, func, self);
         else
             tk.unget(t);
     }
     function optimize()
     {
-        var defaultexpr = self.defaultexpr;
-        if (defaultexpr != null)
-            defaultexpr.optimize();
+        var def = self.defaultexpr;
+        if (def != null) {
+            def.optimize();
+            def.setoptflag("__opt_flag" + string(self.getvar().getreg()));
+        }
         return self;
     }
     function emit(e)
@@ -10004,9 +10006,10 @@ class FunctionParameter
         var modarg = self.modifiers;
         if (modarg != null)
             modarg.emitmodifiers(e, func.start, paramname);
-        if (self.defaultexpr != null)
-            e.print(" :optional\n" + INDENT + INDENT + ".param int __opt_flag",
-                    param.getreg(), " :opt_flag");
+        var def = self.defaultexpr;
+        if (def != null)
+            e.print(" :optional\n" + INDENT + INDENT + ".param int ",
+                    def.getoptflag(), " :opt_flag");
         e.say('');
     }
     function emitdefault(e)
@@ -10027,16 +10030,31 @@ class FunctionParameter
 
 class FunctionParameterDefault
 {
+    var owner;
     var param;
     var expr;
-    function FunctionParameterDefault(tk, param)
+    var reg;
+    function FunctionParameterDefault(tk, owner, param)
     {
+        self.owner = owner;
         self.param = param;
-        self.expr = parseExpr(tk, param.func);
+        self.expr = parseExpr(tk, owner);
     }
     function optimize()
     {
         self.expr = self.expr.optimize();
+        var paramvar = self.param.getvar();
+    }
+    function setoptflag(string reg)
+    {
+        self.reg = reg;
+    }
+    function getoptflag()
+    {
+        var reg = self.reg;
+        if (reg == null)
+            InternalError("Invalid parameter default usage", self.param);
+        return string(reg);
     }
     function emit(e)
     {
@@ -10044,9 +10062,10 @@ class FunctionParameterDefault
         if (! expr.isnull()) {
             var param = self.param;
             var pvar = param.getvar();
-            string label = param.func.genlabel();
+            string label = self.owner.genlabel();
+            string optflag = self.getoptflag();
+            e.emitif(optflag, label);
             string reg = pvar.getreg();
-            e.emitif("__opt_flag" + reg, label);
             string type = pvar.gettype();
             if (type == expr.checkresult())
                 expr.emit_init(e, reg);
@@ -10944,11 +10963,14 @@ class CallInlineExpr : FinalExpr
 
 class SigParameter
 {
+    var owner;
     var name;
     var modifiers;
     var reg;
+    var defaultexpr;
     function SigParameter(tk, owner)
     {
+        self.owner = owner;
         var name = tk.get();
         if (! name.isidentifier())
             ExpectedIdentifier(name);
@@ -10962,10 +10984,27 @@ class SigParameter
         self.name = name;
         var data = owner.getvar(name.getidentifier());
         self.reg = data.getreg();
-        if (t.isop('['))
+        if (t.isop('[')) {
             self.modifiers = new ParameterModifierList(tk, self);
+            t = tk.get();
+        }
+        if (t.isop('='))
+            self.defaultexpr = new FunctionParameterDefault(tk, owner, self);
         else
             tk.unget(t);
+    }
+    function getvar()
+    {
+        return self.owner.getvar(self.name.getidentifier());
+    }
+    function optimize()
+    {
+        var def = self.defaultexpr;
+        if (def != null) {
+            def.optimize();
+            def.setoptflag(self.owner.createreg(REGint));
+        }
+        return self;
     }
     function emit(e)
     {
@@ -10975,6 +11014,15 @@ class SigParameter
             var name = self.name;
             modifiers.emitmodifiers(e, name, name);
         }
+        var def = self.defaultexpr;
+        if (def != null)
+            e.print(" :optional, ", def.getoptflag(), " :opt_flag");
+    }
+    function emitdefault(e)
+    {
+        var def = self.defaultexpr;
+        if (def != null)
+            def.emit(e);
     }
 }
 
@@ -10990,6 +11038,10 @@ class SigParameterList
     {
         self.params = parseList(tk, owner, parseSigParameter, ')');
     }
+    function optimize()
+    {
+        optimize_array(self.params);
+    }
     function emit(e)
     {
         e.print('(');
@@ -11000,6 +11052,11 @@ class SigParameterList
             sep = ', ';
         }
         e.print(')');
+    }
+    function emitdefaults(e)
+    {
+        for (var param in self.params)
+            param.emitdefault(e);
     }
 }
 
@@ -11016,6 +11073,7 @@ class MultiAssignStatement : Statement
     function optimize()
     {
         self.expr = self.expr.optimize();
+        self.params.optimize();
         return self;
     }
     function emit(e)
@@ -11025,11 +11083,13 @@ class MultiAssignStatement : Statement
             SyntaxError('multi assignment used with non function call', expr);
         var call = expr.emitcall(e);
         expr.prepareargs(e);
+        var params = self.params;
         e.print(INDENT);
-        self.params.emit(e);
+        params.emit(e);
         e.print(' = ', call);
         expr.emitargs(e);
         e.say();
+        params.emitdefaults(e);
     }
 }
 
