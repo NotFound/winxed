@@ -4,6 +4,8 @@ Winxed news.
 Version 1.7
     - Default values in multi assign
     - Fixes in default values
+  Build 1.7.0
+    - Bundled with parrot 4.3.0
 
 Version 1.6
     - Default values in function parameters
