@@ -4,9 +4,9 @@
 
 using extern Test.More plan, is;
 
-function main()
+function main [main]()
 {
-    plan (13);
+    plan (17);
 
     string r;
     int a = 65;
@@ -34,6 +34,25 @@ function main()
     is(substr(r, 1, 2), "in", "substr 3 args");
     is(substr(r, 4), "ed", "substr 2 args");
     is(substr(r, -3), "xed", "substr 2 args - negative");
+
+    // indexof
+    check_indexof("abcde", "c", 2);
+    check_indexof("abcde", "C", -1);
+    check_indexof_3("abcde", "c", 2, 2);
+    check_indexof_3("abcde", "c", 3, -1);
+}
+
+function check_indexof(string source, string find, int expect)
+{
+    is(indexof(source, find), expect,
+            "indexof(" + source + ", " + find + ") == " + string(expect));
+}
+
+function check_indexof_3(string source, string find, int start, int expect)
+{
+    is(indexof(source, find, start), expect,
+            "indexof(" + source + ", " + find + ", " + string(start) +
+            ") == " + string(expect));
 }
 
 // End
