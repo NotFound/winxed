@@ -252,7 +252,9 @@ function process_args [anon] (argv)
     return sub;
 }
 
-function main [main] (argv)
+//**************************************************************
+
+function __PARROT_ENTRY_WINXED_main [main] (argv)
 {
     var mainsub = process_args(argv);
     __ASSERT__(mainsub != null);
@@ -264,12 +266,34 @@ function main [main] (argv)
             retval = retvalp;
     }
     catch (e) {
-        string msg = e['message'];
-        if (msg != null && msg != '')
-            cry(msg);
-        retval = 1;
+        fail(e);
     }
     exit(retval);
+}
+
+function fail [anon] (exception)
+{
+    var stderr = getstderr();
+    string message = exception.message;
+    if (message == null || message == "")
+        message = "No exception handler and no message";
+    stderr.print(sprintf("%s\n", [ message ]));
+
+    string line_sep = "";
+    var bts = exception.backtrace_strings();
+    for (int i = elements(bts) - 1; i >= 0; --i) {
+        string bt = bts[i];
+        for (string line in split("\n", bt)) {
+            if (indexof(line, "__PARROT_ENTRY") >= 0)
+                continue;
+            stderr.print(sprintf("%s%s", [ line_sep, line ]));
+            line_sep = "\n";
+        }
+        line_sep = "\nthrown from\n";
+    }
+
+    int exit_code = exception.exit_code;
+    exit(exit_code != 0 ? exit_code : 1);
 }
 
 // End
