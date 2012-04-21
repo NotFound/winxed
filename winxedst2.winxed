@@ -1309,6 +1309,28 @@ function float_from_literal(arg)
     return value;
 }
 
+/*
+    Get a literal from a builtin with just one param.
+    The argument list validity should be checked before, so
+    check here only in debug builds.
+*/
+function int_from_literal_arg1(args)
+{
+    if (__DEBUG__) {
+        if (elements(args) != 1)
+            InternalError("call to " + __FUNCTION__ + " with invalid args");
+    }
+    return int_from_literal(args[0].arg);
+}
+function string_from_literal_arg1(args)
+{
+    if (__DEBUG__) {
+        if (elements(args) != 1)
+            InternalError("call to " + __FUNCTION__ + " with invalid args");
+    }
+    return string_from_literal(args[0].arg);
+}
+
 // Invokable object generated from a string body
 class Builtin_frombody
 {
@@ -1526,14 +1548,12 @@ class Builtin_typecast
 
 function builtineval_stringcast(owner, start, args)
 {
-    var arg = args[0].arg;
-    return stringQuotedValue(owner, start, string_from_literal(arg));
+    return stringQuotedValue(owner, start, string_from_literal_arg1(args));
 }
 
 function builtineval_intcast(owner, start, args)
 {
-    var arg = args[0].arg;
-    int value = int_from_literal(arg);
+    int value = int_from_literal_arg1(args);
     return integerValue(owner, start, value);
 }
 
@@ -1676,15 +1696,13 @@ function Builtin_invoke(e, owner, start, string result, args)
 
 function builtineval_length(owner, start, args)
 {
-    var arg = args[0].arg;
-    string s = string_from_literal(arg);
+    string s = string_from_literal_arg1(args);
     return integerValue(owner, start, length(s));
 }
 
 function builtineval_bytelength(owner, start, args)
 {
-    var arg = args[0].arg;
-    string s = string_from_literal(arg);
+    string s = string_from_literal_arg1(args);
     return integerValue(owner, start, bytelength(s));
 }
 
@@ -1703,8 +1721,7 @@ function builtineval_ord(owner, start, args)
 
 function builtineval_chr(owner, start, args)
 {
-    var arg = args[0].arg;
-    return stringQuotedValue(owner, start, chr(int_from_literal(arg)));
+    return stringQuotedValue(owner, start, chr(int_from_literal_arg1(args)));
 }
 
 function builtineval_substr(owner, start, args)
@@ -1745,13 +1762,24 @@ function builtineval_indexof_pos(owner, start, args)
     return integerValue(owner, start, indexof(strfrom, strsearch, pos));
 }
 
+function builtineval_upcase(owner, start, args)
+{
+    return stringQuotedValue(owner, start,
+            upcase(string_from_literal_arg1(args)));
+}
+
+function builtineval_downcase(owner, start, args)
+{
+    return stringQuotedValue(owner, start,
+            downcase(string_from_literal_arg1(args)));
+}
+
 function builtineval_escape(owner, start, args)
 {
-    var argstrfrom = args[0].arg;
     // This is a unescaped string. To get a escaped string
     // in the output we need to escape twice.
     return stringQuotedValue(owner, start,
-            escape(escape(string_from_literal(argstrfrom))));
+            escape(escape(string_from_literal_arg1(args))));
 }
 
 function builtin_sleep(e, owner, start, result, args)
@@ -1980,11 +2008,13 @@ encodingname %0, $I0
 :>>
         , REGstring, REGstring
     ));
-    builder.add(new BuiltinFunction('upcase',
+    builder.add(new BuiltinFunctionEval('upcase',
+        builtineval_upcase,
         'upcase %0, %1',
         REGstring, REGstring
     ));
-    builder.add(new BuiltinFunction('downcase',
+    builder.add(new BuiltinFunctionEval('downcase',
+        builtineval_downcase,
         'downcase %0, %1',
         REGstring, REGstring
     ));
