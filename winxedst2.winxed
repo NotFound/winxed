@@ -9404,7 +9404,7 @@ class DeclareArrayStatement : DeclareBase
     {
         self.annotate(e);
 
-        var reg = self.reg;
+        string container = self.reg;
         var size = self.size;
         var init = self.initarray;
         var basetype = self.basetype;
@@ -9413,26 +9413,32 @@ class DeclareArrayStatement : DeclareBase
         if (size != null) {
             // Fixed size array
             e.say(sformat(INDENT + "new %0, ['Fixed%1Array'], %2",
-                    reg, arraytype, size.emit_get(e)));
+                    container, arraytype, size.emit_get(e)));
         }
         else {
             // Variable size array
             e.say(sformat(INDENT + "new %0, ['Resizable%1Array']",
-                    reg, arraytype));
+                    container, arraytype));
         }
         if (init != null) {
-            string itemreg = self.tempreg(basetype);
+            string auxitemreg = self.tempreg(basetype);
             int n = elements(init);
             if (size == null) {
                 if (n != 0) {
                     // Allocate initializers size
-                    e.emitset(reg, n);
+                    e.emitset(container, n);
                 }
             }
             int i = 0;
             for (var item in init) {
-                item.emit(e, itemreg);
-                e.say(sformat(INDENT + "%0[%1] = %2", reg, i, itemreg));
+                string itemreg;
+                if (item.isliteral() && item.checkresult() == basetype)
+                    itemreg = item.emit_get(e);
+                else {
+                    item.emit(e, auxitemreg);
+                    itemreg = auxitemreg;
+                }
+                e.say(sformat(INDENT + "%0[%1] = %2", container, i, itemreg));
                 ++i;
             }
         }
