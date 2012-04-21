@@ -251,6 +251,13 @@ class Fly
     var speed;
     var prev;
 
+    const int nsteps = 7;
+    const int length_train_1 = 11;
+    const int length_train_2 = 8;
+    var steps;
+    var heights;
+    var fuzz;
+
     function Fly(string title)
     {
         self.w = int(glutCreateWindow(title));
@@ -271,6 +278,16 @@ class Fly
         self.dz  =  0.0;
 
         self.speed = 25.0;
+
+        int steps[nsteps]     = [   3,   3,   3,   4,    3,    3,    3 ];
+        self.steps = steps;
+        float heights[nsteps] = [ 0.2, 0.4, 0.3, 0.0, -0.3, -0.4, -0.2 ];
+        self.heights = heights;
+        float fuzz[] = [ 0.0, 0.4, 0.5, 0.3, 0.4, 0.0, 0.3, 0.5, 0.4, 0.3, 0.2 ];
+        __ASSERT__(length_train_1 <= elements(fuzz));
+        __ASSERT__(length_train_2 <= elements(fuzz));
+        __ASSERT__(length_train_1 == elements(fuzz) || length_train_2 == elements(fuzz));
+        self.fuzz = fuzz;
 
         var things = [];
         things.push(new Thing(0.0, 0.8, 0.2, 4.0, 4.0, 1.0));
@@ -421,9 +438,8 @@ class Fly
         const float rangle = angle + 90.0 * ToRad;
         const float inix =  189.5;
         const float iniz =  -81.5;
-        const int nsteps = 7;
-        int steps[nsteps]     = [   3,   3,   3,   4,    3,    3,    3 ];
-        float heights[nsteps] = [ 0.2, 0.4, 0.3, 0.0, -0.3, -0.4, -0.2 ];
+        var steps = self.steps;
+        var heights = self.heights;
         float stepx = sin(angle)  * 2.0;
         float stepz = cos(angle)  * 2.0;
 
@@ -466,13 +482,14 @@ class Fly
         float now = self.prev;
         float t = now / 7.2;
         int i;
-        float fuzz[] = [ 0.0, 0.4, 0.5, 0.3, 0.4, 0.0, 0.3, 0.5, 0.4, 0.3, 0.2 ];
-        for (i = 0; i < 11; ++i) {
+
+        var fuzz = self.fuzz;
+        for (i = 0; i < length_train_1; ++i) {
             train(t, 180.0, fuzz[i]);
             t += 0.058;
         }
         t = - now / 6.8;
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < length_train_2; ++i) {
             train(t, 182.0, fuzz[i]);
             t -= 0.058;
         }
