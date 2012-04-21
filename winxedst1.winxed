@@ -1646,35 +1646,6 @@ function builtineval_substr(owner, start, args)
     return stringQuotedValue(owner, start, result);
 }
 
-function builtineval_indexof(owner, start, args)
-{
-    var argstrfrom = args[0].arg;
-    var argstrsearch = args[1].arg;
-    string strfrom = string_from_literal(argstrfrom);
-    string strsearch = string_from_literal(argstrsearch);
-    return integerValue(owner, start, indexof(strfrom, strsearch));
-}
-
-function builtineval_indexof_pos(owner, start, args)
-{
-    var argstrfrom = args[0].arg;
-    var argstrsearch = args[1].arg;
-    var argpos = args[2].arg;
-    string strfrom = string_from_literal(argstrfrom);
-    string strsearch = string_from_literal(argstrsearch);
-    int pos = int_from_literal(args[2].arg);
-    return integerValue(owner, start, indexof(strfrom, strsearch, pos));
-}
-
-function builtineval_escape(owner, start, args)
-{
-    var argstrfrom = args[0].arg;
-    // This is a unescaped string. To get a escaped string
-    // in the output we need to escape twice.
-    return stringQuotedValue(owner, start,
-            escape(escape(string_from_literal(argstrfrom))));
-}
-
 function getbuiltins(builder)
 {
     builder.add(new BuiltinFunctionEval('int',
@@ -1822,13 +1793,11 @@ trans_encoding %0, $S0, $I0
         'replace %0, %1, %2, %3, %4',
         REGstring, REGstring, REGint, REGint, REGstring
     ));
-    builder.add(new BuiltinFunctionEval('indexof',
-        builtineval_indexof,
+    builder.add(new BuiltinFunction('indexof',
         'index %0, %1, %2',
         REGint, REGstring, REGstring
     ));
-    builder.add(new BuiltinFunctionEval('indexof',
-        builtineval_indexof_pos,
+    builder.add(new BuiltinFunction('indexof',
         'index %0, %1, %2, %3',
         REGint, REGstring, REGstring, REGint
     ));
@@ -1836,8 +1805,7 @@ trans_encoding %0, $S0, $I0
         'join %0, %1, %2',
         REGstring, REGstring, REGvar
     ));
-    builder.add(new BuiltinFunctionEval('escape',
-        builtineval_escape,
+    builder.add(new BuiltinFunction('escape',
         'escape %0, %1',
         REGstring, REGstring
     ));
