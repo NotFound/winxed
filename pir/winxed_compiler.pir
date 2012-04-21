@@ -24359,7 +24359,7 @@
     new $P1, ['FixedIntegerArray'], 3
     set $I1, 1
     $P1[0] = $I1
-    set $I1, 7
+    set $I1, 8
     $P1[1] = $I1
     set $I1, -1
     $P1[2] = $I1
