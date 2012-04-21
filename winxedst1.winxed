@@ -1595,16 +1595,6 @@ function Builtin_ASSERT(e, owner, start, string result, args)
     }
 }
 
-// invoke is a quick & dirty way to allow use of multiple return values.
-// It's a wrap around the call that gives the signature object returned.
-function Builtin_invoke(e, owner, start, string result, args)
-{
-    var arg = args[0];
-    if (! (arg instanceof CallExpr))
-        SyntaxError("invoke argument must be callable", start);
-    arg.emit(e, "(" + result + " :call_sig)");
-}
-
 function builtineval_length(owner, start, args)
 {
     var arg = args[0].arg;
@@ -1999,19 +1989,6 @@ $P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
         'getinterp %0',
         REGvar
     ));
-    builder.add(new BuiltinFunction('getcontext',
-/* Experimental:
-Parrot will probably have a getcontext op in the near future.
-At that point this bulitin will just map to that op.
-In the meantime, get the conext via getinterp and the
-ParrotInterpreter PMC.
-*/
-<<:
-getinterp $P0
-%0 = $P0["context"]
-:>>
-        , REGvar
-    ));
     builder.add(new BuiltinFunction('get_class',
         'get_class %0, %1',
         REGvar, REGs_v
@@ -2020,25 +1997,9 @@ getinterp $P0
         'typeof %0, %1',
         REGvar, REGvar
     ));
-    builder.add(new BuiltinFunction('getattribute',
-        'getattribute %0, %1, %2',
-        REGvar, REGvar, REGstring
-    ));
-    builder.add(new BuiltinFunction('getattribute',
-        'getattribute %0, %1, %2, %3',
-        REGvar, REGvar, REGvar, REGstring
-    ));
-    builder.add(new BuiltinFunction('setattribute',
-        'setattribute %1, %2, %3, %4',
-        REGnone, REGvar, REGvar, REGstring, REGvar
-    ));
     builder.add(new BuiltinFunction('find_method',
         'find_method %0, %1, %2',
         REGvar, REGvar, REGstring
-    ));
-    builder.add(new BuiltinFunction('callmethodwithargs',
-        '%0 = %1.%2(%3 :flat)',
-        REGvar, REGvar, REGvar, REGvar
     ));
     builder.add(new BuiltinFunction('clone',
         'clone %0, %1',
@@ -2097,10 +2058,6 @@ compreg %0, %2
     builder.add(new BuiltinFunction('__ASSERT__',
         Builtin_ASSERT,
         REGnone, REGraw1
-    ));
-    builder.add(new BuiltinFunction('invoke',
-        Builtin_invoke,
-        REGvar, REGraw1
     ));
 }
 
