@@ -5353,11 +5353,6 @@ class OpDivExpr : OpBinaryExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
-    function optimize()
-    {
-        self.optimizearg();
-        return self;
-    }
     function checkresult()
     {
         return REGfloat;
