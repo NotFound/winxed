@@ -2707,7 +2707,7 @@ class Statement : CommonBase
     {
         return self.owner.genlabel();
     }
-    function getlabel(name)
+    function getlabel(string name)
     {
         return self.owner.getlabel(name);
     }
@@ -8229,8 +8229,9 @@ class Reflabel
     function optimize() { return self; }
     function emit_get(e)
     {
-        string label = self.label;
-        string value = self.owner.getlabel(label);
+        string value = self.owner.getlabel(self.label);
+        if (value == null)
+            SyntaxError("No such label", self.label);
         return value;
     }
 }
@@ -8255,9 +8256,11 @@ class GotoStatement : Statement
     function emit(e)
     {
         self.annotate(e);
-        string label = self.label;
-        string value = self.getlabel(label);
-        e.emitgoto(value, 'goto ' + label);
+        string labelname = self.label;
+        string value = self.getlabel(labelname);
+        if (value == null)
+            SyntaxError("No such label", self.label);
+        e.emitgoto(value, 'goto ' + labelname);
     }
 }
 
@@ -9840,11 +9843,10 @@ class CompoundStatement : MultiStatementBase, BlockStatement
         cloned.statements = clone_array(self.statements, owner);
         return cloned;
     }
-    function getlabel(var name)
+    function getlabel(string name)
     {
-        string s = name;
         var labels = self.labels;
-        string exist = labels[s];
+        string exist = labels[name];
         if (exist == null || exist == '')
             exist = self.owner.getlabel(name);
         return exist;
@@ -11386,6 +11388,10 @@ class ClassStatement : ClassBase, VarContainer
             }
         }
     }
+    function getlabel(string name)
+    {
+        return string(null);
+    }
     function addmethod(func)
     {
         __ASSERT__(func instanceof MethodStatement);
@@ -11829,6 +11835,10 @@ class NamespaceBase : VarContainer
             self.funcont = previous.funcont;
         }
         self.items = [];
+    }
+    function getlabel(string name)
+    {
+        return string(null);
     }
     function addfunction(newfunc)
     {
