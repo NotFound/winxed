@@ -8150,6 +8150,7 @@ class InlineReturnStatement : Statement
     function emit(e)
     {
         var outer = self.owner.getouter();
+        __ASSERT__(outer instanceof InlinedBlock);
         var expr = self.expr;
         string rettype = outer.getrettype();
         self.annotate(e);
@@ -8175,9 +8176,12 @@ class InlineReturnStatement : Statement
                 }
             }
         }
-        string retlabel = outer.getendlabel();
-        self.annotate(e);
-        e.emitgoto(retlabel);
+
+        if (! outer.islaststatement(self)) {
+            string retlabel = outer.getendlabel();
+            self.annotate(e);
+            e.emitgoto(retlabel);
+        }
     }
 }
 
@@ -9843,6 +9847,16 @@ class CompoundStatement : MultiStatementBase, BlockStatement
         cloned.statements = clone_array(self.statements, owner);
         return cloned;
     }
+    function last()
+    {
+        var statements = self.statements;
+        for (int i = elements(statements) - 1; i >= 0; --i) {
+            var st = statements[i];
+            if (st != null && ! st.isempty())
+                return st;
+        }
+        return null;
+    }
     function getlabel(string name)
     {
         var labels = self.labels;
@@ -10839,6 +10853,14 @@ class InlinedBlock : BlockStatement
         self.body = body;
     }
     function getouter() { return self; }
+    function islaststatement(st)
+    {
+        __ASSERT__(st != null);
+        var stcheck = self.body;
+        while (stcheck != null && (stcheck instanceof CompoundStatement))
+            stcheck = stcheck.last();
+        return stcheck === st;
+    }
     function createreg(string type)
     {
         return self.inliner.owner.createreg(type);
