@@ -9316,19 +9316,19 @@ class FunctionBase : BlockStatement
         return self;
     }
 
-    function setusedlex(string lexname, string localname)
+    function setusedlex(string lexname, string regname)
     {
         var lexicals = self.usedlexicals;
         if (lexicals == null)
             self.usedlexicals = lexicals = {};
-        lexicals[localname] = lexname;
+        lexicals[regname] = lexname;
     }
-    function setlex(string lexname, string localname)
+    function setlex(string lexname, string regname)
     {
         var lexicals = self.lexicals;
         if (lexicals == null)
             self.lexicals = lexicals = {};
-        lexicals[localname] = lexname;
+        lexicals[regname] = lexname;
     }
     function createlex(vardata)
     {
