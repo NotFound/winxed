@@ -1098,11 +1098,11 @@ class Emit
     }
     function emitfind_lex(string reg, string name)
     {
-        self.say(INDENT + "find_lex ", reg, ", '", name, "'");
+        self.say(INDENT + "find_lex ", reg, ", ", name);
     }
     function emitstore_lex(string name, string reg)
     {
-        self.say(INDENT + "store_lex '", name, "', ", reg);
+        self.say(INDENT + "store_lex ", name, ", ", reg);
     }
 }
 
@@ -2799,6 +2799,10 @@ class VarData
 
     function VarData(string type, reg, scope, int flags)
     {
+        // Sanity check
+        __ASSERT__(type == REGint || type == REGfloat || type == REGstring ||
+                type == REGvar);
+
         self.type = type;
         self.reg = reg;
         self.scope = scope;
@@ -2808,12 +2812,23 @@ class VarData
     {
         self.lexname = name;
     }
+    function createlex(string lexname)
+    {
+        // Set the lexname and make the variable a lexical
+        // in its outer.
+        self.setlex(lexname);
+        self.getscope().getouter().setlex(lexname, self.reg);
+    }
     function gettype() { return self.type; }
     function getreg() { return self.reg; }
     function getscope() { return self.scope; }
     function getvalue() { return self.value; }
     function isconst() { return false; }
-    function getlex() { return self.lexname; }
+    function getlex()
+    {
+        var lexname = self.lexname;
+        return lexname != null ? string(lexname) : null;
+    }
     function getflags() { return self.flags; }
     function issubid()
     {
@@ -2937,7 +2952,7 @@ class VarContainer
     }
     function makelexicalself()
     {
-        const string lexname = '__WLEX_self';
+        const string lexname = "'__WLEX_self'";
         self.setlex(lexname, SELF);
         return lexname;
     }
@@ -3493,7 +3508,7 @@ class IdentifierExpr : SimpleExpr
         if (flags & VAR_is_volatile) {
             if (flags & VAR_is_lexical) {
                 string lexname = desc.getlex();
-                if (lexname != null && lexname != '')
+                if (lexname != null)
                     self.annotate(e);
                     e.emitfind_lex(reg, lexname);
             }
@@ -9334,16 +9349,10 @@ class FunctionBase : BlockStatement
     {
         // Get the lexname for a variable, creating it on the fly
         // when needed.
-        var lex = vardata.getlex();
-        string lexname;
-        if (lex != null)
-            lexname = lex;
-        else {
-            string reg = vardata.getreg();
-            int lexnum = self.getlexnum();
-            lexname = '__WLEX_' + string(lexnum);
-            self.setlex(lexname, reg);
-            vardata.setlex(lexname);
+        string lexname = vardata.getlex();
+        if (lexname == null) {
+            lexname = "'__WLEX_" + string(self.getlexnum()) + "'";
+            vardata.createlex(lexname);
         }
         return lexname;
     }
@@ -9447,7 +9456,7 @@ class FunctionBase : BlockStatement
             e.annotate(self.start);
             // lexicals declared in this function and its inner scopes
             for (string l in lexicals)
-                e.say(sformat(".lex '%0', %1", lexicals[l], l));
+                e.say(sformat(".lex %0, %1", lexicals[l], l));
             // lexicals from outers used inside
             for (string l in usedlexicals) {
                 if (substr(l, 0, 1) != '$')
