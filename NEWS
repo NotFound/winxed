@@ -2,6 +2,9 @@ Winxed news.
 (C) Julián Albo "NotFound"
 
 Version 1.8
+    - lexical modifier for variables
+    - Show backtrace on unhandled exceptions in installable driver
+    - Fail nicely on attempts to use labels not defined
 
 Version 1.7
     - Default values in multi assign
