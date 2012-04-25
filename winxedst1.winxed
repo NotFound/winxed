@@ -2797,7 +2797,7 @@ class VarData
     var flags;
     var lexname;
 
-    function VarData(type, reg, scope, int flags)
+    function VarData(string type, reg, scope, int flags)
     {
         self.type = type;
         self.reg = reg;
@@ -2839,7 +2839,7 @@ class VarData_const : VarData
 {
     var value;
 
-    function VarData_const(type, name, scope, flags)
+    function VarData_const(string type, name, scope, int flags)
     {
         self.VarData(type, new ConstantInternalFail(name), scope, flags);
     }

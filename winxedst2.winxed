@@ -3111,8 +3111,12 @@ class VarData
     var flags;
     var lexname;
 
-    function VarData(type, reg, scope, int flags)
+    function VarData(string type, reg, scope, int flags)
     {
+        // Sanity check
+        __ASSERT__(type == REGint || type == REGfloat || type == REGstring ||
+                type == REGvar);
+
         self.type = type;
         self.reg = reg;
         self.scope = scope;
@@ -3153,7 +3157,7 @@ class VarData_const : VarData
 {
     var value;
 
-    function VarData_const(type, name, scope, flags)
+    function VarData_const(string type, name, scope, int flags)
     {
         self.VarData(type, new ConstantInternalFail(name), scope, flags);
     }
@@ -9220,21 +9224,36 @@ class TryStatement : BlockStatement
 }
 
 //*********************************************
-//            VarBaseStatement
+//            DeclareItem
 //*********************************************
 
-class VarBaseStatement : Statement
+/*
+    Base class for all variable declarations.
+*/
+
+class DeclareItem : Statement
 {
     var name;
     var reg;
-    var flags;
-    function initvarbase(start, owner, name, int flags[optional])
+
+    function DeclareItem(start, owner, name, string regtype, int flags)
     {
         self.Statement(start, owner);
         self.name = name;
-        var vdata = self.createvar(name, REGvar, flags);
+        var vdata = self.createvar(name, regtype, flags);
         self.reg = vdata.getreg();
-        self.flags = flags;
+    }
+}
+
+//*********************************************
+//            VarBaseStatement
+//*********************************************
+
+class VarBaseStatement : DeclareItem
+{
+    function initvarbase(start, owner, name, int flags[optional])
+    {
+        self.DeclareItem(start, owner, name, REGvar, flags);
     }
 }
 
@@ -9242,21 +9261,16 @@ class VarBaseStatement : Statement
 //            Declare Statements
 //*********************************************
 
-class DeclareBase : Statement
+class DeclareBase : DeclareItem
 {
-    var name;
     var basetype;
     var regtype;
-    var reg;
 
     function DeclareBase(start, owner, name, string basetype, string regtype)
     {
-        self.Statement(start, owner);
-        self.name = name;
+        self.DeclareItem(start, owner, name, regtype, 0);
         self.basetype = basetype;
         self.regtype = regtype;
-        var vdata = self.createvar(name, regtype);
-        self.reg = vdata.getreg();
     }
 }
 
