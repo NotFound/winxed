@@ -10739,60 +10739,66 @@ class LocalFunctionStatement : FunctionBase
         // Forward to the outer to avoid duplicate names.
         return self.outer.getlexnum();
     }
-    function checkvarlexical(name, data)
+    function checkvarlexical(name, vardata)
     {
-        if (data.isconst())
-            return data;
-        string reg = data.getreg();
+        /*
+            If the var data is a lexical in some outer scope, create a
+            local variable and set it as a used lexical.
+            Otherwise, return it unchanged.
+        */
+        if (vardata.isconst())
+            return vardata;
+        string reg = vardata.getreg();
         //TEMPORARY WORKAROUND
         if (substr(reg, 0, 6) == 'WSubId') {
             self.usesubid(reg);
-            return data;
+            return vardata;
         }
-        var scope = data.getscope();
+        var scope = vardata.getscope();
         var ownerscope = scope.getouter();
         var outer = self.outer;
         if (ownerscope instanceof FunctionBase) {
             if (ownerscope.same_scope_as(outer)) {
-                string lexname = scope.makelexical(data);
-                int flags = data.getflags() | VAR_is_lexical;
-                string type = data.gettype();
+                string lexname = scope.makelexical(vardata);
+                int flags = vardata.getflags() | VAR_is_lexical;
+                string type = vardata.gettype();
                 if (type != REGvar)
                     flags = flags | VAR_is_volatile;
-                var lexused = self.createvar(name, data.gettype(), flags);
-                lexused.lexname = lexname;
-                self.setusedlex(lexname, lexused.getreg());
-                return lexused;
+                var localvar = self.createvar(name, vardata.gettype(), flags);
+                localvar.setlex(lexname);
+                self.setusedlex(lexname, localvar.getreg());
+                return localvar;
             }
         }
-        return data;
+        return vardata;
     }
     function getvar(name)
     {
-        var r = self.getlocalvar(name);
-        if (r == null)
-            r = self.getusedvar(name);
-        if (r == null) {
+        var localvar = self.getlocalvar(name);
+        if (localvar == null)
+            localvar = self.getusedvar(name);
+        if (localvar == null) {
             // Not found in function scope, search external scopes
             // and check lexicals.
-            r = self.owner.getvar(name);
-            if (r == null) {
+            localvar = self.owner.getvar(name);
+            if (localvar == null) {
                 // Special case for self in methods
                 if (name == SELF) {
                     var ownerscope = self.outer;
                     if (self.outer.ismethod()) {
                         string lexself = ownerscope.makelexicalself();
-                        r = self.createvar(name, REGvar);
-                        string reg = r.getreg();
+                        localvar = self.createvar(name, REGvar);
+                        string reg = localvar.getreg();
                         self.setusedlex(lexself, reg);
                     }
                 }
             }
-            else r = self.checkvarlexical(name, r);
+            else
+                localvar = self.checkvarlexical(name, localvar);
         }
-        if (r != null && !(r instanceof VarData))
+        if (localvar != null && !(localvar instanceof VarData))
             InternalError('Incorrect data for variable in LocalFunction');
-        return r;
+        return localvar;
     }
 }
 
