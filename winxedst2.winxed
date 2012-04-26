@@ -3438,6 +3438,20 @@ class FunctionExpr : Expr
 
 const int CONDisruntime = 0, CONDistrue = 1, CONDisfalse = 2;
 
+class ConditionFriendlyExpr
+{
+    // Abstract base class for expressions with specialized code generation
+    // for conditions.
+    function emit_if(e, string labeltrue)
+    {
+        InternalError(__FUNCTION__ + " not overriden", self);
+    }
+    function emit_else(e, string labelfalse)
+    {
+        InternalError(__FUNCTION__ + " not overriden", self);
+    }
+}
+
 class Condition
 {
     var condexpr;
@@ -3466,15 +3480,14 @@ class Condition
     {
         var condexpr = self.condexpr;
 
-        if ((condexpr instanceof ComparatorBaseExpr) ||
-                (condexpr instanceof CheckerExpr))
+        if (condexpr instanceof ConditionFriendlyExpr)
             condexpr.emit_if(e, labeltrue);
         else {
             string reg = condexpr.emit_get(e);
             switch (condexpr.checkresult()) {
-              case REGstring:
               case REGvar:
                 e.emitif_null(reg, labelfalse);
+              case REGstring:
               case REGint:
               case REGfloat:
                 e.emitif(reg, labeltrue);
@@ -3488,15 +3501,14 @@ class Condition
     {
         var condexpr = self.condexpr;
 
-        if ((condexpr instanceof ComparatorBaseExpr) ||
-                (condexpr instanceof CheckerExpr))
+        if (condexpr instanceof ConditionFriendlyExpr)
             condexpr.emit_else(e, labelfalse);
         else {
             string reg = condexpr.emit_get(e);
             switch (condexpr.checkresult()) {
-              case REGstring:
               case REGvar:
                 e.emitif_null(reg, labelfalse);
+              case REGstring:
               case REGint:
               case REGfloat:
                 e.emitunless(reg, labelfalse);
@@ -4241,7 +4253,7 @@ class OpUnaryMinusExpr : OpUnaryExpr
 
 //*********************************************
 
-class OpNotExpr : OpUnaryExpr
+class OpNotExpr : OpUnaryExpr, ConditionFriendlyExpr
 {
     function OpNotExpr(owner, start, subexpr)
     {
@@ -4286,12 +4298,32 @@ class OpNotExpr : OpUnaryExpr
           case REGint:
             e.emitarg2('not', result, reg);
             break;
+          case REGstring:
+            // No appropiate op for string. Do it the hard way.
+            e.emitset(result, 0);
+            string label = self.owner.genlabel();
+            e.emitif(reg, label);
+            e.emitinc(result);
+            e.emitlabel(label);
+            break;
           case REGvar:
             e.emitarg2('isfalse', result, reg);
             break;
           default:
             e.emitarg2('isfalse', result, reg);
         }
+    }
+    function emit_if(e, string labelif)
+    {
+        string reg = self.subexpr.emit_get(e);
+        self.annotate(e);
+        e.emitunless(reg, labelif);
+    }
+    function emit_else(e, string labelelse)
+    {
+        string reg = self.subexpr.emit_get(e);
+        self.annotate(e);
+        e.emitif(reg, labelelse);
     }
 }
 
@@ -4757,7 +4789,7 @@ const int
     COMPARATOR_IF      = 1,
     COMPARATOR_ELSE    = 2;
 
-class ComparatorBaseExpr : OpBinaryExpr
+class ComparatorBaseExpr : OpBinaryExpr, ConditionFriendlyExpr
 {
     function checkresult() { return REGint; }
     function optimize()
@@ -4863,7 +4895,7 @@ class Negable
 // Null checkers, created during optimize of Equal and NotEqual
 // to simplify its emit functions.
 
-class CheckerExpr : Expr, Negable
+class CheckerExpr : Expr, Negable, ConditionFriendlyExpr
 {
     var expr;
 
