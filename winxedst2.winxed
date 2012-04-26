@@ -1532,6 +1532,7 @@ class Builtin_typecast
         switch {
           case argtype == type:
           case rawarg instanceof IndexExpr:
+          case rawarg instanceof CallExpr:
             rawarg.emit(e, result);
             break;
           default:
