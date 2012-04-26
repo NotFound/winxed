@@ -4301,7 +4301,7 @@ class OpNotExpr : OpUnaryExpr, ConditionFriendlyExpr
           case REGstring:
             // No appropiate op for string. Do it the hard way.
             e.emitset(result, 0);
-            string label = self.owner.genlabel();
+            string label = self.genlabel();
             e.emitif(reg, label);
             e.emitinc(result);
             e.emitlabel(label);
@@ -5276,7 +5276,7 @@ class OpBoolAndExpr : OpBaseBoolExpr
             e.emitbinop('and', result, lreg, rreg);
         }
         else {
-            string done = self.owner.genlabel();
+            string done = self.genlabel();
             if (type == REGvar && lexpr.checkresult() != REGvar) {
                 string lres = lexpr.emit_get(e);
                 e.emitbox(result, lres);
@@ -5304,7 +5304,7 @@ class OpBoolAndExpr : OpBaseBoolExpr
             e.emitbinop('and', DISCARD_IREG, lreg, rreg);
         }
         else {
-            string done = self.owner.genlabel();
+            string done = self.genlabel();
             string result = lexpr.emit_get(e);
             e.emitunless(result, done);
             rexpr.emit_void(e);
@@ -5347,7 +5347,7 @@ class OpBoolOrExpr : OpBaseBoolExpr
             e.emitbinop('or', result, lreg, rreg);
         }
         else {
-            string done = self.owner.genlabel();
+            string done = self.genlabel();
             if (type == REGvar && lexpr.checkresult() != REGvar) {
                 string lres = lexpr.emit_get(e);
                 e.emitbox(result, lres);
@@ -5375,7 +5375,7 @@ class OpBoolOrExpr : OpBaseBoolExpr
             e.emitbinop('or', DISCARD_IREG, lreg, rreg);
         }
         else {
-            string done = self.owner.genlabel();
+            string done = self.genlabel();
             string result = lexpr.emit_get(e);
             e.emitif(result, done);
             rexpr.emit_void(e);
@@ -7492,9 +7492,8 @@ class OpConditionalExpr : Expr
     }
     function emit(e, string result)
     {
-        var owner = self.owner;
-        string cond_end = owner.genlabel();
-        string cond_false = owner.genlabel();
+        string cond_end = self.genlabel();
+        string cond_false = self.genlabel();
         self.condition.emit_else(e, cond_false);
         var etrue = self.etrue;
         string tres = self.checkresult();
@@ -7527,9 +7526,8 @@ class OpConditionalExpr : Expr
     }
     function emit_void(e)
     {
-        var owner = self.owner;
-        string cond_end = owner.genlabel();
-        string cond_false = owner.genlabel();
+        string cond_end = self.genlabel();
+        string cond_false = self.genlabel();
         self.condition.emit_else(e, cond_false);
         self.etrue.emit_void(e);
         e.emitgoto(cond_end);
@@ -8254,7 +8252,7 @@ class LabelStatement : Statement
     {
         self.Statement(n, owner);
         self.name = n;
-        self.value = self.owner.createlabel(n);
+        self.value = self.createlabel(n);
     }
     function optimize() { return self; }
     function emit(e)
