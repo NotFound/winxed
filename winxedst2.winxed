@@ -2848,8 +2848,9 @@ function parsePiropArg(tk, owner)
     var t = tk.get();
     if (t.isop(':')) {
         t = tk.get();
-        string label = t.getidentifier();
-        arg = new Reflabel(owner, label);
+        if (! t.isidentifier())
+            SyntaxError("Label expected", t);
+        arg = new Reflabel(owner, t);
     }
     else {
         tk.unget(t);
@@ -8271,7 +8272,7 @@ class Reflabel
     var owner;
     var label;
 
-    function Reflabel(owner, string label)
+    function Reflabel(owner, label)
     {
         self.owner = owner;
         self.label = label;
@@ -8279,7 +8280,7 @@ class Reflabel
     function optimize() { return self; }
     function emit_get(e)
     {
-        string value = self.owner.getlabel(self.label);
+        string value = self.owner.getlabel(self.label.getidentifier());
         if (value == null)
             SyntaxError("No such label", self.label);
         return value;
