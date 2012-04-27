@@ -8715,6 +8715,7 @@ class SwitchStatement : SwitchBaseStatement
 
         if (e.getDebug())
             e.comment('switch');
+        self.annotate(e);
         string defaultlabel = self.genlabel();
         string reg;
         if (type == 'char') {
@@ -8770,6 +8771,7 @@ class SwitchStatement : SwitchBaseStatement
                 caseval.emit(e, regval);
                 casereg = regval;
             }
+            caseval.annotate(e);
             e.say(sformat(INDENT + "if %0 == %1 goto %2", reg, casereg, label));
         }
         e.emitgoto(defaultlabel);
