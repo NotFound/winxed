@@ -170,12 +170,12 @@ function driver_main(argv)
             targettype = TargetConst;
             break;
           default:
-            die('Invalid target: ' + target);
+            throw 'Invalid target: ' + target;
         }
     }
     if (compileonly) {
         if (targettype != TargetDefault)
-            die("Conflicting options");
+            throw "Conflicting options";
         targettype = TargetPir;
     }
     if (targettype == TargetDefault)
@@ -224,7 +224,7 @@ function driver_main(argv)
         winxedbin = opt_stage;
         break;
       default:
-        die('Invalid stage ' + stage + '. Must be 0, 1, 2 or 3 .');
+        throw 'Invalid stage ' + stage + '. Must be 0, 1, 2 or 3 .';
     }
 
     int retval = 0;
@@ -256,7 +256,7 @@ function driver_main(argv)
                 compiler = compreg('winxed');
             }
             if (compiler == null)
-                die("Cannot load stage " + winxedbin);
+                throw "Cannot load stage " + winxedbin;
         }
         if (version) {
             var ver = compiler.version_string();
@@ -304,11 +304,11 @@ function driver_main(argv)
     }
     else {
         string cmd[]; // Command to execute
-	if (stage == 1) {
-	    cmd.push("parrot");
-	    cmd.push("winxedst1.pbc");
-	}
-	else {
+        if (stage == 1) {
+            cmd.push("parrot");
+            cmd.push("winxedst1.pbc");
+        }
+        else {
             // First look in WINXED_PATH.
             // If not, simple heuristic: if the compiler is in the current
             // directory and has no extension, use it.
@@ -331,10 +331,10 @@ function driver_main(argv)
                     winxedbin = './' + winxedbin;
             }
             cmd.push(winxedbin);
-	}
+        }
 
         if (targettype == TargetConst)
-            die('target include unavailable in stage 0');
+            throw 'target include unavailable in stage 0';
 
         if (debug)
             cmd.push('--debug');

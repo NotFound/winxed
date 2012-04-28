@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 24-nov-2011
+// Revision 28-apr-2012
 
 // Winxed compiler stage 0.
 
@@ -398,9 +398,6 @@ const PredefFunction *PredefFunction::predefs[]= {
     new PredefFunctionFixargs("string",
         "{res} = {arg0}",
         REGstring, REGany),
-    new PredefFunctionFixargs("die",
-        "die {arg0}",
-        REGnone, REGstring),
     new PredefFunctionFixargs("exit",
         "exit {arg0}",
         REGnone, REGint),
@@ -5805,29 +5802,25 @@ void ThrowStatement::emit (Emit &e)
     e.annotate(pos);
 
     char type = excep->checkresult();
-    std::string op;
+    std::string reg = gentemp(type);
+    excep->emit(e, reg);
     switch (type)
     {
     case REGvar:
-        op = "throw";
+        e << INDENT "throw" << ' ' << reg << '\n';
         break;
     case REGstring:
-        op = "die";
+        {
+            std::string aux = gentemp(REGvar);
+            e <<
+                INDENT "root_new " << aux << ", ['parrot';'Exception']\n"
+                INDENT << aux << "['message'] = " << reg << "\n"
+                INDENT "throw " << aux << "\n"
+                ;
+        }
         break;
     default:
         throw SyntaxError("Invalid throw argument", pos);
-    }
-    if (excep->issimple() )
-    {
-        e << INDENT << op << ' ';
-        excep->emit(e, std::string());
-        e << '\n';
-    }
-    else
-    {
-        std::string reg= gentemp(type);
-        excep->emit(e, reg);
-        e << INDENT << op << ' ' << reg << '\n';
     }
 }
 

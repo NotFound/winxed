@@ -1666,10 +1666,6 @@ function getbuiltins(builder)
         Builtin_varcast,
         REGvar, REGraw1
     ));
-    builder.add(new BuiltinFunction('die',
-        'die %1',
-        REGnone, REGstring
-    ));
     builder.add(new BuiltinFunction('exit',
         'exit %1',
         REGnone, REGint
