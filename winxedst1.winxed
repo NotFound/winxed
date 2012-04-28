@@ -940,10 +940,10 @@ class Emit
             }
         }
     }
-    function comment(string s)
+    function comment(var args [slurpy])
     {
         self.updateannot();
-        self.handle.print("# " + s + "\n");
+        self.handle.print("# " + join("", args) + "\n");
     }
     function emitlabel(string label, string comment [optional])
     {
@@ -1393,7 +1393,7 @@ class BuiltinBase
 
         // Special case for a now.
         if (name != '__ASSERT__')
-            e.comment('builtin ' + name);
+            e.comment('builtin ', name);
 
         string typeresult = self.typeresult;
         if (typeresult != REGnone && result == '')
@@ -8441,7 +8441,7 @@ class DeclareSingleStatement : DeclareBase
         string ireg;
         string basetype = self.basetype;
         var init = self.init;
-        e.comment(name + ': ' + reg);
+        e.comment(name, ': ', reg);
 
         if (init == null || init.isnull())
             e.emitnull(reg);
@@ -8746,7 +8746,7 @@ class ConstStatement : Statement
           case REGstring: sval = val.getPirString(); break;
           default: __ASSERT__(false);
         }
-        e.comment("Constant '" + string(self.name) + "' set to: " + sval);
+        e.comment("Constant '", self.name, "' set to: ", sval);
     }
 }
 
@@ -8802,7 +8802,7 @@ class VarStatement : VarBaseStatement
         string name =  self.name;
         string reg = self.reg;
         var init = self.init;
-        e.comment('var ' + name + ': ' + reg);
+        e.comment('var ', name, ': ', reg);
         if (init != null)
             if (init.isnull())
                 init = null;

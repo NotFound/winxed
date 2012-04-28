@@ -13,6 +13,18 @@ const int VERSION_MAJOR = 1;
 const int VERSION_MINOR = 8;
 const int VERSION_BUILD = -1;
 
+function getVersion [anon] ()
+{
+    int version[3] = [ VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD ];
+    return version;
+}
+
+
+function getVersionString [anon] ()
+{
+    return "Winxed " + string(join(".", getVersion()));
+}
+
 //*********************************************
 //          Character test functions
 //*********************************************
@@ -994,10 +1006,10 @@ class Emit
             }
         }
     }
-    function comment(string s)
+    function comment(var args [slurpy])
     {
         self.updateannot();
-        self.handle.print("# " + s + "\n");
+        self.handle.print("# " + join("", args) + "\n");
     }
     function emitlabel(string label, string comment [optional])
     {
@@ -1472,7 +1484,7 @@ class BuiltinBase
         if (e.getDebug()) {
             // Special case for a now.
             if (name != '__ASSERT__')
-                e.comment('builtin ' + name);
+                e.comment('builtin ', name);
         }
 
         string typeresult = self.typeresult;
@@ -2898,7 +2910,7 @@ class PiropStatement : Statement
         string opname = self.opname;
         self.annotate(e);
         if (e.getDebug())
-            e.comment('pirop ' + opname);
+            e.comment('pirop ', opname);
         var args = self.args;
         e.print(INDENT);
         if (args == null)
@@ -9423,7 +9435,7 @@ class DeclareSingleStatement : DeclareBase
         string basetype = self.basetype;
         var init = self.init;
         if (e.getDebug())
-            e.comment(name + ': ' + reg);
+            e.comment(name, ': ', reg);
 
         if (init == null || init.isnull())
             e.emitnull(reg);
@@ -9776,8 +9788,7 @@ class ConstStatement : Statement
               case REGstring: sval = val.getPirString(); break;
               default: __ASSERT__(false);
             }
-            e.comment("Constant '" + string(self.name) +
-                    "' set to: " + sval);
+            e.comment("Constant '", self.name, "' set to: ", sval);
         }
     }
 }
@@ -9848,7 +9859,7 @@ class VarStatement : VarBaseStatement
         string reg = self.reg;
         var init = self.init;
         if (e.getDebug())
-            e.comment('var ' + name + ': ' + reg);
+            e.comment('var ', name, ': ', reg);
         if (init != null)
             if (init.isnull())
                 init = null;
@@ -12541,9 +12552,11 @@ class WinxedCompileUnit
 {
     var rootns;
     var warnings;
+    var sourcefile;
 
-    function WinxedCompileUnit(int nowarn, int debug)
+    function WinxedCompileUnit(string sourcefile, int nowarn, int debug)
     {
+        self.sourcefile = sourcefile;
         self.warnings = ! nowarn;
         var rootns = new RootNamespace(self);
 
@@ -12590,6 +12603,10 @@ class WinxedCompileUnit
     function emit(var e)
     {
         e.comment('THIS IS A GENERATED FILE! DO NOT EDIT!');
+        e.comment("Compiled with ", string(getVersionString()));
+        string sourcefile = self.sourcefile;
+        if (sourcefile != null && sourcefile != '')
+            e.comment("Source file: ", sourcefile);
         e.comment('Begin generated code');
         e.say('');
 
@@ -12614,12 +12631,11 @@ class WinxedHLL
 {
     function version()
     {
-        int version[3] = [ VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD ];
-        return version;
+        return getVersion();
     }
     function version_string()
     {
-        return "Winxed " + string(join(".", self.version()));
+        return getVersionString();
     }
     function __private_compile_tail(winxed, target, output,
             string filename,
@@ -12697,7 +12713,7 @@ class WinxedHLL
         handlein.close();
         handlein.open(EVAL_NAME, 'r');
         var tk = new Tokenizer(handlein, EVAL_NAME, nowarn);
-        var winxed = new WinxedCompileUnit(nowarn, debug);
+        var winxed = new WinxedCompileUnit('', nowarn, debug);
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
@@ -12721,7 +12737,7 @@ class WinxedHLL
         handlein.open(filename, 'r');
         handlein.encoding('utf8');
         var tk = new Tokenizer(handlein, filename, nowarn);
-        var winxed = new WinxedCompileUnit(nowarn, debug);
+        var winxed = new WinxedCompileUnit(filename, nowarn, debug);
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
