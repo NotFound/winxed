@@ -3451,18 +3451,24 @@ class FunctionExpr : Expr
 
 const int CONDisruntime = 0, CONDistrue = 1, CONDisfalse = 2;
 
-class ConditionFriendlyExpr
+// Abstract base classes for expressions with specialized code generation
+// for conditions.
+class ConditionFriendlyIf
 {
-    // Abstract base class for expressions with specialized code generation
-    // for conditions.
     function emit_if(e, string labeltrue)
     {
         InternalError(__FUNCTION__ + " not overriden", self);
     }
+}
+class ConditionFriendlyElse
+{
     function emit_else(e, string labelfalse)
     {
         InternalError(__FUNCTION__ + " not overriden", self);
     }
+}
+class ConditionFriendlyExpr : ConditionFriendlyIf, ConditionFriendlyElse
+{
 }
 
 class Condition
@@ -3493,7 +3499,7 @@ class Condition
     {
         var condexpr = self.condexpr;
 
-        if (condexpr instanceof ConditionFriendlyExpr)
+        if (condexpr instanceof ConditionFriendlyIf)
             condexpr.emit_if(e, labeltrue);
         else {
             string reg = condexpr.emit_get(e);
@@ -3514,7 +3520,7 @@ class Condition
     {
         var condexpr = self.condexpr;
 
-        if (condexpr instanceof ConditionFriendlyExpr)
+        if (condexpr instanceof ConditionFriendlyElse)
             condexpr.emit_else(e, labelfalse);
         else {
             string reg = condexpr.emit_get(e);
@@ -5257,7 +5263,7 @@ class OpBaseBoolExpr : OpBinaryExpr
 
 //*********************************************
 
-class OpBoolAndExpr : OpBaseBoolExpr
+class OpBoolAndExpr : OpBaseBoolExpr, ConditionFriendlyElse
 {
     function OpBoolAndExpr(owner, start, lexpr, rexpr)
     {
@@ -5322,6 +5328,23 @@ class OpBoolAndExpr : OpBaseBoolExpr
             e.emitunless(result, done);
             rexpr.emit_void(e);
             e.emitlabel(done);
+        }
+    }
+    function emit_else(e, string labelelse)
+    {
+        var lexpr = self.lexpr;
+        if (lexpr instanceof ConditionFriendlyElse)
+            lexpr.emit_else(e, labelelse);
+        else {
+            string lreg = lexpr.emit_get(e);
+            e.emitunless(lreg, labelelse);
+        }
+        var rexpr = self.rexpr;
+        if (rexpr instanceof ConditionFriendlyElse)
+            rexpr.emit_else(e, labelelse);
+        else {
+            string rreg = rexpr.emit_get(e);
+            e.emitunless(rreg, labelelse);
         }
     }
 }
@@ -8834,17 +8857,25 @@ class SwitchCaseStatement : SwitchBaseStatement
 
         if (e.getDebug())
             e.comment('switch-case');
-        string reg = self.tempreg(REGint);
+        string auxreg;
         for (var caseval in self.case_value) {
             string label = self.genlabel();
             push(caselabel, label);
-            if (caseval.checkresult() == REGint)
-                caseval.emit(e, reg);
+            if (caseval instanceof ConditionFriendlyIf)
+                caseval.emit_if(e, label);
             else {
-                string auxreg = caseval.emit_get(e);
-                e.emitset(reg, auxreg);
+                string reg;
+                if (caseval.checkresult() == REGint)
+                    reg = caseval.emit_get(e);
+                else {
+                    reg = caseval.emit_get(e);
+                    if (auxreg == null)
+                        auxreg = self.tempreg(REGint);
+                    e.emitset(auxreg, reg);
+                    reg = auxreg;
+                }
+                e.emitif(reg, label);
             }
-            e.emitif(reg, label);
         }
         e.emitgoto(defaultlabel);
 
