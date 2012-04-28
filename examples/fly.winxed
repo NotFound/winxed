@@ -39,6 +39,11 @@ $include_const 'opengl_defines.pasm';
 
 //**********************************************************************
 
+inline colormod(const float f, const float r, const float g, const float b)
+{
+    glColor3f(r * f, g * f, b * f);
+}
+
 class Thing
 {
     var r;
@@ -70,61 +75,54 @@ class Thing
         float z = self.z;
         float height = self.height;
         float width = self.width;
-        float f;
         glPushMatrix();
         glColor3f(r, g, b);
 
-        if (0) {
-            glTranslatef(x, height / 2.0, x);
-            glScalef(1.0, height, 1.0);
-            glutSolidCube(1.0);
-        }
-        else {
-            glTranslatef(x, 0.0, z);
+        glTranslatef(x, 0.0, z);
+        glBegin(GL_QUADS);
 
-            glBegin(GL_QUADS);
+        glVertex3f( width, height,  width);
+        glVertex3f( width, height, -width);
+        glVertex3f(-width, height, -width);
+        glVertex3f(-width, height,  width);
 
-            glVertex3f( width, height,  width);
-            glVertex3f( width, height, -width);
-            glVertex3f(-width, height, -width);
-            glVertex3f(-width, height,  width);
+        colormod(0.7, r, g, b);
+        glVertex3f( width, 0.0,    -width);
+        glVertex3f( width, height, -width);
+        glVertex3f( width, height,  width);
+        glVertex3f( width, 0.0,     width);
 
-            f = 0.7;
-            glColor3f(r * f, g * f, b * f);
-            glVertex3f( width, 0.0,    -width);
-            glVertex3f( width, height, -width);
-            glVertex3f( width, height,  width);
-            glVertex3f( width, 0.0,     width);
+        colormod(0.6, r, g, b);
+        glVertex3f(-width, 0.0,     width);
+        glVertex3f(-width, height,  width);
+        glVertex3f(-width, height, -width);
+        glVertex3f(-width, 0.0,    -width);
 
-            f = 0.6;
-            glColor3f(r * f, g * f, b * f);
-            glVertex3f(-width, 0.0,     width);
-            glVertex3f(-width, height,  width);
-            glVertex3f(-width, height, -width);
-            glVertex3f(-width, 0.0,    -width);
+        colormod(0.84, r, g, b);
+        glVertex3f(-width, 0.0,    -width);
+        glVertex3f(-width, height, -width);
+        glVertex3f( width, height, -width);
+        glVertex3f( width, 0.0,    -width);
 
-            f = 0.84;
-            glColor3f(r * f, g * f, b * f);
-            glVertex3f(-width, 0.0,    -width);
-            glVertex3f(-width, height, -width);
-            glVertex3f( width, height, -width);
-            glVertex3f( width, 0.0,    -width);
+        colormod(0.4, r, g, b);
+        glVertex3f( width, 0.0,     width);
+        glVertex3f( width, height,  width);
+        glVertex3f(-width, height,  width);
+        glVertex3f(-width, 0.0,     width);
 
-            f = 0.4;
-            glColor3f(r * f, g * f, b * f);
-            glVertex3f( width, 0.0,     width);
-            glVertex3f( width, height,  width);
-            glVertex3f(-width, height,  width);
-            glVertex3f(-width, 0.0,     width);
-
-            glEnd();
-        }
+        glEnd();
 
         glPopMatrix();
     }
 }
 
 //**********************************************************************
+
+inline colorpanel(const float carangle, const float modangle, const float fuzz)
+{
+    float color = 0.75 + 0.15 * sin(carangle + modangle * (PI / 8.0));
+    glColor3f(color, color, fuzz * color);
+}
 
 function train(float angle, float dis, float fuzz)
 {
@@ -171,7 +169,8 @@ function train(float angle, float dis, float fuzz)
     // Left side
     float base = carangle + 1.0 * (PI / 8.0);
     float color = 0.75 + 0.15 * sin(base);
-    glColor3f(color, color, fuzz * color);
+    //glColor3f(color, color, fuzz * color);
+    colorpanel(carangle, 1.0, fuzz);
     glBegin(GL_QUAD_STRIP);
     glVertex3f(lena, height,  width / 2);
     glVertex3f(lenb, height,  width / 2);
@@ -180,8 +179,9 @@ function train(float angle, float dis, float fuzz)
     glEnd();
 
     // Right side
-    base = carangle + 9.0 * (PI / 8.0);
-    color = 0.75 + 0.15 * sin(base);
+    //base = carangle + 9.0 * (PI / 8.0);
+    //color = 0.75 + 0.15 * sin(base);
+    colorpanel(carangle, 9.0, fuzz);
     glColor3f(color, color, fuzz * color);
     glBegin(GL_QUAD_STRIP);
     glVertex3f(lena, 0.0,    -width / 2);
@@ -191,9 +191,10 @@ function train(float angle, float dis, float fuzz)
     glEnd();
 
     // Back
-    base = carangle + 5.0 * (PI / 8.0);
-    color = 0.75 + 0.15 * sin(base);
-    glColor3f(color, color, fuzz * color);
+    //base = carangle + 5.0 * (PI / 8.0);
+    //color = 0.75 + 0.15 * sin(base);
+    //glColor3f(color, color, fuzz * color);
+    colorpanel(carangle, 5.0, fuzz);
     glBegin(GL_QUADS);
     glVertex3f(lena, height, -width / 2);
     glVertex3f(lena, height,  width / 2);
@@ -201,9 +202,10 @@ function train(float angle, float dis, float fuzz)
     glVertex3f(lena, 0.0,     -width / 2);
 
     // Front
-    base = carangle + 13.0 * (PI / 8.0);
-    color = 0.75 + 0.15 * sin(base);
-    glColor3f(color, color, fuzz * color);
+    //base = carangle + 13.0 * (PI / 8.0);
+    //color = 0.75 + 0.15 * sin(base);
+    //glColor3f(color, color, fuzz * color);
+    colorpanel(carangle, 13.0, fuzz);
     glVertex3f(lenb, 0.0,    -width / 2);
     glVertex3f(lenb, 0.0,     width / 2);
     glVertex3f(lenb, height,  width / 2);
