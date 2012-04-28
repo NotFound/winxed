@@ -4650,6 +4650,10 @@ class OpAssignExpr : OpBaseAssignExpr
 
 class OpAssignToExpr : OpBaseAssignExpr
 {
+    function clone(owner)
+    {
+        return self.cloneassign(new OpAssignToExpr, owner);
+    }
     function emit(e, string result)
     {
         self.annotate(e);
@@ -4679,6 +4683,10 @@ class OpAssignToExpr : OpBaseAssignExpr
 
 class OpAddToExpr : OpBaseAssignExpr
 {
+    function clone(owner)
+    {
+        return self.cloneassign(new OpAddToExpr, owner);
+    }
     function emit_get(e)
     {
         self.checkleft();
@@ -4725,6 +4733,10 @@ class OpAddToExpr : OpBaseAssignExpr
 
 class OpSubToExpr : OpBaseAssignExpr
 {
+    function clone(owner)
+    {
+        return self.cloneassign(new OpSubToExpr, owner);
+    }
     function emit_get(e)
     {
         self.checkleft();
@@ -4761,6 +4773,10 @@ class OpSubToExpr : OpBaseAssignExpr
 
 class OpMulToExpr : OpBaseAssignExpr
 {
+    function clone(owner)
+    {
+        return self.cloneassign(new OpMulToExpr, owner);
+    }
     function emit_get(e)
     {
         self.checkleft();
@@ -4789,6 +4805,10 @@ class OpMulToExpr : OpBaseAssignExpr
 
 class OpDivToExpr : OpBaseAssignExpr
 {
+    function clone(owner)
+    {
+        return self.cloneassign(new OpDivToExpr, owner);
+    }
     function emit_get(e)
     {
         self.checkleft();
@@ -4807,6 +4827,10 @@ class OpDivToExpr : OpBaseAssignExpr
 
 class OpModToExpr : OpBaseAssignExpr
 {
+    function clone(owner)
+    {
+        return self.cloneassign(new OpModToExpr, owner);
+    }
     function emit_get(e)
     {
         self.checkleft();
