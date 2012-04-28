@@ -2677,6 +2677,10 @@ function parseStatement(tk, owner)
         return new ThrowStatement(t, tk, owner);
       case 'try':
         return new TryStatement(t, tk, owner);
+      case 'inline':
+        var inl = new InlineStatement(t, tk, owner);
+        owner.addinline(inl);
+        return new EmptyStatement;
     }
 
     if (t.isidentifier()) {
@@ -3287,10 +3291,33 @@ class VarContainer
 
 class BlockStatement : VarContainer, Statement
 {
+    var inlines;
     function BlockStatement(start, owner)
     {
         self.Statement(start, owner);
         self.VarContainer();
+    }
+    function addinline(inl)
+    {
+        __ASSERT__(inl instanceof InlineStatement);
+        string name = inl.name;
+        var inlines = self.inlines;
+        if (inlines != null)
+            inlines[name] = inl;
+        else
+            self.inlines = { name : inl };
+    }
+    function scopesearch(key, int flags)
+    {
+        if (flags == 0 && elements(key) == 1) {
+            var inlines = self.inlines;
+            if (inlines != null) {
+                var inl = inlines[string(key[0])];
+                if (inl != null)
+                    return inl;
+            }
+        }
+        return self.owner.scopesearch(key, flags);
     }
 }
 
