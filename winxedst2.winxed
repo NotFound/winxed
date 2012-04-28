@@ -3086,14 +3086,7 @@ class ExprStatement : Statement
     function ExprStatement(start, tk, owner)
     {
         self.Statement(start, owner);
-        var expr = [];
-        var t;
-        do {
-            var newexpr = parseExpr(tk, self);
-            expr.push(newexpr);
-        } while ((t = tk.get()).isop(','));
-        RequireOp(';', t);
-        self.expr = expr;
+        self.expr = parseList(tk, self, parseExpr, ';');
     }
     function clone(owner)
     {
@@ -8933,12 +8926,7 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
         t = tk.get();
         if (! t.isop(')')) {
             tk.unget(t);
-            var iteration = [];
-            do {
-                push(iteration, parseExpr(tk, self));
-            } while ((t = tk.get()).isop(','));
-            self.iteration = iteration;
-            RequireOp(')', t);
+            self.iteration = parseList(tk, self, parseExpr, ')');
         }
         self.parsebody(tk);
     }
