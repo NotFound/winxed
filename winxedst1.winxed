@@ -7455,29 +7455,6 @@ class LabelStatement : Statement
 }
 
 //*********************************************
-//            Reflabel
-//*********************************************
-
-class Reflabel
-{
-    var owner;
-    var label;
-
-    function Reflabel(owner, string label)
-    {
-        self.owner = owner;
-        self.label = label;
-    }
-    function optimize() { return self; }
-    function emit_get(e)
-    {
-        string label = self.label;
-        string value = self.owner.getlabel(label);
-        return value;
-    }
-}
-
-//*********************************************
 //            GotoStatement
 //*********************************************
 
