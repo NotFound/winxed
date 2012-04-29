@@ -12220,7 +12220,8 @@ class NamespaceBase : VarContainer
     }
     function declarenamespace(var start, string name)
     {
-        var child = new NamespaceStatement(self, start, null, name, null);
+        var existns = self.getlocalns(name);
+        var child = new NamespaceStatement(self, start, existns, name, null);
         push(self.namespaces, child);
         return child;
     }
