@@ -2658,7 +2658,7 @@ function parseStatement(tk, owner)
       case 'yield':
         return new YieldStatement(t, tk, owner);
       case 'goto':
-        return new GotoStatement(t, tk, owner);
+        return parseGoto(t, tk, owner);
       case 'if':
         return new IfStatement(t, tk, owner);
       case 'while':
@@ -8346,6 +8346,14 @@ class LabelStatement : Statement
         self.name = n;
         self.value = self.createlabel(n);
     }
+    function clone(owner)
+    {
+        var cloned = new LabelStatement;
+        cloned.Statement(self.start, owner);
+        cloned.name = self.name;
+        cloned.value = cloned.createlabel(cloned.name);
+        return cloned;
+    }
     function optimize() { return self; }
     function emit(e)
     {
@@ -8368,6 +8376,10 @@ class Reflabel
         self.owner = owner;
         self.label = label;
     }
+    function clone(owner)
+    {
+        return new Reflabel(owner, self.label);
+    }
     function optimize() { return self; }
     function emit_get(e)
     {
@@ -8386,13 +8398,14 @@ class GotoStatement : Statement
 {
     var label;
 
-    function GotoStatement(start, tk, owner)
+    function GotoStatement(start, owner, label)
     {
         self.Statement(start, owner);
-        var t = tk.get();
-        RequireIdentifier(t);
-        self.label = t;
-        ExpectOp(';', tk);
+        self.label = label;
+    }
+    function clone(owner)
+    {
+        return new GotoStatement(self.start, owner, self.label);
     }
     function optimize() { return self; }
     function emit(e)
@@ -8404,6 +8417,14 @@ class GotoStatement : Statement
             SyntaxError("No such label", self.label);
         e.emitgoto(value, 'goto ' + labelname);
     }
+}
+
+function parseGoto(start, tk, owner)
+{
+    var label = tk.get();
+    RequireIdentifier(label);
+    ExpectOp(';', tk);
+    return new GotoStatement(start, owner, label);
 }
 
 //*********************************************
@@ -9298,6 +9319,20 @@ class TryStatement : BlockStatement
                 Expected("')' in 'catch'", t);
         }
         self.scatch = parseStatement(tk, self);
+    }
+    function clone(owner)
+    {
+        var cloned = new TryStatement;
+        cloned.BlockStatement(self.start, owner);
+        if (self.modifiers != null)
+            SyntaxError("try modifiers not allowed in inline", self);
+        if (self.exname != null) {
+            cloned.exname = self.exname;
+            cloned.createvar(self.exname, REGvar);
+        }
+        cloned.stry = self.stry.clone(cloned);
+        cloned.scatch = self.scatch.clone(cloned);
+        return cloned;
     }
     function allowtailcall()
     {
