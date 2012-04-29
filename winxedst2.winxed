@@ -5528,6 +5528,10 @@ class OpBinXorExpr : OpBaseBinExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
+    function clone(owner)
+    {
+        return self.clonebinary(new OpBinXorExpr, owner);
+    }
     function emit(e, string result)
     {
         string lreg = self.emit_intleft(e);
@@ -7130,6 +7134,14 @@ class HashExpr : Expr
         }
         self.keys = keys;
         self.values = values;
+    }
+    function clone(owner)
+    {
+        var cloned = new HashExpr;
+        cloned.Expr(owner, self.start);
+        cloned.keys = clone_array(self.keys, owner);
+        cloned.values = clone_array(self.values, owner);
+        return cloned;
     }
     function checkresult() { return REGvar; }
     function optimize()
