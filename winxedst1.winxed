@@ -2310,8 +2310,6 @@ function parseUsing(t, tk, owner)
     switch {
       case taux.iskeyword('extern'):
         return new ExternStatement(t, tk, owner);
-      case taux.iskeyword('static'):
-        return new StaticStatement(t, tk, owner);
       case taux.iskeyword('namespace'):
         return new UsingNamespaceStatement(taux, tk, owner);
       default:
@@ -2585,37 +2583,6 @@ class ExternStatement : Statement
     {
         self.annotate(e);
         e.say(INDENT, "load_bytecode '", join('/', self.path), ".pbc'");
-    }
-}
-
-//*********************************************
-//            StaticStatement
-//*********************************************
-
-class StaticStatement : Statement
-{
-    var names;
-    function StaticStatement(start, tk, owner)
-    {
-        self.Statement(start, owner);
-        var names = parseList(tk, null, parseIdentifier, ';');
-        for (var name in names) {
-            string id = self.generatesubid();
-            self.createvarnamed(name, REGvar, id);
-        }
-        self.names = names;
-    }
-    function optimize()
-    {
-        return self;
-    }
-    function emit(e)
-    {
-        self.annotate(e);
-        for (var name in self.names) {
-            var v = self.getvar(name);
-            e.say(".const 'Sub' ", v.getreg(), " = '", name, "'");
-        }
     }
 }
 

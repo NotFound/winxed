@@ -1301,34 +1301,6 @@ ExternStatement::ExternStatement(Tokenizer &tk)
 
 //**********************************************************************
 
-class StaticStatement : public BaseStatement
-{
-public:
-    StaticStatement(Block &bl, Tokenizer &tk)
-    {
-        Token t;
-        do {
-            t = tk.get();
-            std::string name = t.identifier();
-            names.push_back(name);
-            bl.genlocal(name, REGvar);
-        } while ((t= tk.get()).isop(','));
-        RequireOp(';', t);
-    }
-private:
-    void emit (Emit &e)
-    {
-        for (size_t i= 0; i < names.size(); ++i) {
-            std::string name = names[i];
-            e << ".const 'Sub' " << name << " = '" << name << "'\n";
-        }
-    }
-
-    std::vector<std::string> names;
-};
-
-//**********************************************************************
-
 class Expr : public InBlock
 {
 public:
@@ -2140,9 +2112,6 @@ BaseStatement *parseUsing(Block &block, Tokenizer &tk)
     if (t.iskeyword("extern"))
     {
         return new ExternStatement(tk);
-    }
-    else if (t.iskeyword("static")) {
-        return new StaticStatement(block, tk);
     }
     else
     {
