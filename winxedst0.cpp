@@ -740,17 +740,11 @@ public:
     char checkconstant(const std::string &name) const;
     ConstantValue getconstant(const std::string &name) const;
     std::string genlabel();
-    std::string gennamedlabel(const std::string &name);
-    virtual std::string getnamedlabel(const std::string &name) = 0;
 protected:
-    typedef std::map<std::string, std::string> NamedLabels;
-    std::string findlabel(const std::string &name);
     typedef std::map<std::string, char> Locals;
     Locals locals;
     typedef std::map<std::string, ConstantValue> Constants;
     Constants constants;
-private:
-    NamedLabels namedlabels;
 };
 
 class InBlock : public BlockBase
@@ -872,23 +866,6 @@ std::string Block::genlabel()
     return genlocallabel();
 }
 
-std::string Block::gennamedlabel(const std::string &name)
-{
-    std::string gen = genlabel();
-    namedlabels.insert(std::make_pair(name, gen));
-    //std::cerr << name << "<-" << gen << '\n';
-    return gen;
-}
-
-std::string Block::findlabel(const std::string &name)
-{
-    NamedLabels::iterator it= namedlabels.find (name);
-    if (it != namedlabels.end() )
-        return it->second;
-    else
-        return std::string();
-}
-
 //**********************************************************************
 
 class SubBlock : public Block
@@ -927,7 +904,6 @@ public:
         parent.freetempregs();
     }
     std::string genlocallabel();
-    std::string getnamedlabel(const std::string &name);
     ClassStatement *findclass(const ClassKey &classkey)
     {
         return parent.findclass(classkey);
@@ -994,12 +970,6 @@ std::string SubBlock::genlocallabel()
     std::ostringstream l;
     l << "__label_" << id << '_' << ++nlabel;
     return l.str();
-}
-
-std::string SubBlock::getnamedlabel(const std::string &name)
-{
-    std::string label = findlabel(name);
-    return label.empty () ? parent.getnamedlabel(name) : label;
 }
 
 //**********************************************************************
@@ -1087,8 +1057,6 @@ protected:
         tempp= std::vector<std::string>();
     }
 private:
-    std::string getnamedlabel(const std::string &name);
-
     unsigned int subblocks;
     unsigned int nreg;
     unsigned int nlabel;
@@ -1161,15 +1129,6 @@ std::string FunctionBlock::genlocallabel()
     std::ostringstream l;
     l << "__label_" << ++nlabel;
     return l.str();
-}
-
-std::string FunctionBlock::getnamedlabel(const std::string &name)
-{
-    std::string label= findlabel(name);
-    if (label.empty () )
-        throw SyntaxError("Label " + name + " not found", Token());
-    //std::cerr << name << ": " << label << '\n';
-    return label;
 }
 
 //**********************************************************************
@@ -1819,17 +1778,6 @@ private:
     std::string codename;
 };
 
-class GotoStatement: public SubStatement
-{
-public:
-    GotoStatement(Block &block, const Token &st, Tokenizer &tk);
-    void emit (Emit &e);
-private:
-    Token start;
-    Block &bl;
-    std::string labelname;
-};
-
 //**********************************************************************
 
 class ReturnStatement : public SubStatement
@@ -2131,7 +2079,6 @@ private:
     }
 
     std::string genlocallabel() { throw InternalError("No Class labels"); }
-    std::string getnamedlabel(const std::string&) { throw InternalError("No Class labels"); }
     std::string genlocalregister(char) { throw InternalError("No Class registers"); }
 
     Token start;
@@ -2280,8 +2227,6 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
 
     if (t.iskeyword("return"))
         return new ReturnStatement(block, tk);
-    if (t.iskeyword("goto"))
-        return new GotoStatement(block, t, tk);
     if (t.iskeyword("break"))
         return new BreakStatement(block, tk);
     if (t.iskeyword("continue"))
@@ -2301,60 +2246,8 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
     if (t.iskeyword("try"))
         return new TryStatement(block, t, tk);
 
-    if (t.isidentifier() )
-    {
-        Token t2= tk.get();
-        if (t2.isop(':'))
-            return new LabelStatement(block, t.identifier());
-        else
-        {
-            tk.unget(t2);
-            tk.unget(t);
-            return new ExprStatement(block, tk);
-        }
-    }
-    else
-    {
-        tk.unget(t);
-        return new ExprStatement(block, tk);
-    }
-}
-
-//**********************************************************************
-
-LabelStatement::LabelStatement(Block &block, const std::string &name) :
-    SubStatement(block),
-    labelname(name),
-    codename(block.gennamedlabel(name))
-{
-}
-
-void LabelStatement::emit (Emit &e)
-{
-    e << INDENTLABEL << codename << ":"
-        " # " << labelname << '\n';
-}
-
-//**********************************************************************
-
-GotoStatement::GotoStatement(Block &block, const Token &st, Tokenizer &tk) :
-    SubStatement(block),
-    start(st),
-    bl(block)
-{
-    Token t= tk.get();
-    labelname= t.identifier();
-    t= tk.get();
-    if (!t.isop(';'))
-        throw Expected ("';' after label", t);
-}
-
-void GotoStatement::emit (Emit &e)
-{
-    e.annotate(start);
-    e <<
-        INDENT "goto " << bl.getnamedlabel(labelname) <<
-        " # " << labelname << '\n';
+    tk.unget(t);
+    return new ExprStatement(block, tk);
 }
 
 //**********************************************************************
@@ -6574,8 +6467,6 @@ public:
     }
 private:
     std::string genlocallabel()
-    { throw InternalError("No Namespace labels"); }
-    std::string getnamedlabel(const std::string&)
     { throw InternalError("No Namespace labels"); }
     std::string genlocalregister(char)
     { throw InternalError("No Namespace registers"); }

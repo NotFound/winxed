@@ -2392,8 +2392,6 @@ function parseStatement(tk, owner)
         break;
       case 'return':
         return new ReturnStatement(t, tk, owner);
-      case 'goto':
-        return new GotoStatement(t, tk, owner);
       case 'if':
         return new IfStatement(t, tk, owner);
       case 'while':
@@ -2414,12 +2412,6 @@ function parseStatement(tk, owner)
         return new TryStatement(t, tk, owner);
     }
 
-    if (t.isidentifier()) {
-        var t2 = tk.get();
-        if (t2.isop(':'))
-            return new LabelStatement(t, owner);
-        tk.unget(t2);
-    }
     tk.unget(t);
     return new ExprStatement(t, tk, owner);
 }
@@ -2454,14 +2446,6 @@ class Statement : CommonBase
     function genlabel()
     {
         return self.owner.genlabel();
-    }
-    function getlabel(name)
-    {
-        return self.owner.getlabel(name);
-    }
-    function createlabel(name)
-    {
-        return self.owner.createlabel(name);
     }
     function createconst(name, string type, int flags [optional])
     {
@@ -7433,54 +7417,6 @@ class ReturnStatement : Statement
 }
 
 //*********************************************
-//            LabelStatement
-//*********************************************
-
-class LabelStatement : Statement
-{
-    var name;
-    var value;
-    function LabelStatement(n, owner)
-    {
-        self.Statement(n, owner);
-        self.name = n;
-        self.value = self.createlabel(n);
-    }
-    function optimize() { return self; }
-    function emit(e)
-    {
-        self.annotate(e);
-        e.emitlabel(self.value, 'label ' + string(self.name));
-    }
-}
-
-//*********************************************
-//            GotoStatement
-//*********************************************
-
-class GotoStatement : Statement
-{
-    var label;
-
-    function GotoStatement(start, tk, owner)
-    {
-        self.Statement(start, owner);
-        var t = tk.get();
-        RequireIdentifier(t);
-        self.label = t;
-        ExpectOp(';', tk);
-    }
-    function optimize() { return self; }
-    function emit(e)
-    {
-        self.annotate(e);
-        string label = self.label;
-        string value = self.getlabel(label);
-        e.emitgoto(value, 'goto ' + label);
-    }
-}
-
-//*********************************************
 //          ConditionalStatement
 //*********************************************
 
@@ -8835,12 +8771,10 @@ function parseVolatile(start, tk, owner)
 class CompoundStatement : MultiStatementBase, BlockStatement
 {
     var end;
-    var labels;
 
     function CompoundStatement(start, tk, owner)
     {
         self.BlockStatement(start, owner);
-        self.labels = {};
         self.statements = [];
         var t;
         while (! (t = tk.get()).isop('}')) {
@@ -8851,26 +8785,6 @@ class CompoundStatement : MultiStatementBase, BlockStatement
             push(self.statements, c);
         }
         self.end = t;
-    }
-    function getlabel(var name)
-    {
-        string s = name;
-        var labels = self.labels;
-        string exist = labels[s];
-        if (exist == null || exist == '')
-            exist = self.owner.getlabel(name);
-        return exist;
-    }
-    function createlabel(var name)
-    {
-        string s = name;
-        var labels = self.labels;
-        string exist = labels[s];
-        if (exist != null && exist != '')
-            SyntaxError('Label already defined', name);
-        string value = self.genlabel();
-        labels[s] = value;
-        return value;
     }
     function getend() { return self.end; }
     function emit(var e)
