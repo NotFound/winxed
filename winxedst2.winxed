@@ -12253,18 +12253,16 @@ class NamespaceBase : VarContainer
         }
         return null;
     }
-    function declarenamespace(var start, string name)
+    function declarenamespace(var start, string name, modifier[optional])
     {
         var existns = self.getlocalns(name);
-        var child = new NamespaceStatement(self, start, existns, name, null);
+        var child = new NamespaceStatement(self, start, existns, name, modifier);
         push(self.namespaces, child);
         return child;
     }
     function childnamespace(var start, string name, var modifier)
     {
-        var existns = self.getlocalns(name);
-        var child = new NamespaceStatement(self, start, existns, name, modifier);
-        push(self.namespaces, child);
+        var child = self.declarenamespace(start, name, modifier);
         push(self.items, child);
         return child;
     }
