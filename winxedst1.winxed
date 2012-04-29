@@ -10059,23 +10059,10 @@ function parseClass(start, tk, parent)
 {
     var name = tk.get();
     var t = tk.get();
-    var nskey = [];
-    var ns;
-
-    for ( ; t.isop('.'); t = tk.get()) {
-        nskey.push(name);
-        name = tk.get();
-    }
-
-    if (t.isop(';')) {
-        for (ns in nskey)
-            parent = parent.declarenamespace(ns, string(ns));
+    if (t.isop(';'))
         parent.declareclass(new DeclareClassStatement(start, name, parent));
-    }
     else {
         tk.unget(t);
-        for (ns in nskey)
-            parent = parent.childnamespace(start, ns, null);
         parent.addclass(new ClassStatement(start, name, parent, tk));
     }
 }
@@ -10493,12 +10480,6 @@ class NamespaceBase : VarContainer
         }
         return null;
     }
-    function declarenamespace(var start, string name)
-    {
-        var child = new NamespaceStatement(self, start, null, name, null);
-        push(self.namespaces, child);
-        return child;
-    }
     function childnamespace(var start, string name, var modifier)
     {
         var existns = self.getlocalns(name);
@@ -10522,12 +10503,6 @@ class NamespaceBase : VarContainer
         string name = t;
         t = tk.get();
 
-        var parent = self;
-        for ( ; t.isop('.'); t = tk.get()) {
-            parent = parent.childnamespace(start, name, null);
-            name = tk.get();
-        }
-
         var modifier;
         if (t.isop('[')) {
             modifier = new ModifierList(tk, self);
@@ -10535,7 +10510,7 @@ class NamespaceBase : VarContainer
         }
 
         RequireOp('{', t);
-        var child = parent.childnamespace(start, name, modifier);
+        var child = self.childnamespace(start, name, modifier);
         child.parse(tk);
     }
     function parseextern(tk)
