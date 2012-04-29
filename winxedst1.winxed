@@ -1851,20 +1851,6 @@ encodingname %0, $I0
         'split %0, %1, %2',
         REGvar, REGstring, REGstring
     ));
-    builder.add(new BuiltinFunction('chomp',
-<<:
-$P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
-%0 = $P0(%1)
-:>>
-        , REGstring, REGstring
-    ));
-    builder.add(new BuiltinFunction('chomp',
-<<:
-$P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
-%0 = $P0(%1, %2)
-:>>
-        , REGstring, REGstring, REGstring
-    ));
     builder.add(new BuiltinFunction('push',
         'push %1, %2',
         REGnone, REGvar, REGany
@@ -10854,10 +10840,6 @@ class RootNamespace : NamespaceBase
     function emit(var e)
     {
         var bultins_used = self.bultins_used;
-
-        // chomp uses a library function, load the libray if chomp is used
-        if (bultins_used['chomp'] != null)
-            self.addload('"String/Utils.pbc"');
 
         // Load trans opcodes if some of its corresponding builtins are used
         for (string trfun in

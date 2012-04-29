@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 28-apr-2012
+// Revision 29-apr-2012
 
 // Winxed compiler stage 0.
 
@@ -506,14 +506,6 @@ const PredefFunction *PredefFunction::predefs[]= {
     new PredefFunctionFixargs("split",
         "split {res}, {arg0}, {arg1}",
         REGvar, REGstring, REGstring),
-    new PredefFunctionFixargs("chomp",
-        "get_root_global $P0, ['parrot';'String';'Utils'], 'chomp'\n"
-        "{res} = $P0({arg0})",
-        REGstring, REGstring),
-    new PredefFunctionFixargs("chomp",
-        "get_root_global $P0, ['parrot';'String';'Utils'], 'chomp'\n"
-        "{res} = $P0({arg0}, {arg1})",
-        REGstring, REGstring, REGstring),
     new PredefFunctionFixargs("push",
         "push {arg0}, {arg1}",
         REGnone, REGvar, REGany),
