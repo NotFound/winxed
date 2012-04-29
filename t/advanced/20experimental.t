@@ -11,7 +11,7 @@ function main [main]()
     done_testing();
 }
 
-//*************************************************************	
+//**************************************************************
 // local inline
 
 function test_inline()
@@ -29,8 +29,17 @@ function test_inline()
     {
         is(it, "changed", "use a local var");
     }
+
+    // Variable with the same name in inner block is not in scope
+    // for the inline, its scope its the one at the definition point.
+    do {
+        string it = "other";
+        setit("changed again");
+        is(it, "other", "overriden var unchanged");
+    } while (false);
+    is(it, "changed again", "set from inner block");
 }
 
-//*************************************************************	
+//**************************************************************
 
 // End
