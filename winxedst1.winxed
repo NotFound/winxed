@@ -2392,8 +2392,6 @@ function parseStatement(tk, owner)
         break;
       case 'return':
         return new ReturnStatement(t, tk, owner);
-      case 'yield':
-        return new YieldStatement(t, tk, owner);
       case 'goto':
         return new GotoStatement(t, tk, owner);
       case 'if':
@@ -7385,17 +7383,14 @@ class Continuable : Breakable
 }
 
 //*********************************************
-//            ReturnYieldStatement
+//            ReturnStatement
 //*********************************************
 
-// Return and Yield statements and a base class
-// that does almost all.
-
-class ReturnYieldStatement : Statement
+class ReturnStatement : Statement
 {
     var values;
 
-    function parse(start, tk, owner)
+    function ReturnStatement(start, tk, owner)
     {
         self.Statement(start, owner);
         var t = tk.get();
@@ -7430,34 +7425,10 @@ class ReturnYieldStatement : Statement
             values.getargvalues(e);
 
         self.annotate(e);
-        self.emitret(e);
+        e.print(INDENT, '.return(');
         if (n > 0)
             values.emitargs(e);
         e.say(')');
-    }
-}
-
-class ReturnStatement : ReturnYieldStatement
-{
-    function ReturnStatement(start, tk, owner)
-    {
-        self.parse(start, tk, owner);
-    }
-    function emitret(e)
-    {
-        e.print(INDENT, '.return(');
-    }
-}
-
-class YieldStatement : ReturnYieldStatement
-{
-    function YieldStatement(start, tk, owner)
-    {
-        self.parse(start, tk, owner);
-    }
-    function emitret(e)
-    {
-        e.print(INDENT, '.yield(');
     }
 }
 
