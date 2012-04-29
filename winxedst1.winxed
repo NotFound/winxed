@@ -10149,26 +10149,6 @@ function include_parrot(var start, var tk, var ns)
 
 //*********************************************
 
-function include_winxed(var start, var tk, var ns)
-{
-    if (! (ns instanceof RootNamespace))
-        SyntaxError("Must be used at root namespace level", start);
-    var tfile = tk.get();
-    if (!tfile.isstring())
-        Expected('literal string', tfile);
-    ExpectOp(';', tk);
-
-    string filename = tfile.rawstring();
-    var file = open_include(filename, start);
-
-    var tkinc = new Tokenizer(file, filename, false);
-    ns.parse(tkinc);
-
-    file.close();
-}
-
-//*********************************************
-
 function parsensUsing(start, tk, ns)
 {
     var t = tk.get();
@@ -10561,9 +10541,6 @@ class NamespaceBase : VarContainer
                 break;
               case '$include_const':
                 include_parrot(t, tk, self);
-                break;
-              case '$include':
-                include_winxed(t, tk, self);
                 break;
               case '$load':
                 t = tk.get();
