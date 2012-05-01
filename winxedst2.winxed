@@ -9476,6 +9476,7 @@ class DeclareItem : Statement
     var name;
     var reg;
     var modifiers;
+    var flags;
 
     function DeclareItem(start, owner, name, string regtype, int flags)
     {
@@ -9483,6 +9484,7 @@ class DeclareItem : Statement
         self.name = name;
         var vdata = self.createvar(name, regtype, flags);
         self.reg = vdata.getreg();
+        self.flags = flags;
     }
     function parsemodifiers(start, tk)
     {
@@ -9515,6 +9517,11 @@ class VarBaseStatement : DeclareItem
     function initvarbase(start, owner, name, int flags[optional])
     {
         self.DeclareItem(start, owner, name, REGvar, flags);
+    }
+    function clonevarbase(from, owner)
+    {
+        __ASSERT__(from instanceof VarBaseStatement);
+        self.DeclareItem(from.start, owner, from.name, REGvar, from.flags);
     }
 }
 
@@ -9982,7 +9989,7 @@ class VarStatement : VarBaseStatement
     function clone(owner)
     {
         var cloned = new VarStatement;
-        cloned.initvarbase(self.start, owner, self.name, self.flags);
+        cloned.clonevarbase(self, owner);
         if (self.init != null)
             cloned.init = self.init.clone(cloned);
         return cloned;
@@ -10133,7 +10140,7 @@ class CompoundStatement : MultiStatementBase, BlockStatement
         cloned.BlockStatement(self.start, owner);
         cloned.labels = {};
         cloned.end = self.end;
-        cloned.statements = clone_array(self.statements, owner);
+        cloned.statements = clone_array(self.statements, cloned);
         return cloned;
     }
     function last()
