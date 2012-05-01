@@ -6188,6 +6188,12 @@ class ArgumentModifierList : ModifierList
     {
         self.ModifierList(tk, owner);
     }
+    function clone(owner)
+    {
+        var cloned = new ArgumentModifierList;
+        cloned.list = clone_array(self.list, owner);
+        return cloned;
+    }
     function emitmodifiers(e)
     {
         int isflat = false, isnamed = false;
@@ -6205,11 +6211,11 @@ class ArgumentModifierList : ModifierList
                   case 1:
                     var argmod = modif.getarg(0);
                     if (! argmod.isstringliteral())
-                        SyntaxError('Invalid modifier', self);
+                        SyntaxError('Invalid modifier', argmod);
                     setname = argmod.getPirString();
                     break;
                   default:
-                    SyntaxError('Invalid modifier', self);
+                    SyntaxError('Invalid modifier', argmod);
                 }
             }
         }
@@ -6242,11 +6248,15 @@ class Argument
     {
         var cloned = new Argument;
         cloned.arg = self.arg.clone(owner);
+        if (self.modifiers != null)
+            cloned.modifiers = self.modifiers.clone(owner);
         return cloned;
     }
     function optimize()
     {
         self.arg = self.arg.optimize();
+        if (self.modifiers != null)
+            self.modifiers.optimize();
         return self;
     }
     function hascompilevalue()
