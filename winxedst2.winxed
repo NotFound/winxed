@@ -3450,6 +3450,13 @@ class FunctionExpr : Expr
             Expected('anonymous function', t);
         self.fn = new LocalFunctionStatement(start, tk, owner);
     }
+    function clone(owner)
+    {
+        var cloned = new FunctionExpr;
+        cloned.Expr(owner, self.start);
+        cloned.fn = self.fn.clone(owner);
+        return cloned;
+    }
     function checkresult() { return REGvar; }
     function optimize()
     {
@@ -6562,9 +6569,10 @@ class CallExpr : Expr
     function optimize()
     {
         var funref = self.funref.optimize();
+        self.funref = funref;
         var args = self.args;
         if (args != null)
-            args = args.optimize();
+            self.args = args = args.optimize();
 
         if (funref instanceof MemberExpr) {
             var sym = funref.search_nonmember();
@@ -6606,8 +6614,6 @@ class CallExpr : Expr
             }
         }
 
-        self.funref = funref;
-        self.args = args;
         return self;
     }
     function cantailcall()
@@ -10645,6 +10651,10 @@ class FunctionBase : BlockStatement
         self.regstS = new RegisterStore(REGstring);
         self.regstP = new RegisterStore(REGvar);
     }
+    function clonebase(from, owner)
+    {
+        self.FunctionBase(from.start, owner);
+    }
 
     function getouter() { return self; }
     function allowtailcall()
@@ -10984,18 +10994,34 @@ class LocalFunctionStatement : FunctionBase
     {
         self.FunctionBase(start, owner);
         var outer = owner.getouter();
-        if (outer instanceof InlineStatement)
-            throw SyntaxError("local functions not allowed in inline", self);
-        outer.makesubid();
-        self.outer = outer;
-        var subid = self.makesubid();
-        self.name = subid;
+        int notinline = ! (outer instanceof InlineStatement);
+        if (notinline)
+            self.activate();
+
         self.parse_parameters(tk);
         var t = tk.get();
         RequireOp('{', t);
         self.body = new CompoundStatement(t, tk, self);
-        owner.addlocalfunction(self);
+        if (notinline)
+            owner.addlocalfunction(self);
     }
+    function clone(owner)
+    {
+        var cloned = new LocalFunctionStatement;
+        cloned.clonebase(self, owner);
+        cloned.activate();
+        cloned.body = self.body.clone(cloned);
+        owner.addlocalfunction(cloned);
+        return cloned;
+    }
+    function activate()
+    {
+        var outer = self.owner.getouter();
+        outer.makesubid();
+        self.outer = outer;
+        self.name = self.makesubid();
+    }
+
     function isanonymous() { return true; }
     function ismethod() { return false; }
     function needclosure()
@@ -11234,6 +11260,10 @@ class InlinedBlock : BlockStatement
             stcheck = stcheck.last();
         return stcheck === st;
     }
+    function addlocalfunction(fn)
+    {
+        self.inliner.addlocalfunction(fn);
+    }
     function setlex(string lexname, string regname)
     {
         self.inliner.owner.getouter().setlex(lexname, regname);
@@ -11249,6 +11279,10 @@ class InlinedBlock : BlockStatement
     function freetemps()
     {
         self.inliner.owner.freetemps();
+    }
+    function makesubid()
+    {
+        self.inliner.owner.getouter().makesubid();
     }
     function usesubid(string id)
     {
