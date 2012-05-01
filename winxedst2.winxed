@@ -10628,7 +10628,7 @@ class FunctionBase : BlockStatement
         // when needed.
         string lexname = vardata.getlex();
         if (lexname == null) {
-            lexname = "'__WLEX_" + string(self.getlexnum()) + "'";
+            lexname = "'__WLEX_" + string(self.generatelexnum()) + "'";
             vardata.createlex(lexname);
         }
         return lexname;
@@ -10794,7 +10794,7 @@ class FunctionStatement : FunctionBase
         // Get a number to assign unique internal names to params.
         return int(++self.paramnum);
     }
-    function getlexnum()
+    function generatelexnum()
     {
         // Get a number to assign unique internal names to lexicals.
         return int(++self.lexnum);
@@ -10894,10 +10894,10 @@ class LocalFunctionStatement : FunctionBase
         // Forward to the outer to avoid duplicate names.
         return self.outer.getparamnum();
     }
-    function getlexnum()
+    function generatelexnum()
     {
         // Forward to the outer to avoid duplicate names.
-        return self.outer.getlexnum();
+        return self.outer.generatelexnum();
     }
     function checkvarlexical(name, vardata)
     {
