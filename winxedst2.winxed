@@ -9468,6 +9468,12 @@ class DeclarationModifierList : ModifierList
     {
         self.ModifierList(tk, owner);
     }
+    function clone(owner)
+    {
+        var cloned = new DeclarationModifierList;
+        cloned.list = self.clonemodifiers(owner);
+        return cloned;
+    }
     function getlexicalname()
     {
         // Return the lexical name: null if there is not lexical modifier,
@@ -10020,6 +10026,8 @@ class VarStatement : VarBaseStatement
         cloned.clonevarbase(self, owner);
         if (self.init != null)
             cloned.init = self.init.clone(cloned);
+        if (self.modifiers != null)
+            cloned.modifiers = self.modifiers.clone(cloned);
         return cloned;
     }
     function optimize_init()
@@ -11180,6 +11188,10 @@ class InlinedBlock : BlockStatement
         while (stcheck != null && (stcheck instanceof CompoundStatement))
             stcheck = stcheck.last();
         return stcheck === st;
+    }
+    function setlex(string lexname, string regname)
+    {
+        self.inliner.owner.getouter().setlex(lexname, regname);
     }
     function createreg(string type)
     {
