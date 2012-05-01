@@ -2544,6 +2544,10 @@ class ModifierList
     {
         self.list = parseList(tk, owner, parseModifier, ']');
     }
+    function clonemodifiers(owner)
+    {
+        return clone_array(self.list, owner);
+    }
     function optimize()
     {
         optimize_array(self.list);
@@ -6191,7 +6195,7 @@ class ArgumentModifierList : ModifierList
     function clone(owner)
     {
         var cloned = new ArgumentModifierList;
-        cloned.list = clone_array(self.list, owner);
+        cloned.list = self.clonemodifiers(owner);
         return cloned;
     }
     function emitmodifiers(e)
@@ -9297,7 +9301,7 @@ class TryModifierList : ModifierList
     {
         var cloned = new TryModifierList;
         cloned.start = self.start;
-        cloned.list = clone_array(self.list, owner);
+        cloned.list = self.clonemodifiers(owner);
         return cloned;
     }
     function allowtailcall()
