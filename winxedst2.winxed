@@ -2488,6 +2488,12 @@ class Modifier
     var name;
     var args;
 
+    function clone(owner)
+    {
+        var args = self.args;
+        return new Modifier(self.name,
+                args != null ? args.clone(owner) : null);
+    }
     function getname() { return self.name; }
     function numargs()
     {
@@ -9277,6 +9283,13 @@ class TryModifierList : ModifierList
         self.start = start;
         self.ModifierList(tk, owner);
     }
+    function clone(owner)
+    {
+        var cloned = new TryModifierList;
+        cloned.start = self.start;
+        cloned.list = clone_array(self.list, owner);
+        return cloned;
+    }
     function allowtailcall()
     {
         return self.pick('allowtailcall') != null;
@@ -9309,7 +9322,8 @@ class TryModifierList : ModifierList
               case 'allowtailcall':
                 break;
               default:
-                SyntaxError("Modifier '" + modifname + "' not valid for try", self);
+                SyntaxError("Modifier '" + modifname + "' not valid for try",
+                        self.start);
             }
         }
     }
@@ -9354,7 +9368,7 @@ class TryStatement : BlockStatement
         var cloned = new TryStatement;
         cloned.BlockStatement(self.start, owner);
         if (self.modifiers != null)
-            SyntaxError("try modifiers not allowed in inline", self);
+            cloned.modifiers = self.modifiers.clone(cloned);
         if (self.exname != null) {
             cloned.exname = self.exname;
             cloned.createvar(self.exname, REGvar);
