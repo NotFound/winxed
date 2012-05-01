@@ -2545,11 +2545,9 @@ class ModifierList
     function getlist() { return self.list; }
     function pick(string name)
     {
-        for (var mod in self.list) {
-            if (mod.getname() == name)
-                return mod;
-        }
-        return null;
+        return find_if(self.list,
+                 function (mod) { return mod.getname() == name; }
+        );
     }
 }
 
@@ -11035,15 +11033,13 @@ class InlineStatement : BlockStatement, VarContainer
         var name = tk.get();
         ExpectOp("(", tk);
         var t = tk.get();
-        var params;
         if (! t.isop(")")) {
             tk.unget(t);
-            params = [];
-            do {
-                var param = new InlineParam(tk, self);
-                params.push(param);
-            } while ((t = tk.get()).isop(","));
-            RequireOp(")", t);
+            self.params = parseList(tk, owner, function(tk, owner)
+                {
+                    return new InlineParam(tk, self);
+                },
+            ")");
         }
         t = tk.get();
         string type;
@@ -11059,12 +11055,10 @@ class InlineStatement : BlockStatement, VarContainer
             type = REGnone;
         RequireOp("{", t);
         tk.unget(t);
-        var body = parseStatement(tk, self);
+        self.body = parseStatement(tk, self);
 
         self.name = name;
         self.rettype = type;
-        self.params = params;
-        self.body = body;
     }
     function getouter() { return self; }
     function createreg(string type) { return "FAKEREG"; }
@@ -11375,8 +11369,7 @@ class SigParameterList
     }
     function emitdefaults(e)
     {
-        for (var param in self.params)
-            param.emitdefault(e);
+        for_each(self.params, bindlast(bindmethod("emitdefault"), e));
     }
 }
 
