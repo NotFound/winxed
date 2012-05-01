@@ -4191,6 +4191,14 @@ class OpDelExBase : OpUnaryExpr
     {
         return REGint;
     }
+    function optimize()
+    {
+        self.optimizearg();
+        var expr = self.subexpr;
+        if ((!(expr instanceof IndexExpr)) || expr.checkresult() == REGstring)
+            SyntaxError("invalid operand", self);
+        return self;
+    }
 }
 
 
@@ -4199,14 +4207,6 @@ class OpDeleteExpr : OpDelExBase
     function OpDeleteExpr(owner, start, subexpr)
     {
         self.OpUnaryExpr(owner, start, subexpr);
-    }
-    function optimize()
-    {
-        self.optimizearg();
-        var expr = self.subexpr;
-        if ((!(expr instanceof IndexExpr)) || expr.checkresult() == REGstring)
-            SyntaxError("delete with invalid operator", self);
-        return self;
     }
     function emit_void(e)
     {
@@ -4233,15 +4233,42 @@ class OpExistsExpr : OpDelExBase
     function emit(e, string result)
     {
         var expr = self.subexpr;
-        if (expr instanceof IndexExpr && expr.checkresult() != REGstring) {
+        expr.emit_prep(e);
+        self.annotate(e);
+        e.print(INDENT + 'exists ', result, ', ');
+        expr.emit_aux(e);
+        e.say();
+    }
+}
+
+class OpDefinedExpr : OpDelExBase
+{
+    function OpDefinedExpr(owner, start, subexpr)
+    {
+        self.OpUnaryExpr(owner, start, subexpr);
+    }
+    function optimize()
+    {
+        self.optimizearg();
+        var expr = self.subexpr;
+        if (expr.checkresult() != REGvar || expr.isnull())
+            SyntaxError("invalid operand", self);
+        return self;
+    }
+    function emit(e, string result)
+    {
+        var expr = self.subexpr;
+        if (expr instanceof IndexExpr) {
             expr.emit_prep(e);
             self.annotate(e);
-            e.print(INDENT + 'exists ', result, ', ');
+            e.print(INDENT + 'defined ', result, ', ');
             expr.emit_aux(e);
             e.say();
         }
-        else
-            SyntaxError("exists with invalid operator", self);
+        else {
+            string reg = expr.emit_get(e);
+            e.say(INDENT + ' defined ', result, ', ', reg);
+        }
     }
 }
 
@@ -7666,7 +7693,8 @@ const int
     Code_mod_assign    = 31,
     Code_delete        = 32,
     Code_exists        = 33,
-    Code_bin_not       = 34;
+    Code_bin_not       = 34,
+    Code_defined       = 35;
 
 function getOpCode_2(t)
 {
@@ -7689,6 +7717,7 @@ function getOpCode_4(t)
     default:
         if (t.iskeyword('delete')) return Code_delete;
         else if (t.iskeyword('exists')) return Code_exists;
+        else if (t.iskeyword('defined')) return Code_defined;
         else return Code_none;
     }
 }
@@ -7855,6 +7884,8 @@ function parseExpr_4(tk, owner)
             return new OpDeleteExpr(owner, t, subexpr);
           case Code_exists:
             return new OpExistsExpr(owner, t, subexpr);
+          case Code_defined:
+            return new OpDefinedExpr(owner, t, subexpr);
           default:
             InternalError('Invalid code in parseExpr_4', t);
         }
