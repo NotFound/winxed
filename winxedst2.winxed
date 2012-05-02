@@ -10486,6 +10486,36 @@ function parseParameter(tk, owner)
     return new FunctionParameter(owner, tk);
 }
 
+class FunctionParameterList
+{
+    var paramlist;
+    function FunctionParameterList(tk, owner)
+    {
+        self.paramlist = parseList(tk, owner, parseParameter, ')');
+    }
+    function optimize()
+    {
+        optimize_array(self.paramlist);
+    }
+    function emit(e)
+    {
+        emit_array(e, self.paramlist);
+    }
+    function emitdefault(e)
+    {
+        for_each(self.paramlist, bindlast(bindmethod("emitdefault"), e));
+    }
+    function addmultisig(multi_sig)
+    {
+        transform(self.paramlist, multi_sig,
+                function (param)
+                {
+                    return typetopirname(param.get_type());
+                }
+        );
+    }
+}
+
 //*********************************************
 //            FunctionExtern
 //*********************************************
@@ -10647,7 +10677,7 @@ class FunctionBase : BlockStatement
         var t = tk.get();
         if (! t.isop(')')) {
             tk.unget(t);
-            self.params = parseList(tk, self, parseParameter, ')');
+            self.params = new FunctionParameterList(tk, self);
         }
     }
 
@@ -10692,7 +10722,8 @@ class FunctionBase : BlockStatement
                 self.multi_sig = multi_sig_from_multi_modifier(self, multi);
             }
         }
-        optimize_array(self.params);
+        if (self.params != null)
+            self.params.optimize();
         for_each(self.usednamespaces, bindmethod("fixnamespaces"));
         self.body = self.body.optimize();
         return self;
@@ -10815,13 +10846,15 @@ class FunctionBase : BlockStatement
 
         // Emit Parameters
         var params = self.params;
-        emit_array(e, params);
+        if (params != null)
+            params.emit(e);
 
         // Emit .const 'Sub' declarations for used subs
         e.print(join("", transform(self.usedsubids, [], emit_subid)));
 
         // Emit default values for optional params
-        for_each(params, bindlast(bindmethod("emitdefault"), e));
+        if (params != null)
+            params.emitdefault(e);
 
         // Emit lexicals
         var lexicals = self.lexicals;
@@ -10904,12 +10937,8 @@ class FunctionStatement : FunctionBase
         var multi_sig = [];
         if (self.ismethod())
             push(multi_sig, "_");
-        transform(self.params, multi_sig,
-                function (param)
-                {
-                    return typetopirname(param.get_type());
-                }
-        );
+        if (self.params != null)
+            self.params.addmultisig(multi_sig);
         return multi_sig;
     }
     function parse(tk)
