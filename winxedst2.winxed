@@ -8297,6 +8297,14 @@ class ReturnStatement : ReturnYieldStatement
     {
         self.parse(start, tk, owner);
     }
+    function clone(owner)
+    {
+        var cloned = new ReturnStatement;
+        cloned.Statement(self.start, owner);
+        if (self.values != null)
+            cloned.values = self.values.clone(owner);
+        return cloned;
+    }
     function emitret(e)
     {
         e.print(INDENT, '.return(');
