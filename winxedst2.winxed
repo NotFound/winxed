@@ -11037,6 +11037,8 @@ class LocalFunctionStatement : FunctionBase
         var cloned = new LocalFunctionStatement;
         cloned.clonebase(self, owner);
         cloned.activate();
+        if (self.params != null)
+            cloned.params = self.params.clone(cloned);
         cloned.body = self.body.clone(cloned);
         owner.addlocalfunction(cloned);
         return cloned;
@@ -11294,6 +11296,10 @@ class InlinedBlock : BlockStatement
         while (stcheck != null && (stcheck instanceof CompoundStatement))
             stcheck = stcheck.last();
         return stcheck === st;
+    }
+    function getparamnum()
+    {
+        return self.getlexicalouter().getparamnum();
     }
     function addlocalfunction(fn)
     {
