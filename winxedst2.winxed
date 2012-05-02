@@ -10373,6 +10373,8 @@ class FunctionParameter
     }
     function optimize()
     {
+        if (self.modifiers != null)
+            self.modifiers.optimize();
         var def = self.defaultexpr;
         if (def != null) {
             def.optimize();
@@ -11377,7 +11379,7 @@ class SigParameter
         var data = owner.getvar(name.getidentifier());
         self.reg = data.getreg();
         if (t.isop('[')) {
-            self.modifiers = new ParameterModifierList(tk, self);
+            self.modifiers = new ParameterModifierList(tk, owner);
             t = tk.get();
         }
         if (t.isop('='))
@@ -11391,6 +11393,8 @@ class SigParameter
     }
     function optimize()
     {
+        if (self.modifiers != null)
+            self.modifiers.optimize();
         var def = self.defaultexpr;
         if (def != null) {
             def.optimize();
