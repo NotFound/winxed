@@ -10286,6 +10286,12 @@ class ParameterModifierList : ModifierList
     {
         self.ModifierList(tk, owner);
     }
+    function clone(owner)
+    {
+        var cloned = new ParameterModifierList;
+        cloned.list = self.clonemodifiers(owner);
+        return cloned;
+    }
     function emitmodifiers(e, start, string paramname)
     {
         var named = null;
@@ -10425,6 +10431,14 @@ class FunctionParameterDefault
         self.owner = owner;
         self.param = param;
         self.expr = parseExpr(tk, owner);
+    }
+    function clone(owner, param)
+    {
+        var cloned = new FunctionParameterDefault;
+        cloned.owner = owner;
+        cloned.param = param;
+        cloned.expr = self.expr.clone(owner);
+        return cloned;
     }
     function optimize()
     {
@@ -11359,6 +11373,7 @@ class SigParameter
 {
     var owner;
     var name;
+    var type;
     var modifiers;
     var reg;
     var defaultexpr;
@@ -11371,6 +11386,7 @@ class SigParameter
         var t = tk.get();
         if (t.isidentifier()) {
             string type = typetoregcheck(name.checkkeyword());
+            self.type = type;
             name = t;
             owner.createvar(name, type);
             t = tk.get();
@@ -11386,6 +11402,25 @@ class SigParameter
             self.defaultexpr = new FunctionParameterDefault(tk, owner, self);
         else
             tk.unget(t);
+    }
+    function clone(owner)
+    {
+        var cloned = new SigParameter;
+        cloned.owner = owner;
+        var name = self.name;
+        cloned.name = name;
+        var type = self.type;
+        if (type != null) {
+            cloned.type = type;
+            owner.createvar(name, type);
+        }
+        var data = owner.getvar(name.getidentifier());
+        cloned.reg = data.getreg();
+        if (self.modifiers != null)
+            cloned.modifiers = self.modifiers.clone(owner);
+        if (self.defaultexpr != null)
+            cloned.defaultexpr = self.defaultexpr.clone(owner, cloned);
+        return cloned;
     }
     function getvar()
     {
@@ -11434,6 +11469,12 @@ class SigParameterList
     {
         self.params = parseList(tk, owner, parseSigParameter, ')');
     }
+    function clone(owner)
+    {
+        var cloned = new SigParameterList;
+        cloned.params = clone_array(self.params, owner);
+        return cloned;
+    }
     function optimize()
     {
         optimize_array(self.params);
@@ -11464,6 +11505,12 @@ class MultiAssignStatement : Statement
         self.Statement(start, owner);
         self.params = params;
         self.expr = expr;
+    }
+    function clone(owner)
+    {
+        return new MultiAssignStatement(self.start, owner,
+                self.params.clone(owner),
+                self.expr.clone(owner));
     }
     function optimize()
     {
