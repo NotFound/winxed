@@ -2776,6 +2776,12 @@ class Statement : CommonBase
         // scopes will override.
         return self.owner.getouter();
     }
+    function getlexicalouter()
+    {
+        // Same as getouter but for outer able to contains lexicals,
+        // skiping inline blocks.
+        return self.owner.getlexicalouter();
+    }
     function getcontinuelabel(pos)
     {
         return self.owner.getcontinuelabel(pos);
@@ -3279,7 +3285,7 @@ class VarContainer
     }
     function makelexical(vardesc)
     {
-        var lexowner = self.getouter();
+        var lexowner = self.getlexicalouter();
         string lexname = lexowner.createlex(vardesc);
         return lexname;
     }
@@ -10367,9 +10373,7 @@ class FunctionParameter
         else
             type = REGvar;
         self.type = type;
-        string argname = '__ARG_' + string(func.getparamnum());
-        func.createvarnamed(t, type, argname);
-        self.name = string(t);
+        self.name = t;
 
         // Modifiers
         t = tk.get();
@@ -10383,8 +10387,22 @@ class FunctionParameter
         else
             tk.unget(t);
     }
+    function clone(owner)
+    {
+        var cloned = new FunctionParameter;
+        cloned.func = owner;
+        cloned.name = self.name;
+        cloned.type = self.type;
+        if (self.modifiers != null)
+            cloned.modifiers = self.modifiers.clone(owner.owner);
+        return cloned;
+    }
     function optimize()
     {
+        var func = self.func;
+        string argname = '__ARG_' + string(func.getparamnum());
+        func.createvarnamed(self.name, self.type, argname);
+
         if (self.modifiers != null)
             self.modifiers.optimize();
         var def = self.defaultexpr;
@@ -10498,6 +10516,12 @@ class FunctionParameterList
     function FunctionParameterList(tk, owner)
     {
         self.paramlist = parseList(tk, owner, parseParameter, ')');
+    }
+    function clone(owner)
+    {
+        var cloned = new FunctionParameterList;
+        cloned.paramlist = clone_array(self.paramlist, owner);
+        return cloned;
     }
     function optimize()
     {
@@ -10657,6 +10681,7 @@ class FunctionBase : BlockStatement
     }
 
     function getouter() { return self; }
+    function getlexicalouter() { return self; }
     function allowtailcall()
     {
         return true;
@@ -10836,6 +10861,8 @@ class FunctionBase : BlockStatement
 
         var outer = self.outer;
         if (outer != null && self.usedlexicals != null) {
+            if (outer instanceof InlinedBlock)
+                outer = outer.getlexicalouter();
             var outerid = outer.subid;
             if (outerid != null)
                 e.print(" :outer('", outerid, "')");
@@ -11061,8 +11088,12 @@ class LocalFunctionStatement : FunctionBase
         }
         var scope = vardata.getscope();
         var ownerscope = scope.getouter();
-        var outer = self.outer;
-        if (ownerscope instanceof FunctionBase) {
+        if (ownerscope instanceof FunctionBase || ownerscope instanceof InlinedBlock) {
+            if (ownerscope instanceof InlinedBlock)
+                ownerscope = ownerscope.getlexicalouter();
+            var outer = self.outer;
+            if (outer instanceof InlinedBlock)
+                outer = outer.getlexicalouter();
             if (ownerscope.same_scope_as(outer)) {
                 string lexname = scope.makelexical(vardata);
                 int flags = vardata.getflags() | VAR_is_lexical;
@@ -11090,7 +11121,9 @@ class LocalFunctionStatement : FunctionBase
                 // Special case for self in methods
                 if (name == SELF) {
                     var ownerscope = self.outer;
-                    if (self.outer.ismethod()) {
+                    if (ownerscope instanceof InlinedBlock)
+                        ownerscope = ownerscope.getlexicalouter();
+                    if (ownerscope.ismethod()) {
                         string lexself = ownerscope.makelexicalself();
                         localvar = self.createvar(name, REGvar);
                         string reg = localvar.getreg();
@@ -11206,6 +11239,7 @@ class InlineStatement : BlockStatement, VarContainer
         self.rettype = type;
     }
     function getouter() { return self; }
+    function getlexicalouter() { return null; }
     function createreg(string type) { return "FAKEREG"; }
 }
 
@@ -11252,6 +11286,7 @@ class InlinedBlock : BlockStatement
         self.body = body;
     }
     function getouter() { return self; }
+    function getlexicalouter() { return self.inliner.owner.getouter(); }
     function islaststatement(st)
     {
         __ASSERT__(st != null);
@@ -11266,7 +11301,7 @@ class InlinedBlock : BlockStatement
     }
     function setlex(string lexname, string regname)
     {
-        self.inliner.owner.getouter().setlex(lexname, regname);
+        self.getlexicalouter().setlex(lexname, regname);
     }
     function createreg(string type)
     {
@@ -11282,7 +11317,7 @@ class InlinedBlock : BlockStatement
     }
     function makesubid()
     {
-        self.inliner.owner.getouter().makesubid();
+        self.getlexicalouter().makesubid();
     }
     function usesubid(string id)
     {
