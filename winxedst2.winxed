@@ -6909,6 +6909,12 @@ class MemberRefExpr : MemberExprBase
         self.MemberExprBase(owner, start, left);
         self.right = right;
     }
+    function clone(owner)
+    {
+        return new MemberRefExpr(owner, self.start,
+                self.left.clone(owner),
+                self.right.clone(owner));
+    }
     function checkresult() { return REGvar; }
     function optimize()
     {
