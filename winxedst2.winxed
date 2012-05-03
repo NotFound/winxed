@@ -2158,17 +2158,15 @@ $P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
         REGvar
     ));
     builder.add(new BuiltinFunction('getcontext',
-/* Experimental:
-Parrot will probably have a getcontext op in the near future.
-At that point this bulitin will just map to that op.
-In the meantime, get the conext via getinterp and the
-ParrotInterpreter PMC.
+/*
+        DEPRECATED: for compatibility only, use get_context instead.
 */
-<<:
-getinterp $P0
-%0 = $P0["context"]
-:>>
-        , REGvar
+        'get_context %0',
+        REGvar
+    ));
+    builder.add(new BuiltinFunction('get_context',
+        'get_context %0',
+        REGvar
     ));
     builder.add(new BuiltinFunction('get_class',
         'get_class %0, %1',
