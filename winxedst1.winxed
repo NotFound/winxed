@@ -8894,7 +8894,7 @@ class FunctionParameter
         else
             type = REGvar;
         self.type = type;
-        string argname = '__ARG_' + string(func.getparamnum());
+        string argname = '__ARG_' + string(func.generateparamnum());
         func.createvarnamed(t, type, argname);
 
         self.name = string(t);
@@ -9318,7 +9318,7 @@ class FunctionStatement : FunctionBase
     }
 
     function isanonymous() { return false; }
-    function getparamnum()
+    function generateparamnum()
     {
         // Get a number to assign unique internal names to params.
         int n = int(self.paramnum) + 1;
@@ -9421,10 +9421,10 @@ class LocalFunctionStatement : FunctionBase
     {
         return self.subid;
     }
-    function getparamnum()
+    function generateparamnum()
     {
         // Forward to the outer to avoid duplicate names.
-        return self.outer.getparamnum();
+        return self.outer.generateparamnum();
     }
     function generatelexnum()
     {

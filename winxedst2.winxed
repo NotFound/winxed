@@ -10408,7 +10408,7 @@ class FunctionParameter
     function optimize()
     {
         var func = self.func;
-        string argname = '__ARG_' + string(func.getparamnum());
+        string argname = '__ARG_' + string(func.generateparamnum());
         func.createvarnamed(self.name, self.type, argname);
 
         if (self.modifiers != null)
@@ -10957,7 +10957,7 @@ class FunctionStatement : FunctionBase
     }
 
     function isanonymous() { return false; }
-    function getparamnum()
+    function generateparamnum()
     {
         // Get a number to assign unique internal names to params.
         return int(++self.paramnum);
@@ -11071,10 +11071,10 @@ class LocalFunctionStatement : FunctionBase
     {
         return self.subid;
     }
-    function getparamnum()
+    function generateparamnum()
     {
         // Forward to the outer to avoid duplicate names.
-        return self.outer.getparamnum();
+        return self.outer.generateparamnum();
     }
     function generatelexnum()
     {
@@ -11305,9 +11305,9 @@ class InlinedBlock : BlockStatement
             stcheck = stcheck.last();
         return stcheck === st;
     }
-    function getparamnum()
+    function generateparamnum()
     {
-        return self.getlexicalouter().getparamnum();
+        return self.getlexicalouter().generateparamnum();
     }
     function addlocalfunction(fn)
     {
