@@ -2,6 +2,11 @@ Winxed news.
 (C) Julián Albo "NotFound"
 
 Version 1.8
+    - Put source file name when known in generated PIR header.
+    - Local inline.
+    - operator defined
+    - Allow use of all operators and statements in inline.
+    - get_context builtin, deprecated getcontext
     - lexical modifier for variables
     - Show backtrace on unhandled exceptions in installable driver
     - Fail nicely on attempts to use labels not defined
