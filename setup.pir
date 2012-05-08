@@ -1,4 +1,6 @@
 # THIS IS A GENERATED FILE! DO NOT EDIT!
+# Compiled with Winxed 1.8.0
+# Source file: setup.winxed
 # Begin generated code
 
 .sub initial_load_bytecode :anon :load :init
