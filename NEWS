@@ -10,6 +10,8 @@ Version 1.8
     - lexical modifier for variables
     - Show backtrace on unhandled exceptions in installable driver
     - Fail nicely on attempts to use labels not defined
+  Build 1.8.0
+    - Candidate for parrot 4.4.0
 
 Version 1.7
     - Default values in multi assign
