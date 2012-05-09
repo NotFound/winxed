@@ -9963,10 +9963,10 @@ class ConstStatement : Statement
     var data;
     var value;
 
-    function ConstStatement(var start, var owner,
-            string type, var name, var value)
+    function ConstStatement(var name, var owner,
+            string type, var value)
     {
-        self.Statement(start, owner);
+        self.Statement(name, owner);
         self.type = type;
         self.name = name;
         self.value = value;
@@ -10017,7 +10017,7 @@ function parseConst(start, tk, owner)
         ExpectOp('=', tk);
         var value = parseExpr(tk, owner);
         multi = addtomulti(multi,
-                new ConstStatement(t, owner, type, name, value));
+                new ConstStatement(name, owner, type, value));
     } while ((t = tk.get()).isop(','));
     RequireOp(';', t);
     return multi;
