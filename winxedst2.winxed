@@ -8338,9 +8338,11 @@ class InlineReturnStatement : Statement
     {
         self.Statement(start, owner);
         var t = tk.get();
-        tk.unget(t);
-        if (!t.isop(";"))
+        if (!t.isop(";")) {
+            tk.unget(t);
             self.expr = parseExpr(tk, owner);
+            ExpectOp(';', tk);
+        }
     }
     function clone(owner)
     {
