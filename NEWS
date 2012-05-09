@@ -12,6 +12,8 @@ Version 1.8
     - Fail nicely on attempts to use labels not defined
   Build 1.8.0
     - Candidate for parrot 4.4.0
+  Build 1.8.1
+    - Bug fixes
 
 Version 1.7
     - Default values in multi assign
