@@ -1,5 +1,5 @@
 # THIS IS A GENERATED FILE! DO NOT EDIT!
-# Compiled with Winxed 1.8.1
+# Compiled with Winxed 1.8.2
 # Source file: winxedst2.winxed
 # Begin generated code
 
@@ -9,7 +9,7 @@
     new $P1, ['FixedIntegerArray'], 3
     $P1[0] = 1
     $P1[1] = 8
-    $P1[2] = 1
+    $P1[2] = 2
     .return($P1)
 
 .end # getVersion
