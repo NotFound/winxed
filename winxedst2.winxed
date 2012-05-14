@@ -11556,7 +11556,6 @@ class SigParameter
     var name;
     var type;
     var modifiers;
-    var reg;
     var defaultexpr;
     function SigParameter(tk, owner)
     {
@@ -11573,8 +11572,6 @@ class SigParameter
             t = tk.get();
         }
         self.name = name;
-        var data = owner.getvar(name.getidentifier());
-        self.reg = data.getreg();
         if (t.isop('[')) {
             self.modifiers = new ParameterModifierList(tk, owner);
             t = tk.get();
@@ -11595,8 +11592,6 @@ class SigParameter
             cloned.type = type;
             owner.createvar(name, type);
         }
-        var data = owner.getvar(name.getidentifier());
-        cloned.reg = data.getreg();
         if (self.modifiers != null)
             cloned.modifiers = self.modifiers.clone(owner);
         if (self.defaultexpr != null)
@@ -11620,10 +11615,14 @@ class SigParameter
     }
     function emit(e)
     {
-        e.print(self.reg);
+        var name = self.name;
+        var data = self.owner.getvar(name);
+        if (data == null)
+            UndefinedVariable(name, name);
+        var reg = data.getreg();
+        e.print(reg);
         var modifiers = self.modifiers;
         if (modifiers != null) {
-            var name = self.name;
             modifiers.emitmodifiers(e, name, name);
         }
         var def = self.defaultexpr;
