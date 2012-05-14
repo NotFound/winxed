@@ -6425,15 +6425,18 @@ class StringCastExpr : FinalExpr
     {
         var expr = self.expr;
         string type = expr.checkresult();
-        if (type == REGstring)
+        switch {
+          case expr instanceof IndexExpr:
+          case expr instanceof CallExpr:
+          case type == REGstring:
             expr.emit(e, result);
-        else {
-            if (expr.isnull())
-                e.emitnull(result);
-            else {
-                string aux = expr.emit_get(e);
-                e.emitset(result, aux);
-            }
+            break;
+          case expr.isnull():
+            e.emitnull(result);
+            break;
+          default:
+            string aux = expr.emit_get(e);
+            e.emitset(result, aux);
         }
     }
 }
