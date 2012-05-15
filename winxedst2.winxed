@@ -3737,9 +3737,9 @@ function concat_literal(lexpr, rexpr)
 class FunctionId : FinalExpr
 {
     var subid;
-    function FunctionId(owner, start, name, string id)
+    function FunctionId(owner, name, string id)
     {
-        self.Expr(owner, start);
+        self.Expr(owner, name);
         self.subid = id;
     }
     function checkresult() { return REGvar; }
@@ -3775,17 +3775,15 @@ class IdentifierExpr : SimpleExpr
 {
     var name;
     function isidentifier() { return true; }
-    function IdentifierExpr(owner, t)
+    function IdentifierExpr(owner, name)
     {
-        self.Expr(owner, t);
-        self.name = t;
+        __ASSERT__(name instanceof TokenIdentifier);
+        self.Expr(owner, name);
+        self.name = name;
     }
     function clone(owner)
     {
-        var cloned = new IdentifierExpr;
-        cloned.Expr(owner, self.start);
-        cloned.name = self.name;
-        return cloned;
+        return new IdentifierExpr(owner, self.name);
     }
     function isnull()
     {
@@ -3872,7 +3870,7 @@ class IdentifierExpr : SimpleExpr
                 // TODO: improve this.
                 var reg = desc.getreg();
                 if (reg != null && substr(reg, 0, 7) == 'WSubId_')
-                    return new FunctionId(self.owner, self.start, name, reg);
+                    return new FunctionId(self.owner, name, reg);
             }
         }
         else {
@@ -3885,15 +3883,15 @@ class IdentifierExpr : SimpleExpr
                     string id = sym.makesubid();
                     self.usesubid(id);
                     self.owner.createvarnamed(name, REGvar, id);
-                    return new FunctionId(self.owner, self.start, name, id);
+                    return new FunctionId(self.owner, name, id);
                 }
                 else
-                    return new FunctionRef(self.owner, self.start, sym);
+                    return new FunctionRef(self.owner, name, sym);
                 break;
               case sym instanceof FunctionExtern:
-                return new FunctionRef(self.owner, self.start, sym);
+                return new FunctionRef(self.owner, name, sym);
               case sym instanceof InlineStatement:
-                return new InlineRef(self.owner, self.start, sym);
+                return new InlineRef(self.owner, name, sym);
             }
         }
         return self;
