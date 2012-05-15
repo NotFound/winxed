@@ -3045,7 +3045,7 @@ class UsingStatement : Statement
     function emit(e)
     {
         var path = self.path;
-        string name = path[-1];
+        var name = path[-1];
         var vdata = self.getvar(name);
         if (self.subid == null) {
             self.annotate(e);
@@ -3054,7 +3054,7 @@ class UsingStatement : Statement
                 path.pop();
                 key = getparrotkey(path);
             }
-            e.emitget_hll_global(vdata.getreg(), name, key);
+            e.emitget_hll_global(vdata.getreg(), name.getidentifier(), key);
         }
     }
 }
@@ -3271,6 +3271,7 @@ class VarContainer
     }
     function getvar(var name)
     {
+        __ASSERT__(name instanceof TokenIdentifier);
         var sym;
         if ((sym = self.getlocalvar(name)) != null)
             return sym;
@@ -7336,7 +7337,7 @@ class NewExpr : NewBaseExpr
         if (value.isidentifier()) {
             // The identifier can be a string constant, check for that case
             // and obtain the string value.
-            var desc = self.owner.getvar(value.getidentifier());
+            var desc = self.owner.getvar(value);
             if (desc != null && desc.isconst()) {
                 value = desc.getvalue();
                 if (! (value instanceof StringLiteral))
@@ -11535,7 +11536,7 @@ class SigParameter
     }
     function getvar()
     {
-        return self.owner.getvar(self.name.getidentifier());
+        return self.owner.getvar(self.name);
     }
     function optimize()
     {
