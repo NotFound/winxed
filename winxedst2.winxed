@@ -6429,13 +6429,15 @@ class CallBuiltinExpr : FinalExpr
     }
     function emit(e, string result)
     {
+        var owner = self.owner;
+        var start = self.start;
         var builtin = self.builtin;
         var args = self.args;
         string argreg[];
         var arg;
         switch (builtin.params()) {
           case BULTIN_arglist:
-            var collectarglist = new CollectValues(self.owner, e);
+            var collectarglist = new CollectValues(owner, e);
             for (arg in args)
                 push(argreg, collectarglist.add(arg.arg));
             break;
@@ -6443,11 +6445,11 @@ class CallBuiltinExpr : FinalExpr
             var rawargs = [];
             for (arg in args)
                 push(rawargs, arg.arg);
-            self.builtin.expand(e, self, self.start, result, rawargs);
+            builtin.expand(e, owner, start, result, rawargs);
             return;
           default:
-            int n = self.args;
-            var collectdefault = new CollectValues(self.owner, e);
+            int n = elements(args);
+            var collectdefault = new CollectValues(owner, e);
             for (int i = 0; i < n; ++i) {
                 arg = args[i].arg;
                 string argtype = arg.checkresult();
@@ -6501,7 +6503,7 @@ class CallBuiltinExpr : FinalExpr
                 push(argreg, argr);
             }
         }
-        self.builtin.expand(e, self, self.start, result, argreg);
+        builtin.expand(e, owner, start, result, argreg);
     }
 }
 
