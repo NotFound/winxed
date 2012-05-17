@@ -3773,6 +3773,22 @@ class FunctionRef : FinalExpr
     }
 }
 
+class NullExpr : FinalExpr
+{
+    function NullExpr(owner, start)
+    {
+        self.Expr(owner, start);
+    }
+    function isnull() { return true; }
+    function checkresult() { return REGvar; }
+    function emit_void(e) { }
+    function emit(e, string result)
+    {
+        self.annotate(e);
+        e.emitnull(result);
+    }
+}
+
 class IdentifierExpr : SimpleExpr
 {
     var name;
@@ -3880,6 +3896,8 @@ class IdentifierExpr : SimpleExpr
             var sym = self.scopesearch([name], 0);
             switch {
               case sym == null:
+                if (name.iskeyword(NULL))
+                    return new NullExpr(self.owner, name);
                 break;
               case sym instanceof FunctionStatement:
                 if (!sym.ismulti()) {
