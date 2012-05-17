@@ -1542,49 +1542,6 @@ class BuiltinExpr : BuiltinBase
     }
 }
 
-class Builtin_typecast
-{
-    var type;
-    function Builtin_typecast(string type)
-    {
-        self.type = type;
-    }
-    function invoke [vtable](e, owner, start, string result, args)
-    {
-        string type = self.type;
-        if (elements(args) != 1)
-            InternalError("Invalid Builtin_typecast.invoke call");
-        var rawarg = args[0];
-        string argtype = rawarg.checkresult();
-        switch {
-          case argtype == type:
-          case rawarg instanceof IndexExpr:
-          case rawarg instanceof CallExpr:
-            rawarg.emit(e, result);
-            break;
-          default:
-            string arg = rawarg.emit_get(e);
-            e.annotate(start);
-            // Special case
-            if (arg == NULL)
-                e.emitnull(result);
-            else
-                e.emitset(result, arg);
-        }
-    }
-}
-
-function builtineval_stringcast(owner, start, args)
-{
-    return stringQuotedValue(owner, start, string_from_literal_arg1(args));
-}
-
-function builtineval_intcast(owner, start, args)
-{
-    int value = int_from_literal_arg1(args);
-    return integerValue(owner, start, value);
-}
-
 function Builtin_varcast(e, owner, start, string result, args)
 {
     if (elements(args) != 1)
@@ -1838,22 +1795,14 @@ function builtin_sleep(e, owner, start, result, args)
 
 function getbuiltins(builder)
 {
-    builder.add(new BuiltinFunctionEval('int',
-        builtineval_intcast,
-        new Builtin_typecast(REGint),
-        REGint, REGraw1
-    ));
-    builder.add(new BuiltinFunction('float',
-        new Builtin_typecast(REGfloat),
-        REGfloat, REGraw1
-    ));
-/*
-    builder.add(new BuiltinFunctionEval('string',
-        builtineval_stringcast,
-        new Builtin_typecast(REGstring),
+    builder.add(new BuiltinExpr('int',
+        builtinexpr_intcast,
         REGstring, REGraw1
     ));
-*/
+    builder.add(new BuiltinExpr('float',
+        builtinexpr_floatcast,
+        REGstring, REGraw1
+    ));
     builder.add(new BuiltinExpr('string',
         builtinexpr_stringcast,
         REGstring, REGraw1
@@ -6411,34 +6360,85 @@ function arglist_hascompilevalue(var arglist)
 }
 
 //*********************************************
+//           Builtin typecasts
+//*********************************************
 
-class StringCastExpr : FinalExpr
+class CastExpr : FinalExpr
 {
-    var expr;
-    function StringCastExpr(owner, start, expr)
+    var arg;
+    var type;
+    function CastExpr(owner, start, arg, string type)
     {
         self.Expr(owner, start);
-        self.expr = expr;
+        self.arg = arg;
+        self.type = type;
     }
-    function checkresult() { return REGstring; }
     function emit(e, result)
     {
-        var expr = self.expr;
-        string type = expr.checkresult();
+        var arg = self.arg;
+        string type = self.type;
+        string argtype = arg.checkresult();
         switch {
-          case expr instanceof IndexExpr:
-          case expr instanceof CallExpr:
-          case type == REGstring:
-            expr.emit(e, result);
+          case arg instanceof IndexExpr:
+          case arg instanceof CallExpr:
+          case argtype == type:
+            arg.emit(e, result);
             break;
-          case expr.isnull():
+          case arg.isnull():
             e.emitnull(result);
             break;
           default:
-            string aux = expr.emit_get(e);
+            string aux = arg.emit_get(e);
             e.emitset(result, aux);
         }
     }
+}
+
+class IntCastExpr : CastExpr
+{
+    function IntCastExpr(owner, start, arg)
+    {
+        self.CastExpr(owner, start, arg, REGint);
+    }
+    function checkresult() { return REGint; }
+}
+
+class FloatCastExpr : CastExpr
+{
+    function FloatCastExpr(owner, start, arg)
+    {
+        self.CastExpr(owner, start, arg, REGfloat);
+    }
+    function checkresult() { return REGfloat; }
+}
+
+class StringCastExpr : CastExpr
+{
+    function StringCastExpr(owner, start, arg)
+    {
+        self.CastExpr(owner, start, arg, REGstring);
+    }
+    function checkresult() { return REGstring; }
+}
+
+function builtinexpr_intcast(owner, start, args)
+{
+    __ASSERT__(args.numargs() == 1);
+    var arg = args.getarg(0).arg;
+    if (arg.hascompilevalue())
+        return integerValue(owner, start, int_from_literal(arg));
+    else
+        return new IntCastExpr(owner, start, arg);
+}
+
+function builtinexpr_floatcast(owner, start, args)
+{
+    __ASSERT__(args.numargs() == 1);
+    var arg = args.getarg(0).arg;
+    if (arg.hascompilevalue())
+        return floatValue(owner, start, float_from_literal(arg));
+    else
+        return new FloatCastExpr(owner, start, arg);
 }
 
 function builtinexpr_stringcast(owner, start, args)
