@@ -1542,6 +1542,10 @@ class Builtin_typecast
         var rawarg = args[0];
         string argtype = rawarg.checkresult();
         switch {
+          case rawarg.isnull():
+            e.annotate(start);
+            e.emitnull(result);
+            break;
           case argtype == type:
           case rawarg instanceof IndexExpr:
           case rawarg instanceof CallExpr:
@@ -1549,12 +1553,9 @@ class Builtin_typecast
             break;
           default:
             string arg = rawarg.emit_get(e);
+            __ASSERT__(arg != NULL);
             e.annotate(start);
-            // Special case
-            if (arg == NULL)
-                e.emitnull(result);
-            else
-                e.emitset(result, arg);
+            e.emitset(result, arg);
         }
     }
 }
@@ -6943,18 +6944,20 @@ class MemberRefExpr : MemberExprBase
         string lreg = left.emit_get_nonull(e);
         string rreg = right.emit_get(e);
         string vreg;
-        switch (expr.checkresult()) {
-          case REGvar:
+        switch {
+          case expr.isnull():
+            vreg = self.tempreg(REGvar);
+            self.annotate(e);
+            e.emitnull(vreg);
+            break;
+          case expr.checkresult() == REGvar:
             vreg = expr.emit_get(e);
-            // Special case
-            if (vreg == NULL) {
-                vreg = self.tempreg(REGvar);
-                e.emitnull(vreg);
-            }
+            __ASSERT__(vreg != NULL);
             break;
           default:
             vreg = self.tempreg(REGvar);
             string aux = expr.emit_get(e);
+            self.annotate(e);
             e.emitbox(vreg, aux);
         }
 
