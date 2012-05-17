@@ -3016,7 +3016,7 @@ class UsingStatement : Statement
     function emit(e)
     {
         var path = self.path;
-        string name = path[-1];
+        var name = path[-1];
         var vdata = self.getvar(name);
         if (self.subid == null) {
             self.annotate(e);
@@ -3025,7 +3025,7 @@ class UsingStatement : Statement
                 path.pop();
                 key = getparrotkey(path);
             }
-            e.emitget_hll_global(vdata.getreg(), name, key);
+            e.emitget_hll_global(vdata.getreg(), name.getidentifier(), key);
         }
     }
 }
@@ -3242,6 +3242,7 @@ class VarContainer
     }
     function getvar(var name)
     {
+        __ASSERT__(name instanceof TokenIdentifier);
         var sym;
         if ((sym = self.getlocalvar(name)) != null)
             return sym;
@@ -3708,9 +3709,9 @@ function concat_literal(lexpr, rexpr)
 class FunctionId : FinalExpr
 {
     var subid;
-    function FunctionId(owner, start, name, string id)
+    function FunctionId(owner, name, string id)
     {
-        self.Expr(owner, start);
+        self.Expr(owner, name);
         self.subid = id;
     }
     function checkresult() { return REGvar; }
@@ -3742,21 +3743,35 @@ class FunctionRef : FinalExpr
     }
 }
 
+class NullExpr : FinalExpr
+{
+    function NullExpr(owner, start)
+    {
+        self.Expr(owner, start);
+    }
+    function isnull() { return true; }
+    function checkresult() { return REGvar; }
+    function emit_void(e) { }
+    function emit(e, string result)
+    {
+        self.annotate(e);
+        e.emitnull(result);
+    }
+}
+
 class IdentifierExpr : SimpleExpr
 {
     var name;
     function isidentifier() { return true; }
-    function IdentifierExpr(owner, t)
+    function IdentifierExpr(owner, name)
     {
-        self.Expr(owner, t);
-        self.name = t;
+        __ASSERT__(name instanceof TokenIdentifier);
+        self.Expr(owner, name);
+        self.name = name;
     }
     function clone(owner)
     {
-        var cloned = new IdentifierExpr;
-        cloned.Expr(owner, self.start);
-        cloned.name = self.name;
-        return cloned;
+        return new IdentifierExpr(owner, self.name);
     }
     function isnull()
     {
@@ -3826,7 +3841,8 @@ class IdentifierExpr : SimpleExpr
     function optimize()
     {
         var name = self.name;
-        var desc = self.owner.getvar(name);
+        var owner = self.owner;
+        var desc = owner.getvar(name);
         if (desc != null) {
             __ASSERT__(desc instanceof VarData);
             if (desc.isconst())
@@ -3843,28 +3859,30 @@ class IdentifierExpr : SimpleExpr
                 // TODO: improve this.
                 var reg = desc.getreg();
                 if (reg != null && substr(reg, 0, 7) == 'WSubId_')
-                    return new FunctionId(self.owner, self.start, name, reg);
+                    return new FunctionId(owner, name, reg);
             }
         }
         else {
             var sym = self.scopesearch([name], 0);
             switch {
               case sym == null:
+                if (name.iskeyword(NULL))
+                    return new NullExpr(self.owner, name);
                 break;
               case sym instanceof FunctionStatement:
                 if (!sym.ismulti()) {
                     string id = sym.makesubid();
                     self.usesubid(id);
-                    self.owner.createvarnamed(name, REGvar, id);
-                    return new FunctionId(self.owner, self.start, name, id);
+                    owner.createvarnamed(name, REGvar, id);
+                    return new FunctionId(owner, name, id);
                 }
                 else
-                    return new FunctionRef(self.owner, self.start, sym);
+                    return new FunctionRef(owner, name, sym);
                 break;
               case sym instanceof FunctionExtern:
-                return new FunctionRef(self.owner, self.start, sym);
+                return new FunctionRef(owner, name, sym);
               case sym instanceof InlineStatement:
-                return new InlineRef(self.owner, self.start, sym);
+                return new InlineRef(owner, name, sym);
             }
         }
         return self;
@@ -6493,13 +6511,15 @@ class CallBuiltinExpr : FinalExpr
     }
     function emit(e, string result)
     {
+        var owner = self.owner;
+        var start = self.start;
         var builtin = self.builtin;
         var args = self.args;
         string argreg[];
         var arg;
         switch (builtin.params()) {
           case BULTIN_arglist:
-            var collectarglist = new CollectValues(self.owner, e);
+            var collectarglist = new CollectValues(owner, e);
             for (arg in args)
                 push(argreg, collectarglist.add(arg.arg));
             break;
@@ -6507,11 +6527,11 @@ class CallBuiltinExpr : FinalExpr
             var rawargs = [];
             for (arg in args)
                 push(rawargs, arg.arg);
-            self.builtin.expand(e, self, self.start, result, rawargs);
+            builtin.expand(e, owner, start, result, rawargs);
             return;
           default:
-            int n = self.args;
-            var collectdefault = new CollectValues(self.owner, e);
+            int n = elements(args);
+            var collectdefault = new CollectValues(owner, e);
             for (int i = 0; i < n; ++i) {
                 arg = args[i].arg;
                 string argtype = arg.checkresult();
@@ -6565,7 +6585,7 @@ class CallBuiltinExpr : FinalExpr
                 push(argreg, argr);
             }
         }
-        self.builtin.expand(e, self, self.start, result, argreg);
+        builtin.expand(e, owner, start, result, argreg);
     }
 }
 
@@ -7008,18 +7028,20 @@ class MemberRefExpr : MemberExprBase
         string lreg = left.emit_get_nonull(e);
         string rreg = right.emit_get(e);
         string vreg;
-        switch (expr.checkresult()) {
-          case REGvar:
+        switch {
+          case expr.isnull():
+            vreg = self.tempreg(REGvar);
+            self.annotate(e);
+            e.emitnull(vreg);
+            break;
+          case expr.checkresult() == REGvar:
             vreg = expr.emit_get(e);
-            // Special case
-            if (vreg == NULL) {
-                vreg = self.tempreg(REGvar);
-                e.emitnull(vreg);
-            }
+            __ASSERT__(vreg != NULL);
             break;
           default:
             vreg = self.tempreg(REGvar);
             string aux = expr.emit_get(e);
+            self.annotate(e);
             e.emitbox(vreg, aux);
         }
 
@@ -7404,7 +7426,7 @@ class NewExpr : NewBaseExpr
         if (value.isidentifier()) {
             // The identifier can be a string constant, check for that case
             // and obtain the string value.
-            var desc = self.owner.getvar(value.getidentifier());
+            var desc = self.owner.getvar(value);
             if (desc != null && desc.isconst()) {
                 value = desc.getvalue();
                 if (! (value instanceof StringLiteral))
@@ -11603,7 +11625,7 @@ class SigParameter
     }
     function getvar()
     {
-        return self.owner.getvar(self.name.getidentifier());
+        return self.owner.getvar(self.name);
     }
     function optimize()
     {
