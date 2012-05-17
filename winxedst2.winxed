@@ -3855,7 +3855,8 @@ class IdentifierExpr : SimpleExpr
     function optimize()
     {
         var name = self.name;
-        var desc = self.owner.getvar(name);
+        var owner = self.owner;
+        var desc = owner.getvar(name);
         if (desc != null) {
             __ASSERT__(desc instanceof VarData);
             if (desc.isconst())
@@ -3872,7 +3873,7 @@ class IdentifierExpr : SimpleExpr
                 // TODO: improve this.
                 var reg = desc.getreg();
                 if (reg != null && substr(reg, 0, 7) == 'WSubId_')
-                    return new FunctionId(self.owner, name, reg);
+                    return new FunctionId(owner, name, reg);
             }
         }
         else {
@@ -3884,16 +3885,16 @@ class IdentifierExpr : SimpleExpr
                 if (!sym.ismulti()) {
                     string id = sym.makesubid();
                     self.usesubid(id);
-                    self.owner.createvarnamed(name, REGvar, id);
-                    return new FunctionId(self.owner, name, id);
+                    owner.createvarnamed(name, REGvar, id);
+                    return new FunctionId(owner, name, id);
                 }
                 else
-                    return new FunctionRef(self.owner, name, sym);
+                    return new FunctionRef(owner, name, sym);
                 break;
               case sym instanceof FunctionExtern:
-                return new FunctionRef(self.owner, name, sym);
+                return new FunctionRef(owner, name, sym);
               case sym instanceof InlineStatement:
-                return new InlineRef(self.owner, name, sym);
+                return new InlineRef(owner, name, sym);
             }
         }
         return self;
