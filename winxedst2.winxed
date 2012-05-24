@@ -278,6 +278,11 @@ function UndefinedVariable(string name, var t)
     SyntaxError("Variable '" + name + "' is not defined", t);
 }
 
+function Redeclared(var t)
+{
+     SyntaxError("Redeclared '" + string(t.getidentifier()) + "'", t);
+}
+
 //*********************************************
 //                Token
 //*********************************************
@@ -3226,7 +3231,7 @@ class VarContainer
         string sname = name;
         var exist = locals[sname];
         if (exist != null)
-            SyntaxError("Redeclared '" + sname + "'", name);
+            Redeclared(name);
         string reg = self.createreg(type);
         var data = new VarData(type, reg, self, flags);
         locals[sname] = data;
@@ -3238,7 +3243,7 @@ class VarContainer
         string sname = name;
         var exist = locals[sname];
         if (exist != null)
-            SyntaxError("Redeclared '" + sname + "'", name);
+            Redeclared(name);
         locals[sname] = data;
     }
     function createvarnamed(var name, string type, string pirname)
@@ -3247,7 +3252,7 @@ class VarContainer
         string sname = name;
         var exist = locals[sname];
         if (exist != null)
-            SyntaxError("Redeclared '" + sname + "'", name);
+            Redeclared(name);
         locals[sname] = new VarData(type, pirname, self, 0);
     }
     function createconst(var name, string type, int flags[optional])
@@ -3256,7 +3261,7 @@ class VarContainer
         string sname = name;
         var exist = locals[sname];
         if (exist != null)
-            SyntaxError("Redeclared '" + sname + "'", name);
+            Redeclared(name);
         var data = new VarData_const(type, name, self, flags);
         locals[sname] = data;
         return data;
