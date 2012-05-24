@@ -3705,6 +3705,10 @@ class NullExpr : FinalExpr
         self.Expr(owner, start);
     }
     function isnull() { return true; }
+    function emit_get_nonull(e)
+    {
+        SyntaxError("Invalid 'null' usage", self);
+    }
     function checkresult() { return REGvar; }
     function emit_void(e) { }
     function emit(e, string result)
