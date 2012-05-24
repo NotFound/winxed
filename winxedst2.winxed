@@ -3669,6 +3669,15 @@ class FunctionId : FinalExpr
         self.subid = id;
     }
     function checkresult() { return REGvar; }
+    function emitvar(e, string result)
+    {
+        var name = self.start;
+        var sym = self.scopesearch([name], 0);
+        __ASSERT__(sym != null && (sym instanceof FunctionStatement));
+        var path = sym.owner.getpath();
+        self.annotate(e);
+        e.emitget_hll_global(result, name, path.getparrotkey());
+    }
     function emit_get(e)
     {
         return self.subid;
@@ -6429,11 +6438,13 @@ class VarCastExpr : FinalExpr
     {
         var arg = self.arg;
         string argtype = arg.checkresult();
-        string name;
         var sym;
         switch {
+          case arg instanceof FunctionId:
+            arg.emitvar(e, result);
+            break;
           case arg instanceof IdentifierExpr:
-            name = arg.getName();
+            string idname = arg.getName();
             string id = arg.checkIdentifier();
             var desc = arg.checkVar();
             if (id != "" && desc != null && ! desc.issubid()) {
@@ -6441,10 +6452,11 @@ class VarCastExpr : FinalExpr
                 arg.emit(e, result);
             }
             else {
-                sym = arg.scopesearch([name], 0);
+                sym = arg.scopesearch([idname], 0);
                 if (sym != null && sym instanceof FunctionStatement) {
                     var path = sym.owner.getpath();
-                    e.emitget_hll_global(result, name, getparrotkey(path));
+                    self.annotate(e);
+                    e.emitget_hll_global(result, idname, getparrotkey(path));
                 }
             }
             break;
@@ -6456,12 +6468,24 @@ class VarCastExpr : FinalExpr
             sym = self.owner.scopesearch(key, 0);
             if (sym != null && sym instanceof FunctionStatement) {
                 var path = sym.owner.getpath();
+                string funname = sym.name.getidentifier();
                 self.annotate(e);
-                e.emitget_hll_global(result, name, getparrotkey(path));
+                e.emitget_hll_global(result, funname, path.getparrotkey());
             }
-            name = key.pop();
-            self.annotate(e);
-            e.emitget_hll_global(result, name, getparrotkey(key));
+            else {
+                if (key[0] == SELF && self.owner.getouter().ismethod()) {
+                    // Special case for self in methods:
+                    // var(self.f)(); gives the same result as
+                    // var temp = self.f; temp();
+                    // instead of a method call.
+                    arg.emit(e, result);
+                }
+                else {
+                    string varname = key.pop();
+                    self.annotate(e);
+                    e.emitget_hll_global(result, varname, getparrotkey(key));
+                }
+            }
             break;
           default:
             self.annotate(e);
