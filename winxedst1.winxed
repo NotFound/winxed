@@ -2993,9 +2993,9 @@ function concat_literal(lexpr, rexpr)
 class FunctionId : FinalExpr
 {
     var subid;
-    function FunctionId(owner, start, name, string id)
+    function FunctionId(owner, name, string id)
     {
-        self.Expr(owner, start);
+        self.Expr(owner, name);
         self.subid = id;
     }
     function checkresult() { return REGvar; }
@@ -3105,7 +3105,8 @@ class IdentifierExpr : SimpleExpr
     function optimize()
     {
         var name = self.name;
-        var desc = self.owner.getvar(name);
+        var owner = self.owner;
+        var desc = owner.getvar(name);
         if (desc != null) {
             if (desc.isconst())
                 return desc.getvalue();
@@ -3121,7 +3122,7 @@ class IdentifierExpr : SimpleExpr
                 // TODO: improve this.
                 var reg = desc.getreg();
                 if (reg != null && substr(reg, 0, 7) == "WSubId_")
-                    return new FunctionId(self.owner, self.start, name, reg);
+                    return new FunctionId(owner, name, reg);
             }
         }
         else {
@@ -3133,14 +3134,14 @@ class IdentifierExpr : SimpleExpr
                 if (!sym.ismulti()) {
                     string id = sym.makesubid();
                     self.usesubid(id);
-                    self.owner.createvarnamed(name, REGvar, id);
-                    return new FunctionId(self.owner, self.start, name, id);
+                    owner.createvarnamed(name, REGvar, id);
+                    return new FunctionId(owner, name, id);
                 }
                 else
-                    return new FunctionRef(self.owner, self.start, sym);
+                    return new FunctionRef(owner, name, sym);
                 break;
               case sym instanceof FunctionExtern:
-                return new FunctionRef(self.owner, self.start, sym);
+                return new FunctionRef(owner, name, sym);
             }
         }
         return self;
