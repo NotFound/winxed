@@ -1552,62 +1552,6 @@ class BuiltinExpr : BuiltinBase
     }
 }
 
-function Builtin_varcast(e, owner, start, string result, args)
-{
-    if (elements(args) != 1)
-        InternalError("Invalid var cast");
-    var arg = args[0];
-    string argtype = arg.checkresult();
-    if (argtype == REGvar) {
-        string name;
-        var sym;
-        switch {
-          case arg instanceof IdentifierExpr:
-            name = arg.getName();
-            string id = arg.checkIdentifier();
-            var desc = arg.checkVar();
-            if (id != "" && desc != null && ! desc.issubid()) {
-                // The cast is redundant in this case
-                arg.emit(e, result);
-            }
-            else {
-                sym = arg.scopesearch([name], 0);
-                if (sym != null && sym instanceof FunctionStatement) {
-                    var path = sym.owner.getpath();
-                    e.emitget_hll_global(result, name, getparrotkey(path));
-                }
-            }
-            break;
-          case arg instanceof MemberExpr:
-            // If it's a known function avoid using it bt subid,
-            // else, look up in the hll namespace at runtime.
-            string key[];
-            arg.buildkey(key);
-            sym = owner.scopesearch(key, 0);
-            if (sym != null && sym instanceof FunctionStatement) {
-                var path = sym.owner.getpath();
-                e.annotate(start);
-                e.emitget_hll_global(result, name, getparrotkey(path));
-            }
-            name = key.pop();
-            e.annotate(start);
-            e.emitget_hll_global(result, name, getparrotkey(key));
-            break;
-          default:
-            e.annotate(start);
-            arg.emit(e, result);
-        }
-    }
-    else {
-        string reg = arg.emit_get(e);
-        e.annotate(start);
-        if (reg == NULL)
-            e.emitnull(result);
-        else
-            e.emitbox(result, reg);
-    }
-}
-
 function Builtin_say(e, owner, start, string result, args)
 {
     e.annotate(start);
@@ -1818,8 +1762,8 @@ function getbuiltins(builder)
         REGstring, REGraw1
     ));
 
-    builder.add(new BuiltinFunction("var",
-        Builtin_varcast,
+    builder.add(new BuiltinExpr("var",
+        builtinexpr_varcast,
         REGvar, REGraw1
     ));
     builder.add(new BuiltinFunction("die",
@@ -6450,6 +6394,79 @@ class StringCastExpr : CastExpr
     function checkresult() { return REGstring; }
 }
 
+class BoxExpr : FinalExpr
+{
+    var arg;
+    function BoxExpr(owner, start, arg)
+    {
+        self.Expr(owner, start);
+        self.arg = arg;
+    }
+    function checkresult() { return REGvar; }
+    function emit(e, result)
+    {
+        var arg = self.arg;
+        string reg = arg.emit_get(e);
+        self.annotate(e);
+        e.emitbox(result, reg);
+    }
+}
+
+class VarCastExpr : FinalExpr
+{
+    var arg;
+    function VarCastExpr(owner, start, arg)
+    {
+        self.Expr(owner, start);
+        self.arg = arg;
+    }
+    function checkresult() { return REGvar; }
+    function emit(e, result)
+    {
+        var arg = self.arg;
+        string argtype = arg.checkresult();
+        string name;
+        var sym;
+        switch {
+          case arg instanceof IdentifierExpr:
+            name = arg.getName();
+            string id = arg.checkIdentifier();
+            var desc = arg.checkVar();
+            if (id != "" && desc != null && ! desc.issubid()) {
+                // The cast is redundant in this case
+                arg.emit(e, result);
+            }
+            else {
+                sym = arg.scopesearch([name], 0);
+                if (sym != null && sym instanceof FunctionStatement) {
+                    var path = sym.owner.getpath();
+                    e.emitget_hll_global(result, name, getparrotkey(path));
+                }
+            }
+            break;
+          case arg instanceof MemberExpr:
+            // If it's a known function avoid using it bt subid,
+            // else, look up in the hll namespace at runtime.
+            string key[];
+            arg.buildkey(key);
+            sym = self.owner.scopesearch(key, 0);
+            if (sym != null && sym instanceof FunctionStatement) {
+                var path = sym.owner.getpath();
+                self.annotate(e);
+                e.emitget_hll_global(result, name, getparrotkey(path));
+            }
+            name = key.pop();
+            self.annotate(e);
+            e.emitget_hll_global(result, name, getparrotkey(key));
+            break;
+          default:
+            self.annotate(e);
+            arg.emit(e, result);
+        }
+    }
+}
+
+
 function builtinexpr_intcast(owner, start, args)
 {
     __ASSERT__(args.numargs() == 1);
@@ -6478,6 +6495,21 @@ function builtinexpr_stringcast(owner, start, args)
         return stringQuotedValue(owner, start, string_from_literal(arg));
     else
         return new StringCastExpr(owner, start, arg);
+}
+
+function builtinexpr_varcast(owner, start, args)
+{
+    __ASSERT__(args.numargs() == 1);
+    var arg = args.getarg(0).arg;
+    string argtype = arg.checkresult();
+    switch (argtype) {
+      case REGint:
+      case REGfloat:
+      case REGstring:
+        return new BoxExpr(owner, start, arg);
+      default:
+        return new VarCastExpr(owner, start, arg);
+    }
 }
 
 //*********************************************
