@@ -225,7 +225,6 @@ class Token
     function iscomment()      { return false; }
     function isidentifier()   { return false; }
     function isint()          { return false; }
-    function isfloat()        { return false; }
     function isstring()       { return false; }
     function issinglequoted() { return false; }
 
@@ -459,22 +458,6 @@ class TokenInteger : TokenWithVal
     }
 }
 
-class TokenFloat : TokenWithVal
-{
-    function TokenFloat(string file, int line, string str)
-    {
-        self.TokenWithVal(file, line, str);
-    }
-    function isfloat() { return true; }
-    function getfloatvalue()
-    {
-        // Cast to float fails in stage 1, use an aux var instead.
-        float value = self.str;
-        return value;
-    }
-}
-
-
 //*********************************************
 //       Tokenizer auxiliar functions
 //*********************************************
@@ -604,40 +587,10 @@ function getnumber(tk, string start, int line)
         s = hexval;
         return new TokenInteger(tk.filename, line, s);
     }
-    if (c == '.') {
-        do {
-            s = s + c;
-            c = tk.getchar();
-        } while (isdigit(c));
-        if (c == 'e' || c == 'E') {
-            s = s + 'E';
-            if ((c = tk.getchar()) == '+' || c == '-') {
-                s = s + c;
-                c = tk.getchar();
-            }
-            for ( ; isdigit(c); c = tk.getchar())
-                s = s + c;
-        }
-        tk.ungetchar(c);
-        return new TokenFloat(tk.filename, line, s);
-    }
-    else {
-        if (c == 'e' || c == 'E') {
-            s = s + 'E';
-            if ((c = tk.getchar()) == '+' || c == '-') {
-                s = s + c;
-                c = tk.getchar();
-            }
-            for ( ; isdigit(c); c = tk.getchar())
-                s = s + c;
-            tk.ungetchar(c);
-            return new TokenFloat(tk.filename, line, s);
-        }
-        else {
-            tk.ungetchar(c);
-            return new TokenInteger(tk.filename, line, s);
-        }
-    }
+    if (c == '.' || c == "e" || c == "E")
+        TokenError("float literals not allowed in stage 1", tk, line);
+    tk.ungetchar(c);
+    return new TokenInteger(tk.filename, line, s);
 }
 
 function getlinecomment(tk, string start, int line)
@@ -1131,12 +1084,6 @@ function integerValue(var owner, var start, int value)
     return new IntegerLiteral(owner, start, value);
 }
 
-function floatValue(var owner, var start, float value)
-{
-    var t = new TokenFloat(start.file, start.line, value);
-    return new FloatLiteral(owner, t);
-}
-
 function stringQuotedValue(var owner, var start, string value)
 {
     var t = new TokenQuoted(start.file, start.line, value);
@@ -1153,22 +1100,6 @@ function floatresult(string r1, string r2)
            (r2 == REGfloat && (r1 == REGfloat || r1 == REGint));
     return result;
 }
-
-function floatAsString(float n)
-/*
-    Make sure that a float value is recognized as such by the
-    PIR compiler, adding a dot if needed.
-*/
-{
-    // Use assignment instead of initializations to work around
-    // stage 1 limitations.
-    string aux; aux = n;
-
-    if (aux.is_integer(aux))
-        aux = aux + '.0';
-    return aux;
-}
-
 
 // Predefined constants
 
@@ -1210,9 +1141,6 @@ function string_from_literal(arg)
       case arg.isintegerliteral():
         value = arg.numval;
         break;
-      case arg.isfloatliteral():
-        value = arg.getFloatValue();
-        break;
       case arg.isstringliteral():
         value = arg.get_value();
         break;
@@ -1229,31 +1157,11 @@ function int_from_literal(arg)
       case arg.isintegerliteral():
         value = arg.numval;
         break;
-      case arg.isfloatliteral():
-        value = arg.getFloatValue();
-        break;
       case arg.isstringliteral():
         value = arg.get_value();
         break;
       default:
         InternalError('wrong call to int_from_literal', arg);
-    }
-    return value;
-}
-
-function float_from_literal(arg)
-{
-    float value;
-    switch {
-      case arg.isintegerliteral():
-      case arg.isfloatliteral():
-        value = arg.getFloatValue();
-        break;
-      case arg.isstringliteral():
-        value = arg.get_value();
-        break;
-      default:
-        InternalError('wrong call to float_from_literal', arg);
     }
     return value;
 }
@@ -2858,7 +2766,6 @@ class Expr : CommonBase
     function isliteral() { return false; }
     function isintegerliteral() { return false; }
     function isintegerzero() { return false; }
-    function isfloatliteral() { return false; }
     function isstringliteral() { return false; }
     function isidentifier() { return false; }
     function isnull() { return false; }
@@ -3132,11 +3039,6 @@ class IntegerLiteral : Literal
     {
         return self.numval;
     }
-    function getFloatValue()
-    {
-        float value = self.getIntegerValue();
-        return value;
-    }
     function emit(e, string result)
     {
         int value = self.getIntegerValue();
@@ -3153,35 +3055,6 @@ class IntegerLiteral : Literal
     {
         // Just a shortcut
         return self.getIntegerValue();
-    }
-}
-
-//*********************************************
-
-class FloatLiteral : Literal
-{
-    var numval;
-    function FloatLiteral(owner, t)
-    {
-        self.Expr(owner, t);
-        self.numval = t;
-    }
-    function isfloatliteral() { return true; }
-    function checkresult() { return REGfloat; }
-    function getFloatValue()
-    {
-        float value = self.numval.getfloatvalue();
-        return value;
-    }
-    function emit(e, string result)
-    {
-        string n = self.emit_get(e);
-        e.emitset(result, n);
-    }
-    function emit_get(e)
-    {
-        float value = self.getFloatValue();
-        return floatAsString(value);
     }
 }
 
@@ -6868,8 +6741,6 @@ function parseExpr_0(tk, owner)
         return new StringLiteral(owner, t);
       case t.isint():
         return integerValue(owner, t, t.getintvalue());
-      case t.isfloat():
-        return new FloatLiteral(owner, t);
       case t.iskeyword('new'):
         return parseNew(tk, owner, t);
       case t.iskeyword('function'):
