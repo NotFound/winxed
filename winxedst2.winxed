@@ -1425,7 +1425,7 @@ class BuiltinBase
         string type3)
     {
         self.name = name;
-        if (body instanceof "String")
+        if (body != null && body instanceof "String")
             self.body = new Builtin_frombody(typeresult, body);
         else
             self.body = body;
@@ -1460,14 +1460,11 @@ class BuiltinBase
         }
         self.nparams = n;
     }
-    function iscompileevaluable()
-    {
-        return false;
-    }
+    function isreplaceexpr() { return false; }
+    function iscompileevaluable() { return false; }
     function name()
     {
-        string name = self.name;
-        return name;
+        return string(self.name);
     }
     function result()
     {
@@ -1531,54 +1528,28 @@ class BuiltinFunctionEval : BuiltinBase
         self.BuiltinBase(name, body, typeresult, type0, type1, type2, type3);
         self.evalfun = evalfun;
     }
-    function iscompileevaluable()
-    {
-        return true;
-    }
+    function iscompileevaluable() { return true; }
 }
 
-class Builtin_typecast
+class BuiltinExpr : BuiltinBase
 {
-    var type;
-    function Builtin_typecast(string type)
+    var exprfun;
+    function BuiltinExpr(string name, exprfun,
+        string typeresult,
+        string type0[optional],
+        string type1[optional],
+        string type2[optional],
+        string type3[optional])
     {
-        self.type = type;
+        self.BuiltinBase(name, null, typeresult, type0, type1, type2, type3);
+        self.exprfun = exprfun;
     }
-    function invoke [vtable](e, owner, start, string result, args)
+    function isreplaceexpr() { return true; }
+    function replaceexpr(owner, start, args)
     {
-        string type = self.type;
-        if (elements(args) != 1)
-            InternalError("Invalid Builtin_typecast.invoke call");
-        var rawarg = args[0];
-        string argtype = rawarg.checkresult();
-        switch {
-          case rawarg.isnull():
-            e.annotate(start);
-            e.emitnull(result);
-            break;
-          case argtype == type:
-          case rawarg instanceof IndexExpr:
-          case rawarg instanceof CallExpr:
-            rawarg.emit(e, result);
-            break;
-          default:
-            string arg = rawarg.emit_get(e);
-            __ASSERT__(arg != NULL);
-            e.annotate(start);
-            e.emitset(result, arg);
-        }
+        var exprfun = self.exprfun;
+        return exprfun(owner, start, args);
     }
-}
-
-function builtineval_stringcast(owner, start, args)
-{
-    return stringQuotedValue(owner, start, string_from_literal_arg1(args));
-}
-
-function builtineval_intcast(owner, start, args)
-{
-    int value = int_from_literal_arg1(args);
-    return integerValue(owner, start, value);
 }
 
 function Builtin_varcast(e, owner, start, string result, args)
@@ -1834,20 +1805,19 @@ function builtin_sleep(e, owner, start, result, args)
 
 function getbuiltins(builder)
 {
-    builder.add(new BuiltinFunctionEval("int",
-        builtineval_intcast,
-        new Builtin_typecast(REGint),
-        REGint, REGraw1
-    ));
-    builder.add(new BuiltinFunction("float",
-        new Builtin_typecast(REGfloat),
-        REGfloat, REGraw1
-    ));
-    builder.add(new BuiltinFunctionEval("string",
-        builtineval_stringcast,
-        new Builtin_typecast(REGstring),
+    builder.add(new BuiltinExpr("int",
+        builtinexpr_intcast,
         REGstring, REGraw1
     ));
+    builder.add(new BuiltinExpr("float",
+        builtinexpr_floatcast,
+        REGstring, REGraw1
+    ));
+    builder.add(new BuiltinExpr("string",
+        builtinexpr_stringcast,
+        REGstring, REGraw1
+    ));
+
     builder.add(new BuiltinFunction("var",
         Builtin_varcast,
         REGvar, REGraw1
@@ -6419,6 +6389,98 @@ function arglist_hascompilevalue(var arglist)
 }
 
 //*********************************************
+//           Builtin typecasts
+//*********************************************
+
+class CastExpr : FinalExpr
+{
+    var arg;
+    var type;
+    function CastExpr(owner, start, arg, string type)
+    {
+        self.Expr(owner, start);
+        self.arg = arg;
+        self.type = type;
+    }
+    function emit(e, result)
+    {
+        var arg = self.arg;
+        string type = self.type;
+        string argtype = arg.checkresult();
+        switch {
+          case arg instanceof IndexExpr:
+          case arg instanceof CallExpr:
+          case argtype == type:
+            arg.emit(e, result);
+            break;
+          case arg.isnull():
+            e.emitnull(result);
+            break;
+          default:
+            string aux = arg.emit_get(e);
+            e.emitset(result, aux);
+        }
+    }
+}
+
+class IntCastExpr : CastExpr
+{
+    function IntCastExpr(owner, start, arg)
+    {
+        self.CastExpr(owner, start, arg, REGint);
+    }
+    function checkresult() { return REGint; }
+}
+
+class FloatCastExpr : CastExpr
+{
+    function FloatCastExpr(owner, start, arg)
+    {
+        self.CastExpr(owner, start, arg, REGfloat);
+    }
+    function checkresult() { return REGfloat; }
+}
+
+class StringCastExpr : CastExpr
+{
+    function StringCastExpr(owner, start, arg)
+    {
+        self.CastExpr(owner, start, arg, REGstring);
+    }
+    function checkresult() { return REGstring; }
+}
+
+function builtinexpr_intcast(owner, start, args)
+{
+    __ASSERT__(args.numargs() == 1);
+    var arg = args.getarg(0).arg;
+    if (arg.hascompilevalue())
+        return integerValue(owner, start, int_from_literal(arg));
+    else
+        return new IntCastExpr(owner, start, arg);
+}
+
+function builtinexpr_floatcast(owner, start, args)
+{
+    __ASSERT__(args.numargs() == 1);
+    var arg = args.getarg(0).arg;
+    if (arg.hascompilevalue())
+        return floatValue(owner, start, float_from_literal(arg));
+    else
+        return new FloatCastExpr(owner, start, arg);
+}
+
+function builtinexpr_stringcast(owner, start, args)
+{
+    __ASSERT__(args.numargs() == 1);
+    var arg = args.getarg(0).arg;
+    if (arg.hascompilevalue())
+        return stringQuotedValue(owner, start, string_from_literal(arg));
+    else
+        return new StringCastExpr(owner, start, arg);
+}
+
+//*********************************************
 
 class CallBuiltinExpr : FinalExpr
 {
@@ -6558,6 +6620,9 @@ function gencallbuiltin(owner, start, builtin, args)
     }
     if (variant == null)
         SyntaxError("Wrong arguments for builtin", start);
+
+    if (variant.isreplaceexpr())
+        return variant.replaceexpr(owner, start, args);
 
     // Check for compile time evaluation.
     if (variant.iscompileevaluable()) {
