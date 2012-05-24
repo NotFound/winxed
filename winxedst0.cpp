@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 24-may-2012
+// Revision 25-may-2012
 
 // Winxed compiler stage 0.
 
@@ -1256,48 +1256,6 @@ public:
 
 //**********************************************************************
 
-class UsingStatement : public BaseStatement
-{
-public:
-    UsingStatement(Block &bl,
-        const std::string &name, const NamespaceKey &nspace);
-private:
-    void emit (Emit &e);
-
-    std::string n;
-    NamespaceKey ns;
-};
-
-//**********************************************************************
-
-class ExternStatement : public BaseStatement
-{
-public:
-    ExternStatement(Tokenizer &tk);
-private:
-    void emit (Emit &e)
-    {
-        e << INDENT "load_bytecode '" << n << ".pbc'\n";
-    }
-
-    std::string n;
-};
-
-ExternStatement::ExternStatement(Tokenizer &tk)
-{
-    Token t;
-    do {
-        t= tk.get();
-        if (!n.empty() )
-            n+= '/';
-        n+= t.identifier();
-        t= tk.get();
-    } while (t.isop('.') );
-    RequireOp(';', t);
-}
-
-//**********************************************************************
-
 class Expr : public InBlock
 {
 public:
@@ -2091,28 +2049,6 @@ void FunctionParameter::emit (Emit &e)
 
 //**********************************************************************
 
-BaseStatement *parseUsing(Block &block, Tokenizer &tk)
-{
-    Token t= tk.get();
-    if (t.iskeyword("extern"))
-    {
-        return new ExternStatement(tk);
-    }
-    else
-    {
-        NamespaceKey ns;
-        std::string name= t.identifier();
-        while((t= tk.get()).isop('.'))
-        {
-            ns= NamespaceKey(ns, name);
-            t= tk.get();
-            name= t.identifier();
-        }
-        RequireOp(';', t);
-        return new UsingStatement(block, name, ns);
-    }
-}
-
 BaseStatement *parseFor(Block &block, Tokenizer &tk)
 {
     Token t1= tk.get();
@@ -2161,9 +2097,6 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
         return new EmptyStatement();
     if (t.isop('{') )
         return new CompoundStatement(block, tk);
-    if (t.iskeyword("using"))
-        return parseUsing(block, tk);
-
     switch(nativetype(t))
     {
     case REGint:
@@ -5347,27 +5280,6 @@ BaseStatement * parseConst(Block & block, const Token &st, Tokenizer &tk)
     } while (t.isop(','));
     RequireOp (';', t);
     return multi;
-}
-
-//**********************************************************************
-
-UsingStatement::UsingStatement(Block &bl,
-        const std::string &name, const NamespaceKey &nspace) :
-    n(name), ns(nspace)
-{
-    bl.genlocal(n, REGvar);
-}
-
-void UsingStatement::emit (Emit &e)
-{
-    e << INDENT ".local pmc " << n << '\n' << INDENT;
-    if (! ns.isroot() )
-        e  << n <<
-            " = get_hll_global " << ns.get_key() <<
-            ", '" << n << "'\n";
-    else
-        e  << n <<
-            " = get_hll_global '" << n << "'\n";
 }
 
 //**********************************************************************
