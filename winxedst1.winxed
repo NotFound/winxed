@@ -226,7 +226,6 @@ class Token
     function isidentifier()   { return false; }
     function isint()          { return false; }
     function isstring()       { return false; }
-    function issinglequoted() { return false; }
 
     function getintvalue()
     {
@@ -375,76 +374,6 @@ class TokenQuoted : TokenString
     }
 }
 
-class TokenSingleQuoted : TokenString
-{
-    function TokenSingleQuoted(string file, int line, string str)
-    {
-        self.TokenWithVal(file, line, str);
-    }
-    function issinglequoted() { return true; }
-    function get_string[vtable]()
-    {
-        return "'" + string(self.str) + "'";
-    }
-    function viewable()
-    {
-        return "'" + string(self.str) + "'";
-    }
-    function getasquoted()
-    {
-        string s = "";
-        for (string c in self.str) {
-            switch (c) {
-              case "\"":
-              case "\\":
-              case "'":
-                c = "\\" + c;
-                break;
-            }
-            s = s + c;
-        }
-        return s;
-    }
-    function getPirString()
-    {
-        string str = self.str;
-        string quote = "'";
-        int need_escape = false;
-        for (int code in str) {
-            if (code < 32 || code > 127) {
-                need_escape = true;
-                break;
-            }
-        }
-        int need_encoding = false;
-        if (need_escape) {
-            quote = "\"";
-            string result = "";
-            for (string c in str) {
-                if (c == "\\")
-                    result = result + "\\\\";
-                else
-                {
-                    int n = ord(c);
-                    if (n < 32 || n > 127) {
-                        if (n > 127)
-                            need_encoding = true;
-                        string h = n.get_as_base(16);
-                        result = result + "\\x{" + h + "}";
-                    }
-                    else
-                        result = result + c;
-                }
-            }
-            str = result;
-        }
-        str = quote + str + quote;
-        if (need_encoding)
-            str = "utf8:" + str;
-        return str;
-    }
-}
-
 class TokenInteger : TokenWithVal
 {
     function TokenInteger(string file, int line, string str)
@@ -505,18 +434,6 @@ function getquoted(tk, string start, int line)
         }
     }
     return new TokenQuoted(tk.filename, line, s);
-}
-
-function getsinglequoted(tk, string start, int line)
-{
-    string s = "";
-    string c;
-    for (c = tk.getchar(); c != "'"; c = tk.getchar()) {
-        if (c == "" || c == "\n")
-            UnterminatedString(tk, line);
-        s = s + c;
-    }
-    return new TokenSingleQuoted(tk.filename, line, s);
 }
 
 function getheredoc(tk, string start, int linenum)
@@ -649,7 +566,6 @@ class Tokenizer
         var select = {
             "$": { "": getident, "{": getop },
             "\"": getquoted,
-            "'": getsinglequoted,
             "=": {
                 "=": { "": getop, "=": getop },
                 ":": getop
@@ -3067,15 +2983,8 @@ function concat_literal(lexpr, rexpr)
 
     var etok = lexpr.strval;
     var rtok = rexpr.strval;
-    // If both are single quoted, result is single quoted.
-    // If one is double quoted, result is double quoted.
-    var t = etok.issinglequoted() && rtok.issinglequoted()
-        ?
-        new TokenSingleQuoted(etok.file, etok.line,
-                string(etok.str) + string(rtok.str))
-        :
-        new TokenQuoted(etok.file, etok.line,
-                string(etok.getasquoted()) + string(rtok.getasquoted()));
+    var t = new TokenQuoted(etok.file, etok.line,
+            string(etok.getasquoted()) + string(rtok.getasquoted()));
     return new StringLiteral(lexpr.owner, t);
 }
 
