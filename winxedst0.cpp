@@ -6438,7 +6438,7 @@ private:
         else if (name == "__STAGE__") {
             // This is stage 0
             return ConstantValue(REGstring,
-                    Token(TokenTSingleQuoted, "0", 0, "__predefconst__"));
+                    Token(TokenTQuoted, "0", 0, "__predefconst__"));
         }
         else if (name == "__DEBUG__") {
             return ConstantValue(REGint,

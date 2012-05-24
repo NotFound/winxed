@@ -20,7 +20,7 @@ function main()
         default:
             check = 3;
     }
-    is(check, 2, 'simple expression-less switch');
+    is(check, 2, "simple expression-less switch");
 
     i = 4;
     check = 0;
@@ -34,7 +34,7 @@ function main()
         default:
             check = 3;
     }
-    is(check, 3, 'default case for switch');
+    is(check, 3, "default case for switch");
 }
 
 // End

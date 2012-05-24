@@ -23,9 +23,9 @@ function main()
 
     plan(3);
     var bar = new Bar;
-    is(bar.f1(), 'Bar.f1', 'overrides parent function');
-    is(bar.f2(), 'Foo.f2', 'uses parent function');
-    is(bar.f3(), 'Bar.f1', 'parent function uses child override with self');
+    is(bar.f1(), "Bar.f1", "overrides parent function");
+    is(bar.f2(), "Foo.f2", "uses parent function");
+    is(bar.f3(), "Bar.f1", "parent function uses child override with self");
 }
 
 // End

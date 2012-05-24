@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 24-nov-2011
+// Revision 24-may-2012
 
 #include "token.h"
 #include "errors.h"
@@ -8,8 +8,6 @@
 
 #include <string.h>
 #include <stdlib.h>
-
-static std::string unsinglequote (const std::string &s);
 
 //**********************************************************************
 
@@ -92,8 +90,6 @@ std::string Token::identifier() const
 std::string Token::pirliteralstring() const
 {
     switch (ttype) {
-    case TokenTSingleQuoted:
-        return unsinglequote(s);
     case TokenTQuoted:
         return unquote(s);
     default:
@@ -106,8 +102,6 @@ std::string Token::describe() const
     switch (ttype) {
     case TokenTEOF:
         return "*End of file*";
-    case TokenTSingleQuoted:
-        return "'" + s + "'";
     case TokenTQuoted:
         return "\"" + unquote(s) + "\"";
     case TokenTOperator:
@@ -131,11 +125,8 @@ bool Token::isidentifier() const
 bool Token::isinteger() const
 { return ttype == TokenTInteger; }
 
-bool Token::issinglequoted() const
-{ return ttype == TokenTSingleQuoted; }
-
 bool Token::isliteralstring() const
-{ return ttype == TokenTSingleQuoted || ttype == TokenTQuoted; }
+{ return ttype == TokenTQuoted; }
 
 bool Token::isop(const std::string &name) const
 {
@@ -221,21 +212,6 @@ std::string unquote (const std::string &s)
         }
     }
     return (nonascii ? "utf8:\"" : "\"") + r + "\"";
-}
-
-static std::string unsinglequote (const std::string &s)
-{
-    bool nonascii= false;
-    for (size_t i= 0; i < s.size(); ++i)
-    {
-        unsigned char c= s[i];
-        if (c > 127)
-            nonascii= true;
-    }
-    if (nonascii)
-        return unquote(s);
-    else
-        return '\'' + s + '\'';
 }
 
 //**********************************************************************
@@ -326,21 +302,6 @@ Token Tokenizer::getquoted()
         throw SyntaxError ("Unterminated string ",
             Token(TokenTQuoted, s, linenum, name));
     return Token(TokenTQuoted, s, linenum, name);
-}
-
-Token Tokenizer::getsinglequoted()
-{
-    std::string s;
-    unsigned int linenum = ln;
-    char c;
-    while ((c= getchar()) && is && c != '\'' && c != '\n')
-        s+= c;
-    if ((!is) || c != '\'')
-    {
-        throw SyntaxError("Unterminated string",
-            Token(TokenTSingleQuoted, s, linenum, name));
-    }
-    return Token(TokenTSingleQuoted, s, linenum, name);
 }
 
 Token Tokenizer::getheredoc()
@@ -510,8 +471,6 @@ Token Tokenizer::getany ()
             ungetchar(c);
         }
         break;
-    case '\'':
-        return getsinglequoted ();
     case '"':
         return getquoted ();
     case '0':

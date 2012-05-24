@@ -2,7 +2,7 @@
 
 function aux()
 {
-    throw new 'Exception'({ 'message': 'something bad' });
+    throw new "Exception"({ "message": "something bad" });
 }
 
 function main()
@@ -15,6 +15,6 @@ function main()
     try aux();
     catch (e)
     {
-        is(e['message'], 'something bad', 'get Exception message');
+        is(e["message"], "something bad", "get Exception message");
     }
 }

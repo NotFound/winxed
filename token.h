@@ -2,7 +2,7 @@
 #define INCLUDE_TOKEN_H
 
 // token.h
-// Revision 10-jul-2010
+// Revision 24-may-2012
 
 #include <string>
 #include <istream>
@@ -14,7 +14,6 @@ enum TokenType
 	TokenTComment,
 	TokenTWhiteSpace,
 	TokenTInteger,
-	TokenTSingleQuoted,
 	TokenTQuoted,
 	TokenTIdentifier,
 	TokenTOperator,
@@ -68,7 +67,6 @@ private:
 	char getchar();
 	void ungetchar(char c);
 	Token getquoted();
-	Token getsinglequoted();
 	Token getheredoc();
 	Token getany();
 

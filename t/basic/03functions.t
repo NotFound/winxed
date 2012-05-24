@@ -9,13 +9,13 @@ function main()
     plan(3);
 
     int i = retint();
-    is(i, 42, 'return int to int');
+    is(i, 42, "return int to int");
 
     var p = retint();
-    is(p, 42, 'return int to var');
+    is(p, 42, "return int to var");
 
     int j = retinteger();
-    is (j, 69, 'return var to int');
+    is (j, 69, "return var to int");
 }
 
 function retint()

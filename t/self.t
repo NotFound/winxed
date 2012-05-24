@@ -25,7 +25,7 @@ function main()
 
     var f= new Foo;
     f.init(42);
-    is(f.get(), 42, 'set and get via self');
+    is(f.get(), 42, "set and get via self");
 }
 
 // End
