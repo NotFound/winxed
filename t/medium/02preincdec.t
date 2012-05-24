@@ -12,12 +12,12 @@ function main()
     int c;
 
     c = ++a;
-    is (c, 70, 'pre ++ result');
-    is (a, 70, 'pre ++ side effect');
+    is (c, 70, "pre ++ result");
+    is (a, 70, "pre ++ side effect");
 
     c = --a;
-    is (c, 69, 'pre -- result');
-    is (a, 69, 'pre -- side effect');
+    is (c, 69, "pre -- result");
+    is (a, 69, "pre -- side effect");
 }
 
 // End
