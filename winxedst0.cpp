@@ -4680,14 +4680,6 @@ Expr * parseExpr_4(BlockBase &block, Tokenizer &tk)
         Expr *subexpr= parseExpr_4(block, tk);
         return new OpBinNotExpr(block, t, subexpr);
     }
-    else if (t.iskeyword("delete"))
-    {
-        throw UnsupportedInStage("operator delete", t);
-    }
-    else if (t.iskeyword("exists"))
-    {
-        throw UnsupportedInStage("operator exists", t);
-    }
     else
     {
         tk.unget(t);
@@ -4871,17 +4863,6 @@ Expr * parseExpr_14(BlockBase &block, Tokenizer &tk)
     return subexpr;
 }
 
-enum AssignOp { AssignOpNone,
-    SimpleAssignOp, AssignToOp
-};
-
-AssignOp getAssignOp(const Token &t)
-{
-    if (t.isop('=')) return SimpleAssignOp;
-    if (t.isop("=:")) return AssignToOp;
-    return AssignOpNone;
-}
-
 Expr * parseExpr_15(BlockBase &block, Tokenizer &tk)
 {
     Expr *subexpr= parseExpr_14(block, tk);
@@ -4903,18 +4884,10 @@ Expr * parseExpr_16(BlockBase &block, Tokenizer &tk)
 {
     Expr *subexpr= parseExpr_15(block, tk);
     Token t;
-    AssignOp op;
-    while ((op= getAssignOp(t= tk.get())) != AssignOpNone)
+    while ((t= tk.get()).isop('='))
     {
         Expr *subexpr2= parseExpr_16(block, tk);
-        switch (op)
-        {
-        case SimpleAssignOp:
-            subexpr= new OpAssignExpr(block, t, subexpr, subexpr2);
-            break;
-        default:
-            throw UnsupportedInStage("operator " + t.str(), t);
-        }
+        subexpr= new OpAssignExpr(block, t, subexpr, subexpr2);
     }
     tk.unget(t);
     return subexpr;
@@ -6806,8 +6779,6 @@ void Winxed::parse (Tokenizer &tk)
         }
         else if (t.iskeyword("using"))
             parsensUsing(t, tk, *cur_nsblock, cur_namespace);
-        else if (t.iskeyword("$include_const") || t.iskeyword("$loadlib"))
-            throw UnsupportedInStage(t.str(), t);
         else if (t.iskeyword("$load"))
         {
             Token loadname = tk.get();
