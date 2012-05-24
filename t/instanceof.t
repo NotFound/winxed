@@ -2,6 +2,8 @@
 
 // Mininal tests of instanceof operator
 
+using extern Test.More plan, is;
+
 class MyArray : "ResizablePMCArray"
 {
 }
@@ -12,10 +14,6 @@ class OtherArray : MyArray
 
 function main [main] ()
 {
-    using extern Test.More;
-    using Test.More.plan;
-    using Test.More.is;
-
     plan(4);
 
     var a = new "ResizableBooleanArray";

@@ -1,5 +1,7 @@
 #! winxed
 
+using extern Test.More plan, is;
+
 function aux()
 {
     throw new "Exception"({ "message": "something bad" });
@@ -7,10 +9,6 @@ function aux()
 
 function main()
 {
-    using extern Test.More;
-    using Test.More.plan;
-    using Test.More.is;
-
     plan(1);
     try aux();
     catch (e)

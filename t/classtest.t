@@ -2,12 +2,13 @@
 
 // Mininal tests of class
 
+using extern Test.More plan, ok;
+
 class Foo
 {
     function num () { return 1; }
     function do()
     {
-        using Test.More.ok;
         ok(1);
     }
 }
@@ -17,7 +18,6 @@ class Bar
     function num () { return 2; }
     function do()
     {
-        using Test.More.ok;
         ok(1);
         ok(1);
     }
@@ -32,8 +32,6 @@ function main()
     {
         total = total + t.num();
     }
-    using extern Test.More;
-    using Test.More.plan;
     plan(total);
     for (t in tests)
         t.do();

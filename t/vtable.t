@@ -2,6 +2,8 @@
 
 // Mininal test for vtable overrides
 
+using extern Test.More plan, is;
+
 class Foo
 {
     function get_string [vtable] ()
@@ -12,10 +14,6 @@ class Foo
 
 function main()
 {
-    using extern Test.More;
-    using Test.More.plan;
-    using Test.More.is;
-
     plan(1);
     var f= new Foo;
     string s= f;

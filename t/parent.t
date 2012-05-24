@@ -2,6 +2,8 @@
 
 // Minimal tests of parent class
 
+using extern Test.More plan, is;
+
 class Foo
 {
     var n;
@@ -17,10 +19,6 @@ class Bar : Foo
 
 function main()
 {
-    using extern Test.More;
-    using Test.More.plan;
-    using Test.More.is;
-
     plan(3);
     var bar = new Bar;
     is(bar.f1(), "Bar.f1", "overrides parent function");

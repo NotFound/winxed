@@ -2,6 +2,8 @@
 
 // Basic tests for self
 
+using extern Test.More plan, is;
+
 class Foo
 {
     var n;
@@ -18,9 +20,6 @@ class Foo
 
 function main()
 {
-    using extern Test.More;
-    using Test.More.plan;
-    using Test.More.is;
     plan (1);
 
     var f= new Foo;

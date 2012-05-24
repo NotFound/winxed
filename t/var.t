@@ -1,11 +1,9 @@
 #! winxed
 
+using extern Test.More plan, is;
+
 function main()
 {
-    using extern Test.More;
-    using Test.More.plan;
-    using Test.More.is;
-
     plan(4);
     var a = 1;
     is(a, 1, "initialize from int");
