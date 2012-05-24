@@ -4398,8 +4398,6 @@ class OpBinNotExpr : OpUnaryExpr
             int n = subexpr.getIntegerValue();
             return integerValue(self.owner, subexpr.start, ~ n);
         }
-        if (subexpr.isnegable())
-            return subexpr.negated();
         return self;
     }
     function emit(e, string result)
