@@ -3609,18 +3609,6 @@ class OpBinNotExpr : OpUnaryExpr
         self.OpUnaryExpr(owner, t, subexpr);
         return self;
     }
-    function optimize()
-    {
-        self.optimizearg();
-        var subexpr = self.subexpr;
-        if (subexpr.isintegerliteral()) {
-            int n = subexpr.getIntegerValue();
-            return integerValue(self.owner, subexpr.start, ~ n);
-        }
-        if (subexpr.isnegable())
-            return subexpr.negated();
-        return self;
-    }
     function emit(e, string result)
     {
         var subexpr = self.subexpr;
