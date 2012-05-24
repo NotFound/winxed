@@ -6,7 +6,7 @@ using extern Test.More plan, ok, is, is_null;
 
 function main()
 {
-    plan(12);
+    plan(10);
 
     var obj;
 
@@ -29,13 +29,6 @@ function main()
     obj = new Bar();
     ok(obj instanceof Bar, "new with empty argument list with constructor");
     is(obj.b, "Hi", "constructor is invoked");
-
-    obj = null;
-    obj = new Hill.Fool;
-    ok(obj != null && obj.attr == null, "new dotted without arguments");
-
-    obj = new Hill.Fool();
-    is(obj.attr, 42, "new dotted with empty argument list");
 
     obj = new "String";
     ok(obj instanceof "String", "new with string literal");
@@ -62,20 +55,6 @@ class Bar
     {
         self.b = "Hi";
     }
-}
-
-namespace Hill
-{
-
-class Fool
-{
-    var attr;
-    function Fool()
-    {
-        self.attr = 42;
-    }
-}
-
 }
 
 // End
