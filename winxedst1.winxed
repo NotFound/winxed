@@ -586,7 +586,6 @@ class Tokenizer
             "!": {
                 "=": { "": getop, "=": getop }
             },
-            "%": { "%": getop, "=": getop },
             "/": { "=": getop, "/": getlinecomment, "*": getcomment },
             "#": getlinecomment
         };
@@ -5055,31 +5054,6 @@ class OpModExpr : OpBinaryIntExpr
 
 //*********************************************
 
-class OpCModExpr : OpBinaryExpr
-{
-    function OpCModExpr(owner, start, lexpr, rexpr)
-    {
-        self.set(owner, start, lexpr, rexpr);
-    }
-    function checkresult()
-    {
-        return REGint;
-    }
-    function emit(e, string result)
-    {
-        string lreg = self.emit_intleft(e);
-        string rreg = self.emit_intright(e);
-        self.annotate(e);
-
-        // WORKAROUND:
-        // e.say("cmod ", result, ", ", lreg, ", ", rreg);
-        // cmod is now a dynop. Silly workaround, use mod instead.
-        e.emitbinop("mod", result, lreg, rreg);
-    }
-}
-
-//*********************************************
-
 class OpShiftleftExpr : OpBinaryIntExpr
 {
     function OpShiftleftExpr(owner, start, lexpr, rexpr)
@@ -6525,7 +6499,7 @@ const int
     Code_mul           = 19,
     Code_div           = 20,
     Code_mod           = 21,
-    Code_cmod          = 22,
+    // cmod not supported in this stage
     Code_mul_assign    = 23,
     Code_div_assign    = 24,
     Code_same          = 25,
@@ -6570,7 +6544,6 @@ function getOpCode_5(t)
     case "*":  return Code_mul;
     case "/":  return Code_div;
     case "%":  return Code_mod;
-    case "%%": return Code_cmod;
     default:   return Code_none;
     }
 }
@@ -6750,9 +6723,6 @@ function parseExpr_5(tk, owner)
             break;
           case Code_mod:
             lexpr = new OpModExpr(owner, t, lexpr, rexpr);
-            break;
-          case Code_cmod:
-            lexpr = new OpCModExpr(owner, t, lexpr, rexpr);
             break;
           default:
             InternalError("Invalid code in parseExpr_5", t);
