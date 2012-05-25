@@ -994,13 +994,6 @@ public:
         newkey.pop_back();
         return NamespaceKey(newkey);
     }
-    std::string getid() const
-    {
-        std::string r= "__Id";
-        for (size_t i= 0; i < key.size(); ++i)
-            r+= '_' + key [i];
-        return r;
-    }
     std::string get_key() const
     {
         std::string r= "[ ";
@@ -1133,7 +1126,6 @@ std::string FunctionBlock::genlocallabel()
 
 //**********************************************************************
 
-class FunctionStatement;
 class NamespaceBlockBase;
 class Expr;
 
@@ -1956,10 +1948,9 @@ class FunctionStatement : protected FunctionModifiers, public FunctionBlock
 public:
     FunctionStatement(Tokenizer &tk, const Token &st,
         Block &parent,
-        const NamespaceKey & ns_a, const std::string &funcname);
-    std::string getsubid() const;
+        const std::string &funcname);
+    virtual std::string getsubid() const;
     std::string getname() const { return name; }
-    NamespaceKey getnamespace() const { return ns; }
     void optimize();
     virtual void emit (Emit &e);
     void local(std::string name);
@@ -1969,7 +1960,6 @@ public:
     virtual ~FunctionStatement() {}
 private:
     const Token start;
-    const NamespaceKey ns;
     const std::string name;
     std::vector <std::string> params;
     std::map <std::string, FunctionParameter *> paraminfo;
@@ -1989,6 +1979,7 @@ public:
     std::vector <Token> attributes() const { return attrs; }
     void optimize();
     const NamespaceKey &getkey() const;
+    void emitkey (Emit &e) const;
 private:
     unsigned int subblocks;
     unsigned int blockid()
@@ -6048,11 +6039,11 @@ void DoStatement::emit(Emit &e)
 
 FunctionStatement::FunctionStatement(Tokenizer &tk, const Token &st,
         Block &parent,
-        const NamespaceKey & ns_a, const std::string &funcname) :
+        const std::string &funcname) :
     FunctionModifiers(parent, tk),
     FunctionBlock(parent),
     start(st),
-    ns(ns_a), name(funcname)
+    name(funcname)
 {
     Token t= tk.get();
     RequireOp('(', t);
@@ -6081,7 +6072,7 @@ FunctionStatement::FunctionStatement(Tokenizer &tk, const Token &st,
 
 std::string FunctionStatement::getsubid() const
 {
-    return ns.getid() + "__" + name;
+    return "__Id__" + name;
 }
 
 void FunctionStatement::local(std::string name)
@@ -6117,9 +6108,7 @@ void FunctionStatement::emitbody (Emit &e)
 
 void FunctionStatement::emit (Emit &e)
 {
-    getnamespace().emit (e);
-
-    e << "\n.sub '" << getname() << "'";
+    e << "\n.namespace [ ]\n.sub '" << getname() << "'";
     if (has_modifier("main") || name == "main")
         e << " :main";
     if (has_modifier("load"))
@@ -6335,19 +6324,21 @@ class MethodStatement : public FunctionStatement
 public:
     MethodStatement(Tokenizer &tk, const Token &st,
             Block &parent,
-            const NamespaceKey & ns_a,
             ClassStatement &cl,
             const std::string &name) :
-        FunctionStatement(tk, st, parent, ns_a, name),
+        FunctionStatement(tk, st, parent, name),
         myclass(cl)
     {
         genlocal("self", REGvar);
     }
+    std::string getsubid() const
+    {
+        return "__Id__" + myclass.getname() + "__" + getname();
+    }
     void emit (Emit &e)
     {
-        getnamespace().emit (e);
-
-        e << "\n.sub '" << getname() << "'";
+        myclass.emitkey(e);
+        e << ".sub '" << getname() << "'";
 
         if (has_modifier("vtable"))
             e << " :vtable";
@@ -6496,7 +6487,7 @@ ClassStatement::ClassStatement
             if (! name.isidentifier() )
                 throw Expected("method name", name);
             FunctionStatement *f = new MethodStatement
-                    (tk, t, *this, ns, *this, name.identifier());
+                    (tk, t, *this, *this, name.identifier());
             functions.push_back(f);
         }
         else if (t.iskeyword("var"))
@@ -6525,6 +6516,11 @@ const NamespaceKey &ClassStatement::getkey() const
     return ns;
 }
 
+void ClassStatement::emitkey (Emit &e) const
+{
+    ns.emit(e);
+}
+
 void ClassStatement::optimize()
 {
     for (size_t i= 0; i < constants.size(); ++i)
@@ -6535,7 +6531,7 @@ void ClassStatement::optimize()
 
 void ClassStatement::emit (Emit &e)
 {
-    ns.emit (e);
+    emitkey(e);
 
     emit_group(constants, e);
 
@@ -6562,7 +6558,7 @@ void ClassStatement::emit (Emit &e)
         e << INDENT "addattribute $P0, '" << attrname.identifier() << "'\n";
     }
 
-    e << ".end\n";
+    e << ".end\n\n";
 
     emit_group(functions, e);
 }
@@ -6623,7 +6619,6 @@ public:
 private:
     bool assertions;
     RootNamespaceBlock root_ns;
-    NamespaceKey cur_namespace;
     std::vector <ClassStatement *> classes;
     std::vector <FunctionStatement *> functions;
 };
@@ -6656,7 +6651,7 @@ void Winxed::parse (Tokenizer &tk)
             if (! fname.isidentifier() )
                 throw Expected("function name", fname);
             FunctionStatement *f = new FunctionStatement
-                    (tk, t, root_ns, cur_namespace, fname.identifier());
+                    (tk, t, root_ns, fname.identifier());
             functions.push_back(f);
             root_ns.add_function(f);
         }
