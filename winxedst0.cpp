@@ -1925,7 +1925,6 @@ public:
     std::string getname() const { return name; }
     void emit (Emit &e);
 private:
-    //FunctionStatement *fst;
     std::string name;
     char type;
     ModifierList modifiers;
@@ -1994,8 +1993,8 @@ private:
 };
 
 //**********************************************************************
-FunctionParameter::FunctionParameter(FunctionStatement *owner, Tokenizer &tk) //:
-        //fst(owner)
+
+FunctionParameter::FunctionParameter(FunctionStatement *owner, Tokenizer &tk)
 {
     Token t = tk.get();
     type= nativetype(t);
