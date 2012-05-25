@@ -154,11 +154,11 @@ test: test3
 
 # Test the --debug option and the compiler assertions:
 # - First compile stage1 with -debug option
-# - Then use that stage to compile stage1
+# - Then use that stage to compile stage2 with debug option
 # - Then use that new stage to run the tests
 
 testdebug: $(DRIVER).pbc winxedst2.pbc
-	parrot $(DRIVER).pbc --debug -c -o winxedst1_deb1.pir --stage=1 winxedst1.winxed
+	./winxedst0 --debug -o winxedst1_deb1.pir winxedst1.winxed
 	parrot -o winxedst1_deb1.pbc winxedst1_deb1.pir
 	parrot winxedst1_deb1.pbc --debug -o winxedst2_deb1.pir winxedst2.winxed
 	parrot -o winxedst2_deb1.pbc winxedst2_deb1.pir
