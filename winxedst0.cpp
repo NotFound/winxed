@@ -973,12 +973,16 @@ std::string SubBlock::genlocallabel()
 
 class NamespaceKey
 {
+    typedef std::vector <std::string> key_t;
 public:
     NamespaceKey() { }
-    NamespaceKey(const NamespaceKey &parent, const std::string &name) :
-        key(parent.key)
+    NamespaceKey(const std::string &name) :
+        key(1, name)
     {
-        key.push_back(name);
+    }
+    NamespaceKey(const key_t &newkey) :
+        key(newkey)
+    {
     }
     bool isroot() const
     {
@@ -986,9 +990,9 @@ public:
     }
     NamespaceKey parent() const
     {
-        NamespaceKey newparent(*this);
-        newparent.key.pop_back();
-        return newparent;
+        key_t newkey = key;
+        newkey.pop_back();
+        return NamespaceKey(newkey);
     }
     std::string getid() const
     {
@@ -1015,7 +1019,6 @@ public:
     }
 private:
     std::vector <std::string> key;
-    NamespaceKey *parentns;
 };
 
 //**********************************************************************
@@ -1447,7 +1450,7 @@ protected:
 class FunctionModifiers : public ModifierList
 {
 public:
-    FunctionModifiers(BlockBase &block, Tokenizer &tk, const NamespaceKey &)
+    FunctionModifiers(BlockBase &block, Tokenizer &tk)
     {
         Token t= tk.get();
         if (! t.isop('[') )
@@ -1980,7 +1983,7 @@ private:
 class ClassStatement : public SubBlock
 {
 public:
-    ClassStatement(NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a);
+    ClassStatement(NamespaceBlockBase &ns_b, Tokenizer &tk);
     const std::string &getname() const { return name; }
     void emit (Emit &e);
     std::vector <Token> attributes() const { return attrs; }
@@ -6046,7 +6049,7 @@ void DoStatement::emit(Emit &e)
 FunctionStatement::FunctionStatement(Tokenizer &tk, const Token &st,
         Block &parent,
         const NamespaceKey & ns_a, const std::string &funcname) :
-    FunctionModifiers(parent, tk, ns_a),
+    FunctionModifiers(parent, tk),
     FunctionBlock(parent),
     start(st),
     ns(ns_a), name(funcname)
@@ -6143,16 +6146,13 @@ void FunctionStatement::emit (Emit &e)
 class External
 {
 public:
-    External(NamespaceKey namespacekey,
-            std::vector<std::string> module, std::vector<std::string> names) :
-        nskey(namespacekey),
+    External(std::vector<std::string> module, std::vector<std::string> names) :
         mod(module),
         n(names)
     {
     }
     void emit(Emit &e)
     {
-        nskey.emit(e);
         e <<
 ".sub 'importextern' :anon :load :init\n"
 "    .local pmc ex, curns, srcns, symbols\n"
@@ -6176,12 +6176,9 @@ public:
        ;
     }
 private:
-    NamespaceKey nskey;
     std::vector<std::string> mod;
     std::vector<std::string> n;
 };
-
-class NamespaceBlock;
 
 class NamespaceBlockBase : public Block
 {
@@ -6194,10 +6191,6 @@ public:
     void addconstant(BaseStatement *cst)
     {
         constants.push_back(cst);
-    }
-    void addnamespace(NamespaceBlock *ns)
-    {
-        namespaces.push_back(ns);
     }
     void addclass(ClassStatement *cl)
     {
@@ -6228,14 +6221,11 @@ public:
             return it->second;
         return 0;
     }
-    virtual NamespaceBlockBase *getparent () { return 0; }
-    ClassStatement *findclass_base(const ClassKey &classkey);
-    virtual ClassStatement *findclass(const ClassKey &classkey) = 0;
+    ClassStatement *findclass(const ClassKey &classkey);
     virtual void addload(const std::string &loadname) = 0;
-    void addextern(NamespaceKey nskey, std::vector<std::string> module,
-            std::vector<std::string> names)
+    void addextern(std::vector<std::string> module, std::vector<std::string> names)
     {
-        externals.push_back(new External(nskey, module, names));
+        externals.push_back(new External(module, names));
     }
 private:
     std::string genlocallabel()
@@ -6251,7 +6241,6 @@ private:
     }
 
     std::vector <BaseStatement *> constants;
-    std::vector <NamespaceBlock *> namespaces;
     std::vector <ClassStatement *> classes;
     mapfunc_t functions;
     std::vector <External *> externals;
@@ -6310,12 +6299,11 @@ private:
         }
         else throw InternalError("No such constant");
     }
-    ClassStatement *findclass(const ClassKey &classkey);
+public:
     void addload(const std::string &loadname)
     {
         loads.push_back(loadname);
     }
-public:
     void emitloads(Emit &e)
     {
         for (size_t i = 0; i < loads.size(); ++i)
@@ -6326,79 +6314,18 @@ private:
     std::vector <std::string> loads;
 };
 
-class NamespaceBlock : public NamespaceBlockBase
-{
-public:
-    NamespaceBlock(const std::string &name, NamespaceBlockBase &parentns) :
-        nsname(name),
-        parentnbb(parentns),
-        parent(parentns)
-    {
-    }
-    std::string getname() const { return nsname; }
-    char checkconstant(const std::string &name) const
-    {
-        char c= Block::checkconstant(name);
-        if (c == '\0')
-            c= parentnbb.checkconstant(name);
-        return c;
-    }
-    ConstantValue getconstant(const std::string &name) const
-    {
-        if (Block::checkconstant(name))
-            return Block::getconstant(name);
-        else
-            return parentnbb.getconstant(name);
-    }
-    NamespaceBlockBase *getparent () { return &parentnbb; }
-    ClassStatement *findclass(const ClassKey &classkey);
-    void addload(const std::string &loadname)
-    {
-        parentnbb.addload(loadname);
-    }
-private:
-    const std::string nsname;
-    NamespaceBlockBase &parentnbb;
-    Block &parent;
-};
-
 //**********************************************************************
 
-ClassStatement *NamespaceBlockBase::findclass_base(const ClassKey &classkey)
+ClassStatement *NamespaceBlockBase::findclass(const ClassKey &classkey)
 {
-    const std::string &name = classkey[0];
     if (classkey.size() == 1)
     {
+        const std::string &name = classkey[0];
         for (size_t i = 0; i < classes.size(); ++i)
             if (classes[i]->getname() == name)
                 return classes[i];
-        return 0;
     }
-    else
-    {
-        for (size_t i = 0; i < namespaces.size(); ++i)
-            if (namespaces[i]->getname() == name)
-            {
-                std::vector<std::string> localkey(++classkey.begin(), classkey.end());
-                ClassStatement *result = namespaces[i]->findclass(localkey);
-                if (result)
-                    return result;
-            }
-        return 0;
-    }
-}
-
-ClassStatement *RootNamespaceBlock::findclass(const ClassKey &classkey)
-{
-    return findclass_base(classkey);
-}
-
-ClassStatement *NamespaceBlock::findclass(const ClassKey &classkey)
-{
-    ClassStatement *cl = findclass_base(classkey);
-    if (! cl)
-        cl = parentnbb.findclass(classkey);
-    return cl;
+    return 0;
 }
 
 //**********************************************************************
@@ -6543,7 +6470,7 @@ ClassSpecifier *parseClassSpecifier(const Token &start, Tokenizer &tk,
 //**********************************************************************
 
 ClassStatement::ClassStatement
-    (NamespaceBlockBase &ns_b, Tokenizer &tk, NamespaceKey &ns_a) :
+    (NamespaceBlockBase &ns_b, Tokenizer &tk) :
         SubBlock(ns_b),
         subblocks(0)
 {
@@ -6560,7 +6487,7 @@ ClassStatement::ClassStatement
     }
     RequireOp('{', t);
 
-    ns= NamespaceKey(ns_a, name);
+    ns= NamespaceKey(name);
     while (! (t= tk.get()).isop('}'))
     {
         if (t.iskeyword("function"))
@@ -6642,8 +6569,7 @@ void ClassStatement::emit (Emit &e)
 
 //**********************************************************************
 
-void parsensUsing(const Token &start, Tokenizer &tk,
-        NamespaceBlockBase &ns, NamespaceKey nskey)
+void parsensUsing(const Token &start, Tokenizer &tk, NamespaceBlockBase &ns)
 {
     Token t = tk.get();
     if (!t.iskeyword("extern"))
@@ -6669,7 +6595,7 @@ void parsensUsing(const Token &start, Tokenizer &tk,
             names.push_back(t.identifier());
         } while ((t = tk.get()).isop(','));
         RequireOp(';', t);
-        ns.addextern(nskey, module, names);
+        ns.addextern(module, names);
     }
     std::string reqmodule = module[0];
     for (size_t i = 1; i < module.size(); ++i)
@@ -6688,10 +6614,8 @@ class Winxed
 public:
     Winxed(bool debug) :
         assertions(debug),
-        root_ns(debug),
-        cur_nsblock(&root_ns)
+        root_ns(debug)
     {
-        namespaces.push_back(cur_nsblock);
     }
     void parse (Tokenizer &tk);
     void optimize ();
@@ -6699,9 +6623,7 @@ public:
 private:
     bool assertions;
     RootNamespaceBlock root_ns;
-    NamespaceBlockBase *cur_nsblock;
     NamespaceKey cur_namespace;
-    std::vector <NamespaceBlockBase *> namespaces;
     std::vector <ClassStatement *> classes;
     std::vector <FunctionStatement *> functions;
 };
@@ -6716,28 +6638,17 @@ void Winxed::parse (Tokenizer &tk)
         if (t.empty())
             break;
 
-        if (t.iskeyword("namespace"))
+        if (t.iskeyword("const"))
         {
-            t = tk.get();
-            std::string nsname = t.identifier();
-            cur_namespace= NamespaceKey(cur_namespace, nsname);
-            NamespaceBlock *new_ns = new NamespaceBlock(nsname, *cur_nsblock);
-            cur_nsblock->addnamespace(new_ns);
-            cur_nsblock = new_ns;
-            namespaces.push_back(cur_nsblock);
-            ExpectOp('{', tk);
-        }
-        else if (t.iskeyword("const"))
-        {
-            BaseStatement *cst= parseConst(*cur_nsblock, t, tk);
-            cur_nsblock->addconstant(cst);
+            BaseStatement *cst= parseConst(root_ns, t, tk);
+            root_ns.addconstant(cst);
         }
         else if (t.iskeyword("class"))
         {
             ClassStatement *c =
-                new ClassStatement (*cur_nsblock, tk, cur_namespace);
+                new ClassStatement (root_ns, tk);
             classes.push_back(c);
-            cur_nsblock->addclass(c);
+            root_ns.addclass(c);
         }
         else if (t.iskeyword("function"))
         {
@@ -6745,26 +6656,23 @@ void Winxed::parse (Tokenizer &tk)
             if (! fname.isidentifier() )
                 throw Expected("function name", fname);
             FunctionStatement *f = new FunctionStatement
-                    (tk, t, *cur_nsblock, cur_namespace, fname.identifier());
+                    (tk, t, root_ns, cur_namespace, fname.identifier());
             functions.push_back(f);
-            cur_nsblock->add_function(f);
+            root_ns.add_function(f);
         }
         else if (t.iskeyword("using"))
-            parsensUsing(t, tk, *cur_nsblock, cur_namespace);
+            parsensUsing(t, tk, root_ns);
         else if (t.iskeyword("$load"))
         {
             Token loadname = tk.get();
             if (! loadname.isliteralstring() )
                 throw Expected("filename", loadname);
             ExpectOp(';', tk);
-            cur_nsblock->addload(loadname.str());
+            root_ns.addload(loadname.str());
         }
         else if (t.isop('}'))
         {
-            if (cur_namespace.isroot())
-                throw SyntaxError("Unexpected '}'", t);
-            cur_namespace= cur_namespace.parent();
-            cur_nsblock= cur_nsblock->getparent();
+            throw SyntaxError("Unexpected '}'", t);
         }
         else
             throw SyntaxError("Unexpected statement", t);
@@ -6777,8 +6685,7 @@ void Winxed::optimize()
 
     root_ns.genconstant("null", 'n', Token(TokenTIdentifier, "null", 0, "(predef"));
 
-    for (size_t i= 0; i < namespaces.size(); ++i)
-        namespaces[i]->optimize();
+    root_ns.optimize();
     for (size_t i= 0; i < classes.size(); ++i)
         classes[i]->optimize();
     for (size_t i= 0; i < functions.size(); ++i)
@@ -6824,7 +6731,7 @@ void Winxed::emit (Emit &e)
     e.comment("End of initializations");
     e << "\n\n";
 
-    emit_group(namespaces, e);
+    root_ns.emit(e);
     emit_group(classes, e);
     emit_group(functions, e);
 
