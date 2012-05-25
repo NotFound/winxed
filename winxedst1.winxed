@@ -572,7 +572,6 @@ class Tokenizer
             },
             "+": { "+": getop, "=": getop },
             "-": { "-": getop, "=": getop },
-            "*": { "=": getop },
             "|": { "|": getop },
             "&": { "&": getop },
             "<": {
@@ -586,7 +585,7 @@ class Tokenizer
             "!": {
                 "=": { "": getop, "=": getop }
             },
-            "/": { "=": getop, "/": getlinecomment, "*": getcomment },
+            "/": { "/": getlinecomment, "*": getcomment },
             "#": getlinecomment
         };
         self.select = select;
@@ -3936,70 +3935,6 @@ class OpSubToExpr : OpBaseAssignExpr
 
 //*********************************************
 
-class OpMulToExpr : OpBaseAssignExpr
-{
-    function emit_get(e)
-    {
-        self.checkleft();
-        var lexpr = self.lexpr;
-        var rexpr = self.rexpr;
-        string lreg = lexpr.emit_get(e);
-        string rreg;
-        switch (lexpr.checkresult()) {
-          case REGstring:
-            rreg = rexpr.emit_getint(e);
-            self.annotate(e);
-            e.emitrepeat(lreg, lreg, rreg);
-            break;
-          default:
-            rreg = rexpr.emit_get(e);
-            self.annotate(e);
-            e.emitarg2("mul", lreg, rreg);
-        }
-        if (lexpr instanceof LexicalVolatileExpr)
-            lexpr.emit_store(e, lreg);
-        return lreg;
-    }
-}
-
-//*********************************************
-
-class OpDivToExpr : OpBaseAssignExpr
-{
-    function emit_get(e)
-    {
-        self.checkleft();
-        var lexpr = self.lexpr;
-        string reg = lexpr.emit_get(e);
-        string reg2 = self.rexpr.emit_get(e);
-        self.annotate(e);
-        e.emitarg2("div", reg, reg2);
-        if (lexpr instanceof LexicalVolatileExpr)
-            lexpr.emit_store(e, reg);
-        return reg;
-    }
-}
-
-//*********************************************
-
-class OpModToExpr : OpBaseAssignExpr
-{
-    function emit_get(e)
-    {
-        self.checkleft();
-        var lexpr = self.lexpr;
-        string reg = lexpr.emit_get(e);
-        string reg2 = self.rexpr.emit_get(e);
-        self.annotate(e);
-        e.emitarg2("mod", reg, reg2);
-        if (lexpr instanceof LexicalVolatileExpr)
-            lexpr.emit_store(e, reg);
-        return reg;
-    }
-}
-
-//*********************************************
-
 const int
     COMPARATOR_DEFAULT = 0,
     COMPARATOR_IF      = 1,
@@ -6499,16 +6434,14 @@ const int
     Code_mul           = 19,
     Code_div           = 20,
     Code_mod           = 21,
-    // cmod not supported in this stage
-    Code_mul_assign    = 23,
-    Code_div_assign    = 24,
+    // operators %%, *= and /= not supported in this stage
     Code_same          = 25,
     Code_not_same      = 26,
     Code_instanceof    = 27,
     Code_shiftleft     = 28,
     Code_shiftright    = 29,
     Code_shiftlright   = 30,
-    Code_mod_assign    = 31,
+    // operator %= not supported in this stage
     Code_delete        = 32,
     Code_exists        = 33,
     Code_bin_not       = 34;
@@ -6589,9 +6522,6 @@ function getOpCode_16(t)
     case "=:": return Code_assign_to;
     case "+=": return Code_add_assign;
     case "-=": return Code_sub_assign;
-    case "*=": return Code_mul_assign;
-    case "/=": return Code_div_assign;
-    case "%=": return Code_mod_assign;
     default:   return Code_none;
     }
 }
@@ -6940,15 +6870,6 @@ function parseExpr_16(tk, owner)
             break;
           case Code_sub_assign:
             expr = new OpSubToExpr;
-            break;
-          case Code_mul_assign:
-            expr = new OpMulToExpr;
-            break;
-          case Code_div_assign:
-            expr = new OpDivToExpr;
-            break;
-          case Code_mod_assign:
-            expr = new OpModToExpr;
             break;
           default:
             InternalError("Unexpected code in parseExpr_16", t);
