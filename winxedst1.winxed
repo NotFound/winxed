@@ -49,6 +49,11 @@ function sformat(string format, args[slurpy])
     return string(builder);
 }
 
+function quoted(string str)
+{
+    return "\"" + str + "\"";
+}
+
 // Algorithms
 
 function for_each(src, func)
@@ -341,11 +346,11 @@ class TokenQuoted : TokenString
     }
     function get_string[vtable]()
     {
-        return "\"" + string(self.str) + "\"";
+        return string(quoted(self.str));
     }
     function viewable()
     {
-        return "\"" + string(self.str) + "\"";
+        return string(quoted(self.str));
     }
     function getasquoted()
     {
@@ -368,9 +373,9 @@ class TokenQuoted : TokenString
                 break;
             }
         }
-        str = escape(strunesc);
+        str = quoted(escape(strunesc));
         string encoding = need_encoding ? "utf8:" : "";
-        return encoding + "\"" + str + "\"";
+        return encoding + str;
     }
 }
 
@@ -1162,7 +1167,7 @@ class BuiltinBase
               case REGraw1:
                 n = BULTIN_raw1;
                 if (type1 != null)
-                    InternalError("Invalid builtin '" + name + "\"");
+                    InternalError("Invalid builtin '" + name + "'");
                 break;
               default:
                 n = 1;
