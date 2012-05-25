@@ -5068,30 +5068,35 @@ class OpEqualExpr : ComparatorBaseExpr, Negable
         var rexpr = self.rexpr;
         int lnull = lexpr.isnull();
         int rnull = rexpr.isnull();
-        if (lnull) {
-            if (rnull)
-                return integerValue(self.owner, self.start, self.positive);
-            else
-                return new NullCheckerExpr(self, rexpr, self.positive);
-        }
-        if (rnull)
+        switch {
+          case lnull && rnull:
+            return integerValue(self.owner, self.start, self.positive);
+          case lnull:
+            return new NullCheckerExpr(self, rexpr, self.positive);
+          case rnull:
             return new NullCheckerExpr(self, lexpr, self.positive);
-        string ltype = lexpr.checkresult();
-        string rtype = rexpr.checkresult();
+        }
         if (lexpr.isliteral() && rexpr.isliteral()) {
-            if (ltype == rtype) {
-                switch (ltype) {
-                  case REGint:
-                    int li = lexpr.getIntegerValue();
-                    int ri = rexpr.getIntegerValue();
-                    int vi = self.positive ? li == ri : li != ri;
-                    return integerValue(self.owner, self.start, vi);
-                  case REGstring:
-                    string ls = (lexpr.strval).str;
-                    string rs = (rexpr.strval).str;
-                    int vs = self.positive ? ls == rs : ls != rs;
-                    return integerValue(self.owner, self.start, vs);
-                }
+            string ltype = lexpr.checkresult();
+            string rtype = rexpr.checkresult();
+            switch {
+              case ltype == REGint && rtype == REGint:
+                int li = lexpr.getIntegerValue();
+                int ri = rexpr.getIntegerValue();
+                int vi = self.positive ? li == ri : li != ri;
+                return integerValue(self.owner, self.start, vi);
+              case ltype == REGfloat && rtype == REGfloat:
+              case ltype == REGfloat && rtype == REGint:
+              case ltype == REGint   && rtype == REGfloat:
+                float lf = lexpr.getFloatValue();
+                float rf = rexpr.getFloatValue();
+                int vf = self.positive ? lf == rf : lf != rf;
+                return integerValue(self.owner, self.start, vf);
+              case ltype == REGstring && rtype == REGstring:
+                string ls = (lexpr.strval).str;
+                string rs = (rexpr.strval).str;
+                int vs = self.positive ? ls == rs : ls != rs;
+                return integerValue(self.owner, self.start, vs);
             }
         }
         if (rexpr.isintegerzero())
