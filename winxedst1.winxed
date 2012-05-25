@@ -4,11 +4,6 @@
                    Winxed stage 1 compiler
 ***********************************************************************/
 
-namespace Winxed
-{
-namespace Compiler
-{
-
 //*********************************************
 //          Character test functions
 //*********************************************
@@ -10500,11 +10495,6 @@ class WinxedCompileUnit
 
 //*********************************************
 
-} // namespace Compiler
-} // namespace Winxed
-
-//*********************************************
-
 function main [main](args)
 {
     int nargs = elements(args);
@@ -10536,15 +10526,15 @@ function main [main](args)
     var handlein = new ["FileHandle"];
     handlein.open(srcname, "r");
     handlein.encoding("utf8");
-    var tk = new Winxed.Compiler.Tokenizer(handlein, srcname, nowarn);
-    var winxed = new Winxed.Compiler.WinxedCompileUnit(nowarn, debug);
+    var tk = new Tokenizer(handlein, srcname, nowarn);
+    var winxed = new WinxedCompileUnit(nowarn, debug);
     winxed.parse(tk);
     handlein.close();
     winxed.optimize();
 
     var output = new ["FileHandle"];
     output.open(objname, "w");
-    var emit = new Winxed.Compiler.Emit(output, nowarn);
+    var emit = new Emit(output, nowarn);
     winxed.emit(emit);
     emit.close();
     output.close();
