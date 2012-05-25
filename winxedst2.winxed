@@ -10134,7 +10134,6 @@ class ConstStatement : Statement
     function optimize()
     {
         var value = self.value;
-        string type = self.type;
         value = value.optimize();
         if (! value.hascompilevalue()) {
             SyntaxError("Value for const is not evaluable at compile time",

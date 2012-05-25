@@ -3432,8 +3432,6 @@ class OpBinaryIntExpr : OpBinaryExpr
     function optimize()
     {
         self.optimizearg();
-        var lexpr = self.lexpr;
-        var rexpr = self.rexpr;
         return self;
     }
 }
@@ -8269,7 +8267,6 @@ class ConstStatement : Statement
     function optimize()
     {
         var value = self.value;
-        string type = self.type;
         value = value.optimize();
         if (! value.hascompilevalue()) {
             SyntaxError("Value for const is not evaluable at compile time",
