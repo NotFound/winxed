@@ -3511,31 +3511,6 @@ private:
 
 //**********************************************************************
 
-class OpModExpr : public CommonBinOpExpr
-{
-public:
-    OpModExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CommonBinOpExpr(block, t, first, second)
-    {
-    }
-private:
-    void emit(Emit &e, const std::string &result)
-    {
-        char type= lexpr->isinteger() && rexpr->isinteger() ? REGint : REGvar;
-        std::string res= result.empty() ? gentemp(type) : result;
-        std::string op1= gentemp(type);
-        std::string op2= gentemp(type);
-        lexpr->emit(e, op1);
-        rexpr->emit(e, op2);
-        e << op_mod(res, op1, op2);
-        if (!result.empty())
-            e << '\n';
-    }
-};
-
-//**********************************************************************
-
 class OpShiftleftExpr : public CommonBinOpExpr
 {
 public:
@@ -4606,15 +4581,13 @@ Expr * parseExpr_5(BlockBase &block, Tokenizer &tk)
 {
     Expr *subexpr= parseExpr_4(block, tk);
     Token t;
-    while ((t= tk.get()).isop('*') || t.isop('/') || t.isop('%'))
+    while ((t= tk.get()).isop('*') || t.isop('/'))
     {
         Expr *subexpr2= parseExpr_4(block, tk);
         if (t.isop('*'))
             subexpr= new OpMulExpr(block, t, subexpr, subexpr2);
         else if (t.isop('/'))
             subexpr= new OpDivExpr(block, t, subexpr, subexpr2);
-        else if (t.isop('%'))
-            subexpr= new OpModExpr(block, t, subexpr, subexpr2);
     }
     tk.unget(t);
     return subexpr;
