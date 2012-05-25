@@ -2192,10 +2192,6 @@ class Statement : CommonBase
         self.initbase(start, owner);
     }
     function isempty() { return false; }
-    function allowtailcall()
-    {
-        return self.owner.allowtailcall();
-    }
     function createreg(string type)
     {
         return self.owner.createreg(type);
@@ -2703,7 +2699,6 @@ class Expr : CommonBase
         // By default return same expression unchanged
         return self;
     }
-    function cantailcall() { return false; }
     function emit_init(e, string result)
     {
         // By default does the same as plane emit, some expressions
@@ -5430,10 +5425,6 @@ class CallExpr : Expr
         self.args = args;
         return self;
     }
-    function cantailcall()
-    {
-        return true;
-    }
     function emitcall(e)
     {
         var funref = self.funref;
@@ -5481,13 +5472,7 @@ class CallExpr : Expr
         self.prepareargs(e);
 
         self.annotate(e);
-
-        e.print(INDENT);
-        if (result == ".tailcall")
-            e.print(".tailcall ");
-        else
-            e.print(result, " = ");
-
+        e.print(INDENT, result, " = ");
         e.print(call);
         self.emitargs(e);
     }
@@ -6966,18 +6951,8 @@ class ReturnStatement : Statement
     }
     function emit(e)
     {
-        //var args = [];
         var values = self.values;
         int n = values == null ? 0 : int(values.numargs());
-
-        // Experimental tailcall optimization
-        if (n == 1 && (self instanceof ReturnStatement)) {
-            var func = values.getfreearg(0);
-            if (func.cantailcall() && self.owner.allowtailcall()) {
-                self.annotate(e);
-                return func.emit(e, ".tailcall");
-            }
-        }
 
         if (n > 0)
             values.getargvalues(e);
@@ -7683,10 +7658,6 @@ class TryModifierList : ModifierList
         self.start = start;
         self.ModifierList(tk, owner);
     }
-    function allowtailcall()
-    {
-        return self.pick("allowtailcall") != null;
-    }
     function emitmodifiers(e, string reghandler)
     {
         var modiflist = self.getlist();
@@ -7754,13 +7725,6 @@ class TryStatement : BlockStatement
                 Expected("')' in 'catch'", t);
         }
         self.scatch = parseStatement(tk, self);
-    }
-    function allowtailcall()
-    {
-        if (self.modifiers != null)
-            return self.modifiers.allowtailcall();
-        else
-            return false;
     }
     function optimize()
     {
@@ -8665,10 +8629,6 @@ class FunctionBase : BlockStatement
     }
 
     function getouter() { return self; }
-    function allowtailcall()
-    {
-        return true;
-    }
     function makesubid()
     {
         // Return the subid for this function, creating if it doesn't have one
