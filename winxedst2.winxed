@@ -663,6 +663,7 @@ function getident(tk, string start, int line)
 
 function getnumber(tk, string start, int line)
 {
+    var filename = tk.filename;
     string s;
     string c = start;
     do {
@@ -677,42 +678,31 @@ function getnumber(tk, string start, int line)
         }
         tk.ungetchar(c);
         s = hexval;
-        return new TokenInteger(tk.filename, line, s);
+        return new TokenInteger(filename, line, s);
     }
+    int isfloat = false;
     if (c == ".") {
+        isfloat = true;
         do {
             s += c;
             c = tk.getchar();
         } while (isdigit(c));
-        if (c == "e" || c == "E") {
-            s += "E";
-            if ((c = tk.getchar()) == "+" || c == "-") {
-                s += c;
-                c = tk.getchar();
-            }
-            for ( ; isdigit(c); c = tk.getchar())
-                s += c;
-        }
-        tk.ungetchar(c);
-        return new TokenFloat(tk.filename, line, s);
     }
-    else {
-        if (c == "e" || c == "E") {
-            s += "E";
-            if ((c = tk.getchar()) == "+" || c == "-") {
-                s += c;
-                c = tk.getchar();
-            }
-            for ( ; isdigit(c); c = tk.getchar())
-                s += c;
-            tk.ungetchar(c);
-            return new TokenFloat(tk.filename, line, s);
+    if (c == "e" || c == "E") {
+        isfloat = true;
+        s += "E";
+        if ((c = tk.getchar()) == "+" || c == "-") {
+            s += c;
+            c = tk.getchar();
         }
-        else {
-            tk.ungetchar(c);
-            return new TokenInteger(tk.filename, line, s);
-        }
+        for ( ; isdigit(c); c = tk.getchar())
+            s += c;
     }
+    tk.ungetchar(c);
+    if (isfloat)
+        return new TokenFloat(filename, line, s);
+    else
+        return new TokenInteger(filename, line, s);
 }
 
 function getlinecomment(tk, string start, int line)
