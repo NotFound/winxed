@@ -943,23 +943,18 @@ bool SubBlock::islocal(std::string name) const
 
 char SubBlock::checkconstant(const std::string &name) const
 {
-    //std::cerr << "SubBlock::checkconstant\n";
-
     char c= Block::checkconstant(name);
     if (c == '\0')
         c= parent.checkconstant(name);
-    //std::cerr << "SubBlock::checkconstant end\n";
     return c;
 }
 
 ConstantValue SubBlock::getconstant(const std::string &name) const
 {
-    //std::cerr << "SubBlock::getconstant\n";
     if (Block::checkconstant(name))
         return Block::getconstant(name);
     else
         return parent.getconstant(name);
-    //std::cerr << "SubBlock::getconstant end\n";
 }
 
 std::string SubBlock::genlocallabel()
@@ -1072,7 +1067,6 @@ std::string FunctionBlock::genlocalregister(char type)
 
 void FunctionBlock::freelocalregister(const std::string &reg)
 {
-    //std::cerr << "Free " << reg << "!\n";
     if (reg.at(0) != '$')
         throw InternalError("invalid free register");
     switch(reg.at(1))
@@ -2509,18 +2503,6 @@ public:
     }
 private:
     bool isinteger () const { return true; }
-    Expr *optimize()
-    {
-        optimize_branch(expr);
-        if (expr->isnull() )
-            return new IntegerExpr(*this, start, 1);
-        if (expr->isliteralinteger() )
-        {
-            const int n= expr->getintegervalue();
-            return new IntegerExpr(*this, start, ~n);
-        }
-        return this;
-    }
     void emit(Emit &e, const std::string &result)
     {
         std::string arg= gentemp(expr->isinteger() ? REGint : REGvar);
@@ -2845,11 +2827,6 @@ public:
     { }
 private:
     bool isinteger() const { return true; }
-    Expr *optimize()
-    {
-        optimize_operands();
-        return this;
-    }
     void emit(Emit &e, const std::string &result)
     {
         char ltype = lexpr->checkresult();
@@ -3166,20 +3143,16 @@ private:
 
 Expr *OpAddExpr::optimize()
 {
-    //std::cerr << "OpAddExpr::optimize\n";
-
     optimize_operands();
     if (lexpr->issimple() && rexpr->issimple())
     {
         if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
         {
-            //std::cerr << "OpAddExpr::optimize int\n";
             return new IntegerExpr(*this, start,
                 lexpr->getintegervalue() + rexpr->getintegervalue());
         }
         if (lexpr->isliteralstring() && rexpr->isliteralstring())
         {
-            //std::cerr << "OpAddExpr::optimize string\n";
             Token newt= Token(TokenTQuoted, lexpr->getstringvalue() + rexpr->getstringvalue(), lexpr->gettoken());
             return new StringExpr(*this, newt);
         }
@@ -3281,17 +3254,13 @@ private:
 
 Expr *OpSubExpr::optimize()
 {
-    //std::cerr << "OpSubExpr::optimize\n";
-
     optimize_operands();
     if (lexpr->issimple() && rexpr->issimple())
     {
         if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
         {
-            //std::cerr << "OpSubExpr::optimize int\n";
             int n1= lexpr->getintegervalue();
             int n2= rexpr->getintegervalue();
-            //std::cerr << n1 << " " << n2 << '\n';
             return new IntegerExpr(*this, start, n1 - n2);
         }
     }
@@ -3844,10 +3813,8 @@ public:
         left(leftexpr),
         right(tk.get())
     {
-        //std::cerr << "MemberExpr::MemberExpr\n";
         if (!right.isidentifier())
             throw Expected("identifier", right);
-        //std::cerr << "MemberExpr::MemberExpr\n";
     }
     void emit(Emit &e, const std::string &result)
     {
@@ -3886,7 +3853,6 @@ public:
     }
     void emitassign(Emit &e, Expr& value, const std::string &to)
     {
-        //std::cerr << typeid(right).name() << '\n';
         e.annotate(start);
         std::string reg = gentemp(REGvar);
         left->emit(e, reg);
@@ -3941,24 +3907,18 @@ CallExpr::CallExpr(BlockBase &block,
     called(function),
     args(0)
 {
-    //std::cerr << "CallExpr::CallExpr\n";
-
     Token t= tk.get();
     if (! t.isop (')') )
     {
         tk.unget(t);
         args= new ArgumentList(block, tk, ')');
     }
-
-    //std::cerr << "CallExpr::CallExpr end\n";
 }
 
 Expr *CallExpr::optimize()
 {
-    //std::cerr << "CallExpr::optimize\n";
     if (args)
         args->optimize();
-    //std::cerr << "CallExpr::optimize end\n";
     return this;
 }
 
@@ -3994,8 +3954,6 @@ bool CallExpr::isstring() const
 
 void CallExpr::emit(Emit &e, const std::string &result)
 {
-    //std::cerr << "CallExpr::emit\n";
-
     const int numargs = args ? args->numargs() : 0;
     if (called->isidentifier())
     {
@@ -4210,8 +4168,6 @@ NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
     ln(t.linenum()),
     init(0)
 {
-    //std::cerr << "NewExpr::NewExpr\n";
-
     t= tk.get();
 
     claspec = parseClassSpecifier(t, tk, block);
@@ -4222,8 +4178,6 @@ NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
         init = new ArgumentList(block, tk, ')');
     else
         tk.unget(t);
-
-    //std::cerr << "NewExpr::NewExpr end\n";
 }
 
 Expr *NewExpr::optimize()
@@ -4565,16 +4519,13 @@ Expr * parseExpr_0(BlockBase &block, Tokenizer &tk);
 
 Expr * parseExpr_0(BlockBase &block, Tokenizer &tk)
 {
-    //std::cerr << "parseExpr_0\n";
     Expr *subexpr= NULL;
     Token t= tk.get();
 
     if (t.isop('(') )
     {
-        //std::cerr << "parseExpr_0 (\n";
         subexpr = parseExpr(block, tk);
         t= tk.get();
-        //std::cerr << "parseExpr_0 )\n";
         RequireOp (')', t);
     }
     else if (t.isop('[') )
@@ -4605,15 +4556,11 @@ Expr * parseExpr_0(BlockBase &block, Tokenizer &tk)
                 throw SyntaxError("Invalid statement", t);
         }
     }
-
-    //std::cerr << "parseExpr_0 end\n";
     return subexpr;
 }
 
 Expr *parseExpr_2(BlockBase &block, Tokenizer &tk)
 {
-    //std::cerr << "parseExpr_2\n";
-
     Expr *subexpr= parseExpr_0(block, tk);
     Token t;
     while ((t= tk.get()).isop('.') || t.isop('('))
@@ -4626,7 +4573,6 @@ Expr *parseExpr_2(BlockBase &block, Tokenizer &tk)
         }
     }
     tk.unget(t);
-    //std::cerr << "parseExpr_2 end\n";
     return subexpr;
 }
 
@@ -4868,10 +4814,8 @@ Expr * parseExpr(BlockBase &block, Tokenizer &tk)
 
 ExprStatement::ExprStatement(Block &parentblock, Tokenizer &tk)
 {
-    //std::cerr << "ExprStatement\n";
     expr= parseExpr(parentblock, tk);
     ExpectOp(';', tk);
-    //std::cerr << "ExprStatement end\n";
 }
 
 BaseStatement *ExprStatement::optimize ()
@@ -5177,25 +5121,17 @@ ConstStatement::ConstStatement(Block & block, const Token &st, Tokenizer &tk,
 BaseStatement *ConstStatement::optimize()
 {
     optimize_branch(value);
-
-    // Reusing the optimize phase as constant evaluation phase.
-    // Maybe a separate phase will be added later.
     genconstant(name, type, value->gettoken());
-
-    //std::cerr << "ConstStatement::optimize end\n";
     return this;
 }
 
 void ConstStatement::emit (Emit &e)
 {
-    //std::cerr << "ConstStatement::emit\n";
     if (! value->issimple() )
         throw Expected("constant expression", start);
 
     // Put a hint in the generated code.
     e.comment("Constant " + name + " evaluated at compile time");
-
-    //std::cerr << "ConstStatement::emit end\n";
 }
 
 BaseStatement * parseConst(Block & block, const Token &st, Tokenizer &tk)
@@ -5283,8 +5219,6 @@ BaseStatement *CompoundStatement::optimize ()
 
 void CompoundStatement::emit (Emit &e)
 {
-    //std::cerr << "CompoundStatement::emit\n";
-
     for (size_t i= 0; i < subst.size(); ++i)
     {
         subst[i]->emit(e);
@@ -5712,10 +5646,8 @@ more:
     Token t= tk.get();
     if (t.iskeyword("case"))
     {
-        //std::cerr << "case\n";
         Expr *caseexpr= parseExpr(*this, tk);
         casevalue.push_back(caseexpr);
-        //std::cerr << "/case\n";
         ExpectOp(':', tk);
         std::vector<BaseStatement *> cst;
         t= tk.get();
@@ -5744,11 +5676,8 @@ more:
         tk.unget(t);
         goto more;
     }
-    else if(t.isop('}'))
-    {
-        //std::cerr << "esac\n";
-    }
-    else throw Expected("case, default or block end", t);
+    else if(! t.isop('}'))
+        throw Expected("case, default or block end", t);
 }
 
 BaseStatement *SwitchBaseStatement::optimize()
@@ -5890,19 +5819,16 @@ IfStatement::IfStatement(Block &block, Tokenizer &tk) :
     st(new EmptyStatement()),
     stelse(new EmptyStatement())
 {
-    //std::cerr << "if\n";
     condition= new Condition(*this, tk);
     st= parseStatement(block, tk);
     Token t= tk.get();
     if (t.iskeyword("else")) {
-        //std::cerr << "if else\n";
         stelse= parseStatement(*this, tk);
     }
     else
     {
         tk.unget(t);
     }
-    //std::cerr << "end if\n";
 }
 
 BaseStatement *IfStatement::optimize()
@@ -6126,8 +6052,6 @@ void FunctionStatement::emit (Emit &e)
     emitbody(e);
 
     e << "\n.end # " << getname() << "\n\n";
-
-    //std::cerr << "Temporary used: " <<  tempsused() << '\n';
 }
 
 //**********************************************************************
@@ -6187,8 +6111,6 @@ public:
     }
     void optimize()
     {
-        //std::cerr << "NamespaceBlockBase::optimize\n";
-
         for (size_t i= 0; i < constants.size(); ++i)
             constants[i]->optimize();
     }
@@ -6676,8 +6598,6 @@ void Winxed::parse (Tokenizer &tk)
 
 void Winxed::optimize()
 {
-    //std::cerr << "Winxed::optimize\n";
-
     root_ns.genconstant("null", 'n', Token(TokenTIdentifier, "null", 0, "(predef"));
 
     root_ns.optimize();
@@ -6685,8 +6605,6 @@ void Winxed::optimize()
         classes[i]->optimize();
     for (size_t i= 0; i < functions.size(); ++i)
         functions[i]->optimize();
-
-    //std::cerr << "Winxed::optimize end\n";
 }
 
 void Winxed::emit (Emit &e)
