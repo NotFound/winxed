@@ -2650,7 +2650,7 @@ class Expr : CommonBase
     function isnull() { return false; }
     function hascompilevalue() { return false; }
     function isnegable() { return false; }
-    function tempreg(type)
+    function tempreg(string type)
     {
         return self.owner.tempreg(type);
     }
