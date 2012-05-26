@@ -153,17 +153,41 @@ test: test3
 #-----------------------------------------------------------------------
 
 # Test the --debug option and the compiler assertions:
-# - First compile stage1 with -debug option
-# - Then use that stage to compile stage2 with debug option
-# - Then use that new stage to run the tests
+# - First compile stage 1 with -debug option
+# - Then use that stage 1 to compile stage 2 with debug option
+# - Then use that stage 2 to compile again stage 2 with debug option
+# - Then run the tests with both stage 2 debug versions
 
-testdebug: $(DRIVER).pbc winxedst2.pbc
+
+# Compile stage 1 in debug mode
+
+winxedst1_deb1.pir: winxedst1.winxed
 	./winxedst0 --debug -o winxedst1_deb1.pir winxedst1.winxed
+
+winxedst1_deb1.pbc: winxedst1_deb1.pir
 	parrot -o winxedst1_deb1.pbc winxedst1_deb1.pir
+
+
+# Compile stage 2 in debug mode with debug mode stage 1
+
+winxedst2_deb1.pir: winxedst2.winxed winxedst1_deb1.pbc
 	parrot winxedst1_deb1.pbc --debug -o winxedst2_deb1.pir winxedst2.winxed
+
+winxedst2_deb1.pbc: winxedst2_deb1.pir
 	parrot -o winxedst2_deb1.pbc winxedst2_deb1.pir
+
+
+# Compile stage 2 in debug mode with debug mode stage 2
+
+winxedst2_deb2.pir: winxedst2.winxed winxedst2_deb1.pbc $(DRIVER).pbc
 	parrot $(DRIVER).pbc -c --debug --stage=winxedst2_deb1 -o winxedst2_deb2.pir winxedst2.winxed
+
+winxedst2_deb2.pbc: winxedst2_deb2.pir
 	parrot -o winxedst2_deb2.pbc winxedst2_deb2.pir
+
+
+testdebug: $(DRIVER).pbc winxedst1_deb1.pbc winxedst2_deb1.pbc winxedst2_deb2.pbc
+	parrot $(DRIVER).pbc --debug --stage=winxedst2_deb1 t/harness --debug --stage=winxedst2_deb1 -r t/basic t/medium t/advanced t/*.t
 	parrot $(DRIVER).pbc --debug --stage=winxedst2_deb2 t/harness --debug --stage=winxedst2_deb2 -r t/basic t/medium t/advanced t/*.t
 
 #-----------------------------------------------------------------------
