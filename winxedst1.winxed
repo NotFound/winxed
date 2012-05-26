@@ -8290,12 +8290,10 @@ class FunctionParameter
         self.func = func;
         var t = tk.get();
         string type = typetoregcheck(t.checkkeyword());
-
-        if (type != "")
-            t = tk.get();
-        else
-            type = REGvar;
+        if (type == "")
+            Expected("parameter type", t);
         self.type = type;
+        t = tk.get();
         string argname = "__ARG_" + string(func.generateparamnum());
         func.createvarnamed(t, type, argname);
 
