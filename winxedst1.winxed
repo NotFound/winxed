@@ -1626,38 +1626,6 @@ encodingname %0, $I0
         "unshift %1, %2",
         REGnone, REGvar, REGany
     ));
-    builder.add(new BuiltinFunction("pop_var",
-        "pop %0, %1",
-        REGvar, REGvar
-    ));
-    builder.add(new BuiltinFunction("shift_var",
-        "shift %0, %1",
-        REGvar, REGvar
-    ));
-    builder.add(new BuiltinFunction("pop_int",
-        "pop %0, %1",
-        REGint, REGvar
-    ));
-    builder.add(new BuiltinFunction("shift_int",
-        "shift %0, %1",
-        REGint, REGvar
-    ));
-    builder.add(new BuiltinFunction("pop_float",
-        "pop %0, %1",
-        REGfloat, REGvar
-    ));
-    builder.add(new BuiltinFunction("shift_float",
-        "shift %0, %1",
-        REGfloat, REGvar
-    ));
-    builder.add(new BuiltinFunction("pop_string",
-        "pop %0, %1",
-        REGstring, REGvar
-    ));
-    builder.add(new BuiltinFunction("shift_string",
-        "shift %0, %1",
-        REGstring, REGvar
-    ));
     builder.add(new BuiltinFunction("sqrt",
         "sqrt %0, %1",
         REGfloat, REGfloat
