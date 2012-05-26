@@ -28,7 +28,15 @@ function run_test(string filename, int debug, string stage)
     fh.encoding("utf8");
     string test_output= fh.readall();
     fh.close();
-    return split("\n", test_output);
+    var lines = split("\n", test_output);
+    // Discard the last line if empty
+    int lastline = elements(lines) - 1;
+    if (lastline >= 0) {
+        string l = lines[lastline];
+        if (l == "")
+            lines.pop();
+    }
+    return lines;
 }
 
 function max_length(var args)
@@ -40,6 +48,45 @@ function max_length(var args)
             l= i;
     }
     return l;
+}
+
+function check_plan_line(string line)
+{
+    var plan_parts= split("..", line);
+    if (elements(plan_parts) != 2)
+        return -1;
+    var part0 = plan_parts[0];
+    if (!part0.is_integer(part0))
+        return -1;
+    var part1 = plan_parts[1];
+    if (!part1.is_integer(part1))
+        return -1;
+    return int(part1);
+}
+
+function get_plan(var output)
+{
+    // Simplified search for plan: check only first and last lines.
+    // If found, remove the line with the plan from output.
+
+    int numlines = elements(output);
+    if (numlines < 1)
+        return -1;
+    string line = output[0];
+    int n = check_plan_line(line);
+    if (n >= 0) {
+        output.shift();
+        return n;
+    }
+    if (numlines < 1)
+        return -1;
+    line = output[numlines - 1];
+    n = check_plan_line(line);
+    if (n >= 0) {
+        output.pop();
+        return n;
+    }
+    return -1;
 }
 
 function run_test_list(var args, int verbose, string stage, int debug)
@@ -61,37 +108,14 @@ function run_test_list(var args, int verbose, string stage, int debug)
         int curr_test= 0;
         int num_tests = -1;
         var output= run_test(filename, debug, stage);
-
-        var plan_part0;
-        var plan_part1;
-        {
-            var plan_parts= split("..", output[0]);
-            plan_part0 = plan_parts[0];
-            plan_part1 = plan_parts[1];
-        }
-        if (plan_part0.is_integer(plan_part0)) {
-            num_tests = plan_part1;
-            output.shift();
-            if (verbose)
-                say(1 , "..", num_tests);
-        }
-
+        num_tests = get_plan(output);
+        if (verbose)
+            say(1 , "..", num_tests);
         for (string line in output) {
             debugmsg(line);
             if (line != "") {
                 if (verbose)
                     say(line);
-                if (num_tests < 0) {
-                    var plan_parts= split("..", line);
-                    var p0 = plan_parts[0];
-                    if (p0.is_integer(p0)) {
-                        plan_part0 = plan_parts[0];
-                        plan_part1 = plan_parts[1];
-                        num_tests = plan_part1;
-                        if (verbose)
-                            say(1 , "..", num_tests);
-                    }
-                }
                 var line_parts = split("ok ", line);
                 int test_number= line_parts[1];
                 debugmsg(test_number);
@@ -109,8 +133,8 @@ function run_test_list(var args, int verbose, string stage, int debug)
         }
         if (failed)
             say("failed ", failed, "/", num_tests, " tests");
-        else if (plan_part0 != 1 || (num_tests < 0)) {
-            say("INVALID PLAN: ", plan_part0, "..", plan_part1);
+        else if (num_tests < 0) {
+            say("INVALID PLAN");
             failed_files = failed_files + 1;
         }
         else
