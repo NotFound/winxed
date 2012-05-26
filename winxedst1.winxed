@@ -934,10 +934,6 @@ class Emit
     {
         self.say(INDENT + "concat ", dst, ", ", src1, ", ", src2);
     }
-    function emitrepeat(string dst, string src1, string src2)
-    {
-        self.say(INDENT + "repeat ", dst, ", ", src1, ", ", src2);
-    }
     function emitprint(string arg)
     {
         self.say(INDENT + "print ", arg);
@@ -4523,25 +4519,6 @@ class OpBinXorExpr : OpBaseBinExpr
 
 //*********************************************
 
-class RepeatString : OpBinaryExpr
-{
-    function RepeatString(from)
-    {
-        self.set(from.owner, from.start, from.lexpr, from.rexpr);
-    }
-    function checkresult() { return REGstring; }
-    function emit(e, string result)
-    {
-        var rexpr = self.rexpr;
-        string lreg = self.lexpr.emit_get(e);
-        string rreg = rexpr.emit_getint(e);
-        self.annotate(e);
-        e.emitrepeat(result, lreg, rreg);
-    }
-}
-
-//*********************************************
-
 class OpAddExpr : OpBinaryExpr
 {
     function OpAddExpr(owner, start, lexpr, rexpr)
@@ -4705,13 +4682,6 @@ class OpMulExpr : OpBinaryExpr
     {
         self.set(owner, start, lexpr, rexpr);
     }
-    function optimize()
-    {
-        self.optimizearg();
-        if (self.checkresult() == REGstring)
-            return new RepeatString(self);
-        return self;
-    }
     function checkresult()
     {
         var lexpr = self.lexpr;
@@ -4719,10 +4689,7 @@ class OpMulExpr : OpBinaryExpr
         string rr = self.rexpr.checkresult();
         if (rl == rr)
             return rl;
-        if (rl == REGstring)
-            return REGstring;
-        else
-            return REGfloat;
+        return REGfloat;
     }
     function emit(e, string result)
     {
