@@ -39,7 +39,7 @@ class WinxedDriverOptions : ["Getopt", "Obj"]
     var options;
     var opts;
 
-    function WinxedDriverOptions(argv, int unused)
+    function WinxedDriverOptions(var argv, int unused)
     {
         var options = [
           [ "stage=s",  "Compiler stage to use" ],
@@ -98,7 +98,7 @@ class WinxedDriverOptions : ["Getopt", "Obj"]
     }
 }
 
-function driver_main(argv)
+function driver_main(var argv)
 {
     const int
         DEFAULT_STAGE = 3,
@@ -289,7 +289,7 @@ function driver_main(argv)
                 file.close();
         }
         else {
-            eval = "function main[main](argv){" + eval + ";}";
+            eval = "function main[main](var argv){" + eval + ";}";
             pircode = compiler.compile(eval, opts:[named,flat]);
 
             if (pirfile == "-" &&
@@ -414,7 +414,7 @@ function driver_main(argv)
     exit(retval);
 }
 
-function main [main] (argv)
+function main [main] (var argv)
 {
     int r;
     try [handle_types(__WINXED_ERROR__)] {
