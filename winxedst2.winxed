@@ -6727,10 +6727,10 @@ class CallExpr : Expr
     var funref;
     var args;
 
-    function CallExpr(tk, owner, start, subexp)
+    function CallExpr(tk, owner, start, subexpr)
     {
         self.Expr(owner, start);
-        self.funref = subexp;
+        self.funref = subexpr;
         var t = tk.get();
         if (! t.isop(")")) {
             tk.unget(t);
@@ -6957,10 +6957,10 @@ class CallMemberRefExpr : CallExpr
 class MemberExprBase : Expr
 {
     var left;
-    function MemberExprBase(owner, start, subexp)
+    function MemberExprBase(owner, start, subexpr)
     {
         self.Expr(owner, start);
-        self.left = subexp;
+        self.left = subexpr;
     }
     function emit_left_get(e)
     {
@@ -6972,9 +6972,9 @@ class MemberExpr : MemberExprBase
 {
     var right;
 
-    function MemberExpr(owner, start, subexp, right)
+    function MemberExpr(owner, start, subexpr, right)
     {
-        self.MemberExprBase(owner, start, subexp);
+        self.MemberExprBase(owner, start, subexpr);
         self.right = right;
     }
     function clone(owner)
@@ -7178,10 +7178,10 @@ class IndexExpr : Expr
     var args;
     var argregs;
 
-    function IndexExpr(tk, owner, start, subexp)
+    function IndexExpr(tk, owner, start, subexpr)
     {
         self.Expr(owner, start);
-        self.left = subexp;
+        self.left = subexpr;
         self.args = new SimpleArgList(tk, owner, "]");
     }
     function clone(owner)
@@ -8034,48 +8034,48 @@ function parseExpr_0(tk, owner)
 
 function parseExpr_2(tk, owner)
 {
-    var subexp = parseExpr_0(tk, owner);
+    var subexpr = parseExpr_0(tk, owner);
     var t;
     var start;
     int code;
     while ((code = getOpCode_2(t = tk.get())) != Code_none ) {
         switch (code) {
           case Code_paren:
-            subexp = new CallExpr(tk, owner, t, subexp);
+            subexpr = new CallExpr(tk, owner, t, subexpr);
             break;
           case Code_bracket:
-            subexp = new IndexExpr(tk, owner, t, subexp);
+            subexpr = new IndexExpr(tk, owner, t, subexpr);
             break;
           case Code_dot:
             start = t;
             t = tk.get();
             if (t.isop("*")) {
                 var right = parseExpr_0(tk, owner);
-                subexp = new MemberRefExpr(owner, t, subexp, right);
+                subexpr = new MemberRefExpr(owner, t, subexpr, right);
             }
             else
-                subexp = new MemberExpr(owner, start, subexp, t);
+                subexpr = new MemberExpr(owner, start, subexpr, t);
             break;
           default:
             InternalError("Unexpected code in parseExpr_2");
         }
     }
     tk.unget(t);
-    return subexp;
+    return subexpr;
 }
 
 function parseExpr_3(tk, owner)
 {
-    var subexp = parseExpr_2(tk, owner);
+    var subexpr = parseExpr_2(tk, owner);
     var t = tk.get();
     switch {
       case t.isop("++"):
-        return new OpPostIncExpr(owner, t, subexp);
+        return new OpPostIncExpr(owner, t, subexpr);
       case t.isop("--"):
-        return new OpPostDecExpr(owner, t, subexp);
+        return new OpPostDecExpr(owner, t, subexpr);
       default:
         tk.unget(t);
-        return subexp;
+        return subexpr;
     }
 }
 
