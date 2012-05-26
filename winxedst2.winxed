@@ -3505,58 +3505,6 @@ class Literal : SimpleExpr
 
 //*********************************************
 
-class StringLiteral : Literal
-{
-    var strval;
-    function StringLiteral(owner, t)
-    {
-        self.Expr(owner, t);
-        self.strval = t;
-    }
-    function clone(owner)
-    {
-        return new StringLiteral(owner, self.strval);
-    }
-    function isstringliteral() { return true; }
-    function checkresult() { return REGstring; }
-    function getPirString()
-    {
-        var strtok = self.strval;
-        string str = strtok.getPirString();
-        return str;
-    }
-    function get_value()
-    {
-        var strtok = self.strval;
-        string str = strtok.str;
-        if (strtok instanceof TokenQuoted)
-            str = unescape(str);
-        return str;
-    }
-    function getLiteralInteger()
-    {
-        return integerValue(self.owner, self.start, self.get_value());
-    }
-    function getLiteralFloat()
-    {
-        return floatValue(self.owner, self.start, self.get_value());
-    }
-    function getLiteralString()
-    {
-        return self;
-    }
-    function emit(e, string result)
-    {
-        e.emitset(result, self.getPirString());
-    }
-    function emit_get(e)
-    {
-        return self.getPirString();
-    }
-}
-
-//*********************************************
-
 class IntegerLiteral : Literal
 {
     var pos;
@@ -3661,6 +3609,58 @@ class FloatLiteral : Literal
     {
         float value = self.getFloatValue();
         return floatAsString(value);
+    }
+}
+
+//*********************************************
+
+class StringLiteral : Literal
+{
+    var strval;
+    function StringLiteral(owner, t)
+    {
+        self.Expr(owner, t);
+        self.strval = t;
+    }
+    function clone(owner)
+    {
+        return new StringLiteral(owner, self.strval);
+    }
+    function isstringliteral() { return true; }
+    function checkresult() { return REGstring; }
+    function getPirString()
+    {
+        var strtok = self.strval;
+        string str = strtok.getPirString();
+        return str;
+    }
+    function get_value()
+    {
+        var strtok = self.strval;
+        string str = strtok.str;
+        if (strtok instanceof TokenQuoted)
+            str = unescape(str);
+        return str;
+    }
+    function getLiteralInteger()
+    {
+        return integerValue(self.owner, self.start, self.get_value());
+    }
+    function getLiteralFloat()
+    {
+        return floatValue(self.owner, self.start, self.get_value());
+    }
+    function getLiteralString()
+    {
+        return self;
+    }
+    function emit(e, string result)
+    {
+        e.emitset(result, self.getPirString());
+    }
+    function emit_get(e)
+    {
+        return self.getPirString();
     }
 }
 
