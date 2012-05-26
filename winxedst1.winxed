@@ -1061,7 +1061,7 @@ function string_from_literal(arg)
         value = arg.numval;
         break;
       case arg.isstringliteral():
-        value = arg.get_value();
+        value = arg.getStringValue();
         break;
       default:
         InternalError("wrong call to string_from_literal", arg);
@@ -1077,7 +1077,7 @@ function int_from_literal(arg)
         value = arg.numval;
         break;
       case arg.isstringliteral():
-        value = arg.get_value();
+        value = arg.getStringValue();
         break;
       default:
         InternalError("wrong call to int_from_literal", arg);
@@ -2896,42 +2896,6 @@ class Literal : SimpleExpr
 
 //*********************************************
 
-class StringLiteral : Literal
-{
-    var strval;
-    function StringLiteral(owner, t)
-    {
-        self.Expr(owner, t);
-        self.strval = t;
-    }
-    function isstringliteral() { return true; }
-    function checkresult() { return REGstring; }
-    function getPirString()
-    {
-        var strtok = self.strval;
-        string str = strtok.getPirString();
-        return str;
-    }
-    function get_value()
-    {
-        var strtok = self.strval;
-        string str = strtok.str;
-        if (strtok instanceof TokenQuoted)
-            str = unescape(str);
-        return str;
-    }
-    function emit(e, string result)
-    {
-        e.emitset(result, self.getPirString());
-    }
-    function emit_get(e)
-    {
-        return self.getPirString();
-    }
-}
-
-//*********************************************
-
 class IntegerLiteral : Literal
 {
     var pos;
@@ -2969,6 +2933,42 @@ class IntegerLiteral : Literal
     {
         // Just a shortcut
         return self.getIntegerValue();
+    }
+}
+
+//*********************************************
+
+class StringLiteral : Literal
+{
+    var strval;
+    function StringLiteral(owner, t)
+    {
+        self.Expr(owner, t);
+        self.strval = t;
+    }
+    function isstringliteral() { return true; }
+    function checkresult() { return REGstring; }
+    function getPirString()
+    {
+        var strtok = self.strval;
+        string str = strtok.getPirString();
+        return str;
+    }
+    function getStringValue()
+    {
+        var strtok = self.strval;
+        string str = strtok.str;
+        if (strtok instanceof TokenQuoted)
+            str = unescape(str);
+        return str;
+    }
+    function emit(e, string result)
+    {
+        e.emitset(result, self.getPirString());
+    }
+    function emit_get(e)
+    {
+        return self.getPirString();
     }
 }
 
@@ -8570,7 +8570,7 @@ function multi_sig_from_multi_modifier(owner, multi)
             var arg = multi.getarg(i);
             switch {
               case arg.isstringliteral():
-                push(sig, arg.get_value());
+                push(sig, arg.getStringValue());
                 break;
               case arg.isidentifier():
                 string name = arg.getName();
