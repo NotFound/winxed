@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 26-may-2012
+// Revision 27-may-2012
 
 // Winxed compiler stage 0.
 
@@ -1998,9 +1998,8 @@ FunctionParameter::FunctionParameter(FunctionStatement *owner, Tokenizer &tk)
     Token t = tk.get();
     type= nativetype(t);
     if (type == '\0')
-        type= REGvar;
-    else
-        t= tk.get();
+        throw Expected("parameter type", t);
+    t= tk.get();
     name= t.identifier();
     t= tk.get();
     if (t.isop('['))
