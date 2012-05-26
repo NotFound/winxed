@@ -3533,6 +3533,18 @@ class StringLiteral : Literal
             str = unescape(str);
         return str;
     }
+    function getLiteralInteger()
+    {
+        return integerValue(self.owner, self.start, self.get_value());
+    }
+    function getLiteralFloat()
+    {
+        return floatValue(self.owner, self.start, self.get_value());
+    }
+    function getLiteralString()
+    {
+        return self;
+    }
     function emit(e, string result)
     {
         e.emitset(result, self.getPirString());
@@ -3575,6 +3587,19 @@ class IntegerLiteral : Literal
         float value = self.getIntegerValue();
         return value;
     }
+    function getLiteralInteger()
+    {
+        return self;
+    }
+    function getLiteralFloat()
+    {
+        return floatValue(self.owner, self.start, self.numval);
+    }
+    function getLiteralString()
+    {
+        int n = self.numval;
+        return stringQuotedValue(self.owner, self.start, n);
+    }
     function emit(e, string result)
     {
         int value = self.getIntegerValue();
@@ -3614,6 +3639,18 @@ class FloatLiteral : Literal
     {
         float value = self.numval.getfloatvalue();
         return value;
+    }
+    function getLiteralInteger()
+    {
+        return integerValue(self.owner, self.start, self.getFloatValue());
+    }
+    function getLiteralFloat()
+    {
+        return self;
+    }
+    function getLiteralString()
+    {
+        return stringQuotedValue(self.owner, self.start, self.getFloatValue());
     }
     function emit(e, string result)
     {
@@ -10134,37 +10171,19 @@ class ConstStatement : Statement
             SyntaxError("Value for const is not evaluable at compile time",
                 self);
         }
-        string type = self.type;
-        string valuetype = value.checkresult();
-        if (type != valuetype) {
-            var start = value.start;
-            string convert;
-            switch (valuetype) {
-              case REGint:
-                convert = value.getIntegerValue();
-                break;
-              case REGfloat:
-                convert = value.getFloatValue();
-                break;
-              case REGstring:
-                convert = value.get_value();
-                break;
-              default:
-                InternalError("Wrong const", start);
-            }
-            switch (type) {
-              case REGint:
-                value = integerValue(self, start, convert);
-                break;
-              case REGfloat:
-                value = floatValue(self, start, convert);
-                break;
-              case REGstring:
-                value = stringQuotedValue(self, start, convert);
-                break;
-              default:
-                InternalError("Wrong const", start);
-            }
+        __ASSERT__(value instanceof Literal);
+        switch (self.type) {
+          case REGint:
+            value = value.getLiteralInteger();
+            break;
+          case REGfloat:
+            value = value.getLiteralFloat();
+            break;
+          case REGstring:
+            value = value.getLiteralString();
+            break;
+          default:
+            InternalError("Wrong const", self.start);
         }
         self.data.setvalue(value);
         return self;
