@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 25-may-2012
+// Revision 26-may-2012
 
 // Winxed compiler stage 0.
 
@@ -6647,15 +6647,16 @@ void winxed_main (int argc, char **argv)
     int i;
     for (i = 1; i < argc; ++i)
     {
-        if (strcmp(argv[i], "-o") == 0)
-        {
+        const char * const arg = argv[i];
+        if (strcmp(arg, "-c") == 0)
+            /* Ignored */;
+        else if (strcmp(arg, "-o") == 0)
             outputname= argv[++i];
-        }
-        else if (strcmp(argv[i], "-e") == 0)
+        else if (strcmp(arg, "-e") == 0)
             expr = argv[++i];
-        else if (strcmp(argv[i], "--noan") == 0)
+        else if (strcmp(arg, "--noan") == 0)
             noan = true;
-        else if (strcmp(argv[i], "--debug") == 0)
+        else if (strcmp(arg, "--debug") == 0)
             debug = true;
         else break;
     }

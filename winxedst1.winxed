@@ -10355,16 +10355,25 @@ function main [main](args)
     int debug = 0;
     int nowarn = 0;
     var obj;
+    string evalexpr;
     for (iarg = 1; iarg < nargs; iarg = iarg + 1) {
         var opt = args[iarg];
         if (opt == null)
             break;
-        if (opt == "-o") {
+        if (opt == "-c")
+            /* Ignored */;
+        else if (opt == "-o") {
             iarg = iarg + 1;
             obj = args[iarg];
         }
+        else if (opt == "-e") {
+            iarg = iarg + 1;
+            evalexpr = args[iarg];
+        }
         else if (opt == "--debug")
             debug = 1;
+        else if (opt == "--nowarn")
+            nowarn = 1;
         else
             break;
     }
@@ -10376,8 +10385,20 @@ function main [main](args)
         throw "invalid src";
     string srcname = src;
 
-    var handlein = new ["FileHandle"];
-    handlein.open(srcname, "r");
+    var handlein;
+    if (evalexpr == null) {
+        handlein = new ["FileHandle"];
+        handlein.open(srcname, "r");
+    }
+    else {
+        evalexpr = "function main[main](argv){" + evalexpr + ";}";
+        handlein = new ["StringHandle"];
+        handlein.open(srcname, "w");
+        handlein.encoding("utf8");
+        handlein.print(evalexpr);
+        handlein.close();
+        handlein.open(srcname, "r");
+    }
     handlein.encoding("utf8");
     var tk = new Tokenizer(handlein, srcname, nowarn);
     var winxed = new WinxedCompileUnit(nowarn, debug);
