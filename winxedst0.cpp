@@ -2493,40 +2493,6 @@ private:
 
 //**********************************************************************
 
-class OpBinNotExpr : public OpUnaryBaseExpr
-{
-public:
-    OpBinNotExpr(BlockBase &block, Token t, Expr *subexpr) :
-        OpUnaryBaseExpr(block, t, subexpr)
-    {
-    }
-private:
-    bool isinteger () const { return true; }
-    void emit(Emit &e, const std::string &result)
-    {
-        std::string arg= gentemp(expr->isinteger() ? REGint : REGvar);
-        expr->emit(e, arg);
-        std::string r= result.empty() ?
-            gentemp(REGint) :
-            result;
-        annotate(e);
-        std::string aux;
-        if (expr->isinteger())
-            aux = arg;
-        else
-        {
-            aux = gentemp(REGint);
-            e << op_set(aux, arg) << '\n';
-        }
-        // bnot is a dynop, use bxor with -1 to avoid load its lib
-        e << INDENT "bxor " << r << ", " << aux << ", -1";
-        if (! result.empty() )
-            e << '\n';
-    }
-};
-
-//**********************************************************************
-
 class BinOpExpr : public OpBaseExpr
 {
 protected:
@@ -4562,11 +4528,6 @@ Expr * parseExpr_4(BlockBase &block, Tokenizer &tk)
     {
         Expr *subexpr= parseExpr_4(block, tk);
         return new OpNotExpr(block, t, subexpr);
-    }
-    else if (t.isop('~') )
-    {
-        Expr *subexpr= parseExpr_4(block, tk);
-        return new OpBinNotExpr(block, t, subexpr);
     }
     else
     {
