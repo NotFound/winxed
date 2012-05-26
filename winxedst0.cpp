@@ -1658,7 +1658,6 @@ private:
 class ConstStatement : public ValueStatement
 {
 public:
-    ConstStatement(Block & block, const Token &st, Tokenizer &tk);
     ConstStatement(Block & block, const Token &st, Tokenizer &tk, char typed);
     BaseStatement *optimize();
     void emit (Emit &e);
@@ -4996,29 +4995,6 @@ void VarStatement::emit (Emit &e)
 }
 
 //**********************************************************************
-
-ConstStatement::ConstStatement(Block & block, const Token &st, Tokenizer &tk) :
-    ValueStatement (block, st),
-    value(0)
-{
-    Token t= tk.get();
-    type = nativetype(t);
-
-    switch (type) {
-    case REGint:
-    case REGstring:
-        break;
-    default:
-        throw SyntaxError("Invalid const type", t);
-    }
-
-    t= tk.get();
-    name= t.identifier();
-    ExpectOp('=', tk);
-    value= parseExpr(block, tk);
-    t= tk.get();
-    RequireOp (';', t);
-}
 
 ConstStatement::ConstStatement(Block & block, const Token &st, Tokenizer &tk,
         char typed) :
