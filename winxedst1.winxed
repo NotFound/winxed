@@ -3831,33 +3831,30 @@ class OpAddToExpr : OpBaseAssignExpr
         string ltype = lexpr.checkresult();
         string rtype = rexpr.checkresult();
         string reg = lexpr.emit_get(e);
-        if (ltype == REGstring && (rexpr instanceof ConcatString))
-            rexpr.emit_concat_to(e, reg);
-        else {
-            string reg2 = rexpr.emit_get(e);
-            string aux;
-            self.annotate(e);
-            switch (ltype) {
-              case REGstring:
-                if (rtype != REGstring) {
-                    aux = self.tempreg(REGstring);
-                    e.emitset(aux, reg2);
-                    reg2 = aux;
-                }
-                e.emitconcat1(reg, reg2);
-                break;
-              case REGint:
-              case REGfloat:
-                if (ltype != rtype) {
-                    aux = self.tempreg(ltype);
-                    e.emitset(aux, reg2);
-                    reg2 = aux;
-                }
-                e.emitaddto(reg, reg2);
-                break;
-              default:
-                e.emitaddto(reg, reg2);
+
+        string reg2 = rexpr.emit_get(e);
+        string aux;
+        self.annotate(e);
+        switch (ltype) {
+          case REGstring:
+            if (rtype != REGstring) {
+                aux = self.tempreg(REGstring);
+                e.emitset(aux, reg2);
+                reg2 = aux;
             }
+            e.emitconcat1(reg, reg2);
+            break;
+          case REGint:
+          case REGfloat:
+            if (ltype != rtype) {
+                aux = self.tempreg(ltype);
+                e.emitset(aux, reg2);
+                reg2 = aux;
+            }
+            e.emitaddto(reg, reg2);
+            break;
+          default:
+            e.emitaddto(reg, reg2);
         }
         if (lexpr instanceof LexicalVolatileExpr)
             lexpr.emit_store(e, reg);
@@ -4526,108 +4523,6 @@ class OpBinXorExpr : OpBaseBinExpr
 
 //*********************************************
 
-class ConcatString : FinalExpr
-{
-    var values;
-    function ConcatString(owner, start, lexpr, rexpr)
-    {
-        self.Expr(owner, start);
-        switch {
-          case lexpr instanceof ConcatString:
-            self.values = lexpr.values;
-            if (rexpr instanceof ConcatString)
-                self.append(rexpr.values);
-            else
-                self.pushexpr(rexpr);
-            break;
-          case rexpr instanceof ConcatString:
-            self.values = rexpr.values;
-            self.unshiftexpr(lexpr);
-            break;
-          default:
-            self.values = [lexpr, rexpr];
-        }
-    }
-    function pushexpr(rexpr)
-    {
-        var values = self.values;
-        var last = values[-1];
-        if (last.isstringliteral() && rexpr.isstringliteral())
-            values[-1] = concat_literal(last, rexpr);
-        else
-            push(values, rexpr);
-    }
-    function unshiftexpr(lexpr)
-    {
-        var values = self.values;
-        var first = values[0];
-        if (first.isstringliteral() && lexpr.isstringliteral())
-            values[0] = concat_literal(lexpr, first);
-        else
-            unshift(values, lexpr);
-    }
-    function append(rvalues)
-    {
-        var values = self.values;
-        var last = values[-1];
-        if (last.isstringliteral()) {
-            var first = rvalues[0];
-            if (first.isstringliteral()) {
-                values[-1] = concat_literal(last, first);
-                rvalues.shift();
-            }
-        }
-        values.append(rvalues);
-    }
-
-    function checkresult() { return REGstring; }
-    function getregs(e)
-    {
-        var values = self.values;
-        int nvalues = elements(values);
-        string regvalues[nvalues];
-        int i;
-        for (i = 0; i < nvalues; i = i + 1)
-            regvalues[i] = string(values[i].emit_get(e));
-        return regvalues;
-    }
-    function emit(e, string result)
-    {
-        string auxreg = self.emit_get(e);
-        e.emitset(result, auxreg);
-    }
-    function emit_get(e)
-    {
-        var regvalues = self.getregs(e);
-        int nvalues = elements(regvalues);
-        string auxreg = self.tempreg(REGstring);
-        self.annotate(e);
-        e.emitconcat(auxreg, regvalues[0], regvalues[1]);
-        for (int i = 2; i < nvalues; i = i + 1)
-            e.emitconcat1(auxreg, regvalues[i]);
-        return auxreg;
-    }
-    function emit_init(e, string result)
-    {
-        var regvalues = self.getregs(e);
-        int nvalues = elements(regvalues);
-        self.annotate(e);
-        e.emitconcat(result, regvalues[0], regvalues[1]);
-        for (int i = 2; i < nvalues; i = i + 1)
-            e.emitconcat1(result, regvalues[i]);
-    }
-    function emit_concat_to(e, string result)
-    {
-        var regvalues = self.getregs(e);
-        int nvalues = elements(regvalues);
-        self.annotate(e);
-        for (int i = 0; i < nvalues; i = i + 1)
-            e.emitconcat1(result, regvalues[i]);
-    }
-}
-
-//*********************************************
-
 class RepeatString : OpBinaryExpr
 {
     function RepeatString(from)
@@ -4668,9 +4563,6 @@ class OpAddExpr : OpBinaryExpr
                 int rn = rexpr.getIntegerValue();
                 return integerValue(self.owner, self.start, ln + rn);
             }
-        }
-        if (ltype == REGstring && rtype == REGstring) {
-            return new ConcatString(self.owner, self.start, lexpr, rexpr);
         }
         return self;
     }
