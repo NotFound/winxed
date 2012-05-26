@@ -1277,7 +1277,7 @@ function string_from_literal(arg)
         value = arg.getFloatValue();
         break;
       case arg.isstringliteral():
-        value = arg.get_value();
+        value = arg.getStringValue();
         break;
       default:
         InternalError("wrong call to string_from_literal", arg);
@@ -1296,7 +1296,7 @@ function int_from_literal(arg)
         value = arg.getFloatValue();
         break;
       case arg.isstringliteral():
-        value = arg.get_value();
+        value = arg.getStringValue();
         break;
       default:
         InternalError("wrong call to int_from_literal", arg);
@@ -1313,7 +1313,7 @@ function float_from_literal(arg)
         value = arg.getFloatValue();
         break;
       case arg.isstringliteral():
-        value = arg.get_value();
+        value = arg.getStringValue();
         break;
       default:
         InternalError("wrong call to float_from_literal", arg);
@@ -3634,7 +3634,7 @@ class StringLiteral : Literal
         string str = strtok.getPirString();
         return str;
     }
-    function get_value()
+    function getStringValue()
     {
         var strtok = self.strval;
         string str = strtok.str;
@@ -3644,11 +3644,11 @@ class StringLiteral : Literal
     }
     function getLiteralInteger()
     {
-        return integerValue(self.owner, self.start, self.get_value());
+        return integerValue(self.owner, self.start, self.getStringValue());
     }
     function getLiteralFloat()
     {
-        return floatValue(self.owner, self.start, self.get_value());
+        return floatValue(self.owner, self.start, self.getStringValue());
     }
     function getLiteralString()
     {
@@ -7221,7 +7221,7 @@ class IndexExpr : Expr
             // evaluating it at compile time.
             if (left.isstringliteral() && arg.isintegerliteral()) {
                 int ival = arg.getIntegerValue();
-                string sval = left.get_value();
+                string sval = left.getStringValue();
                 return stringQuotedValue(self.owner, self.start,
                         substr(sval, ival, 1));
             }
@@ -9390,7 +9390,7 @@ class ForeachStatement : LoopStatement, BlockStatement
         // null values and empty strings.
         if (container.isnull() ||
                 (container.isstringliteral() &&
-                length(container.get_value()) == 0))
+                length(container.getStringValue()) == 0))
             return new EmptyStatement;
 
         self.container = container;
@@ -10834,7 +10834,7 @@ function multi_sig_from_multi_modifier(owner, multi)
             var arg = multi.getarg(i);
             switch {
               case arg.isstringliteral():
-                push(sig, arg.get_value());
+                push(sig, arg.getStringValue());
                 break;
               case arg.isidentifier():
                 string name = arg.getName();
