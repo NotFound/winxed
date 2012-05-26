@@ -8968,10 +8968,10 @@ class SwitchBaseStatement : Breakable, Statement
     function cloneswitchto(cloned, owner)
     {
         cloned.Statement(self.start, owner);
-        cloned.case_value = clone_array(self.case_value, owner);
+        cloned.case_value = clone_array(self.case_value, cloned);
         cloned.case_st = transform(self.case_st, [],
-                function (case) { return clone_array(case, owner); } );
-        cloned.default_st = clone_array(self.default_st, owner);
+                function (case) { return clone_array(case, cloned); } );
+        cloned.default_st = clone_array(self.default_st, cloned);
         return cloned;
     }
     function parse_cases(tk)
