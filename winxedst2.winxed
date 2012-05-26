@@ -3992,7 +3992,7 @@ class LexicalVolatileExpr : FinalExpr
         e.emitstore_lex(desc.getlex(), lreg);
         return lreg;
     }
-    function emit_store(e, reg)
+    function emit_store(e, string reg)
     {
         e.emitstore_lex(self.desc.getlex(), reg);
     }
@@ -4435,7 +4435,7 @@ class OpIncDec : OpUnaryExpr
     {
         return self.subexpr.checkresult();
     }
-    function iflexical(e, reg)
+    function iflexical(e, string reg)
     {
         var expr = self.subexpr;
         if (expr instanceof LexicalVolatileExpr)
