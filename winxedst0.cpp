@@ -3391,13 +3391,6 @@ private:
     {
         return lexpr->isinteger() && rexpr->isinteger();
     }
-    bool isstring() const
-    {
-        if (lexpr->isstring() && rexpr->isinteger())
-            return true;
-        else
-            return false;
-    }
     Expr *optimize()
     {
         optimize_operands();
@@ -3410,25 +3403,13 @@ private:
     }
     void emit(Emit &e, const std::string &result)
     {
-        if (isstring())
-        {
-            std::string res= result.empty() ? gentemp(REGstring) : result;
-            std::string op1= gentemp(REGstring);
-            std::string op2= gentemp(REGint);
-            lexpr->emit(e, op1);
-            rexpr->emit(e, op2);
-            e << INDENT "repeat " << res << ", " << op1 << ", " << op2;
-        }
-        else
-        {
-            char type= lexpr->isinteger() && rexpr->isinteger() ? REGint : REGvar;
-            std::string res= result.empty() ? gentemp(type) : result;
-            std::string op1= gentemp(type);
-            std::string op2= gentemp(type);
-            lexpr->emit(e, op1);
-            rexpr->emit(e, op2);
-            e << op_mul(res, op1, op2);
-        }
+        char type= isinteger() ? REGint : REGvar;
+        std::string res= result.empty() ? gentemp(type) : result;
+        std::string op1= gentemp(type);
+        std::string op2= gentemp(type);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
+        e << op_mul(res, op1, op2);
         if (!result.empty())
             e << '\n';
     }
