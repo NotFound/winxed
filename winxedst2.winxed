@@ -1266,58 +1266,24 @@ const int
 
 // Helpers for compile time evaluation
 
-function string_from_literal(arg)
+inline int_from_literal(var arg) return int
 {
-    string value;
-    switch {
-      case arg.isintegerliteral():
-        value = arg.numval;
-        break;
-      case arg.isfloatliteral():
-        value = arg.getFloatValue();
-        break;
-      case arg.isstringliteral():
-        value = arg.getStringValue();
-        break;
-      default:
-        InternalError("wrong call to string_from_literal", arg);
-    }
+    __ASSERT__(arg instanceof Literal);
+    int value = arg.getIntegerValue();
     return value;
 }
 
-function int_from_literal(arg)
+inline float_from_literal(var arg) return float
 {
-    int value;
-    switch {
-      case arg.isintegerliteral():
-        value = arg.numval;
-        break;
-      case arg.isfloatliteral():
-        value = arg.getFloatValue();
-        break;
-      case arg.isstringliteral():
-        value = arg.getStringValue();
-        break;
-      default:
-        InternalError("wrong call to int_from_literal", arg);
-    }
+    __ASSERT__(arg instanceof Literal);
+    float value = arg.getFloatValue();
     return value;
 }
 
-function float_from_literal(arg)
+inline string_from_literal(var arg) return string
 {
-    float value;
-    switch {
-      case arg.isintegerliteral():
-      case arg.isfloatliteral():
-        value = arg.getFloatValue();
-        break;
-      case arg.isstringliteral():
-        value = arg.getStringValue();
-        break;
-      default:
-        InternalError("wrong call to float_from_literal", arg);
-    }
+    __ASSERT__(arg instanceof Literal);
+    string value = arg.getStringValue();
     return value;
 }
 
@@ -3535,6 +3501,11 @@ class IntegerLiteral : Literal
         float value = self.getIntegerValue();
         return value;
     }
+    function getStringValue()
+    {
+        string str = self.numval;
+        return str;
+    }
     function getLiteralInteger()
     {
         return self;
@@ -3583,10 +3554,20 @@ class FloatLiteral : Literal
     }
     function isfloatliteral() { return true; }
     function checkresult() { return REGfloat; }
+    function getIntegerValue()
+    {
+        int ival = self.getFloatValue();
+        return ival;
+    }
     function getFloatValue()
     {
         float value = self.numval.getfloatvalue();
         return value;
+    }
+    function getStringValue()
+    {
+        string str = self.getFloatValue();
+        return str;
     }
     function getLiteralInteger()
     {
@@ -3633,6 +3614,16 @@ class StringLiteral : Literal
         var strtok = self.strval;
         string str = strtok.getPirString();
         return str;
+    }
+    function getIntegerValue()
+    {
+        int ival = self.getStringValue();
+        return ival;
+    }
+    function getFloatValue()
+    {
+        float nval = self.getStringValue();
+        return nval;
     }
     function getStringValue()
     {
