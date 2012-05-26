@@ -29,7 +29,7 @@
 const char REGint    = 'I';
 const char REGstring = 'S';
 const char REGvar    = 'P';
-// Pseudotypes for predefined functions
+// Pseudotypes for builtins
 const char REGany    = '?';
 const char REGnone   = '\0'; // void return
 
@@ -237,23 +237,23 @@ void emit_group(const std::vector<T *> &group, Emit &e)
 
 //**********************************************************************
 
-class PredefFunction
+class BuiltinFunction
 {
 public:
     static const int VarArgs = -1;
-    PredefFunction(const std::string &name, char typeresult, int nargs) :
+    BuiltinFunction(const std::string &name, char typeresult, int nargs) :
         pname(name),
         tresult(typeresult),
         n(nargs)
     {
     }
-    PredefFunction(const std::string &name, char typeresult) :
+    BuiltinFunction(const std::string &name, char typeresult) :
         pname(name),
         tresult(typeresult),
         n(VarArgs)
     {
     }
-    static const PredefFunction *find(const std::string &name,
+    static const BuiltinFunction *find(const std::string &name,
         size_t numargs);
     bool name_is(const std::string &name) const
     { return pname == name; }
@@ -264,17 +264,17 @@ public:
     virtual void emit(Emit &e, const std::string &result,
         const std::vector<std::string> args) const = 0;
 private:
-    static const PredefFunction *predefs[];
-    static const size_t numpredefs;
+    static const BuiltinFunction *builtins[];
+    static const size_t numbuiltins;
     const std::string pname;
     char tresult;
     unsigned int n;
 };
 
-class PredefFunctionFixargs : public PredefFunction
+class BuiltinFunctionFixargs : public BuiltinFunction
 {
 public:
-    PredefFunctionFixargs(const std::string &name,
+    BuiltinFunctionFixargs(const std::string &name,
             const std::string &body,
             char typeresult,
             char type0= '\0',
@@ -300,12 +300,12 @@ private:
     std::vector<int> marks;
 };
 
-class PredefFunctionVarargs : public PredefFunction
+class BuiltinFunctionVarargs : public BuiltinFunction
 {
 protected:
-    PredefFunctionVarargs(const std::string &name,
+    BuiltinFunctionVarargs(const std::string &name,
             char typeresult) :
-        PredefFunction(name, typeresult)
+        BuiltinFunction(name, typeresult)
     { }
     char paramtype(size_t /*unused*/) const
     {
@@ -313,10 +313,10 @@ protected:
     }
 };
 
-class Predef_print : public PredefFunctionVarargs
+class Builtin_print : public BuiltinFunctionVarargs
 {
 public:
-    Predef_print() : PredefFunctionVarargs("print", REGnone)
+    Builtin_print() : BuiltinFunctionVarargs("print", REGnone)
     { }
 private:
     void emit(Emit &e, const std::string &,
@@ -328,10 +328,10 @@ private:
     }
 };
 
-class Predef_say : public PredefFunctionVarargs
+class Builtin_say : public BuiltinFunctionVarargs
 {
 public:
-    Predef_say() : PredefFunctionVarargs("say", REGnone)
+    Builtin_say() : BuiltinFunctionVarargs("say", REGnone)
     { }
 private:
     void emit(Emit &e, const std::string &,
@@ -348,10 +348,10 @@ private:
     }
 };
 
-class Predef_cry : public PredefFunctionVarargs
+class Builtin_cry : public BuiltinFunctionVarargs
 {
 public:
-    Predef_cry() : PredefFunctionVarargs("cry", REGnone)
+    Builtin_cry() : BuiltinFunctionVarargs("cry", REGnone)
     { }
 private:
     void emit(Emit &e, const std::string &,
@@ -366,10 +366,10 @@ private:
     }
 };
 
-class Predef_ASSERT : public PredefFunction
+class Builtin_ASSERT : public BuiltinFunction
 {
 public:
-    Predef_ASSERT() : PredefFunction("__ASSERT__", REGnone, 1)
+    Builtin_ASSERT() : BuiltinFunction("__ASSERT__", REGnone, 1)
     { }
     char paramtype(size_t n) const { return REGint; }
     void emit(Emit &e, const std::string &,
@@ -384,185 +384,185 @@ public:
     }
 };
 
-const PredefFunction *PredefFunction::predefs[]= {
-    new Predef_ASSERT(),
-    new Predef_print(),
-    new Predef_say(),
-    new Predef_cry(),
-    new PredefFunctionFixargs("int",
+const BuiltinFunction *BuiltinFunction::builtins[]= {
+    new Builtin_ASSERT(),
+    new Builtin_print(),
+    new Builtin_say(),
+    new Builtin_cry(),
+    new BuiltinFunctionFixargs("int",
         "{res} = {arg0}",
         REGint, REGany),
-    new PredefFunctionFixargs("string",
+    new BuiltinFunctionFixargs("string",
         "{res} = {arg0}",
         REGstring, REGany),
-    new PredefFunctionFixargs("exit",
+    new BuiltinFunctionFixargs("exit",
         "exit {arg0}",
         REGnone, REGint),
-    new PredefFunctionFixargs("spawnw",
+    new BuiltinFunctionFixargs("spawnw",
         "spawnw {res}, {arg0}",
         REGint, REGvar),
-    new PredefFunctionFixargs("getstdin",
+    new BuiltinFunctionFixargs("getstdin",
         "getstdin {res}",
         REGvar),
-    new PredefFunctionFixargs("getstdout",
+    new BuiltinFunctionFixargs("getstdout",
         "getstdout {res}",
         REGvar),
-    new PredefFunctionFixargs("getstderr",
+    new BuiltinFunctionFixargs("getstderr",
         "getstderr {res}",
         REGvar),
-    new PredefFunctionFixargs("open",
+    new BuiltinFunctionFixargs("open",
         "root_new {res}, ['parrot';'FileHandle']\n"
         "{res}.'open'({arg0})",
         REGvar, REGstring),
-    new PredefFunctionFixargs("open",
+    new BuiltinFunctionFixargs("open",
         "root_new {res}, ['parrot';'FileHandle']\n"
         "{res}.'open'({arg0},{arg1})",
         REGvar, REGstring, REGstring),
-    new PredefFunctionFixargs("Error",
+    new BuiltinFunctionFixargs("Error",
         "root_new {res}, ['parrot';'Exception']\n"
         "{res}['message'] = {arg0}\n"
         , REGvar, REGstring),
-    new PredefFunctionFixargs("Error",
+    new BuiltinFunctionFixargs("Error",
         "root_new {res}, ['parrot';'Exception']\n"
         "{res}['message'] = {arg0}\n"
         "{res}['severity'] = {arg1}\n"
         , REGvar, REGstring, REGint),
-    new PredefFunctionFixargs("Error",
+    new BuiltinFunctionFixargs("Error",
         "root_new {res}, ['parrot';'Exception']\n"
         "{res}['message'] = {arg0}\n"
         "{res}['severity'] = {arg1}\n"
         "{res}['type'] = {arg2}\n"
         , REGvar, REGstring, REGint, REGint),
-    new PredefFunctionFixargs("Error",
+    new BuiltinFunctionFixargs("Error",
         "root_new {res}, ['parrot';'Exception']\n"
         "{res}['message'] = {arg0}\n"
         "{res}['severity'] = {arg1}\n"
         "{res}['type'] = {arg2}\n"
         "{res}['payload'] = {arg3}\n"
         , REGvar, REGstring, REGint, REGint, REGvar),
-    new PredefFunctionFixargs("elements",
+    new BuiltinFunctionFixargs("elements",
         "elements {res}, {arg0}",
         REGint, REGvar),
-    new PredefFunctionFixargs("length",
+    new BuiltinFunctionFixargs("length",
         "length {res}, {arg0}",
         REGint, REGstring),
-    new PredefFunctionFixargs("bytelength",
+    new BuiltinFunctionFixargs("bytelength",
         "bytelength {res}, {arg0}",
         REGint, REGstring),
-    new PredefFunctionFixargs("chr",
+    new BuiltinFunctionFixargs("chr",
         "chr $S0, {arg0}\n"
         "find_encoding $I0, 'utf8'\n"
         "trans_encoding {res}, $S0, $I0\n",
         REGstring, REGint),
-    new PredefFunctionFixargs("ord",
+    new BuiltinFunctionFixargs("ord",
         "ord {res}, {arg0}",
         REGint, REGstring),
-    new PredefFunctionFixargs("ord",
+    new BuiltinFunctionFixargs("ord",
         "ord {res}, {arg0}, {arg1}",
         REGint, REGstring, REGint),
-    new PredefFunctionFixargs("substr",
+    new BuiltinFunctionFixargs("substr",
         "substr {res}, {arg0}, {arg1}",
         REGstring, REGstring, REGint),
-    new PredefFunctionFixargs("substr",
+    new BuiltinFunctionFixargs("substr",
         "substr {res}, {arg0}, {arg1}, {arg2}",
         REGstring, REGstring, REGint, REGint),
-    new PredefFunctionFixargs("replace",
+    new BuiltinFunctionFixargs("replace",
         "replace {res}, {arg0}, {arg1}, {arg2}, {arg3}",
         REGstring, REGstring, REGint, REGint, REGstring),
-    new PredefFunctionFixargs("indexof",
+    new BuiltinFunctionFixargs("indexof",
         "index {res}, {arg0}, {arg1}",
         REGint, REGstring, REGstring),
-    new PredefFunctionFixargs("indexof",
+    new BuiltinFunctionFixargs("indexof",
         "index {res}, {arg0}, {arg1}, {arg2}",
         REGint, REGstring, REGstring, REGint),
-    new PredefFunctionFixargs("escape",
+    new BuiltinFunctionFixargs("escape",
         "escape {res}, {arg0}",
         REGstring, REGstring),
-    new PredefFunctionFixargs("unescape",
+    new BuiltinFunctionFixargs("unescape",
         "$P0 = new ['String']\n"
         "$P0 = {arg0}\n"
         "{res} = $P0.'unescape'('utf8')\n",
         REGstring, REGstring),
-    new PredefFunctionFixargs("unescape",
+    new BuiltinFunctionFixargs("unescape",
         "$P0 = new ['String']\n"
         "$P0 = {arg0}\n"
         "{res} = $P0.'unescape'({arg1})\n",
         REGstring, REGstring, REGstring),
-    new PredefFunctionFixargs("upcase",
+    new BuiltinFunctionFixargs("upcase",
         "upcase {res}, {arg0}",
         REGstring, REGstring),
-    new PredefFunctionFixargs("downcase",
+    new BuiltinFunctionFixargs("downcase",
         "downcase {res}, {arg0}",
         REGstring, REGstring),
-    new PredefFunctionFixargs("titlecase",
+    new BuiltinFunctionFixargs("titlecase",
         "titlecase {res}, {arg0}",
         REGstring, REGstring),
-    new PredefFunctionFixargs("join",
+    new BuiltinFunctionFixargs("join",
         "join {res}, {arg0}, {arg1}",
         REGstring, REGstring, REGvar),
-    new PredefFunctionFixargs("split",
+    new BuiltinFunctionFixargs("split",
         "split {res}, {arg0}, {arg1}",
         REGvar, REGstring, REGstring),
-    new PredefFunctionFixargs("push",
+    new BuiltinFunctionFixargs("push",
         "push {arg0}, {arg1}",
         REGnone, REGvar, REGany),
-    new PredefFunctionFixargs("getinterp",
+    new BuiltinFunctionFixargs("getinterp",
         "getinterp {res}",
         REGvar),
-    new PredefFunctionFixargs("get_class",
+    new BuiltinFunctionFixargs("get_class",
         "get_class {res}, {arg0}",
         REGvar, REGstring),
-    new PredefFunctionFixargs("typeof",
+    new BuiltinFunctionFixargs("typeof",
         "typeof {res}, {arg0}",
         REGvar, REGvar),
-    new PredefFunctionFixargs("clone",
+    new BuiltinFunctionFixargs("clone",
         "clone {res}, {arg0}",
         REGvar, REGvar),
-    new PredefFunctionFixargs("compreg",
+    new BuiltinFunctionFixargs("compreg",
         "compreg {res}, {arg0}",
         REGvar, REGstring),
-    new PredefFunctionFixargs("compreg",
+    new BuiltinFunctionFixargs("compreg",
         "compreg {arg0}, {arg1}",
         REGnone, REGstring, REGvar),
-    new PredefFunctionFixargs("load_language",
+    new BuiltinFunctionFixargs("load_language",
         "load_language {arg0}\n"
         "compreg {res}, {arg0}",
         REGvar, REGstring),
-    new PredefFunctionFixargs("load_language",
+    new BuiltinFunctionFixargs("load_language",
         "load_language {arg0}\n"
         "compreg {res}, {arg1}",
         REGvar, REGstring, REGstring),
-    new PredefFunctionFixargs("loadlib",
+    new BuiltinFunctionFixargs("loadlib",
         "loadlib {res}, {arg0}",
         REGvar, REGstring),
-    new PredefFunctionFixargs("load_bytecode",
+    new BuiltinFunctionFixargs("load_bytecode",
         "load_bytecode {arg0}",
         REGvar, REGstring),
-    new PredefFunctionFixargs("sprintf",
+    new BuiltinFunctionFixargs("sprintf",
         "sprintf {res}, {arg0}, {arg1}",
         REGstring, REGstring, REGvar)
 };
 
-const size_t PredefFunction::numpredefs =
-    sizeof(PredefFunction::predefs) / sizeof(PredefFunction::predefs[0]);
+const size_t BuiltinFunction::numbuiltins =
+    sizeof(BuiltinFunction::builtins) / sizeof(BuiltinFunction::builtins[0]);
 
-const PredefFunction *PredefFunction::find(const std::string &name,
+const BuiltinFunction *BuiltinFunction::find(const std::string &name,
     size_t numargs)
 {
-    for (size_t i= 0; i < numpredefs; ++i) {
-        int n = predefs[i]->n;
-        if ((n == PredefFunction::VarArgs || n == int(numargs)) &&
-                predefs[i]->name_is(name) )
-            return predefs[i];
+    for (size_t i= 0; i < numbuiltins; ++i) {
+        int n = builtins[i]->n;
+        if ((n == BuiltinFunction::VarArgs || n == int(numargs)) &&
+                builtins[i]->name_is(name) )
+            return builtins[i];
     }
     return 0;
 }
 
-PredefFunctionFixargs::PredefFunctionFixargs(const std::string &name,
+BuiltinFunctionFixargs::BuiltinFunctionFixargs(const std::string &name,
             const std::string &body,
             char typeresult,
             char type0, char type1, char type2, char type3) :
-        PredefFunction(name, typeresult,
+        BuiltinFunction(name, typeresult,
                 bool(type0) +bool(type1) + bool(type2) + bool(type3) ),
         t0(type0), t1(type1), t2(type2), t3(type3)
 {
@@ -593,7 +593,7 @@ PredefFunctionFixargs::PredefFunctionFixargs(const std::string &name,
     }
 }
 
-void PredefFunctionFixargs::emit(Emit &e, const std::string &result,
+void BuiltinFunctionFixargs::emit(Emit &e, const std::string &result,
     const std::vector<std::string> args) const
 {
     std::string body;
@@ -613,7 +613,7 @@ void PredefFunctionFixargs::emit(Emit &e, const std::string &result,
           case -1:
             break;
           default:
-            throw InternalError("Unexpected failure in Predef");
+            throw InternalError("Unexpected failure in builtin");
         }
     }
 
@@ -3849,10 +3849,10 @@ bool CallExpr::isinteger() const
     {
         std::string name= called->getidentifier();
         int numargs = args ? args->numargs() : 0;
-        if (const PredefFunction *predef=
-                PredefFunction::find(name, numargs))
+        if (const BuiltinFunction *builtin=
+                BuiltinFunction::find(name, numargs))
         {
-            return predef->resulttype() == REGint;
+            return builtin->resulttype() == REGint;
         }
     }
     return false;
@@ -3864,10 +3864,10 @@ bool CallExpr::isstring() const
     {
         std::string name= called->getidentifier();
         int numargs = args ? args->numargs() : 0;
-        if (const PredefFunction *predef=
-                PredefFunction::find(name, numargs))
+        if (const BuiltinFunction *builtin=
+                BuiltinFunction::find(name, numargs))
         {
-            return predef->resulttype() == REGstring;
+            return builtin->resulttype() == REGstring;
         }
     }
     return false;
@@ -3881,14 +3881,14 @@ void CallExpr::emit(Emit &e, const std::string &result)
         e.annotate(called->gettoken());
         std::string name= called->getidentifier();
 
-    if (const PredefFunction *predef=
-            PredefFunction::find(name, numargs))
+    if (const BuiltinFunction *builtin=
+            BuiltinFunction::find(name, numargs))
     {
         std::vector<std::string> argregs;
         for (int i= 0; i < numargs; ++i)
         {
             Expr &arg= * (args->getfreearg(i));
-            char paramtype= predef->paramtype(i);
+            char paramtype= builtin->paramtype(i);
             switch (paramtype)
             {
             case REGint:
@@ -3939,17 +3939,17 @@ void CallExpr::emit(Emit &e, const std::string &result)
                 }
             }
         }
-        if (predef->resulttype())
+        if (builtin->resulttype())
         {
             std::string r;
             if (result.empty())
-                r= gentemp(predef->resulttype());
+                r= gentemp(builtin->resulttype());
             else
                 r= result;
-            predef->emit(e, r, argregs);
+            builtin->emit(e, r, argregs);
         }
         else
-            predef->emit(e, std::string(), argregs);
+            builtin->emit(e, std::string(), argregs);
         return;
     }
     }
