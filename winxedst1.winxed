@@ -10221,7 +10221,7 @@ function main [main](var args)
         handlein.open(srcname, "r");
     }
     else {
-        evalexpr = "function main[main](argv){" + evalexpr + ";}";
+        evalexpr = "function main[main](var argv){" + evalexpr + ";}";
         handlein = new ["StringHandle"];
         handlein.open(srcname, "w");
         handlein.encoding("utf8");
@@ -10236,12 +10236,18 @@ function main [main](var args)
     handlein.close();
     winxed.optimize();
 
-    var output = new ["FileHandle"];
-    output.open(objname, "w");
+    var output;
+    if (objname == "-")
+        output = getstdout();
+    else {
+        output = new ["FileHandle"];
+        output.open(objname, "w");
+    }
     var emit = new Emit(output, nowarn);
     winxed.emit(emit);
     emit.close();
-    output.close();
+    if (objname != "-")
+        output.close();
     exit(0);
 }
 
