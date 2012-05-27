@@ -3473,10 +3473,10 @@ class IntegerLiteral : Literal
 {
     var pos;
     var numval;
-    function IntegerLiteral(var owner, var t, var value)
+    function IntegerLiteral(var owner, var start, var value)
     {
-        self.Expr(owner, t);
-        self.pos = t;
+        self.Expr(owner, start);
+        self.pos = start;
         int n = value;
         self.numval = n;
     }
@@ -3541,10 +3541,10 @@ class IntegerLiteral : Literal
 class FloatLiteral : Literal
 {
     var numval;
-    function FloatLiteral(var owner, var t)
+    function FloatLiteral(var owner, var start)
     {
-        self.Expr(owner, t);
-        self.numval = t;
+        self.Expr(owner, start);
+        self.numval = start;
     }
     function clone(var owner)
     {
@@ -3596,10 +3596,10 @@ class FloatLiteral : Literal
 class StringLiteral : Literal
 {
     var strval;
-    function StringLiteral(var owner, var t)
+    function StringLiteral(var owner, var start)
     {
-        self.Expr(owner, t);
-        self.strval = t;
+        self.Expr(owner, start);
+        self.strval = start;
     }
     function clone(var owner)
     {
