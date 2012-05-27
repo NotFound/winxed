@@ -1122,10 +1122,6 @@ class Emit
     {
         self.say(INDENT + "concat ", dst, ", ", src1, ", ", src2);
     }
-    function emitrepeat(string dst, string src1, string src2)
-    {
-        self.say(INDENT + "repeat ", dst, ", ", src1, ", ", src2);
-    }
     function emitprint(string arg)
     {
         self.say(INDENT + "print ", arg);
@@ -1163,6 +1159,10 @@ class Emit
     function emitstore_lex(string name, string reg)
     {
         self.say(INDENT + "store_lex ", name, ", ", reg);
+    }
+    function emitrepeat(string dst, string src1, string src2)
+    {
+        self.say(INDENT + "repeat ", dst, ", ", src1, ", ", src2);
     }
 }
 
@@ -1203,17 +1203,6 @@ function stringQuotedValue(var owner, var start, string value)
     return new StringLiteral(owner, t);
 }
 
-function floatresult(string r1, string r2)
-/*
-    Check if the passed types can give a float result in arithmetic
-    operations.
-*/
-{
-    int result = (r1 == REGfloat && (r2 == REGfloat || r2 == REGint)) ||
-           (r2 == REGfloat && (r1 == REGfloat || r1 == REGint));
-    return result;
-}
-
 function floatAsString(float n)
 /*
     Make sure that a float value is recognized as such by the
@@ -1226,6 +1215,16 @@ function floatAsString(float n)
     return aux;
 }
 
+function floatresult(string r1, string r2)
+/*
+    Check if the passed types can give a float result in arithmetic
+    operations.
+*/
+{
+    int result = (r1 == REGfloat && (r2 == REGfloat || r2 == REGint)) ||
+           (r2 == REGfloat && (r1 == REGfloat || r1 == REGint));
+    return result;
+}
 
 // Predefined constants
 
@@ -1754,49 +1753,49 @@ function getbuiltins(var builder)
     ));
     builder.add(new BuiltinFunction("open",
 <<:
-root_new %0, ['parrot';'FileHandle']
-%0.'open'(%1)
+root_new %0, ["parrot";"FileHandle"]
+%0."open"(%1)
 :>>
         , REGvar, REGstring
     ));
     builder.add(new BuiltinFunction("open",
 <<:
-root_new %0, ['parrot';'FileHandle']
-%0.'open'(%1,%2)
+root_new %0, ["parrot";"FileHandle"]
+%0."open"(%1,%2)
 :>>
         , REGvar, REGstring, REGstring
     ));
     builder.add(new BuiltinFunction("Error",
 <<:
-root_new %0, ['parrot';'Exception']
-%0['message'] = %1
+root_new %0, ["parrot";"Exception"]
+%0["message"] = %1
 :>>
         , REGvar, REGstring
     ));
     builder.add(new BuiltinFunction("Error",
 <<:
-root_new %0, ['parrot';'Exception']
-%0['message'] = %1
-%0['severity'] = %2
+root_new %0, ["parrot";"Exception"]
+%0["message"] = %1
+%0["severity"] = %2
 :>>
         , REGvar, REGstring, REGint
     ));
     builder.add(new BuiltinFunction("Error",
 <<:
-root_new %0, ['parrot';'Exception']
-%0['message'] = %1
-%0['severity'] = %2
-%0['type'] = %3
+root_new %0, ["parrot";"Exception"]
+%0["message"] = %1
+%0["severity"] = %2
+%0["type"] = %3
 :>>
         , REGvar, REGstring, REGint, REGint
     ));
     builder.add(new BuiltinFunction("Error",
 <<:
-root_new %0, ['parrot';'Exception']
-%0['message'] = %1
-%0['severity'] = %2
-%0['type'] = %3
-%0['payload'] = %4
+root_new %0, ["parrot";"Exception"]
+%0["message"] = %1
+%0["severity"] = %2
+%0["type"] = %3
+%0["payload"] = %4
 :>>
         , REGvar, REGstring, REGint, REGint, REGvar
     ));
@@ -1818,7 +1817,7 @@ root_new %0, ['parrot';'Exception']
         builtineval_chr,
 <<:
 chr $S0, %1
-find_encoding $I0, 'utf8'
+find_encoding $I0, "utf8"
 trans_encoding %0, $S0, $I0
 :>>
         , REGstring, REGint
@@ -1868,17 +1867,17 @@ trans_encoding %0, $S0, $I0
     ));
     builder.add(new BuiltinFunction("unescape",
 <<:
-$P0 = new ['String']
+$P0 = new ["String"]
 $P0 = %1
-%0 = $P0.'unescape'('utf8')
+%0 = $P0."unescape"("utf8")
 :>>
         , REGstring, REGstring
     ));
     builder.add(new BuiltinFunction("unescape",
 <<:
-$P0 = new ['String']
+$P0 = new ["String"]
 $P0 = %1
-%0 = $P0.'unescape'(%2)
+%0 = $P0."unescape"(%2)
 :>>
         , REGstring, REGstring, REGstring
     ));
@@ -1916,14 +1915,14 @@ encodingname %0, $I0
     ));
     builder.add(new BuiltinFunction("chomp",
 <<:
-$P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
+$P0 = get_root_global ["parrot";"String";"Utils"], "chomp"
 %0 = $P0(%1)
 :>>
         , REGstring, REGstring
     ));
     builder.add(new BuiltinFunction("chomp",
 <<:
-$P0 = get_root_global ['parrot';'String';'Utils'], 'chomp'
+$P0 = get_root_global ["parrot";"String";"Utils"], "chomp"
 %0 = $P0(%1, %2)
 :>>
         , REGstring, REGstring, REGstring

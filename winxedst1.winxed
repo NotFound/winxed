@@ -696,7 +696,7 @@ function typetoregcheck(string type)
 
 function typetopirname(string regtype)
 {
-    switch(regtype) {
+    switch (regtype) {
     case REGint:    return "int";
     case REGfloat:  return "num";
     case REGstring: return "string";
@@ -1178,10 +1178,7 @@ class BuiltinBase
         }
         self.nparams = n;
     }
-    function iscompileevaluable()
-    {
-        return false;
-    }
+    function iscompileevaluable() { return false; }
     function name()
     {
         string name = self.name;
@@ -1247,10 +1244,7 @@ class BuiltinFunctionEval : BuiltinBase
         self.BuiltinBase(name, body, typeresult, type0, type1, type2, type3);
         self.evalfun = evalfun;
     }
-    function iscompileevaluable()
-    {
-        return true;
-    }
+    function iscompileevaluable() { return true; }
 }
 
 class Builtin_typecast
@@ -1455,14 +1449,14 @@ function getbuiltins(var builder)
     builder.add(new BuiltinFunction("open",
 <<:
 root_new %0, ["parrot";"FileHandle"]
-%0.'open'(%1)
+%0."open"(%1)
 :>>
         , REGvar, REGstring
     ));
     builder.add(new BuiltinFunction("open",
 <<:
 root_new %0, ["parrot";"FileHandle"]
-%0.'open'(%1,%2)
+%0."open"(%1,%2)
 :>>
         , REGvar, REGstring, REGstring
     ));
@@ -6287,7 +6281,7 @@ function parseExpr_2(var tk, var owner)
     var start;
     int code;
     while ((code = getOpCode_2(t = tk.get())) != Code_none ) {
-        switch(code) {
+        switch (code) {
           case Code_paren:
             subexpr = new CallExpr(tk, owner, t, subexpr);
             break;
