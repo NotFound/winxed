@@ -2217,6 +2217,10 @@ class CommonBase
 
     function initbase(var start, var owner)
     {
+        __ASSERT__(start instanceof Token);
+        __ASSERT__((owner instanceof Statement) ||
+                   (owner instanceof ClassStatement) ||
+                   (owner instanceof NamespaceBase));
         self.start = start;
         self.owner = owner;
     }
@@ -2954,7 +2958,7 @@ class UsingNamespaceStatement : Statement
 {
     function UsingNamespaceStatement(var start, var tk, var owner)
     {
-        self.Statement(tk, owner);
+        self.Statement(start, owner);
         usingNamespace(start, tk, owner);
         ExpectOp(";", tk);
     }
@@ -6749,9 +6753,11 @@ class CallExpr : Expr
         var args = self.args;
         if (args != null)
             self.args = args = args.optimize();
+        var owner = self.owner;
 
         if (funref instanceof MemberExpr) {
             var sym = funref.search_nonmember();
+            var start = self.start;
             switch {
               case sym == null:
                 return new CallMemberExpr(self, funref, args);
@@ -6762,31 +6768,31 @@ class CallExpr : Expr
                     return new CallSubid(self, funref, args, subid);
                 }
                 else {
-                    self.funref = new FunctionRef(self.owner, self.start, sym);
+                    self.funref = new FunctionRef(owner, start, sym);
                     return self;
                 }
                 break;
               case sym instanceof FunctionExtern:
-                self.funref = new FunctionRef(self.owner, self.start, sym);
+                self.funref = new FunctionRef(owner, start, sym);
                 return self;
               case sym instanceof Builtin:
-                return gencallbuiltin(self.owner, funref.start, sym, args);
+                return gencallbuiltin(owner, funref.start, sym, args);
                 break;
               default:
-                InternalError("unexpected type found in scope", self.start);
+                InternalError("unexpected type found in scope", start);
             }
         }
         if (funref instanceof MemberRefExpr)
             return new CallMemberRefExpr(self, funref, args);
         if (funref instanceof InlineRef)
-            return new CallInlineExpr(self, funref, args);
+            return new CallInlineExpr(owner, funref, args);
 
         // Check for bultins
         if (funref.isidentifier()) {
             if (funref.checkIdentifier() == "") {
                 var sym = self.scopesearch([ funref.getName() ], 0);
                 if (sym != null && sym instanceof Builtin)
-                    return gencallbuiltin(self.owner, funref.start, sym, args);
+                    return gencallbuiltin(owner, funref.start, sym, args);
             }
         }
 
@@ -7738,14 +7744,14 @@ class OpInstanceOfExpr : Expr
     {
         self.Expr(owner, start);
         self.lexpr = lexpr;
-        self.checked = parseClassSpecifier(tk, self);
+        self.checked = parseClassSpecifier(tk, owner);
     }
     function clone(var owner)
     {
         var cloned = new OpInstanceOfExpr;
         cloned.Expr(owner, self.start);
         cloned.lexpr = self.lexpr.clone(owner);
-        cloned.checked = self.checked.clone(self);
+        cloned.checked = self.checked.clone(owner);
         return cloned;
     }
     function optimize()
@@ -11644,7 +11650,7 @@ class InlineRef : FinalExpr
     function InlineRef(var owner, var start, var sym)
     {
         __ASSERT__(sym instanceof InlineStatement);
-        self.Expr(start, owner);
+        self.Expr(owner, start);
         self.inlined = sym;
     }
     function checkresult() { return REGnone; }
@@ -11671,7 +11677,7 @@ class CallInlineExpr : FinalExpr
      var block;
      function CallInlineExpr(var owner, var funref, var args)
      {
-        self.Expr(funref.start, owner);
+        self.Expr(owner, funref.start);
         self.block = new InlinedBlock(funref.inlined, owner, args);
      }
      function checkresult() { return self.block.checkresult(); }

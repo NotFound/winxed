@@ -1817,6 +1817,10 @@ class CommonBase
 
     function initbase(var start, var owner)
     {
+        __ASSERT__(start instanceof Token);
+        __ASSERT__((owner instanceof Statement) ||
+                   (owner instanceof ClassStatement) ||
+                   (owner instanceof NamespaceBase));
         self.start = start;
         self.owner = owner;
     }
@@ -2394,7 +2398,7 @@ class UsingNamespaceStatement : Statement
 {
     function UsingNamespaceStatement(var start, var tk, var owner)
     {
-        self.Statement(tk, owner);
+        self.Statement(start, owner);
         usingNamespace(start, tk, owner);
         ExpectOp(";", tk);
     }
@@ -5201,12 +5205,15 @@ class CallExpr : Expr
     function optimize()
     {
         var funref = self.funref.optimize();
+        self.funref = funref;
         var args = self.args;
         if (args != null)
-            args = args.optimize();
+            self.args = args = args.optimize();
+        var owner = self.owner;
 
         if (funref instanceof MemberExpr) {
             var sym = funref.search_nonmember();
+            var start = self.start;
             switch {
               case sym == null:
                 return new CallMemberExpr(self, funref, args);
@@ -5217,18 +5224,18 @@ class CallExpr : Expr
                     return new CallSubid(self, funref, args, subid);
                 }
                 else {
-                    self.funref = new FunctionRef(self.owner, self.start, sym);
+                    self.funref = new FunctionRef(owner, start, sym);
                     return self;
                 }
                 break;
               case sym instanceof FunctionExtern:
-                self.funref = new FunctionRef(self.owner, self.start, sym);
+                self.funref = new FunctionRef(owner, start, sym);
                 return self;
               case sym instanceof Builtin:
-                return gencallbuiltin(self.owner, funref.start, sym, args);
+                return gencallbuiltin(owner, funref.start, sym, args);
                 break;
               default:
-                InternalError("unexpected type found in scope", self.start);
+                InternalError("unexpected type found in scope", start);
             }
         }
         if (funref instanceof MemberRefExpr)
@@ -5239,12 +5246,10 @@ class CallExpr : Expr
             if (funref.checkIdentifier() == "") {
                 var sym = self.scopesearch([ funref.getName() ], 0);
                 if (sym != null && sym instanceof Builtin)
-                    return gencallbuiltin(self.owner, funref.start, sym, args);
+                    return gencallbuiltin(owner, funref.start, sym, args);
             }
         }
 
-        self.funref = funref;
-        self.args = args;
         return self;
     }
     function emitcall(var e)
@@ -6117,7 +6122,7 @@ class OpInstanceOfExpr : Expr
     {
         self.Expr(owner, start);
         self.lexpr = lexpr;
-        self.checked = parseClassSpecifier(tk, self);
+        self.checked = parseClassSpecifier(tk, owner);
     }
     function optimize()
     {
