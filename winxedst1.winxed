@@ -2989,24 +2989,6 @@ class FunctionId : FinalExpr
     }
 }
 
-class FunctionRef : FinalExpr
-{
-    var sym;
-    function FunctionRef(var owner, var start, var sym)
-    {
-        self.Expr(owner, start);
-        self.sym = sym;
-    }
-    function checkresult() { return REGvar; }
-    function emit(var e, string result)
-    {
-        var sym = self.sym;
-        var path = sym.owner.getpath();
-        self.annotate(e);
-        path.emit_get_global(e, self.owner, result, sym.name);
-    }
-}
-
 class IdentifierExpr : SimpleExpr
 {
     var name;
@@ -3117,8 +3099,6 @@ class IdentifierExpr : SimpleExpr
                 owner.createvarnamed(name, REGvar, id);
                 return new FunctionId(owner, name, id);
                 break;
-              case sym instanceof FunctionExtern:
-                return new FunctionRef(owner, name, sym);
             }
         }
         return self;
@@ -5232,9 +5212,6 @@ class CallExpr : Expr
                 self.usesubid(subid);
                 return new CallSubid(self, funref, args, subid);
                 break;
-              case sym instanceof FunctionExtern:
-                self.funref = new FunctionRef(owner, start, sym);
-                return self;
               case sym instanceof Builtin:
                 return gencallbuiltin(owner, funref.start, sym, args);
                 break;
@@ -5268,9 +5245,6 @@ class CallExpr : Expr
                 switch {
                   case sym == null:
                     call = join("", [ "'", funref.getName(), "'" ] );
-                    break;
-                  case sym instanceof FunctionExtern:
-                    call = sym.emit_get(e, self);
                     break;
                   case sym instanceof Builtin:
                     InternalError("Builtin unexpected here", self);
@@ -5448,14 +5422,6 @@ class MemberExpr : MemberExprBase
     function optimize()
     {
         self.left = self.left.optimize();
-
-        var sym = self.search_nonmember();
-        switch {
-          case sym == null:
-            break;
-          case sym instanceof FunctionExtern:
-            return new FunctionRef(self.owner, self.start, sym);
-        }
         return self;
     }
     function buildkey(var key)
@@ -8331,28 +8297,6 @@ function parseParameter(var tk, var owner)
 }
 
 //*********************************************
-//            FunctionExtern
-//*********************************************
-
-class FunctionExtern : CommonBase
-{
-    var name;
-    function FunctionExtern(var start, var owner)
-    {
-        self.initbase(start, owner);
-        self.name = start;
-    }
-    function emit_get(var e, var owner)
-    {
-        var path = self.owner.getpath();
-        string reg = owner.tempreg(REGvar);
-        self.annotate(e);
-        path.emit_get_global(e, owner, reg, self.name);
-        return reg;
-    }
-}
-
-//*********************************************
 //            FunctionBase
 //*********************************************
 
@@ -9089,8 +9033,7 @@ class FunctionContainer
     function addfunction(var newfunc)
     {
         __ASSERT__((newfunc instanceof Builtin) ||
-                   (newfunc instanceof FunctionStatement) ||
-                   (newfunc instanceof FunctionExtern));
+                   (newfunc instanceof FunctionStatement));
         var functions = self.functions;
         string name = newfunc.name;
         var func = functions[name];
@@ -9663,19 +9606,6 @@ class NamespaceBase : VarContainer
         var child = self.childnamespace(start, name, modifier);
         child.parse(tk);
     }
-    function parseextern(var tk)
-    {
-        //Syntax: extern function_name;
-
-        var t = tk.get();
-        if (!t.iskeyword("function"))
-            SyntaxError("Unsupported extern", t);
-        t = tk.get();
-        RequireIdentifier(t);
-        ExpectOp(";", tk);
-        var funex = new FunctionExtern(t, self);
-        self.addfunction(funex);
-    }
     function parse(var tk)
     {
         var items = self.items;
@@ -9702,9 +9632,6 @@ class NamespaceBase : VarContainer
                 break;
               case "class":
                 parseClass(t, tk, self);
-                break;
-              case "extern":
-                self.parseextern(tk);
                 break;
               case "using":
                 parsensUsing(t, tk, self);
