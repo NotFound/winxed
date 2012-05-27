@@ -9973,8 +9973,24 @@ class DeclareArrayStatement : DeclareBase
             int i = 0;
             for (var item in init) {
                 string itemreg;
-                if (item.isliteral() && item.checkresult() == basetype)
-                    itemreg = item.emit_get(e);
+                if (item.isliteral()) {
+                    switch (basetype) {
+                      case REGint:
+                        itemreg = item.getIntegerValue();
+                        break;
+                      case REGfloat:
+                        itemreg = item.getFloatValue();
+                        break;
+                      case REGstring:
+                        if (item.isstringliteral())
+                            itemreg = item.getPirString();
+                        else
+                            itemreg = quoted(item.getStringValue());
+                        break;
+                      default:
+                        __ASSERT__(false);
+                    }
+                }
                 else {
                     item.emit(e, auxitemreg);
                     itemreg = auxitemreg;
