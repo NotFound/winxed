@@ -2190,6 +2190,27 @@ function parseList(var tk, var owner, var fn, string oper_end[optional])
     return list;
 }
 
+function parseListOrEmpty(var tk, var owner, var fn, string oper_end)
+/*
+  Parse a comma separated list of items.
+  Calls the passed fn to parse each item.
+  Return null if empty.
+*/
+{
+    var t = tk.get();
+    if (t.isop(oper_end))
+        return null;
+    tk.unget(t);
+    var list = [];
+    do {
+        var value = fn(tk, owner);
+        push(list, value);
+    } while ((t = tk.get()).isop(","));
+    if (! t.isop(oper_end))
+        SyntaxError("Unfinished argument list", t);
+    return list;
+}
+
 // Helper to parse identifier lists using parseList
 function parseIdentifier(var tk, var unused)
 {
@@ -2780,11 +2801,7 @@ class PiropStatement : Statement
             t = tk.get();
         string opname = t.getidentifier();
         self.opname = (dotted ? "." : "") + opname;
-        t = tk.get();
-        if (! t.isop("}")) {
-            tk.unget(t);
-            self.args = parseList(tk, owner, parsePiropArg, "}");
-        }
+        self.args = parseListOrEmpty(tk, owner, parsePiropArg, "}");
         ExpectOp(";", tk);
     }
     function clone(var owner)
@@ -6279,11 +6296,7 @@ class ArgumentList
     {
         self.owner = owner;
         self.start = start;
-        var t = tk.get();
-        if (! t.isop(delimiter)) {
-            tk.unget(t);
-            self.args = parseList(tk, owner, parseArgument, delimiter);
-        }
+        self.args = parseListOrEmpty(tk, owner, parseArgument, delimiter);
     }
     function clone(var owner)
     {
@@ -7280,11 +7293,7 @@ class ArrayExpr : Expr
     function ArrayExpr(var tk, var owner, var start)
     {
         self.Expr(owner, start);
-        var t = tk.get();
-        if (! t.isop("]")) {
-            tk.unget(t);
-            self.values = parseList(tk, owner, parseExpr, "]");
-        }
+        self.values = parseListOrEmpty(tk, owner, parseExpr, "]");
     }
     function clone(var owner)
     {
@@ -9275,11 +9284,7 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
             self.parseconditionshort(tk);
             ExpectOp(";", tk);
         }
-        t = tk.get();
-        if (! t.isop(")")) {
-            tk.unget(t);
-            self.iteration = parseList(tk, self, parseExpr, ")");
-        }
+        self.iteration = parseListOrEmpty(tk, self, parseExpr, ")");
         self.parsebody(tk);
     }
     function clone(var owner)
@@ -9925,11 +9930,7 @@ class DeclareArrayStatement : DeclareBase
             t = tk.get();
             if (! t.isop("["))
                 Expected("array initializer", t);
-            t = tk.get();
-            if (! t.isop("]")) {
-                tk.unget(t);
-                self.initarray = parseList(tk, self, parseExpr, "]");
-            }
+            self.initarray = parseListOrEmpty(tk, self, parseExpr, "]");
         }
         else
             tk.unget(t);
@@ -12362,12 +12363,9 @@ function parsensUsing(var start, var tk, var ns)
       case t.isidentifier():
         tk.unget(t);
         var module = parseDotted(tk);
-        t = tk.get();
-        if (! t.isop(";")) {
-            tk.unget(t);
-            var names = parseList(tk, null, parseIdentifier, ";");
+        var names = parseListOrEmpty(tk, null, parseIdentifier, ";");
+        if (names != null)
             ns.addextern(module, names);
-        }
         string reqmodule = "\"" + join("/", module) + ".pbc\"";
         ns.addload(reqmodule);
         break;
