@@ -6,10 +6,8 @@
 
 $load "Getopt/Obj.pbc";
 
-// This driver must be compilable with stage 0, can't use $incldue_const
-// here, so harcode the values from iglobals.pasm and libpaths.pasm
-const int IGLOBALS_LIB_PATHS = 9;
-const int PARROT_LIB_PATH_INCLUDE = 0;
+$include_const "iglobals.pasm";
+$include_const "libpaths.pasm";
 
 function extname(string filename, string ext)
 {
@@ -83,17 +81,19 @@ class WinxedDriverOptions : ["Getopt", "Obj"]
         int i;
         var o;
         for (o in self.options) {
-            i= length(o[0]) + 4;
-            if (i > l) l= i;
+            i = length(o[0]);
+            if (i > l)
+                l = i;
         }
+	l = l + 4;
+        string filler = "                ";
         for (o in self.options) {
             string s= o[0];
             if (length(s) > 1 && substr(s, 1, 1) != "=")
-                s= "--" + s;
+                s = "--" + s;
             else
-                s= "-" + s;
-            i= l - length(s);
-            say("    ", s, " " * i, "->  ", o[1]);
+                s = "-" + s;
+            say("    ", s, substr(filler, 0, l - length(s)), "->  ", o[1]);
         }
     }
 }

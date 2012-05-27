@@ -101,8 +101,8 @@ winxed$(EXEEXT): $(DRIVER).pbc
 $(DRIVER).pbc: $(DRIVER).pir
 	parrot -o $(DRIVER).pbc $(DRIVER).pir
 
-$(DRIVER).pir: winxed.winxed winxedst0$(EXEEXT)
-	./winxedst0$(EXEEXT) -o $(DRIVER).pir winxed.winxed
+$(DRIVER).pir: winxed.winxed winxedst1.pbc
+	parrot winxedst1.pbc -o $(DRIVER).pir winxed.winxed
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #                      Install
