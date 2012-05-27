@@ -125,7 +125,7 @@ function driver_main(var argv)
         return;
     }
 
-    var env = new "Env";
+    var env = new [ "Env" ];
     // Path for stage pbc files
     string winxedpath = env["WINXED_PATH"];
 

@@ -9,7 +9,7 @@ function main()
     using Test.More.is;
     plan (2);
 
-    var a= new "FixedStringArray";
+    var a= new [ "FixedStringArray" ];
     a=: 42;
     is (a instanceof "FixedStringArray", 1, "type unchanged");
     int i= a;

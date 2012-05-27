@@ -8,7 +8,7 @@ function main()
 {
     plan(1);
 
-    var c = new "Integer";
+    var c = new [ "Integer" ];
     c =: 4;
     int i = 0;
     do {

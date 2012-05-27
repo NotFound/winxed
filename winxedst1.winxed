@@ -5845,7 +5845,7 @@ class NewExpr : NewBaseExpr
     {
         self.Expr(owner, start);
 
-        if (! (firstvalue.isstring() || firstvalue.isidentifier()))
+        if (!firstvalue.isidentifier())
             SyntaxError("Unimplemented", firstvalue);
         self.value = firstvalue;
         var t = tk.get();
@@ -5858,17 +5858,6 @@ class NewExpr : NewBaseExpr
     function optimize()
     {
         var value = self.value;
-        if (value.isidentifier()) {
-            // The identifier can be a string constant, check for that case
-            // and obtain the string value.
-            var desc = self.owner.getvar(value.getidentifier());
-            if (desc != null && desc.isconst()) {
-                value = desc.getvalue();
-                if (! (value instanceof StringLiteral))
-                    SyntaxError("Constant value must evaluate to a string", value);
-                self.value = value.strval;
-            }
-        }
         self.optimize_initializer();
         return self;
     }
@@ -5880,10 +5869,6 @@ class NewExpr : NewBaseExpr
         var value = self.value;
         int numinits = self.numargs();
 
-        const int BYNAME = 0, BYIDENT = 1;
-        int type = value.isstring() ? BYNAME :
-                value.isidentifier() ? BYIDENT : -1;
-
         string reginit = "";
         string regnew = result;
         string constructor;
@@ -5891,20 +5876,7 @@ class NewExpr : NewBaseExpr
           case -1:
           case 0:
             break;
-          case 1:
-            if (type == BYIDENT) {
-                if (! is_init)
-                    regnew = self.tempreg(REGvar);
-            }
-            else {
-                var initval = initializer.getfreearg(0);
-                reginit = initval.emit_get(e);
-                reginit = ", " + reginit;
-            }
-            break;
           default:
-            if (type != BYIDENT)
-                SyntaxError("Multiple init arguments not allowed here", self);
             if (! is_init)
                 regnew = self.tempreg(REGvar);
         }
@@ -5912,49 +5884,23 @@ class NewExpr : NewBaseExpr
         if (regnew == "")
             regnew = self.tempreg(REGvar);
 
-        switch (type) {
-          case BYNAME:
-            // By name, usually a pmc.
-            string name = value.rawstring();
-            var aux = get_class(name);
-            if (aux == null)
-                warn_class_unknown(e, name , value);
-
-            // Avoid using root_new here for a now.
-            //e.say("root_new ", regnew, ", ['parrot'; ", value, " ]", reginit);
-            e.say(INDENT, "new ", regnew, ", [ ", value, " ]", reginit);
-            if (numinits > 1) {
-                e.say(regnew, ".'", value, "'()");
-            }
-            break;
-          case BYIDENT:
-            var id = self.owner.getvar(value);
-            if (id == null) {
-                var cl = self.owner.checkclass(value);
-                if (cl != null) {
-                    var key = cl.getpath();
-                    key.emit_new(e, self, regnew, reginit);
-                }
-                else {
-                    id = self.scopesearch( [value], SEARCH_CLASS);
-                    if (id != null)
-                        e.say(INDENT, "new ", regnew, ", ", id.getclasskey(), reginit);
-                    else {
-                        warn_class_unknown(e, value.getidentifier(), value);
-                        e.say(INDENT, "new ", regnew, ", ['", value, "']", reginit);
-                    }
-                }
-                constructor = value;
-            }
-            else {
-                //say("new with var");
-                e.say(INDENT, "new ", regnew, ", ", id.getreg(), "", reginit);
-            }
-            break;
-          default:
-            InternalError("Unexpected type in new");
+        var cl = self.owner.checkclass(value);
+        if (cl != null) {
+            var key = cl.getpath();
+            key.emit_new(e, self, regnew, reginit);
         }
-        if (numinits > 1 || (numinits >= 0 && type == BYIDENT)) {
+        else {
+            var id = self.scopesearch( [value], SEARCH_CLASS);
+            if (id != null)
+                e.say(INDENT, "new ", regnew, ", ", id.getclasskey(), reginit);
+            else {
+                warn_class_unknown(e, value.getidentifier(), value);
+                e.say(INDENT, "new ", regnew, ", ['", value, "']", reginit);
+            }
+        }
+        constructor = value;
+
+        if (numinits >= 0) {
             self.emit_constructor(e, regnew, constructor);
             if (! is_init)
                 e.emitset(result, regnew);
@@ -6050,16 +5996,11 @@ function parseNew(var tk, var owner, var start)
     var t = tk.get();
 
     switch {
-      case t.isop("("):
-        // Not a new operator, but a call to a function called new.
-        return new CallExpr(tk, owner, start,
-                new StringLiteral(owner, start));
       case t.isop("["):
         // Class specifier is a key
         return new NewIndexedExpr(tk, owner, start);
       case t.isidentifier():
-        // Special case here. It can be an id, a qualified id or
-        // a const string
+        // Special case here. It can be an id or a qualified id 
         var t2 = tk.get();
         tk.unget(t2);
         if (t2.isop(".")) {
