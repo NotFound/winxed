@@ -2500,24 +2500,20 @@ protected:
         rexpr(second)
     {
     }
-    void optimize_operands();
+    void optimize_operands()
+    {
+        optimize_branch(lexpr);
+        optimize_branch(rexpr);
+    }
     Expr *lexpr;
     Expr *rexpr;
 private:
-    Expr *optimize();
+    Expr *optimize()
+    {
+        optimize_operands();
+        return this;
+    }
 };
-
-void BinOpExpr::optimize_operands()
-{
-    optimize_branch(lexpr);
-    optimize_branch(rexpr);
-}
-
-Expr *BinOpExpr::optimize()
-{
-    optimize_operands();
-    return this;
-}
 
 //**********************************************************************
 
@@ -2530,19 +2526,16 @@ public:
     {
     }
 protected:
-    bool isstring() const;
-    bool isinteger() const;
+    bool isstring() const
+    {
+        return lexpr->isstring() && rexpr->isstring();
+    }
+    bool isinteger() const
+    {
+        return lexpr->isinteger() && rexpr->isinteger();
+    }
 };
 
-bool CommonBinOpExpr::isstring() const
-{
-    return lexpr->isstring() && rexpr->isstring();
-}
-
-bool CommonBinOpExpr::isinteger() const
-{
-    return lexpr->isinteger() && rexpr->isinteger();
-}
 
 //**********************************************************************
 
@@ -2576,23 +2569,20 @@ private:
 Expr *OpEqualExpr::optimize()
 {
     optimize_operands();
-    if (lexpr->issimple() && rexpr->issimple())
+    if (lexpr->isnull() && rexpr->isnull())
     {
-        if (lexpr->isnull() && rexpr->isnull())
-        {
-            return new IntegerExpr(*this, start, 1);
-        }
-        if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
-        {
-            return new IntegerExpr(*this, start,
-                lexpr->getintegervalue() == rexpr->getintegervalue());
-        }
-        if (lexpr->isliteralstring() && rexpr->isliteralstring())
-        {
-            std::string s1= lexpr->getstringvalue();
-            std::string s2= rexpr->getstringvalue();
-            return new IntegerExpr(*this, start, s1 == s2);
-        }
+        return new IntegerExpr(*this, start, 1);
+    }
+    if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
+    {
+        return new IntegerExpr(*this, start,
+            lexpr->getintegervalue() == rexpr->getintegervalue());
+    }
+    if (lexpr->isliteralstring() && rexpr->isliteralstring())
+    {
+        std::string s1= lexpr->getstringvalue();
+        std::string s2= rexpr->getstringvalue();
+        return new IntegerExpr(*this, start, s1 == s2);
     }
     return this;
 }
@@ -2697,17 +2687,14 @@ private:
 Expr *OpNotEqualExpr::optimize()
 {
     optimize_operands();
-    if (lexpr->issimple() && rexpr->issimple())
-    {
-        if (lexpr->isnull() && rexpr->isnull())
-            return new IntegerExpr(*this, start, 0);
-        if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
-            return new IntegerExpr(*this, start,
-                lexpr->getintegervalue() != rexpr->getintegervalue());
-        if (lexpr->isliteralstring() && rexpr->isliteralstring())
-            return new IntegerExpr(*this, start,
-                lexpr->getstringvalue() != rexpr->getstringvalue());
-    }
+    if (lexpr->isnull() && rexpr->isnull())
+        return new IntegerExpr(*this, start, 0);
+    if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
+        return new IntegerExpr(*this, start,
+            lexpr->getintegervalue() != rexpr->getintegervalue());
+    if (lexpr->isliteralstring() && rexpr->isliteralstring())
+        return new IntegerExpr(*this, start,
+            lexpr->getstringvalue() != rexpr->getstringvalue());
     return this;
 }
 
@@ -3107,18 +3094,15 @@ private:
 Expr *OpAddExpr::optimize()
 {
     optimize_operands();
-    if (lexpr->issimple() && rexpr->issimple())
+    if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
     {
-        if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
-        {
-            return new IntegerExpr(*this, start,
-                lexpr->getintegervalue() + rexpr->getintegervalue());
-        }
-        if (lexpr->isliteralstring() && rexpr->isliteralstring())
-        {
-            Token newt= Token(TokenTQuoted, lexpr->getstringvalue() + rexpr->getstringvalue(), lexpr->gettoken());
-            return new StringExpr(*this, newt);
-        }
+        return new IntegerExpr(*this, start,
+            lexpr->getintegervalue() + rexpr->getintegervalue());
+    }
+    if (lexpr->isliteralstring() && rexpr->isliteralstring())
+    {
+        Token newt= Token(TokenTQuoted, lexpr->getstringvalue() + rexpr->getstringvalue(), lexpr->gettoken());
+        return new StringExpr(*this, newt);
     }
     return this;
 }
@@ -3211,36 +3195,29 @@ public:
     {
     }
 private:
-    Expr *optimize();
-    void emit(Emit &e, const std::string &result);
-};
-
-Expr *OpSubExpr::optimize()
-{
-    optimize_operands();
-    if (lexpr->issimple() && rexpr->issimple())
+    Expr *optimize()
     {
+        optimize_operands();
         if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
         {
             int n1= lexpr->getintegervalue();
             int n2= rexpr->getintegervalue();
             return new IntegerExpr(*this, start, n1 - n2);
         }
+        return this;
     }
-    return this;
-}
-
-void OpSubExpr::emit(Emit &e, const std::string &result)
-{
-    std::string res= result.empty() ? gentemp(REGint) : result;
-    std::string op1= gentemp(REGint);
-    std::string op2= gentemp(REGint);
-    lexpr->emit(e, op1);
-    rexpr->emit(e, op2);
-    e << op_sub(res, op1, op2);
-    if (!result.empty())
-        e << '\n';
-}
+    void emit(Emit &e, const std::string &result)
+    {
+        std::string res= result.empty() ? gentemp(REGint) : result;
+        std::string op1= gentemp(REGint);
+        std::string op2= gentemp(REGint);
+        lexpr->emit(e, op1);
+        rexpr->emit(e, op2);
+        e << op_sub(res, op1, op2);
+        if (!result.empty())
+            e << '\n';
+    }
+};
 
 //**********************************************************************
 
