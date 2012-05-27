@@ -1049,7 +1049,7 @@ function string_from_literal(var arg)
     string value;
     switch {
       case arg.isintegerliteral():
-        value = arg.numval;
+        value = arg.getIntegerValue();
         break;
       case arg.isstringliteral():
         value = arg.getStringValue();
@@ -1065,7 +1065,7 @@ function int_from_literal(var arg)
     int value;
     switch {
       case arg.isintegerliteral():
-        value = arg.numval;
+        value = arg.getIntegerValue();
         break;
       case arg.isstringliteral():
         value = arg.getStringValue();
@@ -2861,24 +2861,21 @@ class Literal : SimpleExpr
 
 class IntegerLiteral : Literal
 {
-    var pos;
-    var numval;
-    function IntegerLiteral(var owner, var start, var value)
+    var intval;
+    function IntegerLiteral(var owner, var start, int value)
     {
         self.Expr(owner, start);
-        self.pos = start;
-        int n = value;
-        self.numval = n;
+        self.intval = value;
     }
     function isintegerliteral() { return true; }
     function isintegerzero()
     {
-        return int(self.numval) == 0;
+        return int(self.intval) == 0;
     }
     function checkresult() { return REGint; }
     function getIntegerValue()
     {
-        return self.numval;
+        return int(self.intval);
     }
     function emit(var e, string result)
     {

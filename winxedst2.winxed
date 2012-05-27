@@ -3471,38 +3471,33 @@ class Literal : SimpleExpr
 
 class IntegerLiteral : Literal
 {
-    var pos;
-    var numval;
-    function IntegerLiteral(var owner, var start, var value)
+    var intval;
+    function IntegerLiteral(var owner, var start, int value)
     {
         self.Expr(owner, start);
-        self.pos = start;
-        int n = value;
-        self.numval = n;
+        self.intval = value;
     }
     function clone(var owner)
     {
-        return new IntegerLiteral(owner, self.pos, self.numval);
+        return new IntegerLiteral(owner, self.start, self.intval);
     }
     function isintegerliteral() { return true; }
     function isintegerzero()
     {
-        return int(self.numval) == 0;
+        return int(self.intval) == 0;
     }
     function checkresult() { return REGint; }
     function getIntegerValue()
     {
-        return self.numval;
+        return int(self.intval);
     }
     function getFloatValue()
     {
-        float value = self.getIntegerValue();
-        return value;
+        return float(self.intval);
     }
     function getStringValue()
     {
-        string str = self.numval;
-        return str;
+        return string(self.intval);
     }
     function getLiteralInteger()
     {
@@ -3510,12 +3505,11 @@ class IntegerLiteral : Literal
     }
     function getLiteralFloat()
     {
-        return floatValue(self.owner, self.start, self.numval);
+        return floatValue(self.owner, self.start, self.intval);
     }
     function getLiteralString()
     {
-        int n = self.numval;
-        return stringQuotedValue(self.owner, self.start, n);
+        return stringQuotedValue(self.owner, self.start, self.intval);
     }
     function emit(var e, string result)
     {
