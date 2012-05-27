@@ -1183,7 +1183,6 @@ BaseStatement *addtomulti(BaseStatement *oldst, BaseStatement *newst)
 enum ClassSpecifierType
 {
     CLASSSPECIFIER_invalid,
-    CLASSSPECIFIER_str,
     CLASSSPECIFIER_parrotkey,
     CLASSSPECIFIER_id
 };
@@ -6053,25 +6052,6 @@ private:
 
 //**********************************************************************
 
-class ClassSpecifierStr : public ClassSpecifier
-{
-public:
-    ClassSpecifierStr(const Token &t) :
-        ClassSpecifier(t),
-        name(t.pirliteralstring())
-    {
-    }
-    ClassSpecifierType reftype() const { return CLASSSPECIFIER_str; }
-private:
-    void emit(Emit &e)
-    {
-        e << "[ " << name << " ]";
-    }
-    std::string basename() const { return name; }
-    std::string name;
-};
-
-
 class ClassSpecifierParrotKey : public ClassSpecifier
 {
 public:
@@ -6144,9 +6124,7 @@ private:
 ClassSpecifier *parseClassSpecifier(const Token &start, Tokenizer &tk,
         BlockBase &owner)
 {
-    if (start.isliteralstring())
-        return new ClassSpecifierStr(start);
-    else if (start.isidentifier ())
+    if (start.isidentifier ())
         return new ClassSpecifierId(start, tk, owner);
     else if (start.isop('['))
         return new ClassSpecifierParrotKey(start, tk);

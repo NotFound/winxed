@@ -6,7 +6,7 @@ using extern Test.More plan, ok, is, is_null;
 
 function main()
 {
-    plan(10);
+    plan(9);
 
     var obj;
 
@@ -29,9 +29,6 @@ function main()
     obj = new Bar();
     ok(obj instanceof Bar, "new with empty argument list with constructor");
     is(obj.b, "Hi", "constructor is invoked");
-
-    obj = new "String";
-    ok(obj instanceof "String", "new with string literal");
 
     obj = new ["Integer"];
     ok(obj instanceof "Integer", "new with key");

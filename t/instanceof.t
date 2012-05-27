@@ -4,7 +4,7 @@
 
 using extern Test.More plan, is;
 
-class MyArray : "ResizablePMCArray"
+class MyArray : [ "ResizablePMCArray" ]
 {
 }
 
@@ -16,7 +16,7 @@ function main [main] ()
 {
     plan(4);
 
-    var a = new "ResizableBooleanArray";
+    var a = new [ "ResizableBooleanArray" ];
     int check= a instanceof "ResizableBooleanArray";
     is (check, 1, "is own type");
     check= a instanceof "FixedPMCArray";
