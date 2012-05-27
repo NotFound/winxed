@@ -3465,16 +3465,6 @@ public:
     }
 private:
     bool isinteger() const { return true; }
-    Expr * optimize()
-    {
-        optimize_operands();
-        if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
-        {
-            return new IntegerExpr(*this, start,
-                lexpr->getintegervalue() << rexpr->getintegervalue());
-        }
-        return this;
-    }
     void emit(Emit &e, const std::string &result)
     {
         std::string res= result.empty() ? gentemp(REGint) : result;
@@ -3500,16 +3490,6 @@ public:
     }
 private:
     bool isinteger() const { return true; }
-    Expr * optimize()
-    {
-        optimize_operands();
-        if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
-        {
-            return new IntegerExpr(*this, start,
-                lexpr->getintegervalue() >> rexpr->getintegervalue());
-        }
-        return this;
-    }
     void emit(Emit &e, const std::string &result)
     {
         std::string res= result.empty() ? gentemp(REGint) : result;
