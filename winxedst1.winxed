@@ -493,26 +493,22 @@ function getident(var tk, string start, int line)
 
 function getnumber(var tk, string start, int line)
 {
-    string s;
-    string c = start;
-    do {
-        s = s+ c;
-        c = tk.getchar();
-    } while (isdigit(c));
-    if (s == "0" && (c == "x" || c == "X")) {
+    var filename = tk.filename;
+    string c = tk.getchar();
+    if (start == "0" && (c == "x" || c == "X")) {
         int hexval = 0, h;
-        for (c = tk.getchar(); (h = hexdigit(c)) >= 0; c = tk.getchar()) {
+        for (c = tk.getchar(); (h = hexdigit(c)) >= 0; c = tk.getchar())
             hexval = hexval * 16 + h;
-            s = s + c;
-        }
         tk.ungetchar(c);
-        s = hexval;
-        return new TokenInteger(tk.filename, line, s);
+        return new TokenInteger(filename, line, hexval);
     }
+    string s = start;
+    for ( ; isdigit(c); c = tk.getchar())
+        s = s + c;
     if (c == "." || c == "e" || c == "E")
         TokenError("float literals not allowed in stage 1", tk, line);
     tk.ungetchar(c);
-    return new TokenInteger(tk.filename, line, s);
+    return new TokenInteger(filename, line, s);
 }
 
 function getlinecomment(var tk, string start, int line)
