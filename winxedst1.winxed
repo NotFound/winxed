@@ -7023,36 +7023,55 @@ class SwitchBaseStatement : Breakable, Statement
         self.case_st = [];
         self.default_st = [];
     }
+    function parse_switchbody(var tk)
+    {
+        var t = tk.get();
+        switch {
+          case t.isop("}"):
+            // No cases and no default
+            break;
+          case t.iskeyword("default"):
+            // default without cases
+            self.parse_default(tk);
+            break;
+          case t.iskeyword("case"):
+            self.parse_cases(tk);
+            break;
+          default:
+            Expected("switch cases", t);
+        }
+    }
     function parse_cases(var tk)
     {
         var t;
-        while ((t = tk.get()).iskeyword("case") || t.iskeyword("default")) {
-            if (t.iskeyword("case")) {
-                push(self.case_value, parseExpr(tk, self));
-                t = tk.get();
-                if (! t.isop(":"))
-                    Expected("':' in case", t);
-                var st = [];
-                while (! ((t = tk.get()).isop("}") || t.iskeyword("case") || t.iskeyword("default"))) {
-                    tk.unget(t);
-                    push(st, parseStatement(tk, self));
-                }
-                push(self.case_st, st);
+        do {
+            push(self.case_value, parseExpr(tk, self));
+            t = tk.get();
+            if (! t.isop(":"))
+                Expected("':' in case", t);
+            var st = [];
+            while (! ((t = tk.get()).isop("}") || t.iskeyword("case") || t.iskeyword("default"))) {
                 tk.unget(t);
+                push(st, parseStatement(tk, self));
             }
-            else {
-                t = tk.get();
-                if (! t.isop(":"))
-                    Expected("':' in default", t);
-                while (! ((t = tk.get()).isop("}") || t.iskeyword("case") || t.iskeyword("default"))) {
-                    tk.unget(t);
-                    push(self.default_st, parseStatement(tk, self));
-                }
-                tk.unget(t);
-            }
+            push(self.case_st, st);
+        } while (t.iskeyword("case"));
+        if (t.iskeyword("default"))
+            self.parse_default(tk);
+    }
+    function parse_default(var tk)
+    {
+        var t = tk.get();
+        if (! t.isop(":"))
+            Expected("':' in default", t);
+        while (! (t = tk.get()).isop("}")) {
+            if (t.iskeyword("case"))
+                SyntaxError("case after default", t);
+            if (t.iskeyword("default"))
+                SyntaxError("default after default", t);
+            tk.unget(t);
+            push(self.default_st, parseStatement(tk, self));
         }
-        if (! t.isop("}"))
-            Expected("'}' in switch", t);
     }
     function optimize_cases()
     {
@@ -7080,7 +7099,7 @@ class SwitchStatement : SwitchBaseStatement
         t = tk.get();
         if (! t.isop("{"))
             Expected("'{' in switch", t);
-        self.parse_cases(tk);
+        self.parse_switchbody(tk);
     }
     function optimize()
     {
@@ -7207,7 +7226,7 @@ class SwitchCaseStatement : SwitchBaseStatement
     function SwitchCaseStatement(var start, var tk, var owner)
     {
         self.SwitchBaseStatement(start, owner);
-        self.parse_cases(tk);
+        self.parse_switchbody(tk);
     }
     function optimize()
     {
