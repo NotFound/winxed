@@ -3432,56 +3432,6 @@ private:
 
 //**********************************************************************
 
-class OpShiftleftExpr : public CommonBinOpExpr
-{
-public:
-    OpShiftleftExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CommonBinOpExpr(block, t, first, second)
-    {
-    }
-private:
-    bool isinteger() const { return true; }
-    void emit(Emit &e, const std::string &result)
-    {
-        std::string res= result.empty() ? gentemp(REGint) : result;
-        std::string op1= gentemp(REGint);
-        std::string op2= gentemp(REGint);
-        lexpr->emit(e, op1);
-        rexpr->emit(e, op2);
-        e << INDENT << res << " = shl " << op1 << ", " << op2;
-        if (!result.empty())
-            e << '\n';
-    }
-};
-
-//**********************************************************************
-
-class OpShiftrightExpr : public CommonBinOpExpr
-{
-public:
-    OpShiftrightExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CommonBinOpExpr(block, t, first, second)
-    {
-    }
-private:
-    bool isinteger() const { return true; }
-    void emit(Emit &e, const std::string &result)
-    {
-        std::string res= result.empty() ? gentemp(REGint) : result;
-        std::string op1= gentemp(REGint);
-        std::string op2= gentemp(REGint);
-        lexpr->emit(e, op1);
-        rexpr->emit(e, op2);
-        e << INDENT << res << " = shr " << op1 << ", " << op2;
-        if (!result.empty())
-            e << '\n';
-    }
-};
-
-//**********************************************************************
-
 class ArrayExpr : public Expr
 {
 public:
@@ -4387,7 +4337,6 @@ Expr * parseExpr_13(BlockBase &block, Tokenizer &tk);
 Expr * parseExpr_9(BlockBase &block, Tokenizer &tk);
 Expr * parseExpr_8(BlockBase &block, Tokenizer &tk);
 Expr * parseExpr_6(BlockBase &block, Tokenizer &tk);
-Expr * parseExpr_7(BlockBase &block, Tokenizer &tk);
 Expr * parseExpr_5(BlockBase &block, Tokenizer &tk);
 Expr * parseExpr_4(BlockBase &block, Tokenizer &tk);
 Expr * parseExpr_2(BlockBase &block, Tokenizer &tk);
@@ -4505,49 +4454,28 @@ Expr * parseExpr_6(BlockBase &block, Tokenizer &tk)
     return subexpr;
 }
 
-Expr * parseExpr_7(BlockBase &block, Tokenizer &tk)
+Expr * parseExpr_8(BlockBase &block, Tokenizer &tk)
 {
     Expr *subexpr= parseExpr_6(block, tk);
     Token t= tk.get();
-    if (t.isop("<<"))
-    {
-        Expr *subexpr2= parseExpr_7(block, tk);
-        subexpr= new OpShiftleftExpr(block, t, subexpr, subexpr2);
-    }
-    else if (t.isop(">>"))
-    {
-        Expr *subexpr2= parseExpr_7(block, tk);
-        subexpr= new OpShiftrightExpr(block, t, subexpr, subexpr2);
-    }
-    else
-    {
-        tk.unget(t);
-    }
-    return subexpr;
-}
-
-Expr * parseExpr_8(BlockBase &block, Tokenizer &tk)
-{
-    Expr *subexpr= parseExpr_7(block, tk);
-    Token t= tk.get();
     if (t.isop('<'))
     {
-        Expr *subexpr2= parseExpr_7(block, tk);
+        Expr *subexpr2= parseExpr_6(block, tk);
         subexpr= new OpLessExpr(block, t, subexpr, subexpr2);
     }
     else if (t.isop('>'))
     {
-        Expr *subexpr2= parseExpr_7(block, tk);
+        Expr *subexpr2= parseExpr_6(block, tk);
         subexpr= new OpGreaterExpr(block, t, subexpr, subexpr2);
     }
     else if (t.isop("<="))
     {
-        Expr *subexpr2= parseExpr_7(block, tk);
+        Expr *subexpr2= parseExpr_6(block, tk);
         subexpr= new OpLessEqualExpr(block, t, subexpr, subexpr2);
     }
     else if (t.isop(">="))
     {
-        Expr *subexpr2= parseExpr_7(block, tk);
+        Expr *subexpr2= parseExpr_6(block, tk);
         subexpr= new OpGreaterEqualExpr(block, t, subexpr, subexpr2);
     }
     else if (t.iskeyword("instanceof"))
