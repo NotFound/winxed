@@ -357,13 +357,14 @@ class TokenWithVal : Token
     }
 }
 
-class TokenComment : TokenWithVal
+class TokenComment : Token
 {
-    function TokenComment(string file, int line, string str)
+    function TokenComment(string file, int line)
     {
-        self.TokenWithVal(file, line, str);
+        self.Token(file, line);
     }
     function iscomment() { return true; }
+    function viewable() { return "(comment)"; }
 }
 
 class TokenOp : TokenWithVal
@@ -702,28 +703,26 @@ function getnumber(var tk, string start, int line)
 
 function getlinecomment(var tk, string start, int line)
 {
-    string s = start;
-    for (string c = tk.getchar(); c != "" && c != "\n"; c = tk.getchar())
-        s += c;
-    return new TokenComment(tk.filename, line, s);
+    string c;
+    do
+        c = tk.getchar();
+    while (c != "" && c != "\n");
+    return new TokenComment(tk.filename, line);
 }
 
 function getcomment(var tk, string start, int line)
 {
-    string s = start;
     string c = tk.getchar();
     do {
-       for ( ; c != "" && c != "*"; c = tk.getchar())
-            s += c;
+        while (c != "" && c != "*")
+            c = tk.getchar();
         if (c == "")
             UnclosedComment(tk, line);
-        s += c;
         c = tk.getchar();
         if (c == "")
             UnclosedComment(tk, line);
     } while (c != "/");
-    s += "/";
-    return new TokenComment(tk.filename, line, s);
+    return new TokenComment(tk.filename, line);
 }
 
 function getop(var tk, string start, int line)
