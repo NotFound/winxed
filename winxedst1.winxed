@@ -3112,14 +3112,10 @@ class IdentifierExpr : SimpleExpr
               case sym == null:
                 break;
               case sym instanceof FunctionStatement:
-                if (!sym.ismulti()) {
-                    string id = sym.makesubid();
-                    self.usesubid(id);
-                    owner.createvarnamed(name, REGvar, id);
-                    return new FunctionId(owner, name, id);
-                }
-                else
-                    return new FunctionRef(owner, name, sym);
+                string id = sym.makesubid();
+                self.usesubid(id);
+                owner.createvarnamed(name, REGvar, id);
+                return new FunctionId(owner, name, id);
                 break;
               case sym instanceof FunctionExtern:
                 return new FunctionRef(owner, name, sym);
@@ -5232,15 +5228,9 @@ class CallExpr : Expr
               case sym == null:
                 return new CallMemberExpr(self, funref, args);
               case sym instanceof FunctionStatement:
-                if (!sym.ismulti()) {
-                    var subid = sym.makesubid();
-                    self.usesubid(subid);
-                    return new CallSubid(self, funref, args, subid);
-                }
-                else {
-                    self.funref = new FunctionRef(owner, start, sym);
-                    return self;
-                }
+                var subid = sym.makesubid();
+                self.usesubid(subid);
+                return new CallSubid(self, funref, args, subid);
                 break;
               case sym instanceof FunctionExtern:
                 self.funref = new FunctionRef(owner, start, sym);
@@ -5462,10 +5452,6 @@ class MemberExpr : MemberExprBase
         var sym = self.search_nonmember();
         switch {
           case sym == null:
-            break;
-          case sym instanceof FunctionStatement:
-            if (sym.ismulti())
-              return new FunctionRef(self.owner, self.start, sym);
             break;
           case sym instanceof FunctionExtern:
             return new FunctionRef(self.owner, self.start, sym);
@@ -8385,9 +8371,6 @@ class FunctionModifierList : ModifierList
     {
         for (var m in self.getlist()) {
             string name = m.getname();
-
-            if (name == "multi") // Is handled elsewere
-                continue;
             int nargmods = m.numargs();
             e.print(" :", name);
             if (nargmods > 0) {
@@ -8404,46 +8387,6 @@ class FunctionModifierList : ModifierList
             }
         }
     }
-}
-
-function multi_sig_from_multi_modifier(var owner, var multi)
-{
-    int nargs = multi.numargs();
-    var sig;
-    if (nargs) {
-        sig = [];
-        for (int i = 0; i < nargs; i = i + 1) {
-            var arg = multi.getarg(i);
-            switch {
-              case arg.isstringliteral():
-                push(sig, arg.getStringValue());
-                break;
-              case arg.isidentifier():
-                string name = arg.getName();
-                switch (name) {
-                  case "int": case "string":
-                    push(sig, name); break;
-                  case "float":
-                    push(sig, "num"); break;
-                  case "var":
-                    push(sig, "pmc"); break;
-                  default:
-                    SyntaxError("unsupported multi signature", arg);
-                }
-                break;
-              case arg instanceof OpClassExpr:
-                var key = arg.get_class_raw_key();
-                if (key == null)
-                    SyntaxError("class not found", arg);
-                __ASSERT__(key instanceof "ResizableStringArray");
-                push(sig, getparrotkey(key));
-                break;
-              default:
-                SyntaxError("unsupported multi signature", arg);
-            }
-        }
-    }
-    return sig;
 }
 
 class FunctionBase : BlockStatement
@@ -8539,12 +8482,8 @@ class FunctionBase : BlockStatement
     {
         var modifiers = self.modifiers;
         if (modifiers != null) {
-            var multi = modifiers.pick("multi");
-            if (multi != null) {
-                __ASSERT__(self instanceof FunctionStatement);
-                self.setmulti();
-                self.multi_sig = multi_sig_from_multi_modifier(self, multi);
-            }
+            if (modifiers.pick("multi") != null)
+                SyntaxError("multi functions not allowed in stage 1", self);
         }
         for (var used in self.usednamespaces)
             used.fixnamespaces();
@@ -8634,8 +8573,6 @@ class FunctionBase : BlockStatement
         SyntaxError("continue not allowed here", pos);
     }
 
-    function emit_extra_modifiers(var e) { }
-
     function emit(var e)
     {
         string name = self.name;
@@ -8665,7 +8602,6 @@ class FunctionBase : BlockStatement
             if (name == "main")
                 e.print(" :main");
         }
-        self.emit_extra_modifiers(e);
         e.say();
 
         // Parameters
@@ -8717,8 +8653,6 @@ class FunctionStatement : FunctionBase
 {
     var paramnum;
     var lexnum;
-    var is_multi;
-    var multi_sig;
 
     function FunctionStatement(var start, var tk, var owner, int is_inline[optional])
     {
@@ -8726,7 +8660,6 @@ class FunctionStatement : FunctionBase
         self.paramnum = 0;
         self.lexnum = 0;
         self.parse(tk, is_inline);
-        self.is_multi = new ["Boolean"];
     }
 
     function isanonymous() { return false; }
@@ -8746,22 +8679,6 @@ class FunctionStatement : FunctionBase
     }
     function ismethod() { return false; }
 
-    function ismulti()
-    {
-        return self.is_multi ? true : false;
-    }
-    function setmulti()
-    {
-        self.is_multi = true;
-    }
-    function default_multi_sig()
-    {
-        var multi_sig = [];
-        if (self.ismethod())
-            push(multi_sig, "_");
-        transform(self.params, multi_sig, get_pir_type);
-        return multi_sig;
-    }
     function parse(var tk, int is_inline[optional])
     {
         var name = tk.get();
@@ -8786,16 +8703,6 @@ class FunctionStatement : FunctionBase
             ExpectedOp("{", t);
         self.body = new CompoundStatement(t, tk, self);
         return self;
-    }
-
-    function emit_extra_modifiers(var e)
-    {
-        if (self.is_multi) {
-            var multi_sig = self.multi_sig;
-            if (multi_sig == null)
-                multi_sig = self.default_multi_sig();
-            e.print(" :multi(", join(", ", multi_sig), ")");
-        }
     }
 }
 
@@ -9189,12 +9096,8 @@ class FunctionContainer
         var func = functions[name];
         if (func == null)
             functions[name] = newfunc;
-        else {
-            if (func instanceof FunctionStatement)
-                func.setmulti();
-            if (newfunc instanceof FunctionStatement)
-                newfunc.setmulti();
-        }
+        else
+            SyntaxError("multi functions not allowed in stage 1", newfunc);
     }
     function find(string name)
     {
