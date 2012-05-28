@@ -1392,7 +1392,7 @@ function builtineval_substr(var owner, var start, var args)
     string str = string_from_literal(argstr);
     int pos = int_from_literal(argpos);
     string result;
-    if (args > 2) {
+    if (nargs > 2) {
         var arglen = args[2].arg;
         int len = int_from_literal(arglen);
         result = substr(str, pos, len);
