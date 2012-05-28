@@ -6746,22 +6746,14 @@ class IfStatement : ConditionalStatement
     {
         var truebranch = self.truebranch;
         var falsebranch = self.falsebranch;
-        int t_empty = truebranch.isempty();
-        int f_empty = falsebranch.isempty();
-        string elselabel = "";
-        if (! f_empty)
-            elselabel = self.genlabel();
+        string elselabel = self.genlabel();
         string endlabel = self.genlabel();
-        string cond_false = f_empty ? endlabel : elselabel;
         self.annotate(e);
-        self.emit_else(e, cond_false);
+        self.emit_else(e, elselabel);
         truebranch.emit(e);
-
-        if (! f_empty) {
-            e.emitgoto(endlabel);
-            e.emitlabel(elselabel, "else");
-            falsebranch.emit(e);
-        }
+        e.emitgoto(endlabel);
+        e.emitlabel(elselabel, "else");
+        falsebranch.emit(e);
         e.emitlabel(endlabel, "endif");
     }
 }
