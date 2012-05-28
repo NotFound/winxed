@@ -7600,10 +7600,6 @@ class DeclareSingleStatement : DeclareBase
                         ireg = int_from_literal(init);
                         e.emitset(reg, ireg);
                         break;
-                      case REGfloat:
-                        ireg = float_from_literal(init);
-                        e.emitset(reg, ireg);
-                        break;
                       case REGstring:
                         ireg = string_from_literal(init);
                         e.emitset(reg, ireg);
