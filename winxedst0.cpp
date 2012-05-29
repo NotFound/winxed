@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 27-may-2012
+// Revision 30-may-2012
 
 // Winxed compiler stage 0.
 
@@ -1893,12 +1893,6 @@ private:
 
 //**********************************************************************
 
-class TryModifierList: public ModifierList
-{
-public:
-    void emitmodifiers(Emit &e, const std::string &reghandler);
-};
-
 class TryStatement : public BlockStatement
 {
 public:
@@ -1907,7 +1901,6 @@ private:
     BaseStatement *optimize();
     void emit (Emit &e);
     Token start;
-    TryModifierList modifiers;
     BaseStatement *stry;
     BaseStatement *scatch;
     std::string exname;
@@ -5184,47 +5177,13 @@ void ThrowStatement::emit (Emit &e)
 
 //**********************************************************************
 
-void TryModifierList::emitmodifiers(Emit &e, const std::string &reghandler)
-{
-    static const char * const ehattrs[] = {
-        "min_severity", "max_severity"
-    };
-    for (size_t i= 0; i < sizeof(ehattrs) / sizeof(ehattrs[0]); ++i)
-        if (const Modifier *m= getmodifier(ehattrs[i]))
-        {
-            if (m->numargs() != 1)
-                throw CompileError("Wrong args");
-            int n= m->getintegervalue(0);
-            e << INDENT << reghandler << ".'" << ehattrs[i] << "'(" << n << ")\n";
-        }
-    if (const Modifier *m= getmodifier("handle_types"))
-    {
-        size_t n= m->numargs();
-        e << INDENT << reghandler << ".'handle_types'(";
-        for (size_t i= 0; i < n; ++i)
-        {
-            int value= m->getintegervalue(i);
-            if (i > 0) e << ",";
-            e << value;
-        }
-        e << ")\n";
-    }
-}
-
 TryStatement::TryStatement(Block &block, const Token &st, Tokenizer &tk) :
     BlockStatement (block),
     start(st),
     stry(0), scatch(0)
 {
-    Token t= tk.get();
-    if (t.isop('['))
-    {
-        modifiers.parse(*this, tk);
-    }
-    else
-        tk.unget(t);
     stry = parseStatement (block, tk);
-    t= tk.get();
+    Token t= tk.get();
     if (! t.iskeyword("catch"))
         throw Expected("catch", t);
     ExpectOp ('(', tk);
@@ -5239,7 +5198,6 @@ TryStatement::TryStatement(Block &block, const Token &st, Tokenizer &tk) :
 
 BaseStatement *TryStatement::optimize()
 {
-    modifiers.optimize();
     optimize_branch(stry);
     optimize_branch(scatch);
     return this;
@@ -5258,8 +5216,6 @@ void TryStatement::emit (Emit &e)
     std::string reghandler= gentemp(REGvar);
     e << INDENT << reghandler << " = new 'ExceptionHandler'\n"
         INDENT "set_label " << reghandler << ", " << handler << '\n';
-
-    modifiers.emitmodifiers(e, reghandler);
 
     e << INDENT "push_eh " << reghandler << '\n';
 
