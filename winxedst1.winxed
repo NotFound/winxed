@@ -7377,66 +7377,18 @@ class ThrowStatement : Statement
 //            TryStatement
 //*********************************************
 
-class TryModifierList : ModifierList
-{
-    var start;
-    function TryModifierList(var start, var tk, var owner)
-    {
-        self.start = start;
-        self.ModifierList(tk, owner);
-    }
-    function emitmodifiers(var e, string reghandler)
-    {
-        var modiflist = self.getlist();
-        for (var modif in modiflist) {
-            string modifname = modif.getname();
-            int nargs = modif.numargs();
-            switch (modifname) {
-              case "min_severity":
-              case "max_severity":
-                if (nargs != 1)
-                    SyntaxError("Wrong modifier args", self);
-                var arg = modif.getarg(0);
-                e.say(sformat(INDENT + "%0.'%1'(%2)",
-                        reghandler, modifname, arg.emit_get(e)));
-                break;
-              case "handle_types":
-              case "handle_types_except":
-                string argregs [];
-                for (int i = 0; i < nargs; i = i + 1) {
-                    var arg = modif.getarg(i);
-                    push(argregs, arg.emit_get(e));
-                }
-                e.say(sformat(INDENT + "%0.'%1'(%2)",
-                        reghandler, modifname, join(", ", argregs)));
-                break;
-              case "allowtailcall":
-                break;
-              default:
-                SyntaxError("Modifier '" + modifname + "' not valid for try", self);
-            }
-        }
-    }
-}
-
 class TryStatement : BlockStatement
 {
     var stry;
-    var modifiers;
     var exname;
     var scatch;
 
     function TryStatement(var start, var tk, var owner)
     {
         self.BlockStatement(start, owner);
-        var t = tk.get();
-        if (t.isop("["))
-            self.modifiers = new TryModifierList(t, tk, self);
-        else
-            tk.unget(t);
 
         self.stry = parseStatement(tk, self);
-        t = tk.get();
+        var t = tk.get();
         if (! t.iskeyword("catch"))
             ExpectedOp("catch", t);
         t = tk.get();
@@ -7455,8 +7407,6 @@ class TryStatement : BlockStatement
     }
     function optimize()
     {
-        if (self.modifiers != null)
-            self.modifiers.optimize();
         self.stry = self.stry.optimize();
         self.scatch = self.scatch.optimize();
         return self;
@@ -7478,9 +7428,6 @@ class TryStatement : BlockStatement
     set_label %0, %1
 :>>
             , reghandler, labelhandler));
-
-        if (self.modifiers != null)
-            self.modifiers.emitmodifiers(e, reghandler);
 
         e.emitarg1("push_eh", reghandler);
         e.comment("try: begin");

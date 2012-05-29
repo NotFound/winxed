@@ -8,6 +8,7 @@ $load "Getopt/Obj.pbc";
 
 $include_const "iglobals.pasm";
 $include_const "libpaths.pasm";
+$include_const "except_severity.pasm";
 
 function extname(string filename, string ext)
 {
@@ -417,12 +418,18 @@ function driver_main(var argv)
 function main [main] (var argv)
 {
     int r;
-    try [handle_types(__WINXED_ERROR__)] {
+    try {
         driver_main(argv);
     }
     catch (e) {
+        int severity = e["severity"];
+        if (severity == EXCEPT_EXIT) {
+            int exit_code = e["exit_code"];
+            exit(exit_code);
+        }
+        int type = e["type"];
         var payload = e["payload"];
-        if (payload != null)
+        if (type == __WINXED_ERROR__ && payload != null)
             cry(payload.filename, ":", payload.line, ": ", payload.message);
         else
             cry(e["message"]);
