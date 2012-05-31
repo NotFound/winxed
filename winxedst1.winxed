@@ -5202,7 +5202,7 @@ class CallExpr : Expr
               case sym == null:
                 return new CallMemberExpr(self, funref, args);
               case sym instanceof FunctionStatement:
-                var subid = sym.makesubid();
+                string subid = sym.makesubid();
                 self.usesubid(subid);
                 return new CallSubid(self, funref, args, subid);
                 break;
@@ -5293,7 +5293,7 @@ class CallExpr : Expr
 class CallSubid : CallExpr
 {
     var subid;
-    function CallSubid(var callst, var funref, var args, var subid)
+    function CallSubid(var callst, var funref, var args, string subid)
     {
         self.Expr(callst.owner, callst.start);
         self.funref = funref;
