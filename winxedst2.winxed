@@ -2520,9 +2520,33 @@ function parseStatement(var tk, var owner)
         return new PiropStatement(t, tk, owner);
     if (t.isop(":")) {
         var open = tk.get();
-        if (! open.isop("("))
+        switch {
+          case open.isop("("):
+            return parseSig(t, tk, owner);
+          case open.isidentifier():
+            // EXPERIMENTAL
+            var cl = new ClassSpecifierId(tk, owner, open);
+            var tname = tk.get();
+            RequireIdentifier(tname);
+
+            // Violating encapsulation for fun and profit!
+            var varst = new VarStatement;
+            varst.initvarbase(tname, owner, tname, 0);
+            var newexpr = new NewQualifiedExpr;
+            newexpr.Expr(varst, tname);
+            newexpr.nskey = cl;
+            t = tk.get();
+            if (t.isop("(")) {
+                newexpr.parseinitializer(tk);
+                t = tk.get();
+            }
+            RequireOp(";", t);
+            varst.init = newexpr;
+
+            return varst;
+          default:
             Unexpected("':'", t);
-        return parseSig(t, tk, owner);
+        }
     }
 
     switch (t.checkkeyword()) {
