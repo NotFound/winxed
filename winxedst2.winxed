@@ -10598,6 +10598,8 @@ class FunctionParameter
     var name;
     var modifiers;
     var type;
+    var want_multi;
+    var classtype;
     var defaultexpr;
     function FunctionParameter(var func, var tk)
     {
@@ -10605,11 +10607,24 @@ class FunctionParameter
 
         self.func = func;
         var t = tk.get();
-        string type = typetoregcheck(t.checkkeyword());
-        if (type != "")
+        string type;
+        if (t.isop(":")) {
+            self.want_multi = true;
             t = tk.get();
-        else
-            type = REGvar;
+            type = typetoregcheck(t.checkkeyword());
+            if (type == "") {
+                type = REGvar;
+                self.classtype = new ClassSpecifierId(tk, func.owner, t);
+            }
+            t = tk.get();
+        }
+        else {
+            type = typetoregcheck(t.checkkeyword());
+            if (type != "")
+                t = tk.get();
+            else
+                type = REGvar;
+        }
         self.type = type;
         self.name = t;
 
@@ -10676,9 +10691,19 @@ class FunctionParameter
     {
         return self.type;
     }
+    function wantMulti()
+    {
+        return self.want_multi != null;
+    }
     function get_pir_multi_type()
     {
-        return typetopirname(self.type);
+        var classtype = self.classtype;
+        if (classtype == null)
+            return typetopirname(self.type);
+        var clkey = classtype.checknskey(self.func.owner);
+        if (clkey == null)
+            SyntaxError("class not found", classtype);
+        return clkey.getparrotkey();
     }
     function getvar()
     {
@@ -10776,6 +10801,13 @@ class FunctionParameterList
     function emitdefault(var e)
     {
         for_each(self.paramlist, bindlast(bindmethod("emitdefault"), e));
+    }
+    function wantMulti()
+    {
+        for (var param in self.paramlist)
+            if (param.wantMulti())
+                return true;
+        return false;
     }
     function addmultisig(var multi_sig)
     {
@@ -10949,7 +10981,13 @@ class FunctionBase : BlockStatement
         var t = tk.get();
         if (! t.isop(")")) {
             tk.unget(t);
-            self.params = new FunctionParameterList(tk, self);
+            var params = new FunctionParameterList(tk, self);
+            self.params = params;
+            if (params.wantMulti()) {
+                if (! (self instanceof FunctionStatement))
+                    SyntaxError("Can't use multi signatures here", self);
+                self.setmulti();
+            }
         }
     }
 
@@ -11181,8 +11219,8 @@ class FunctionStatement : FunctionBase
         self.FunctionBase(start, owner);
         self.paramnum = 0;
         self.lexnum = 0;
-        self.parse(tk);
         self.is_multi = new ["Boolean"];
+        self.parse(tk);
     }
 
     function isanonymous() { return false; }

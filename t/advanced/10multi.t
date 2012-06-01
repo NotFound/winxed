@@ -2,12 +2,20 @@
 
 // multi syntax
 
-using extern Test.More is, done_testing;
+using extern Test.More ok, is, done_testing;
+
+// Implicit multi
 
 function bar(var a) { return "p"; }
 function bar(int a, int b) { return "ii"; }
 function bar(int a) { return "i"; }
 function bar(string a, string b) { return "ss"; }
+
+// Explicit multi with ':' syntax in parameter
+
+function qbar(:string s) { return s + "there"; }
+
+function qmbar(:FooBar.Foo foo) { return ":FooBar.Foo"; }
 
 namespace FooBar
 {
@@ -115,6 +123,21 @@ function main[main]()
     is(bar(3), "i", "multi(int)");
     is(bar("a", "b"), "ss", "multi(string, string)");
     is(bar(3.14), "p", "multi(var)");
+
+    // These functions have only one definition.
+    // Verify that they accept only the required type.
+    is(qbar("hi"), "hithere", ":string - called");
+    int failed = false;
+    try
+        qbar(0);
+    catch() { failed = true; }
+    ok(failed, ": with string - fails with int");
+    is(qmbar(new FooBar.Foo), ":FooBar.Foo", ": FooBar.Foo - called");
+    failed = false;
+    try
+        qmbar(var(0));
+    catch() { failed = true; }
+    ok(failed, ": with class - fails with Integer");
 
     is(FooBar.foo("a"), "FooBar.s-a", "multi(string) in reopened namespace");
     is(FooBar.foo(42), "FooBar.i-42", "multi(int) in reopened namespace");
