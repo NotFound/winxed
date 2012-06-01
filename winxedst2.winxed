@@ -1193,13 +1193,13 @@ function integerValue(var owner, var start, int value)
 
 function floatValue(var owner, var start, float value)
 {
-    var t = new TokenFloat(start.file, start.line, value);
+    :TokenFloat t(start.file, start.line, value);
     return new FloatLiteral(owner, t);
 }
 
 function stringQuotedValue(var owner, var start, string value)
 {
-    var t = new TokenQuoted(start.file, start.line, value);
+    :TokenQuoted t(start.file, start.line, value);
     return new StringLiteral(owner, t);
 }
 
@@ -1234,7 +1234,7 @@ const int PREDEFCONST_LINENUM = 0;
 
 function createPredefConstInt(var scope, string name, int value)
 {
-    var tid = new TokenIdentifier(PREDEFCONST_FILENAME, PREDEFCONST_LINENUM,
+    :TokenIdentifier tid(PREDEFCONST_FILENAME, PREDEFCONST_LINENUM,
         name);
     var cst = scope.createconst(tid, REGint, VAR_is_extern);
     cst.setvalue(integerValue(scope, tid, value));
@@ -1242,7 +1242,7 @@ function createPredefConstInt(var scope, string name, int value)
 
 function createPredefConstString(var scope, string name, string value)
 {
-    var tid = new TokenIdentifier(PREDEFCONST_FILENAME, PREDEFCONST_LINENUM,
+    :TokenIdentifier tid(PREDEFCONST_FILENAME, PREDEFCONST_LINENUM,
         name);
     var cst = scope.createconst(tid, REGstring, VAR_is_extern);
     cst.setvalue(new StringLiteral(scope,
@@ -2347,7 +2347,7 @@ class SimpleArgList
     }
     function clone(var owner)
     {
-        var cloned = new SimpleArgList;
+        :SimpleArgList cloned;
         cloned.args = clone_array(self.args, owner);
         return cloned;
     }
@@ -2488,7 +2488,7 @@ function parseUsing(var t, var tk, var owner)
 
 function parseSig(var start, var tk, var owner)
 {
-    var params = new SigParameterList(tk, owner);
+    :SigParameterList params(tk, owner);
     var t = tk.get();
     if (! t.isop("="))
         Expected("'='", t);
@@ -2607,7 +2607,7 @@ function parseStatement(var tk, var owner)
       case "try":
         return new TryStatement(t, tk, owner);
       case "inline":
-        var inl = new InlineStatement(t, tk, owner);
+        :InlineStatement inl(t, tk, owner);
         owner.addinline(inl);
         return new EmptyStatement;
     }
@@ -2761,7 +2761,7 @@ class MultiStatement : MultiStatementBase
     }
     function clone(var owner)
     {
-        var cloned = new MultiStatement;
+        :MultiStatement cloned;
         cloned.statements = clone_array(self.statements, owner);
         return cloned;
     }
@@ -2829,7 +2829,7 @@ class PiropStatement : Statement
     }
     function clone(var owner)
     {
-        var cloned = new PiropStatement;
+        :PiropStatement cloned;
         cloned.Statement(self.start, owner);
         cloned.opname = self.opname;
         cloned.args = clone_array(self.args, owner);
@@ -3025,7 +3025,7 @@ class ExprStatement : Statement
     }
     function clone(var owner)
     {
-        var cloned = new ExprStatement;
+        :ExprStatement cloned;
         cloned.Statement(self.start, owner);
         cloned.expr = clone_array(self.expr, owner);
         return cloned;
@@ -3141,7 +3141,7 @@ class VarContainer
         if (exist != null)
             Redeclared(name);
         string reg = self.createreg(type);
-        var data = new VarData(type, reg, self, flags);
+        :VarData data(type, reg, self, flags);
         locals[sname] = data;
         return data;
     }
@@ -3170,7 +3170,7 @@ class VarContainer
         var exist = locals[sname];
         if (exist != null)
             Redeclared(name);
-        var data = new VarData_const(type, name, self, flags);
+        :VarData_const data(type, name, self, flags);
         locals[sname] = data;
         return data;
     }
@@ -3376,7 +3376,7 @@ class FunctionExpr : Expr
     }
     function clone(var owner)
     {
-        var cloned = new FunctionExpr;
+        :FunctionExpr cloned;
         cloned.Expr(owner, self.start);
         cloned.fn = self.fn.clone(owner);
         return cloned;
@@ -6215,7 +6215,7 @@ class ArgumentModifierList : ModifierList
     }
     function clone(var owner)
     {
-        var cloned = new ArgumentModifierList;
+        :ArgumentModifierList cloned;
         cloned.list = self.clonemodifiers(owner);
         return cloned;
     }
@@ -6271,7 +6271,7 @@ class Argument
     }
     function clone(var owner)
     {
-        var cloned = new Argument;
+        :Argument cloned;
         cloned.arg = self.arg.clone(owner);
         if (self.modifiers != null)
             cloned.modifiers = self.modifiers.clone(owner);
@@ -6323,7 +6323,7 @@ class ArgumentList
     }
     function clone(var owner)
     {
-        var cloned = new ArgumentList;
+        :ArgumentList cloned;
         cloned.owner = owner;
         cloned.start = self.start;
         var args = self.args;
@@ -6360,7 +6360,7 @@ class ArgumentList
         var argregs = self.argregs;
         if (argregs == null) {
             string argregs[];
-            var collect = new CollectValues(self.owner, e);
+            :CollectValues collect(self.owner, e);
             for (var argitem in self.args) {
                 string reg = collect.add(argitem.arg);
                 push(argregs, reg);
@@ -6639,7 +6639,7 @@ class CallBuiltinExpr : FinalExpr
         var arg;
         switch (builtin.params()) {
           case BULTIN_arglist:
-            var collectarglist = new CollectValues(owner, e);
+            :CollectValues collectarglist(owner, e);
             for (arg in args)
                 push(argreg, collectarglist.add(arg.arg));
             break;
@@ -6651,7 +6651,7 @@ class CallBuiltinExpr : FinalExpr
             return;
           default:
             int n = elements(args);
-            var collectdefault = new CollectValues(owner, e);
+            :CollectValues collectdefault(owner, e);
             for (int i = 0; i < n; ++i) {
                 arg = args[i].arg;
                 string argtype = arg.checkresult();
@@ -6767,7 +6767,7 @@ class CallExpr : Expr
     }
     function clone(var owner)
     {
-        var cloned = new CallExpr;
+        :CallExpr cloned;
         cloned.Expr(owner, self.start);
         cloned.funref = self.funref.clone(owner);
         var args = self.args;
@@ -7009,7 +7009,7 @@ class MemberExpr : MemberExprBase
     }
     function clone(var owner)
     {
-        var cloned = new MemberExpr;
+        :MemberExpr cloned;
         cloned.MemberExprBase(owner, self.start, self.left.clone(owner));
         cloned.right = self.right;
         return cloned;
@@ -7216,7 +7216,7 @@ class IndexExpr : Expr
     }
     function clone(var owner)
     {
-        var cloned = new IndexExpr;
+        :IndexExpr cloned;
         cloned.Expr(owner, self.start);
         cloned.left = self.left.clone(owner);
         cloned.args = self.args.clone(owner);
@@ -7320,7 +7320,7 @@ class ArrayExpr : Expr
     }
     function clone(var owner)
     {
-        var cloned = new ArrayExpr;
+        :ArrayExpr cloned;
         cloned.Expr(owner, self.start);
         if (self.values != null)
             cloned.values = clone_array(self.values, owner);
@@ -7360,7 +7360,7 @@ class ArrayExpr : Expr
             if (size > 0)
                 e.emitassign(container, size);
         }
-        var collect = new CollectValues(self.owner, e);
+        :CollectValues collect(self.owner, e);
         int i = 0;
         for (var value in values) {
             string valuereg = collect.add(value);
@@ -7404,7 +7404,7 @@ class HashExpr : Expr
     }
     function clone(var owner)
     {
-        var cloned = new HashExpr;
+        :HashExpr cloned;
         cloned.Expr(owner, self.start);
         cloned.keys = clone_array(self.keys, owner);
         cloned.values = clone_array(self.values, owner);
@@ -7429,7 +7429,7 @@ class HashExpr : Expr
 
         var keys = self.keys;
         var values = self.values;
-        var collectvalues = new CollectValues(self.owner, e);
+        :CollectValues collectvalues(self.owner, e);
         int n = keys;
         for (int i = 0; i < n; ++i) {
             var key = keys[i];
@@ -7531,7 +7531,7 @@ class NewExpr : NewBaseExpr
     }
     function clone(var owner)
     {
-        var cloned = new NewExpr;
+        :NewExpr cloned;
         cloned.Expr(owner, self.start);
         cloned.value = self.value;
         if (self.initializer != null)
@@ -7655,7 +7655,7 @@ class NewIndexedExpr : NewBaseExpr
     {
         self.Expr(owner, start);
         self.owner = owner;
-        var nskey = new ClassSpecifierParrotKey(tk, owner, start);
+        :ClassSpecifierParrotKey nskey(tk, owner, start);
         self.nskey = nskey;
         var t = tk.get();
         if (t.isop("("))
@@ -7700,7 +7700,7 @@ class NewQualifiedExpr : NewBaseExpr
     {
         self.Expr(owner, start);
         self.owner = owner;
-        var nskey = new ClassSpecifierId(tk, owner, start);
+        :ClassSpecifierId nskey(tk, owner, start);
         self.nskey = nskey;
         var t = tk.get();
         if (t.isop("("))
@@ -7774,7 +7774,7 @@ class OpInstanceOfExpr : Expr
     }
     function clone(var owner)
     {
-        var cloned = new OpInstanceOfExpr;
+        :OpInstanceOfExpr cloned;
         cloned.Expr(owner, self.start);
         cloned.lexpr = self.lexpr.clone(owner);
         cloned.checked = self.checked.clone(owner);
@@ -7821,7 +7821,7 @@ class OpConditionalExpr : Expr
     }
     function clone(var owner)
     {
-        var cloned = new OpConditionalExpr;
+        :OpConditionalExpr cloned;
         cloned.Expr(owner, self.start);
         cloned.condition = (new Condition).set(self.condition.condexpr.clone(owner));
         cloned.etrue = self.etrue.clone(owner);
@@ -8510,7 +8510,7 @@ class ReturnStatement : ReturnYieldStatement
     }
     function clone(var owner)
     {
-        var cloned = new ReturnStatement;
+        :ReturnStatement cloned;
         cloned.Statement(self.start, owner);
         if (self.values != null)
             cloned.values = self.values.clone(owner);
@@ -8553,7 +8553,7 @@ class InlineReturnStatement : Statement
     }
     function clone(var owner)
     {
-        var cloned = new InlineReturnStatement;
+        :InlineReturnStatement cloned;
         cloned.Statement(self.start, owner);
         var expr = self.expr;
         if (expr != null)
@@ -8630,7 +8630,7 @@ class LabelStatement : Statement
     }
     function clone(var owner)
     {
-        var cloned = new LabelStatement;
+        :LabelStatement cloned;
         cloned.Statement(self.start, owner);
         cloned.name = self.name;
         cloned.value = cloned.createlabel(cloned.name);
@@ -8750,7 +8750,7 @@ class IfStatement : ConditionalStatement
     }
     function clone(var owner)
     {
-        var cloned = new IfStatement;
+        :IfStatement cloned;
         cloned.Statement(self.start, owner);
         cloned.condexpr = self.condexpr.clone(owner);
         cloned.truebranch = self.truebranch.clone(owner);
@@ -8832,7 +8832,7 @@ class WhileStatement : LoopStatement, ConditionalStatement
     }
     function clone(var owner)
     {
-        var cloned = new WhileStatement;
+        :WhileStatement cloned;
         cloned.Statement(self.start, owner);
         cloned.condexpr = self.condexpr.clone(cloned);
         cloned.body = self.body.clone(cloned);
@@ -8883,7 +8883,7 @@ class DoStatement : LoopStatement, ConditionalStatement
     }
     function clone(var owner)
     {
-        var cloned = new DoStatement;
+        :DoStatement cloned;
         cloned.Statement(self.start, owner);
         cloned.condexpr = self.condexpr.clone(cloned);
         cloned.body = self.body.clone(cloned);
@@ -8936,7 +8936,7 @@ class ContinueStatement : Statement
     }
     function clone(var owner)
     {
-        var cloned = new ContinueStatement;
+        :ContinueStatement cloned;
         cloned.Statement(self.start, owner);
         return cloned;
     }
@@ -8962,7 +8962,7 @@ class BreakStatement : Statement
     }
     function clone(var owner)
     {
-        var cloned = new BreakStatement;
+        :BreakStatement cloned;
         cloned.Statement(self.start, owner);
         return cloned;
     }
@@ -9312,7 +9312,7 @@ class ForStatement : LoopStatement, BlockStatement, ConditionalStatement
     }
     function clone(var owner)
     {
-        var cloned = new ForStatement;
+        :ForStatement cloned;
         cloned.BlockStatement(self.start, owner);
         if (self.initializer != null)
             cloned.initializer = self.initializer.clone(cloned);
@@ -9402,7 +9402,7 @@ class ForeachStatement : LoopStatement, BlockStatement
     }
     function clone(var owner)
     {
-        var cloned = new ForeachStatement;
+        :ForeachStatement cloned;
         cloned.BlockStatement(self.start, owner);
         var deftype = self.deftype;
         var varname = self.varname;
@@ -9495,7 +9495,7 @@ class ThrowStatement : Statement
     }
     function clone(var owner)
     {
-        var cloned = new ThrowStatement;
+        :ThrowStatement cloned;
         cloned.Statement(self.start, owner);
         cloned.excep = self.excep.clone(owner);
         return cloned;
@@ -9546,7 +9546,7 @@ class TryModifierList : ModifierList
     }
     function clone(var owner)
     {
-        var cloned = new TryModifierList;
+        :TryModifierList cloned;
         cloned.start = self.start;
         cloned.list = self.clonemodifiers(owner);
         return cloned;
@@ -9626,7 +9626,7 @@ class TryStatement : BlockStatement
     }
     function clone(var owner)
     {
-        var cloned = new TryStatement;
+        :TryStatement cloned;
         cloned.BlockStatement(self.start, owner);
         if (self.modifiers != null)
             cloned.modifiers = self.modifiers.clone(cloned);
@@ -9717,7 +9717,7 @@ class DeclarationModifierList : ModifierList
     }
     function clone(var owner)
     {
-        var cloned = new DeclarationModifierList;
+        :DeclarationModifierList cloned;
         cloned.list = self.clonemodifiers(owner);
         return cloned;
     }
@@ -10296,7 +10296,7 @@ class VarStatement : VarBaseStatement
     }
     function clone(var owner)
     {
-        var cloned = new VarStatement;
+        :VarStatement cloned;
         cloned.clonevarbase(self, owner);
         if (self.init != null)
             cloned.init = self.init.clone(cloned);
@@ -10446,7 +10446,7 @@ class CompoundStatement : MultiStatementBase, BlockStatement
     }
     function clone(var owner)
     {
-        var cloned = new CompoundStatement;
+        :CompoundStatement cloned;
         cloned.BlockStatement(self.start, owner);
         cloned.labels = {};
         cloned.end = self.end;
@@ -10562,7 +10562,7 @@ class ParameterModifierList : ModifierList
     }
     function clone(var owner)
     {
-        var cloned = new ParameterModifierList;
+        :ParameterModifierList cloned;
         cloned.list = self.clonemodifiers(owner);
         return cloned;
     }
@@ -10666,7 +10666,7 @@ class FunctionParameter
     }
     function clone(var owner)
     {
-        var cloned = new FunctionParameter;
+        :FunctionParameter cloned;
         cloned.func = owner;
         cloned.name = self.name;
         cloned.type = self.type;
@@ -10749,7 +10749,7 @@ class FunctionParameterDefault
     }
     function clone(var owner, var param)
     {
-        var cloned = new FunctionParameterDefault;
+        :FunctionParameterDefault cloned;
         cloned.owner = owner;
         cloned.param = param;
         cloned.expr = self.expr.clone(owner);
@@ -10810,7 +10810,7 @@ class FunctionParameterList
     }
     function clone(var owner)
     {
-        var cloned = new FunctionParameterList;
+        :FunctionParameterList cloned;
         cloned.paramlist = clone_array(self.paramlist, owner);
         return cloned;
     }
@@ -11333,7 +11333,7 @@ class LocalFunctionStatement : FunctionBase
     }
     function clone(var owner)
     {
-        var cloned = new LocalFunctionStatement;
+        :LocalFunctionStatement cloned;
         cloned.clonebase(self, owner);
         cloned.activate();
         if (self.params != null)
@@ -11805,7 +11805,7 @@ class SigParameter
     }
     function clone(var owner)
     {
-        var cloned = new SigParameter;
+        :SigParameter cloned;
         cloned.owner = owner;
         var name = self.name;
         cloned.name = name;
@@ -11873,7 +11873,7 @@ class SigParameterList
     }
     function clone(var owner)
     {
-        var cloned = new SigParameterList;
+        :SigParameterList cloned;
         cloned.params = clone_array(self.params, owner);
         return cloned;
     }
@@ -12044,7 +12044,7 @@ class ClassSpecifierId : ClassSpecifier
     }
     function clone(var owner)
     {
-        var cloned = new ClassSpecifierId;
+        :ClassSpecifierId cloned;
         cloned.ClassSpecifier(owner, self.start);
         cloned.key = self.key;
         return cloned;
@@ -12172,7 +12172,7 @@ class ClassStatement : ClassBase, VarContainer
         for (t = tk.get(); !t.isop("}"); t = tk.get()) {
             switch (t.checkkeyword()) {
               case "function":
-                var f = new MethodStatement(t, tk, self);
+                :MethodStatement f(t, tk, self);
                 self.addmethod(f);
                 push(items, f);
                 break;
@@ -12385,7 +12385,7 @@ function include_winxed(var start, var tk, var ns)
     string filename = tfile.rawstring();
     var file = open_include(filename, start);
 
-    var tkinc = new Tokenizer(file, filename, false);
+    :Tokenizer tkinc(file, filename, false);
     ns.parse(tkinc);
 
     file.close();
@@ -12494,7 +12494,7 @@ class NamespacePath
     }
     function createchild(string name)
     {
-        var child = new NamespacePath;
+        :NamespacePath child;
         child.hll = self.hll;
         var path = clone(self.path);
         push(path, name);
@@ -12700,7 +12700,7 @@ class NamespaceBase : VarContainer
 
     function addextern(var module, var names)
     {
-        var ext = new External(module, names);
+        :External ext(module, names);
         var externals = self.externals;
         if (externals == null)
             self.externals = externals = [ ext ];
@@ -12777,7 +12777,7 @@ class NamespaceBase : VarContainer
     function declarenamespace(var start, string name, var modifier[optional])
     {
         var existns = self.getlocalns(name);
-        var child = new NamespaceStatement(self, start, existns, name, modifier);
+        :NamespaceStatement child(self, start, existns, name, modifier);
         push(self.namespaces, child);
         return child;
     }
@@ -12828,7 +12828,7 @@ class NamespaceBase : VarContainer
         t = tk.get();
         RequireIdentifier(t);
         ExpectOp(";", tk);
-        var funex = new FunctionExtern(t, self);
+        :FunctionExtern funex(t, self);
         self.addfunction(funex);
     }
     function parse(var tk)
@@ -12846,12 +12846,12 @@ class NamespaceBase : VarContainer
                 push(items, cst);
                 break;
               case "function":
-                var f = new FunctionStatement(t, tk, self);
+                :FunctionStatement f(t, tk, self);
                 self.addfunction(f);
                 push(items, f);
                 break;
               case "inline":
-                var inl = new InlineStatement(t, tk, self);
+                :InlineStatement inl(t, tk, self);
                 self.addfunction(inl);
                 break;
               case "class":
@@ -13195,7 +13195,7 @@ class WinxedCompileUnit
     {
         self.sourcefile = sourcefile;
         self.warnings = ! nowarn;
-        var rootns = new RootNamespace(self);
+        :RootNamespace rootns(self);
 
         // Store predefined constants in the root namespace.
 
@@ -13216,7 +13216,7 @@ class WinxedCompileUnit
         // Builtins
         var builtins_ns = rootns.childnamespace(new TokenEof("__builtins__"),
                 "Winxed_Builtins", null);
-        var builder = new BuiltinBuilder();
+        :BuiltinBuilder builder();
         getbuiltins(builder);
         builder.put(builtins_ns);
 
@@ -13287,7 +13287,7 @@ class WinxedHLL
         }
         else
             handleout = output;
-        var emit = new Emit(handleout, nowarn);
+        :Emit emit(handleout, nowarn);
         if (debug)
             emit.setDebug();
         if (noan)
@@ -13325,7 +13325,7 @@ class WinxedHLL
         }
         else
             handleout = output;
-        var emit = new Emit(handleout, true);
+        :Emit emit(handleout, true);
         winxed.emitinclude(emit);
         emit.close();
         if (output != null)
@@ -13349,8 +13349,8 @@ class WinxedHLL
         handlein.puts(code);
         handlein.close();
         handlein.open(EVAL_NAME, "r");
-        var tk = new Tokenizer(handlein, EVAL_NAME, nowarn);
-        var winxed = new WinxedCompileUnit("", nowarn, debug);
+        :Tokenizer tk(handlein, EVAL_NAME, nowarn);
+        :WinxedCompileUnit winxed("", nowarn, debug);
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
@@ -13373,8 +13373,8 @@ class WinxedHLL
         var handlein = new ["FileHandle"];
         handlein.open(filename, "r");
         handlein.encoding("utf8");
-        var tk = new Tokenizer(handlein, filename, nowarn);
-        var winxed = new WinxedCompileUnit(filename, nowarn, debug);
+        :Tokenizer tk(handlein, filename, nowarn);
+        :WinxedCompileUnit winxed(filename, nowarn, debug);
         winxed.parse(tk);
         handlein.close();
         winxed.optimize();
@@ -13392,7 +13392,7 @@ class WinxedHLL
 
 function initializer [init,load]()
 {
-    var comp = new WinxedHLL;
+    :WinxedHLL comp;
     compreg("winxed", comp);
 }
 
