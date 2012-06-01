@@ -10676,6 +10676,10 @@ class FunctionParameter
     {
         return self.type;
     }
+    function get_pir_multi_type()
+    {
+        return typetopirname(self.type);
+    }
     function getvar()
     {
         return self.func.getvar(self.name);
@@ -10775,12 +10779,7 @@ class FunctionParameterList
     }
     function addmultisig(var multi_sig)
     {
-        transform(self.paramlist, multi_sig,
-                function (var param)
-                {
-                    return typetopirname(param.get_type());
-                }
-        );
+        transform(self.paramlist, multi_sig, bindmethod("get_pir_multi_type"));
     }
 }
 
