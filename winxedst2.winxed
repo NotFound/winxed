@@ -10442,14 +10442,26 @@ class AutoStatement : Statement
         self.expr = parseExpr(tk, owner);
         ExpectOp(";", tk);
     }
+    function clone(var owner)
+    {
+        :AutoStatement cloned;
+        cloned.Statement(self.start, owner);
+        cloned.name = self.name;
+        cloned.expr = self.expr.clone(cloned);
+        return cloned;
+    }
     function optimize()
     {
-        self.expr = self.expr.optimize();
+        var expr = self.expr.optimize();
+        self.expr = expr;
+        string type = expr.checkresult();
+        self.createvar(self.name, type, 0);
         return self;
     }
     function emit(var e)
     {
-        throw "UNIMPLEMENTED, TESTING";
+        string reg = self.getvar(self.name).getreg();
+        self.expr.emit_init(e, reg);
     }
 }
 
