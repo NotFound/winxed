@@ -2582,6 +2582,8 @@ function parseStatement(var tk, var owner)
         if (! t2.isop("("))
             return parseFloat(t, tk, owner);
         break;
+      case "auto":
+        return parseAuto(t, tk, owner);
       case "return":
         return parseReturn(t, tk, owner);
       case "yield":
@@ -10423,6 +10425,42 @@ function parseVolatile(var start, var tk, var owner)
     if (!t.iskeyword("var"))
         SyntaxError("invalid volatile type", t);
     return parseVar(start, tk, owner, VAR_is_volatile);
+}
+
+//*********************************************
+//            AutoStatement
+//*********************************************
+
+class AutoStatement : Statement
+{
+    var name;
+    var expr;
+    function AutoStatement(var start, var tk, var owner, var name)
+    {
+        self.Statement(start, owner);
+        self.name = name;
+        self.expr = parseExpr(tk, owner);
+        ExpectOp(";", tk);
+    }
+    function optimize()
+    {
+        self.expr = self.expr.optimize();
+        return self;
+    }
+    function emit(var e)
+    {
+        throw "UNIMPLEMENTED, TESTING";
+    }
+}
+
+function parseAuto(var start, var tk, var owner)
+{
+    var name = tk.get();
+    RequireIdentifier(name);
+    var t = tk.get();
+    RequireOp("=", t);
+    :AutoStatement st(start, tk, owner, name);
+    return st;
 }
 
 //*********************************************
