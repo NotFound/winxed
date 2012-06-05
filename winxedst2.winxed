@@ -9755,17 +9755,23 @@ class DeclarationModifierList : ModifierList
 class DeclareItem : Statement
 {
     var name;
-    var reg;
+    var regtype;
     var modifiers;
     var flags;
+    var decdata;
 
     function DeclareItem(var start, var owner, var name, string regtype, int flags)
     {
         self.Statement(start, owner);
         self.name = name;
-        var vdata = self.createvar(name, regtype, flags);
-        self.reg = vdata.getreg();
+        self.regtype = regtype;
+        self.decdata = self.createvar(name, regtype, flags);
         self.flags = flags;
+    }
+    function getreg()
+    {
+	__ASSERT__(self.decdata != null);
+	return self.decdata.getreg();
     }
     function parsemodifiers(var start, var tk)
     {
@@ -9782,8 +9788,7 @@ class DeclareItem : Statement
                 // If no name specified, use the variable name.
                 if (lexname == "")
                     lexname = self.name;
-                var vardata = self.getvar(self.name);
-                vardata.createlex(lexname);
+                self.decdata.createlex(lexname);
             }
         }
     }
@@ -9865,7 +9870,7 @@ class DeclareSingleStatement : DeclareBase
     {
         self.annotate(e);
         string name = self.name;
-        string reg = self.reg;
+        string reg = self.getreg();
         string ireg;
         string basetype = self.basetype;
         var init = self.init;
@@ -9981,7 +9986,7 @@ class DeclareArrayStatement : DeclareBase
     {
         self.annotate(e);
 
-        string container = self.reg;
+        string container = self.getreg();
         var size = self.size;
         var init = self.initarray;
         var basetype = self.basetype;
@@ -10319,7 +10324,7 @@ class VarStatement : VarBaseStatement
     {
         self.annotate(e);
         string name =  self.name;
-        string reg = self.reg;
+        string reg = self.getreg();
         var init = self.init;
         if (e.getDebug())
             e.comment("var ", name, ": ", reg);
@@ -10358,7 +10363,7 @@ class ResizableVarStatement : VarStatement
     function emit(var e)
     {
         self.annotate(e);
-        string reg = self.reg;
+        string reg = self.getreg();
         if (e.getDebug())
             e.comment(sformat("var %0[] : %1", self.name, reg));
         e.say(sformat(INDENT + "new %0, 'ResizablePMCArray'", reg));
@@ -10385,7 +10390,7 @@ class FixedVarStatement : VarStatement
     {
         string regsize = self.exprsize.emit_get(e);
         self.annotate(e);
-        string reg = self.reg;
+        string reg = self.getreg();
         if (e.getDebug())
             e.comment(sformat("var %0[] : %1", self.name, reg));
         e.say(sformat(INDENT + "new %0, 'FixedPMCArray', %1", reg, regsize));
