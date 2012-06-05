@@ -9392,7 +9392,6 @@ class ForeachStatement : LoopStatement, BlockStatement
         self.BlockStatement(start, owner);
         if (type != "") {
             string deftype = typetoregcheck(type);
-            self.createvar(name, deftype);
             self.deftype = deftype;
         }
         self.varname = name;
@@ -9406,8 +9405,6 @@ class ForeachStatement : LoopStatement, BlockStatement
         cloned.BlockStatement(self.start, owner);
         var deftype = self.deftype;
         var varname = self.varname;
-        if (deftype != null)
-            cloned.createvar(varname, deftype);
         cloned.deftype = deftype;
         cloned.varname = varname;
         cloned.container = self.container.clone(cloned);
@@ -9416,6 +9413,9 @@ class ForeachStatement : LoopStatement, BlockStatement
     }
     function optimize()
     {
+        if (self.deftype != null)
+            self.createvar(self.varname, self.deftype);
+
         var container = self.container.optimize();
 
         // Optimize out iterating on compile time eveluated
@@ -9617,7 +9617,6 @@ class TryStatement : BlockStatement
         if (! t.isop(")")) {
             string exname = t.getidentifier();
             self.exname = t;
-            self.createvar(exname, REGvar);
             t = tk.get();
             if (! t.isop(")"))
                 Expected("')' in 'catch'", t);
@@ -9630,10 +9629,8 @@ class TryStatement : BlockStatement
         cloned.BlockStatement(self.start, owner);
         if (self.modifiers != null)
             cloned.modifiers = self.modifiers.clone(cloned);
-        if (self.exname != null) {
+        if (self.exname != null)
             cloned.exname = self.exname;
-            cloned.createvar(self.exname, REGvar);
-        }
         cloned.stry = self.stry.clone(cloned);
         cloned.scatch = self.scatch.clone(cloned);
         return cloned;
@@ -9647,6 +9644,8 @@ class TryStatement : BlockStatement
     }
     function optimize()
     {
+        if (self.exname != null)
+            self.createvar(self.exname, REGvar);
         if (self.modifiers != null)
             self.modifiers.optimize();
         self.stry = self.stry.optimize();
@@ -9765,7 +9764,6 @@ class DeclareItem : Statement
         self.Statement(start, owner);
         self.name = name;
         self.regtype = regtype;
-        self.decdata = self.createvar(name, regtype, flags);
         self.flags = flags;
     }
     function getreg()
@@ -9780,6 +9778,8 @@ class DeclareItem : Statement
     }
     function optimizemodifiers()
     {
+        self.decdata = self.createvar(self.name, self.regtype, self.flags);
+
         var modifiers = self.modifiers;
         if (modifiers != null) {
             modifiers.optimize();
@@ -11795,7 +11795,6 @@ class SigParameter
             string type = typetoregcheck(name.checkkeyword());
             self.type = type;
             name = t;
-            owner.createvar(name, type);
             t = tk.get();
         }
         self.name = name;
@@ -11815,10 +11814,8 @@ class SigParameter
         var name = self.name;
         cloned.name = name;
         var type = self.type;
-        if (type != null) {
+        if (type != null)
             cloned.type = type;
-            owner.createvar(name, type);
-        }
         if (self.modifiers != null)
             cloned.modifiers = self.modifiers.clone(owner);
         if (self.defaultexpr != null)
@@ -11831,6 +11828,8 @@ class SigParameter
     }
     function optimize()
     {
+        if (self.type != null)
+            self.owner.createvar(self.name, self.type);
         if (self.modifiers != null)
             self.modifiers.optimize();
         var def = self.defaultexpr;
