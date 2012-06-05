@@ -8564,9 +8564,16 @@ class InlineReturnStatement : Statement
     }
     function optimize()
     {
+        var outer = self.owner.getouter();
+        __ASSERT__(outer instanceof InlinedBlock);
         var expr = self.expr;
-        if (expr != null)
-            self.expr = expr.optimize();
+        string rettype = REGnone;
+        if (expr != null) {
+            self.expr = expr = expr.optimize();
+            outer.setrettype(expr.checkresult(), expr.getstart());
+        }
+        else
+            outer.setrettype(REGnone, self.start);
         return self;
     }
     function emit(var e)
@@ -9770,8 +9777,8 @@ class DeclareItem : Statement
     }
     function getreg()
     {
-	__ASSERT__(self.decdata != null);
-	return self.decdata.getreg();
+        __ASSERT__(self.decdata != null);
+        return self.decdata.getreg();
     }
     function parsemodifiers(var start, var tk)
     {
@@ -11580,9 +11587,13 @@ class InlineStatement : BlockStatement, VarContainer
         if (t.iskeyword("return")) {
             t = tk.get();
             string nametype = t.getidentifier();
-            type = typetoregcheck(nametype);
-            if (type == "")
-                SyntaxError("Invalid return type", t);
+            if (nametype == "auto")
+                type = "auto";
+            else {
+                type = typetoregcheck(nametype);
+                if (type == "")
+                    SyntaxError("Invalid return type", t);
+            }
             t = tk.get();
         }
         else
@@ -11609,11 +11620,15 @@ class InlinedBlock : BlockStatement
     var body;
     var endlabel;
     var retreg;
+    var rettype;
     function InlinedBlock(var inlined, var inliner, var args)
     {
+        __ASSERT__(inlined instanceof InlineStatement);
+
         self.BlockStatement(inliner.start, inlined);
         self.inliner = inliner;
         self.inlined = inlined;
+        self.rettype = self.inlined.rettype;
         var params = inlined.params;
         int nparams = params == null ? 0 : elements(params);
         int nargs = args == null ? 0 : args.numargs();
@@ -11695,13 +11710,28 @@ class InlinedBlock : BlockStatement
     {
         return self.endlabel;
     }
+    function setrettype(string type, var t)
+    {
+        var rettype = self.rettype;
+        if (type != rettype) {
+            if (rettype == "auto") {
+                if (type == REGnone)
+                    SyntaxError("return without argument not allowed in inline with return auto", t);
+                self.rettype = type;
+            }
+            else {
+                if (type != rettype)
+                    SyntaxError("Conflicting return type in inline", t);
+            }
+        }
+    }
     function getrettype()
     {
-        return self.inlined.rettype;
+        return self.rettype;
     }
     function checkresult()
     {
-        return self.inlined.rettype;
+        return self.rettype;
     }
     function getretreg()
     {
@@ -11778,6 +11808,7 @@ class InlineRef : FinalExpr
     function InlineRef(var owner, var start, var sym)
     {
         __ASSERT__(sym instanceof InlineStatement);
+
         self.Expr(owner, start);
         self.inlined = sym;
     }
@@ -11805,6 +11836,8 @@ class CallInlineExpr : FinalExpr
      var block;
      function CallInlineExpr(var owner, var funref, var args)
      {
+        __ASSERT__(funref instanceof InlineRef);
+
         self.Expr(owner, funref.start);
         self.block = new InlinedBlock(funref.inlined, owner, args);
      }
