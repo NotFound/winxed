@@ -26,7 +26,6 @@ function main()
 
 function aux(int i, int check, string msg)
 {
-    using Test.More.is;
     is (i, check, msg);
 }
 
