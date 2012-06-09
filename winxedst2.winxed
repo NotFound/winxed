@@ -620,6 +620,8 @@ function getheredoc(var tk, string start, int linenum)
         switch (c) {
           case "":
             UnterminatedHeredoc(tk, linenum);
+          case "\r":
+            break; // Quick fix for windows line-ending text files
           case "\"":
           case "\\":
             // Encode the mark the same way as the heredoc content
@@ -639,6 +641,8 @@ function getheredoc(var tk, string start, int linenum)
             switch (c) {
               case "":
                 UnterminatedHeredoc(tk, linenum);
+              case "\r":
+                break; // Quick fix for windows line-ending text files
               case "\"":
               case "\\":
                 c = "\\" + c;
