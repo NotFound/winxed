@@ -626,10 +626,11 @@ function getheredoc(var tk, string start, int linenum)
           case "\\":
             // Encode the mark the same way as the heredoc content
             // to simplify its detection
-            c = "\\" + c;
+            mark += "\\" + c;
             break;
+          default:
+            mark += c;
         }
-        mark = mark + c;
     }
     mark = mark + ":>>";
 
@@ -645,10 +646,11 @@ function getheredoc(var tk, string start, int linenum)
                 break; // Quick fix for windows line-ending text files
               case "\"":
               case "\\":
-                c = "\\" + c;
+                line += "\\" + c;
                 break;
+              default:
+                line += c;
             }
-            line += c;
         }
         if (line != mark)
             content += line + "\\n";
