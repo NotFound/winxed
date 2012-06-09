@@ -1,5 +1,5 @@
 // token.cpp
-// Revision 25-may-2012
+// Revision 9-jun-2012
 
 #include "token.h"
 #include "errors.h"
@@ -155,6 +155,7 @@ bool Token::isspace() const
         (s.empty() ||
         s[0] == ' ' ||
         s[0] == '\t' ||
+        s[0] == '\r' ||
         s[0] == '\n'
         ));
 }
@@ -310,7 +311,10 @@ Token Tokenizer::getheredoc()
     std::string mark;
     char c;
     while ((c = getchar()) != '\n' && c != '\0')
-        mark += c;
+    {
+        if (c != '\r')
+            mark += c;
+    }
     if (c == 0)
         throw SyntaxError ("Unterminated heredoc ",
             Token(TokenTQuoted, "<<:", linenum, name));
@@ -320,7 +324,10 @@ Token Tokenizer::getheredoc()
     do {
         line = "";
         while ((c = getchar()) != '\n' && c != '\0')
-            line += c;
+        {
+            if (c != '\r')
+                line += c;
+        }
         if (c == 0)
             throw SyntaxError ("Unterminated heredoc ",
                 Token(TokenTQuoted, "<<:", linenum, name));

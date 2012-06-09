@@ -10,7 +10,7 @@
 
 function isspace(string c)
 {
-    return c == " " || c == "\n" || c == "\t";
+    return c == " " || c == "\n" || c == "\t" || c == "\r";
 }
 
 function isdigit(string c)
@@ -450,14 +450,17 @@ function getheredoc(var tk, string start, int linenum)
         switch (c) {
           case "":
             UnterminatedHeredoc(tk, linenum);
+          case "\r":
+            break; // Quick fix for windows line-ending text files
           case "\"":
           case "\\":
             // Encode the mark the same way as the heredoc content
             // to simplify its detection
-            c = "\\" + c;
+            mark = mark + "\\" + c;
             break;
+          default:
+            mark = mark + c;
         }
-        mark = mark + c;
     }
     mark = mark + ":>>";
 
@@ -469,12 +472,15 @@ function getheredoc(var tk, string start, int linenum)
             switch (c) {
               case "":
                 UnterminatedHeredoc(tk, linenum);
+              case "\r":
+                break; // Quick fix for windows line-ending text files
               case "\"":
               case "\\":
-                c = "\\" + c;
+                line = line + "\\" + c;
                 break;
+              default:
+                line = line + c;
             }
-            line = line + c;
         }
         if (line != mark)
             content = content + line + "\\n";
