@@ -12,6 +12,8 @@ Version 1.9
         var variable = new Type(arguments);
   Build 1.9.0
     - Candidate
+  Build 1.9.1
+    - Treat carriage return as whitespace in source files
 
 Version 1.8
     - Put source file name when known in generated PIR header.
