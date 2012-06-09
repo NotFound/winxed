@@ -31,7 +31,7 @@ function getVersionString [anon] ()
 
 inline isspace(string c) return int
 {
-    return c == " " || c == "\n" || c == "\t";
+    return c == " " || c == "\n" || c == "\t" || c == "\r";
 }
 
 inline isdigit(string c) return int
