@@ -10270,9 +10270,9 @@ class ConstStatement : Statement
 function parseConst(var start, var tk, var owner)
 {
     var t = tk.get();
-    string type = typetoregcheck(t);
+    string type = t.isidentifier() ? typetoregcheck(t.getidentifier()) : "";
     if (type != REGint && type != REGfloat && type != REGstring)
-        SyntaxError("Invalid type for const", start);
+        SyntaxError("Invalid type for const", t);
 
     var multi = null;
     do {
