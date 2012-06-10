@@ -12133,6 +12133,7 @@ class FunctionContainer
                    (newfunc instanceof FunctionStatement) ||
                    (newfunc instanceof FunctionExtern));
         var functions = self.functions;
+        __ASSERT__(newfunc.name instanceof TokenIdentifier);
         string name = newfunc.name;
         var func = functions[name];
         if (func == null)
@@ -13162,7 +13163,7 @@ class Builtin {
     var variants;
     function Builtin(string name, var variant)
     {
-        self.name = name;
+        self.name = new TokenIdentifier("__builtins__", 0, name);
         self.variants = [ variant ];
     }
     function getname() { return string(self.name); }

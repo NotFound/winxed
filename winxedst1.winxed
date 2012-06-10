@@ -8939,7 +8939,8 @@ class FunctionContainer
         __ASSERT__((newfunc instanceof Builtin) ||
                    (newfunc instanceof FunctionStatement));
         var functions = self.functions;
-        string name = newfunc.name;
+        __ASSERT__(newfunc.name instanceof TokenIdentifier);
+        string name = newfunc.name.getidentifier();
         var func = functions[name];
         if (func == null)
             functions[name] = newfunc;
@@ -9818,7 +9819,7 @@ class Builtin {
     var variants;
     function Builtin(string name, var variant)
     {
-        self.name = name;
+        self.name = new TokenIdentifier("__builtins__", 0, name);
         self.variants = [ variant ];
     }
     function getname() { return string(self.name); }
