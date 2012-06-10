@@ -12135,6 +12135,7 @@ class FunctionContainer
     {
         __ASSERT__((newfunc instanceof Builtin) ||
                    (newfunc instanceof FunctionStatement) ||
+                   (newfunc instanceof InlineStatement) ||
                    (newfunc instanceof FunctionExtern));
         var functions = self.functions;
         __ASSERT__(newfunc.name instanceof TokenIdentifier);
