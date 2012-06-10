@@ -3171,8 +3171,9 @@ class VarContainer
     }
     function createconst(var name, string type, int flags[optional])
     {
+        __ASSERT__(name instanceof TokenIdentifier);
+        string sname = name.getidentifier();
         var locals = self.locals;
-        string sname = name;
         var exist = locals[sname];
         if (exist != null)
             Redeclared(name);
@@ -10270,6 +10271,7 @@ function parseConst(var start, var tk, var owner)
     var multi = null;
     do {
         var name = tk.get();
+        RequireIdentifier(name);
         ExpectOp("=", tk);
         var value = parseExpr(tk, owner);
         multi = addtomulti(multi,
@@ -12334,6 +12336,8 @@ function include_parrot(var start, var tk, var ns)
         Expected("literal string", tfile);
     ExpectOp(";", tk);
 
+    var sfile = start.file;
+    int sline = start.line;
     string filename = tfile.rawstring();
     var file = open_include(filename, start);
 
@@ -12368,9 +12372,9 @@ function include_parrot(var start, var tk, var ns)
                 ivalue = substr(value, 2).to_int(16);
             else
                 ivalue = value;
-            var cst = ns.createconst(name, REGint, VAR_is_extern);
-            cst.setvalue(integerValue(ns,
-                    new TokenInteger(start.file, start.line, name), ivalue));
+            var tokname = new TokenIdentifier(sfile, sline, name);
+            var cst = ns.createconst(tokname, REGint, VAR_is_extern);
+            cst.setvalue(integerValue(ns, tokname, ivalue));
         }
     }
 
