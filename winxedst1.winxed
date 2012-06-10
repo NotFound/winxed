@@ -7294,9 +7294,8 @@ class ForeachStatement : LoopStatement, BlockStatement
     {
         self.BlockStatement(start, owner);
         if (type != "") {
-            string deftype = typetoregcheck(type);
-            self.createvar(name, deftype);
-            self.deftype = deftype;
+            self.createvar(name, type);
+            self.deftype = type;
         }
         self.varname = name;
         self.container = parseExpr(tk, self);
@@ -7346,17 +7345,22 @@ function parseFor(var t, var tk, var owner)
 {
     ExpectOp("(", tk);
     var aux = tk.get();
-    var in1 = tk.get();
-    if (in1.iskeyword("in"))
-        return new ForeachStatement(t, tk, owner, aux, "");
-    else {
-        var in2 = tk.get();
-        if (in2.iskeyword("in"))
-            return new ForeachStatement(t, tk, owner, in1, aux);
-        tk.unget(in2);
+    if (aux.isidentifier()) {
+        var in1 = tk.get();
+        if (in1.isidentifier()) {
+            if (in1.iskeyword("in"))
+                return new ForeachStatement(t, tk, owner, aux, "");
+            else {
+                var in2 = tk.get();
+                string type = typetoregcheck(aux.getidentifier());
+                if (in2.iskeyword("in") && type != "")
+                    return new ForeachStatement(t, tk, owner, in1, type);
+                tk.unget(in2);
+            }
+        }
         tk.unget(in1);
-        tk.unget(aux);
     }
+    tk.unget(aux);
     return new ForStatement(t, tk, owner);
 }
 
