@@ -201,7 +201,8 @@ testdebug: rundebug.pbc winxedst1_deb1.pbc winxedst2_deb1.pbc winxedst2_deb2.pbc
 #-----------------------------------------------------------------------
 
 cleandebug:
-	rm -f winxedst1_deb1.pbc winxedst1_deb1.pir \
+	rm -f rundebug.pbc rundebug.pir \
+		winxedst1_deb1.pbc winxedst1_deb1.pir \
 		winxedst2_deb1.pbc winxedst2_deb1.pir \
 		winxedst2_deb2.pbc winxedst2_deb2.pir
 
