@@ -12107,7 +12107,7 @@ class ClassBase : CommonBase
     {
         self.initbase(start, parent);
         self.name = name;
-        var classns = parent.getpath().createchild(name);
+        var classns = parent.getpath().createchild(name.getidentifier());
         self.classns = classns;
     }
     function getpath()
