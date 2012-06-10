@@ -2581,8 +2581,9 @@ class VarContainer
     }
     function createvar(var name, string type, int flags[optional])
     {
+        __ASSERT__(name instanceof TokenIdentifier);
+        string sname = name.getidentifier();
         var locals = self.locals;
-        string sname = name;
         var exist = locals[sname];
         if (exist != null)
             Redeclared(name);
@@ -7292,10 +7293,9 @@ class ForeachStatement : LoopStatement, BlockStatement
     function ForeachStatement(var start, var tk, var owner, var name, string type)
     {
         self.BlockStatement(start, owner);
-        string sname = name;
         if (type != "") {
             string deftype = typetoregcheck(type);
-            self.createvar(sname, deftype);
+            self.createvar(name, deftype);
             self.deftype = deftype;
         }
         self.varname = name;
@@ -7428,9 +7428,9 @@ class TryStatement : BlockStatement
             Expected("'(' after 'catch'", t);
         t = tk.get();
         if (! t.isop(")")) {
-            string exname = t.getidentifier();
+            RequireIdentifier(t);
             self.exname = t;
-            self.createvar(exname, REGvar);
+            self.createvar(t, REGvar);
             t = tk.get();
             if (! t.isop(")"))
                 Expected("')' in 'catch'", t);
