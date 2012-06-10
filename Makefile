@@ -192,24 +192,25 @@ testdebug: $(DRIVER).pbc winxedst1_deb1.pbc winxedst2_deb1.pbc winxedst2_deb2.pb
 
 #-----------------------------------------------------------------------
 
-clean:
-	rm -f winxedst3.pbc
-	rm -f winxedst2.pbc
+cleandebug:
+	rm -f winxedst1_deb1.pbc winxedst1_deb1.pir \
+		winxedst2_deb1.pbc winxedst2_deb1.pir \
+		winxedst2_deb2.pbc winxedst2_deb2.pir
+
+clean3:
+	rm -f winxedst3.pbc  winxedst3.pir
+
+clean2: clean3
+	rm -f winxedst2.pbc  winxedst2.pir
+
+clean: cleandebug clean2
 	rm -f winxedst1.pbc
-	rm -f winxedst3.pir
-	rm -f winxedst2.pir
 	rm -f winxedst1.pir
 	rm -f winxed$(EXEEXT)
 	rm -f winxed$(OBJEXT)
 	rm -f winxed.c
 	rm -f $(DRIVER).pbc
 	rm -f $(DRIVER).pir
-	rm -f winxedst1_deb1.pbc
-	rm -f winxedst1_deb1.pir
-	rm -f winxedst2_deb1.pbc
-	rm -f winxedst2_deb1.pir
-	rm -f winxedst2_deb2.pbc
-	rm -f winxedst2_deb2.pir
 	rm -f winxedst0$(EXEEXT)
 	rm -f *$(OBJEXT)
 
