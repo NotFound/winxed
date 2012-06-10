@@ -3162,8 +3162,9 @@ class VarContainer
     }
     function createvarnamed(var name, string type, string pirname)
     {
-        var locals = self.locals;
+        __ASSERT__(name instanceof TokenIdentifier);
         string sname = name;
+        var locals = self.locals;
         var exist = locals[sname];
         if (exist != null)
             Redeclared(name);
@@ -10657,6 +10658,7 @@ class FunctionParameter
             else
                 type = REGvar;
         }
+        RequireIdentifier(t);
         self.type = type;
         self.name = t;
 

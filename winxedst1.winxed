@@ -2602,8 +2602,9 @@ class VarContainer
     }
     function createvarnamed(var name, string type, string pirname)
     {
+        __ASSERT__(name instanceof TokenIdentifier);
+        string sname = name.getidentifier();
         var locals = self.locals;
-        string sname = name;
         var exist = locals[sname];
         if (exist != null)
             Redeclared(name);
@@ -8164,10 +8165,11 @@ class FunctionParameter
             Expected("parameter type", t);
         self.type = type;
         t = tk.get();
+        RequireIdentifier(t);
         string argname = "__ARG_" + string(func.generateparamnum());
         func.createvarnamed(t, type, argname);
 
-        self.name = string(t);
+        self.name = t;
         t = tk.get();
         if (t.isop("["))
             self.modifiers = new ParameterModifierList(tk, func.owner);
