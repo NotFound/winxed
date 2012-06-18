@@ -10,8 +10,8 @@ namespace Compiler
 {
 
 const int VERSION_MAJOR = 1;
-const int VERSION_MINOR = 9;
-const int VERSION_BUILD = 1;
+const int VERSION_MINOR = 10;
+const int VERSION_BUILD = -1;
 
 function getVersion [anon] ()
 {
