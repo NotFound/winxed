@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 30-may-2012
+// Revision 20-jun-2012
 
 // Winxed compiler stage 0.
 
@@ -6403,7 +6403,7 @@ void winxed_main (int argc, char **argv)
 
     if (! expr.empty() )
     {
-        expr = "function main(argv) {" + expr + ";}\n";
+        expr = "function main(var argv) {" + expr + ";}\n";
         inputstring.str(expr);
         input = &inputstring;
         inputname = "##eval##";
