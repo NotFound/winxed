@@ -8809,7 +8809,7 @@ class ClassSpecifierStr : ClassSpecifier
 
     function emit(var e, var ns)
     {
-        string basestr = self.name;
+        string basestr = self.name.getPirString();
         e.print(basestr);
     }
 }
