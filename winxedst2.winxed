@@ -13317,7 +13317,7 @@ class WinxedHLL
             return output;
         else {
             handleout.close();
-            string pircode = handleout.read(0);
+            string pircode = handleout.readall();
             var object;
             switch (target) {
               case "pir":
@@ -13351,7 +13351,7 @@ class WinxedHLL
             return output;
         else {
             handleout.close();
-            return handleout.read(0);
+            return handleout.readall();
         }
     }
     function compile(string code,
