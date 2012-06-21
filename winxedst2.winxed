@@ -9399,10 +9399,8 @@ class ForeachStatement : LoopStatement, BlockStatement
     function ForeachStatement(var start, var tk, var owner, var name, string type)
     {
         self.BlockStatement(start, owner);
-        if (type != "") {
-            self.createvar(name, type);
+        if (type != "")
             self.deftype = type;
-        }
         self.varname = name;
         self.container = parseExpr(tk, self);
         ExpectOp(")", tk);
@@ -9414,8 +9412,6 @@ class ForeachStatement : LoopStatement, BlockStatement
         cloned.BlockStatement(self.start, owner);
         var deftype = self.deftype;
         var varname = self.varname;
-        if (deftype != null)
-            cloned.createvar(varname, deftype);
         cloned.deftype = deftype;
         cloned.varname = varname;
         cloned.container = self.container.clone(cloned);
@@ -9424,6 +9420,9 @@ class ForeachStatement : LoopStatement, BlockStatement
     }
     function optimize()
     {
+        var deftype = self.deftype;
+        if (deftype != null)
+            self.createvar(self.varname, deftype);
         var container = self.container.optimize();
 
         // Optimize out iterating on compile time eveluated
@@ -9630,7 +9629,6 @@ class TryStatement : BlockStatement
         if (! t.isop(")")) {
             RequireIdentifier(t);
             self.exname = t;
-            self.createvar(t, REGvar);
             t = tk.get();
             if (! t.isop(")"))
                 Expected("')' in 'catch'", t);
@@ -9643,10 +9641,8 @@ class TryStatement : BlockStatement
         cloned.BlockStatement(self.start, owner);
         if (self.modifiers != null)
             cloned.modifiers = self.modifiers.clone(cloned);
-        if (self.exname != null) {
+        if (self.exname != null)
             cloned.exname = self.exname;
-            cloned.createvar(self.exname, REGvar);
-        }
         cloned.stry = self.stry.clone(cloned);
         cloned.scatch = self.scatch.clone(cloned);
         return cloned;
@@ -9663,6 +9659,8 @@ class TryStatement : BlockStatement
         if (self.modifiers != null)
             self.modifiers.optimize();
         self.stry = self.stry.optimize();
+        if (self.exname != null)
+            self.createvar(self.exname, REGvar);
         self.scatch = self.scatch.optimize();
         return self;
     }
@@ -9768,6 +9766,7 @@ class DeclarationModifierList : ModifierList
 class DeclareItem : Statement
 {
     var name;
+    var regtype;
     var reg;
     var modifiers;
     var flags;
@@ -9776,8 +9775,7 @@ class DeclareItem : Statement
     {
         self.Statement(start, owner);
         self.name = name;
-        var vdata = self.createvar(name, regtype, flags);
-        self.reg = vdata.getreg();
+        self.regtype = regtype;
         self.flags = flags;
     }
     function parsemodifiers(var start, var tk)
@@ -9787,6 +9785,8 @@ class DeclareItem : Statement
     }
     function optimizemodifiers()
     {
+        var vdata = self.createvar(self.name, self.regtype, self.flags);
+        self.reg = vdata.getreg();
         var modifiers = self.modifiers;
         if (modifiers != null) {
             modifiers.optimize();
@@ -9826,13 +9826,11 @@ class VarBaseStatement : DeclareItem
 class DeclareBase : DeclareItem
 {
     var basetype;
-    var regtype;
 
     function DeclareBase(var start, var owner, var name, string basetype, string regtype)
     {
         self.DeclareItem(start, owner, name, regtype, 0);
         self.basetype = basetype;
-        self.regtype = regtype;
     }
 }
 
@@ -11805,7 +11803,6 @@ class SigParameter
             string type = typetoregcheck(name.checkkeyword());
             self.type = type;
             name = t;
-            owner.createvar(name, type);
             t = tk.get();
         }
         self.name = name;
@@ -11825,10 +11822,8 @@ class SigParameter
         var name = self.name;
         cloned.name = name;
         var type = self.type;
-        if (type != null) {
+        if (type != null)
             cloned.type = type;
-            owner.createvar(name, type);
-        }
         if (self.modifiers != null)
             cloned.modifiers = self.modifiers.clone(owner);
         if (self.defaultexpr != null)
@@ -11841,12 +11836,16 @@ class SigParameter
     }
     function optimize()
     {
+        var owner = self.owner;
+        var type = self.type;
+        if (type != null)
+            owner.createvar(self.name, type);
         if (self.modifiers != null)
             self.modifiers.optimize();
         var def = self.defaultexpr;
         if (def != null) {
             def.optimize();
-            def.setoptflag(self.owner.createreg(REGint));
+            def.setoptflag(owner.createreg(REGint));
         }
         return self;
     }
