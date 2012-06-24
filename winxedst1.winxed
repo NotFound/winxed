@@ -7489,19 +7489,44 @@ class TryStatement : BlockStatement
 }
 
 //*********************************************
-//            VarBaseStatement
+//            DeclareItem
 //*********************************************
 
-class VarBaseStatement : Statement
+/*
+    Base class for all variable declarations.
+*/
+
+class DeclareItem : Statement
 {
     var name;
+    var regtype;
     var reg;
-    function initvarbase(var start, var owner, var name, int flags[optional])
+    var flags;
+
+    function DeclareItem(var start, var owner,
+            var name, string regtype, int flags)
     {
         self.Statement(start, owner);
         self.name = name;
-        var vdata = self.createvar(name, REGvar, flags);
+        self.regtype = regtype;
+        self.flags = flags;
+    }
+    function optimizedeclare()
+    {
+        var vdata = self.createvar(self.name, self.regtype, self.flags);
         self.reg = vdata.getreg();
+    }
+}
+
+//*********************************************
+//            VarBaseStatement
+//*********************************************
+
+class VarBaseStatement : DeclareItem
+{
+    function initvarbase(var start, var owner, var name, int flags[optional])
+    {
+        self.DeclareItem(start, owner, name, REGvar, flags);
     }
 }
 
@@ -7509,19 +7534,13 @@ class VarBaseStatement : Statement
 //            Declare Statements
 //*********************************************
 
-class DeclareBase : Statement
+class DeclareBase : DeclareItem
 {
-    var name;
     var basetype;
-    var reg;
-
     function DeclareBase(var start, var owner, var name, string basetype, string regtype)
     {
-        self.Statement(start, owner);
-        self.name = name;
+        self.DeclareItem(start, owner, name, regtype, 0);
         self.basetype = basetype;
-        var vdata = self.createvar(name, regtype);
-        self.reg = vdata.getreg();
     }
 }
 
@@ -7545,6 +7564,7 @@ class DeclareSingleStatement : DeclareBase
     }
     function optimize()
     {
+        self.optimizedeclare();
         var init = self.init;
         if (init != null)
             self.init = init.optimize();
@@ -7640,6 +7660,7 @@ class DeclareArrayStatement : DeclareBase
     }
     function optimize()
     {
+        self.optimizedeclare();
         if (self.size != null)
             self.size = self.size.optimize();
         optimize_array(self.initarray);
@@ -7904,6 +7925,7 @@ class VarStatement : VarBaseStatement
     }
     function optimize()
     {
+        self.optimizedeclare();
         return self.optimize_init();
     }
     function emit(var e)
