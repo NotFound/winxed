@@ -7293,10 +7293,8 @@ class ForeachStatement : LoopStatement, BlockStatement
     function ForeachStatement(var start, var tk, var owner, var name, string type)
     {
         self.BlockStatement(start, owner);
-        if (type != "") {
-            self.createvar(name, type);
+        if (type != "")
             self.deftype = type;
-        }
         self.varname = name;
         self.container = parseExpr(tk, self);
         ExpectOp(")", tk);
@@ -7304,6 +7302,9 @@ class ForeachStatement : LoopStatement, BlockStatement
     }
     function optimize()
     {
+        var deftype = self.deftype;
+        if (deftype != null)
+            self.createvar(self.varname, deftype);
         self.container = self.container.optimize();
         self.body = self.body.optimize();
         return self;
@@ -7434,7 +7435,6 @@ class TryStatement : BlockStatement
         if (! t.isop(")")) {
             RequireIdentifier(t);
             self.exname = t;
-            self.createvar(t, REGvar);
             t = tk.get();
             if (! t.isop(")"))
                 Expected("')' in 'catch'", t);
@@ -7444,6 +7444,8 @@ class TryStatement : BlockStatement
     function optimize()
     {
         self.stry = self.stry.optimize();
+        if (self.exname != null)
+            self.createvar(self.exname, REGvar);
         self.scatch = self.scatch.optimize();
         return self;
     }
@@ -8684,37 +8686,47 @@ class MethodStatement : FunctionStatement
 
 class SigParameter
 {
+    var owner;
     var name;
+    var type;
     var modifiers;
-    var reg;
     function SigParameter(var tk, var owner)
     {
+        self.owner = owner;
         var name = tk.get();
         if (! name.isidentifier())
             ExpectedIdentifier(name);
         var t = tk.get();
         if (t.isidentifier()) {
             string type = typetoregcheck(name.checkkeyword());
+            self.type = type;
             name = t;
-            owner.createvar(name, type);
             t = tk.get();
         }
         self.name = name;
-        var data = owner.getvar(name.getidentifier());
-        self.reg = data.getreg();
         if (t.isop("["))
             self.modifiers = new ParameterModifierList(tk, self);
         else
             tk.unget(t);
     }
+    function optimize()
+    {
+        var type = self.type;
+        if (type != null)
+            self.owner.createvar(self.name, type);
+        return self;
+    }
     function emit(var e)
     {
-        e.print(self.reg);
+        var name = self.name;
+        var data = self.owner.getvar(name);
+        if (data == null)
+            UndefinedVariable(name, name);
+        var reg = data.getreg();
+        e.print(reg);
         var modifiers = self.modifiers;
-        if (modifiers != null) {
-            var name = self.name;
+        if (modifiers != null)
             modifiers.emitmodifiers(e, name, name);
-        }
     }
 }
 
@@ -8729,6 +8741,10 @@ class SigParameterList
     function SigParameterList(var tk, var owner)
     {
         self.params = parseList(tk, owner, parseSigParameter, ")");
+    }
+    function optimize()
+    {
+        optimize_array(self.params);
     }
     function emit(var e)
     {
@@ -8756,6 +8772,7 @@ class MultiAssignStatement : Statement
     function optimize()
     {
         self.expr = self.expr.optimize();
+        self.params.optimize();
         return self;
     }
     function emit(var e)
