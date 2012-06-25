@@ -2167,7 +2167,10 @@ void ArgumentList::prepare(Emit &e)
             Expr &arg= *((*args)[i]->get());
             std::string reg;
             if (! arg.issimple() )
+            {
+                arg.annotate(e);
                 reg= arg.emit_get(e);
+            }
             else
             {
                 if (arg.isnull())
