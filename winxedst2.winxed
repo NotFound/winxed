@@ -2232,6 +2232,11 @@ function toIdentifierList(var tlist)
     return list;
 }
 
+function toModuleFilename(var tlist)
+{
+    return "\"" + join("/", toIdentifierList(tlist)) + ".pbc\"";
+}
+
 //*********************************************
 //               CommonBase
 //*********************************************
@@ -12445,8 +12450,7 @@ function parsensUsing(var start, var tk, var ns)
         var names = parseListOrEmpty(tk, null, parseIdentifier, ";");
         if (names != null)
             ns.addextern(module, names);
-        string reqmodule = "\"" + join("/", module) + ".pbc\"";
-        ns.addload(reqmodule);
+        ns.addload(toModuleFilename(module));
         break;
       default:
         Expected("string literal or identifier", t);
