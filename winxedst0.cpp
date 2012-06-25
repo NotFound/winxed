@@ -1699,10 +1699,10 @@ private:
 
 //**********************************************************************
 
-class ReturnStatement : public SubStatement
+class ReturnStatement : public SubStatement, public Annotated
 {
 public:
-    ReturnStatement(Block & block, Tokenizer &tk);
+    ReturnStatement(Block & block, const Token & tstart, Tokenizer &tk);
     BaseStatement *optimize();
     void emit (Emit &e);
 private:
@@ -2104,7 +2104,7 @@ BaseStatement *parseStatement(Block &block, Tokenizer &tk)
         return parseConst(block, t, tk);
 
     if (t.iskeyword("return"))
-        return new ReturnStatement(block, tk);
+        return new ReturnStatement(block, t, tk);
     if (t.iskeyword("break"))
         return new BreakStatement(block, tk);
     if (t.iskeyword("continue"))
@@ -4923,8 +4923,9 @@ BaseStatement * parseConst(Block & block, const Token &st, Tokenizer &tk)
 
 //**********************************************************************
 
-ReturnStatement::ReturnStatement(Block & block, Tokenizer &tk) :
-    SubStatement (block), values(0)
+ReturnStatement::ReturnStatement(Block & block,
+        const Token & tstart, Tokenizer &tk) :
+    SubStatement (block), Annotated(tstart), values(0)
 {
     Token t= tk.get();
     if (! t.isop(';') )
@@ -4945,6 +4946,7 @@ void ReturnStatement::emit (Emit &e)
 {
     if (values)
         values->prepare(e);
+    annotate(e);
     e << INDENT ".return (";
     if (values)
         values->emit(e);
