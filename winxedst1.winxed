@@ -5169,7 +5169,8 @@ class CallBuiltinExpr : FinalExpr
 
 function gencallbuiltin(var owner, var start, var builtin, var args)
 {
-    string callname = builtin.getname();
+    var name = builtin.getname();
+    string callname = name.getidentifier();
     owner.use_builtin(callname);
     int nargs = args == null ? 0 : args.numargs();
     var rawargs = nargs == 0 ? [] : args.getrawargs();
@@ -9857,7 +9858,8 @@ class RootNamespace : NamespaceBase
 //           Compiler classes
 //*********************************************
 
-class Builtin {
+class Builtin
+{
     var name;
     var variants;
     function Builtin(string name, var variant)
@@ -9865,7 +9867,10 @@ class Builtin {
         self.name = new TokenIdentifier("__builtins__", 0, name);
         self.variants = [ variant ];
     }
-    function getname() { return string(self.name); }
+    function getname()
+    {
+        return self.name;
+    }
     function addvariant(var variant)
     {
         push(self.variants, variant);
