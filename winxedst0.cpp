@@ -1,5 +1,5 @@
 // winxedst0.cpp
-// Revision 20-jun-2012
+// Revision 25-jun-2012
 
 // Winxed compiler stage 0.
 
@@ -629,6 +629,26 @@ void BuiltinFunctionFixargs::emit(Emit &e, const std::string &result,
 
 //**********************************************************************
 
+class Annotated
+{
+protected:
+    Annotated(const Token & tstart) : start(tstart)
+    { }
+public:
+    void annotate(Emit &e)
+    {
+        e.annotate(start);
+    }
+    const Token & getstart() const
+    {
+        return start;
+    }
+private:
+    const Token start;
+};
+
+//**********************************************************************
+
 class ConstantValue
 {
 public:
@@ -1187,23 +1207,17 @@ enum ClassSpecifierType
     CLASSSPECIFIER_id
 };
 
-class ClassSpecifier
+class ClassSpecifier : public Annotated
 {
 protected:
-    ClassSpecifier(const Token &t) : start(t)
+    ClassSpecifier(const Token &t) : Annotated(t)
     { }
 public:
     virtual ClassSpecifierType reftype() const
     { return CLASSSPECIFIER_invalid; }
     virtual ~ClassSpecifier() {}
-    void annotate(Emit &e)
-    {
-        e.annotate(start);
-    }
     virtual std::string basename() const = 0;
     virtual void emit(Emit &e) = 0;
-private:
-    const Token start;
 };
 
 ClassSpecifier *parseClassSpecifier(const Token &start, Tokenizer &tk,
@@ -1244,10 +1258,14 @@ public:
 
 //**********************************************************************
 
-class Expr : public InBlock
+class Expr : public InBlock, public Annotated
 {
 public:
-    Expr(BlockBase &block) : InBlock(block) { }
+    Expr(BlockBase &block, const Token & tstart) :
+        InBlock(block),
+        Annotated(tstart)
+    {
+    }
     virtual Expr *optimize()
     {
         return this;
@@ -1584,10 +1602,10 @@ private:
 
 //**********************************************************************
 
-class ValueStatement : public SubStatement
+class ValueStatement : public SubStatement, public Annotated
 {
 public:
-    ValueStatement(Block & block, const Token &st);
+    ValueStatement(Block & block, const Token & tstart);
 protected:
     void parseArray(Tokenizer &tk);
     void emit (Emit &e, const std::string &name, char type);
@@ -1596,7 +1614,6 @@ protected:
     ValueType vtype;
     Expr *esize;
     std::vector<Expr *> value;
-    const Token start;
 private:
     BaseStatement *optimize();
 };
@@ -1893,14 +1910,13 @@ private:
 
 //**********************************************************************
 
-class TryStatement : public BlockStatement
+class TryStatement : public BlockStatement, public Annotated
 {
 public:
     TryStatement(Block &block, const Token &st, Tokenizer &tk);
 private:
     BaseStatement *optimize();
     void emit (Emit &e);
-    Token start;
     BaseStatement *stry;
     BaseStatement *scatch;
     std::string exname;
@@ -1927,10 +1943,11 @@ private:
 
 //**********************************************************************
 
-class FunctionStatement : protected FunctionModifiers, public FunctionBlock
+class FunctionStatement : protected FunctionModifiers, public FunctionBlock,
+        public Annotated
 {
 public:
-    FunctionStatement(Tokenizer &tk, const Token &st,
+    FunctionStatement(Tokenizer &tk, const Token & tstart,
         Block &parent,
         const std::string &funcname);
     virtual std::string getsubid() const;
@@ -1943,7 +1960,6 @@ public:
     virtual void emitbody (Emit &e);
     virtual ~FunctionStatement() {}
 private:
-    const Token start;
     const std::string name;
     std::vector <std::string> params;
     std::map <std::string, FunctionParameter *> paraminfo;
@@ -2214,8 +2230,8 @@ std::string Expr::emit_get(Emit &e)
 class SimpleBaseExpr : public Expr
 {
 public:
-    SimpleBaseExpr(BlockBase &block, Token token) :
-        Expr(block),
+    SimpleBaseExpr(BlockBase &block, const Token & token) :
+        Expr(block, token),
         t(token)
     { }
 private:
@@ -2375,16 +2391,9 @@ void IdentifierExpr::emit(Emit &e, const std::string &result)
 class OpBaseExpr : public Expr
 {
 public:
-    OpBaseExpr(BlockBase &block, const Token &t) :
-        Expr(block),
-        start(t)
+    OpBaseExpr(BlockBase &block, const Token & tstart) :
+            Expr(block, tstart)
     { }
-protected:
-    void annotate(Emit &e)
-    {
-        e.annotate(start);
-    }
-    const Token start;
 };
 
 //**********************************************************************
@@ -2411,8 +2420,8 @@ private:
 class OpUnaryMinusExpr : public OpUnaryBaseExpr
 {
 public:
-    OpUnaryMinusExpr(BlockBase &block, Token t, Expr *subexpr) :
-        OpUnaryBaseExpr(block, t, subexpr)
+    OpUnaryMinusExpr(BlockBase &block, const Token & tstart, Expr *subexpr) :
+        OpUnaryBaseExpr(block, tstart, subexpr)
     {
     }
 private:
@@ -2423,7 +2432,7 @@ private:
         if (expr->isliteralinteger() )
         {
             const int n= expr->getintegervalue();
-            return new IntegerExpr(*this, start, -n);
+            return new IntegerExpr(*this, getstart(), -n);
         }
         return this;
     }
@@ -2444,8 +2453,8 @@ private:
 class OpNotExpr : public OpUnaryBaseExpr
 {
 public:
-    OpNotExpr(BlockBase &block, Token t, Expr *subexpr) :
-        OpUnaryBaseExpr(block, t, subexpr)
+    OpNotExpr(BlockBase &block, const Token & tstart, Expr *subexpr) :
+        OpUnaryBaseExpr(block, tstart, subexpr)
     {
     }
 private:
@@ -2454,11 +2463,11 @@ private:
     {
         optimize_branch(expr);
         if (expr->isnull() )
-            return new IntegerExpr(*this, start, 1);
+            return new IntegerExpr(*this, getstart(), 1);
         if (expr->isliteralinteger() )
         {
             const int n= expr->getintegervalue();
-            return new IntegerExpr(*this, start, !n);
+            return new IntegerExpr(*this, getstart(), !n);
         }
         return this;
     }
@@ -2486,8 +2495,8 @@ private:
 class BinOpExpr : public OpBaseExpr
 {
 protected:
-    BinOpExpr(BlockBase &block, Token t, Expr *first, Expr *second) :
-        OpBaseExpr(block, t),
+    BinOpExpr(BlockBase &block, const Token & tstart, Expr *first, Expr *second) :
+        OpBaseExpr(block, tstart),
         lexpr(first),
         rexpr(second)
     {
@@ -2513,8 +2522,8 @@ class CommonBinOpExpr : public BinOpExpr
 {
 public:
     CommonBinOpExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        BinOpExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        BinOpExpr(block, tstart, first, second)
     {
     }
 protected:
@@ -2535,8 +2544,8 @@ class CompareOpExpr : public BinOpExpr
 {
 public:
     CompareOpExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        BinOpExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        BinOpExpr(block, tstart, first, second)
     {
     }
 protected:
@@ -2549,8 +2558,8 @@ class OpEqualExpr : public CompareOpExpr
 {
 public:
     OpEqualExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CompareOpExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        CompareOpExpr(block, tstart, first, second)
     { }
 private:
     bool isinteger() const { return true; }
@@ -2563,18 +2572,18 @@ Expr *OpEqualExpr::optimize()
     optimize_operands();
     if (lexpr->isnull() && rexpr->isnull())
     {
-        return new IntegerExpr(*this, start, 1);
+        return new IntegerExpr(*this, getstart(), 1);
     }
     if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
     {
-        return new IntegerExpr(*this, start,
+        return new IntegerExpr(*this, getstart(),
             lexpr->getintegervalue() == rexpr->getintegervalue());
     }
     if (lexpr->isliteralstring() && rexpr->isliteralstring())
     {
         std::string s1= lexpr->getstringvalue();
         std::string s2= rexpr->getstringvalue();
-        return new IntegerExpr(*this, start, s1 == s2);
+        return new IntegerExpr(*this, getstart(), s1 == s2);
     }
     return this;
 }
@@ -2668,8 +2677,8 @@ class OpNotEqualExpr : public CompareOpExpr
 {
 public:
     OpNotEqualExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CompareOpExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        CompareOpExpr(block, tstart, first, second)
     { }
 private:
     Expr *optimize();
@@ -2680,12 +2689,12 @@ Expr *OpNotEqualExpr::optimize()
 {
     optimize_operands();
     if (lexpr->isnull() && rexpr->isnull())
-        return new IntegerExpr(*this, start, 0);
+        return new IntegerExpr(*this, getstart(), 0);
     if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
-        return new IntegerExpr(*this, start,
+        return new IntegerExpr(*this, getstart(),
             lexpr->getintegervalue() != rexpr->getintegervalue());
     if (lexpr->isliteralstring() && rexpr->isliteralstring())
-        return new IntegerExpr(*this, start,
+        return new IntegerExpr(*this, getstart(),
             lexpr->getstringvalue() != rexpr->getstringvalue());
     return this;
 }
@@ -2763,8 +2772,8 @@ class OpSameExpr : public CompareOpExpr
 {
 public:
     OpSameExpr(bool positiveform, BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CompareOpExpr(block, t, first, second),
+            const Token & tstart, Expr *first, Expr *second) :
+        CompareOpExpr(block, tstart, first, second),
         positive(positiveform)
     { }
 private:
@@ -2776,7 +2785,7 @@ private:
         if (! ((ltype == REGvar && rtype == REGvar) ||
                 (ltype == REGstring && rtype == REGstring)))
             throw SyntaxError(std::string(positive ? "===" : "!==") +
-                    " operator requires val types", start);
+                    " operator requires val types", getstart());
         std::string op1= gentemp(ltype);
         std::string op2= gentemp(rtype);
         lexpr->emit(e, op1);
@@ -2796,8 +2805,8 @@ class ComparatorBaseExpr : public CompareOpExpr
 {
 protected:
     ComparatorBaseExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CompareOpExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        CompareOpExpr(block, tstart, first, second)
     {
     }
     virtual void emitop(Emit &e, 
@@ -2874,8 +2883,8 @@ class OpLessExpr : public ComparatorBaseExpr
 {
 public:
     OpLessExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        ComparatorBaseExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        ComparatorBaseExpr(block, tstart, first, second)
     {
     }
 private:
@@ -2893,8 +2902,8 @@ class OpGreaterExpr : public ComparatorBaseExpr
 {
 public:
     OpGreaterExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        ComparatorBaseExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        ComparatorBaseExpr(block, tstart, first, second)
     {
     }
 private:
@@ -2912,8 +2921,8 @@ class OpLessEqualExpr : public ComparatorBaseExpr
 {
 public:
     OpLessEqualExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        ComparatorBaseExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        ComparatorBaseExpr(block, tstart, first, second)
     {
     }
 private:
@@ -2931,8 +2940,8 @@ class OpGreaterEqualExpr : public ComparatorBaseExpr
 {
 public:
     OpGreaterEqualExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        ComparatorBaseExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        ComparatorBaseExpr(block, tstart, first, second)
     {
     }
 private:
@@ -2950,8 +2959,8 @@ class OpAssignExpr : public BinOpExpr
 {
 public:
     OpAssignExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        BinOpExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        BinOpExpr(block, tstart, first, second)
     {
     }
 private:
@@ -2977,7 +2986,7 @@ private:
                 {
                     std::string r= gentemp(REGvar);
                     rexpr->emit(e, r);
-                    e.annotate(start);
+                    annotate(e);
                     e << INDENT << varname << " = " << r << '\n';
                     if (! result.empty() )
                         e << INDENT << result << " = " << r << '\n';
@@ -2989,7 +2998,7 @@ private:
                     {
                         std::string r= gentemp(REGint);
                         rexpr->emit(e, r);
-                        e.annotate(start);
+                        annotate(e);
                         e << INDENT << varname << " = " << r << '\n';
                         e << INDENT << result << " = " << r << '\n';
                     }
@@ -2998,14 +3007,14 @@ private:
             case REGstring:
                 if (rexpr->isnull())
                 {
-                    e.annotate(start);
+                    annotate(e);
                     e << op_null(varname) << '\n';
                 }
                 else if (!(rexpr->isinteger() || rexpr->isstring()))
                 {
                     std::string r= gentemp(REGstring);
                     rexpr->emit(e, r);
-                    e.annotate(start);
+                    annotate(e);
                     e << INDENT << varname << " = " << r << '\n';
                     if (! result.empty() )
                         e << INDENT << result << " = " << r << '\n';
@@ -3017,7 +3026,7 @@ private:
                     {
                         std::string r= gentemp(REGstring);
                         rexpr->emit(e, r);
-                        e.annotate(start);
+                        annotate(e);
                         e << INDENT << varname << " = " << r << '\n';
                         e << INDENT << result << " = " << r << '\n';
                     }
@@ -3026,12 +3035,12 @@ private:
             default:
                 if (rexpr->isnull())
                 {
-                    e.annotate(start);
+                    annotate(e);
                     e << op_null(varname) << '\n';
                 }
                 else if (rexpr->isinteger() || rexpr->isstring() )
                 {
-                    e.annotate(start);
+                    annotate(e);
                     std::string r= gentemp(rexpr->checkresult());
                     rexpr->emit(e, r);
                     e << op_box(varname, r);
@@ -3050,7 +3059,7 @@ private:
         else
         {
             if (!lexpr->isleft() )
-                throw SyntaxError("Not a left-side expression for '='", start);
+                throw SyntaxError("Not a left-side expression for '='", getstart());
 
             std::string reg= result.empty() ? std::string() :
                 gentemp(rexpr->checkresult());
@@ -3067,8 +3076,8 @@ class OpAddExpr : public CommonBinOpExpr
 {
 public:
     OpAddExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CommonBinOpExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        CommonBinOpExpr(block, tstart, first, second)
     {
     }
 private:
@@ -3088,7 +3097,7 @@ Expr *OpAddExpr::optimize()
     optimize_operands();
     if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
     {
-        return new IntegerExpr(*this, start,
+        return new IntegerExpr(*this, getstart(),
             lexpr->getintegervalue() + rexpr->getintegervalue());
     }
     if (lexpr->isliteralstring() && rexpr->isliteralstring())
@@ -3182,8 +3191,8 @@ class OpSubExpr : public CommonBinOpExpr
 {
 public:
     OpSubExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CommonBinOpExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        CommonBinOpExpr(block, tstart, first, second)
     {
     }
 private:
@@ -3194,7 +3203,7 @@ private:
         {
             int n1= lexpr->getintegervalue();
             int n2= rexpr->getintegervalue();
-            return new IntegerExpr(*this, start, n1 - n2);
+            return new IntegerExpr(*this, getstart(), n1 - n2);
         }
         return this;
     }
@@ -3217,8 +3226,8 @@ class OpBoolOrExpr : public BinOpExpr
 {
 public:
     OpBoolOrExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        BinOpExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        BinOpExpr(block, tstart, first, second)
     { }
 private:
     bool isinteger() const { return true; }
@@ -3237,7 +3246,7 @@ private:
         {
             std::string l = genlocallabel();
             lexpr->emit(e, res);
-            e.annotate(start);
+            annotate(e);
             e << INDENT "if " << res << " goto " << l << '\n';
             rexpr->emit(e, res);
             e << INDENTLABEL << l << ":\n";
@@ -3253,8 +3262,8 @@ class OpBinAndExpr : public CommonBinOpExpr
 {
 public:
     OpBinAndExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CommonBinOpExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        CommonBinOpExpr(block, tstart, first, second)
     {
     }
 private:
@@ -3278,8 +3287,8 @@ class OpBinOrExpr : public CommonBinOpExpr
 {
 public:
     OpBinOrExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CommonBinOpExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        CommonBinOpExpr(block, tstart, first, second)
     {
     }
 private:
@@ -3303,8 +3312,8 @@ class OpBoolAndExpr : public OpBaseExpr
 {
 public:
     OpBoolAndExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        OpBaseExpr(block, t),
+            const Token & tstart, Expr *first, Expr *second) :
+        OpBaseExpr(block, tstart),
         lexpr(first),
         rexpr(second)
     { }
@@ -3325,14 +3334,14 @@ private:
         {
             lexpr->emit(e, op1);
             rexpr->emit(e, op2);
-            e.annotate(start);
+            annotate(e);
             e << INDENT << res << " = and " << op1 << ", " << op2;
         }
         else
         {
             std::string l = genlocallabel();
             lexpr->emit(e, res);
-            e.annotate(start);
+            annotate(e);
             e << INDENT "unless " << res << " goto " << l << '\n';
             rexpr->emit(e, res);
             e << INDENTLABEL << l << ":\n";
@@ -3350,8 +3359,8 @@ class OpMulExpr : public CommonBinOpExpr
 {
 public:
     OpMulExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CommonBinOpExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        CommonBinOpExpr(block, tstart, first, second)
     { }
 private:
     bool isinteger() const
@@ -3363,7 +3372,7 @@ private:
         optimize_operands();
         if (lexpr->isliteralinteger() && rexpr->isliteralinteger())
         {
-            return new IntegerExpr(*this, start,
+            return new IntegerExpr(*this, getstart(),
                 lexpr->getintegervalue() * rexpr->getintegervalue());
         }
         return this;
@@ -3389,8 +3398,8 @@ class OpDivExpr : public CommonBinOpExpr
 {
 public:
     OpDivExpr(BlockBase &block,
-            Token t, Expr *first, Expr *second) :
-        CommonBinOpExpr(block, t, first, second)
+            const Token & tstart, Expr *first, Expr *second) :
+        CommonBinOpExpr(block, tstart, first, second)
     {
     }
 private:
@@ -3427,8 +3436,8 @@ private:
 class ArrayExpr : public Expr
 {
 public:
-    ArrayExpr(BlockBase &block, Tokenizer &tk) :
-            Expr(block)
+    ArrayExpr(BlockBase &block, Tokenizer &tk, const Token & tstart) :
+            Expr(block, tstart)
     {
         Token t = tk.get();
         if (! t.isop (']') )
@@ -3515,7 +3524,7 @@ void ArrayExpr::emit(Emit &e, const std::string &result)
 class HashExpr : public Expr
 {
 public:
-    HashExpr(BlockBase &block, Tokenizer &tk);
+    HashExpr(BlockBase &block, Tokenizer &tk, const Token & tstart);
 private:
     Expr *optimize()
     {
@@ -3532,8 +3541,8 @@ private:
     std::map<std::string, Expr *> elems;
 };
 
-HashExpr::HashExpr(BlockBase &block, Tokenizer &tk) :
-    Expr(block)
+HashExpr::HashExpr(BlockBase &block, Tokenizer &tk, const Token & tstart) :
+    Expr(block, tstart)
 {
     Token t = tk.get();
     if (! t.isop ('}') )
@@ -3622,12 +3631,12 @@ void HashExpr::emit(Emit &e, const std::string &result)
 
 //**********************************************************************
 
-class MemberExpr : public Expr {
+class MemberExpr : public Expr
+{
 public:
-    MemberExpr(BlockBase &block, Tokenizer &tk, Token t,
+    MemberExpr(BlockBase &block, Tokenizer &tk, const Token & tstart,
             Expr *leftexpr) :
-        Expr(block),
-        start(t),
+        Expr(block, tstart),
         left(leftexpr),
         right(tk.get())
     {
@@ -3641,7 +3650,7 @@ public:
                 (result[0] == '$' && result.substr(0, 2) != "$P") ) ?
             gentemp(REGvar) : result;
         left->emit(e, reg);
-        e.annotate(start);
+        annotate(e);
         e << INDENT "getattribute " << r << ", " << reg <<
             ", '" << right.identifier() << "'\n";
         if (result != r)
@@ -3671,7 +3680,7 @@ public:
     }
     void emitassign(Emit &e, Expr& value, const std::string &to)
     {
-        e.annotate(start);
+        annotate(e);
         std::string reg = gentemp(REGvar);
         left->emit(e, reg);
         char typevalue= value.checkresult();
@@ -3696,7 +3705,6 @@ public:
             e << INDENT "set " << to << ", " << regattrval << '\n';
     }
 private:
-    Token start;
     Expr *left;
     Token right;
 };
@@ -3706,39 +3714,33 @@ private:
 class CallExpr : public Expr
 {
 public:
-    CallExpr(BlockBase &block,
-        Tokenizer &tk, const Token & st, Expr *function);
-    Expr *optimize();
+    CallExpr(BlockBase &block, Tokenizer &tk, const Token & tstart,
+            Expr *function) :
+        Expr(block, tstart),
+        called(function),
+        args(0)
+    {
+        Token t= tk.get();
+        if (! t.isop (')') )
+        {
+            tk.unget(t);
+            args= new ArgumentList(block, tk, ')');
+        }
+    }
+    Expr * optimize()
+    {
+        if (args)
+            args->optimize();
+        return this;
+    }
     bool isinteger() const;
     bool isstring() const;
 private:
-    const Token start;
     void emit(Emit &e, const std::string &result);
     Expr *called;
     ArgumentList *args;
 };
 
-CallExpr::CallExpr(BlockBase &block,
-        Tokenizer &tk, const Token & st, Expr *function) :
-    Expr(block),
-    start(st),
-    called(function),
-    args(0)
-{
-    Token t= tk.get();
-    if (! t.isop (')') )
-    {
-        tk.unget(t);
-        args= new ArgumentList(block, tk, ')');
-    }
-}
-
-Expr *CallExpr::optimize()
-{
-    if (args)
-        args->optimize();
-    return this;
-}
 
 bool CallExpr::isinteger() const
 {
@@ -3775,7 +3777,7 @@ void CallExpr::emit(Emit &e, const std::string &result)
     const int numargs = args ? args->numargs() : 0;
     if (called->isidentifier())
     {
-        e.annotate(called->gettoken());
+        annotate(e);
         std::string name= called->getidentifier();
 
     if (const BuiltinFunction *builtin=
@@ -3869,7 +3871,7 @@ void CallExpr::emit(Emit &e, const std::string &result)
         }
         std::string quote(is_local ? "" : "'");
         name = quote + name + quote;
-        e.annotate(start);
+        annotate(e);
         e << INDENT;
         if (!result.empty() )
             e << result << " = ";
@@ -3882,13 +3884,13 @@ void CallExpr::emit(Emit &e, const std::string &result)
         {
             std::string mefun= gentemp(REGvar);
             me->emitleft(e, mefun);
-            e.annotate(start);
+            annotate(e);
             e << INDENT << reg << " = " << mefun << ".'" << me->getmember() << "'(";
         }
         else
         {
             called->emit(e, reg);
-            e.annotate(start);
+            annotate(e);
             e << INDENT << reg << '(';
         }
     }
@@ -3914,12 +3916,12 @@ void CallExpr::emit(Emit &e, const std::string &result)
 
 //**********************************************************************
 
-class OpInstanceOf : public Expr {
+class OpInstanceOf : public Expr
+{
 public:
-    OpInstanceOf(BlockBase &block, Token t,
+    OpInstanceOf(BlockBase &block, const Token & tstart,
             Expr *subexpr, Tokenizer &tk) :
-        Expr(block),
-        start(t),
+        Expr(block, tstart),
         obj(subexpr),
         checked(tk.get())
     {
@@ -3951,7 +3953,7 @@ private:
 
         std::string reg= gentemp(REGvar);
         obj->emit(e, reg);
-        e.annotate(start);
+        annotate(e);
 
         if (result.empty() ) {
             std::string regcheck = gentemp(REGint);
@@ -3962,7 +3964,6 @@ private:
             e << op_isa(result, reg, checkedval) << '\n';
         }
     }
-    Token start;
     Expr *obj;
     Token checked;
 };
@@ -3972,7 +3973,7 @@ private:
 class NewExpr : public Expr
 {
 public:
-    NewExpr(BlockBase &block, Tokenizer &tk, Token t);
+    NewExpr(BlockBase &block, Tokenizer &tk, const Token & tstart);
 private:
     Expr *optimize();
     void emit(Emit &e, const std::string &result);
@@ -3981,12 +3982,12 @@ private:
     ArgumentList *init;
 };
 
-NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, Token t) :
-    Expr(block),
-    ln(t.linenum()),
+NewExpr::NewExpr(BlockBase &block, Tokenizer &tk, const Token & tstart) :
+    Expr(block, tstart),
+    ln(tstart.linenum()),
     init(0)
 {
-    t= tk.get();
+    Token t= tk.get();
 
     claspec = parseClassSpecifier(t, tk, block);
 
@@ -4059,9 +4060,8 @@ void NewExpr::emit(Emit &e, const std::string &result)
 class NewIndexedExpr : public Expr
 {
 public:
-    NewIndexedExpr(BlockBase &block, Tokenizer &tk, Token start) :
-            Expr(block),
-            st(start),
+    NewIndexedExpr(BlockBase &block, Tokenizer &tk, const Token & tstart) :
+            Expr(block, tstart),
             init(0)
     {
         Token first = tk.get();
@@ -4099,7 +4099,7 @@ private:
     {
         if (init) {
             if (init->numargs() != 1)
-                throw SyntaxError("Wrong number of arguments", st);
+                throw SyntaxError("Wrong number of arguments", getstart());
             init->prepare(e);
         }
         std::string sep;
@@ -4125,7 +4125,6 @@ private:
         e << "\n";
     }
 
-    Token st;
     std::string hll;
     std::vector<std::string> nskey;
     ArgumentList *init;
@@ -4133,14 +4132,14 @@ private:
 
 //**********************************************************************
 
-Expr *parseNew(BlockBase &block, Tokenizer &tk, Token start)
+Expr *parseNew(BlockBase &block, Tokenizer &tk, const Token & tstart)
 {
     Token t = tk.get();
     if (t.isop('['))
-        return new NewIndexedExpr(block, tk, start);
+        return new NewIndexedExpr(block, tk, tstart);
     else {
         tk.unget(t);
-        return new NewExpr(block, tk, start);
+        return new NewExpr(block, tk, tstart);
     }
 }
 
@@ -4149,7 +4148,17 @@ Expr *parseNew(BlockBase &block, Tokenizer &tk, Token start)
 class IndexExpr : public Expr
 {
 public:
-    IndexExpr(BlockBase &block, Tokenizer &tk, Token tname);
+    IndexExpr(BlockBase &block, Tokenizer &tk, const Token & tname) :
+        Expr(block, tname),
+        name(tname.identifier())
+    {
+        Token t;
+        do {
+            Expr *newarg = parseExpr(block, tk);
+            arg.push_back(newarg);
+        } while ((t= tk.get()).isop(','));
+        RequireOp (']', t);
+    }
 private:
     bool isleft() const { return true; }
     bool isindex() const { return true; }
@@ -4160,18 +4169,6 @@ private:
     std::string name;
     std::vector <Expr *> arg;
 };
-
-IndexExpr::IndexExpr(BlockBase &block, Tokenizer &tk, Token tname) :
-    Expr(block),
-    name(tname.identifier())
-{
-    Token t;
-    do {
-        Expr *newarg = parseExpr(block, tk);
-        arg.push_back(newarg);
-    } while ((t= tk.get()).isop(','));
-    RequireOp (']', t);
-}
 
 Expr *IndexExpr::optimize()
 {
@@ -4275,9 +4272,9 @@ void IndexExpr::emitassign(Emit &e, Expr& value, const std::string &to)
 class OpConditionalExpr : public Expr
 {
 public:
-    OpConditionalExpr(BlockBase &block, const Token &start,
+    OpConditionalExpr(BlockBase &block, const Token & tstart,
             Expr *econd, Expr *etrue, Expr *efalse) :
-        Expr(block),
+        Expr(block, tstart),
         condition(new Condition(block, econd)),
         exprtrue(etrue),
         exprfalse(efalse)
@@ -4347,11 +4344,11 @@ Expr * parseExpr_0(BlockBase &block, Tokenizer &tk)
     }
     else if (t.isop('[') )
     {
-        subexpr = new ArrayExpr(block, tk);
+        subexpr = new ArrayExpr(block, tk, t);
     }
     else if (t.isop('{') )
     {
-        subexpr = new HashExpr(block, tk);
+        subexpr = new HashExpr(block, tk, t);
     }
     else if (t.iskeyword("new"))
             subexpr = parseNew(block, tk, t);
@@ -4621,11 +4618,11 @@ void ExprStatement::emit (Emit &e)
 
 //**********************************************************************
 
-ValueStatement::ValueStatement(Block & block, const Token &st) :
+ValueStatement::ValueStatement(Block & block, const Token & tstart) :
     SubStatement (block),
+    Annotated(tstart),
     vtype(ValueSimple),
-    esize(0),
-    start(st)
+    esize(0)
 {
 }
 
@@ -4683,7 +4680,7 @@ void ValueStatement::emit (Emit &e, const std::string &name, char type)
 {
     std::string arraytype(type == REGint ? "Integer" : "String");
 
-    e.annotate(start);
+    annotate(e);
     e << INDENT ".local " <<
         (vtype == ValueSimple ?
                 (type == REGint ? "int" : "string") :
@@ -4787,7 +4784,7 @@ IntStatement::IntStatement(Block &block,  const Token &st, Tokenizer &tk) :
 
 void IntStatement::emit (Emit &e)
 {
-    e.annotate(start);
+    annotate(e);
     emit(e, name, REGint);
 }
 
@@ -4819,7 +4816,7 @@ StringStatement::StringStatement(Block & block, const Token &st, Tokenizer &tk) 
 
 void StringStatement::emit (Emit &e)
 {
-    e.annotate(start);
+    annotate(e);
     emit(e, name, REGstring);
 }
 
@@ -4842,7 +4839,7 @@ VarStatement::VarStatement(Block & block, const Token &st, Tokenizer &tk) :
 
 void VarStatement::emit (Emit &e)
 {
-    e.annotate(start);
+    annotate(e);
     e << INDENT ".local pmc " << name << '\n';
     if (value.size() == 1)
     {
@@ -4894,7 +4891,7 @@ BaseStatement *ConstStatement::optimize()
 void ConstStatement::emit (Emit &e)
 {
     if (! value->issimple() )
-        throw Expected("constant expression", start);
+        throw Expected("constant expression", getstart());
 
     // Put a hint in the generated code.
     e.comment("Constant " + name + " evaluated at compile time");
@@ -5179,7 +5176,7 @@ void ThrowStatement::emit (Emit &e)
 
 TryStatement::TryStatement(Block &block, const Token &st, Tokenizer &tk) :
     BlockStatement (block),
-    start(st),
+    Annotated(st),
     stry(0), scatch(0)
 {
     stry = parseStatement (block, tk);
@@ -5205,7 +5202,7 @@ BaseStatement *TryStatement::optimize()
 
 void TryStatement::emit (Emit &e)
 {
-    e.annotate(start);
+    annotate(e);
     std::string label= genlabel();
     std::string handler = label + "_HANDLER";
     std::string pasthandler = label + "_PAST_HANDLER";
@@ -5299,7 +5296,7 @@ std::string Condition::emit(Emit &e)
 {
     std::string reg;
     if (expr->issimple())
-        e.annotate(expr->gettoken());
+        expr->annotate(e);
     if (expr->isidentifier() && expr->isinteger())
         reg= expr->getidentifier();
     else
@@ -5325,7 +5322,7 @@ void Condition::emit_if(Emit &e, const std::string &labeltrue)
 {
     std::string reg;
     if (expr->issimple())
-        e.annotate(expr->gettoken());
+        expr->annotate(e);
     std::string auxlabel;
     if (expr->isidentifier() && expr->isinteger()) {
         reg= expr->getidentifier();
@@ -5348,7 +5345,7 @@ void Condition::emit_else(Emit &e, const std::string &labelfalse)
 {
     std::string reg;
     if (expr->issimple())
-        e.annotate(expr->gettoken());
+        expr->annotate(e);
     if (expr->isidentifier() && expr->isinteger()) {
         reg= expr->getidentifier();
     }
@@ -5464,6 +5461,7 @@ void SwitchStatement::emit(Emit &e)
     }
     std::string reg= gentemp(type);
 
+    condition->annotate(e);
     if (condition->checkresult() == type)
         condition->emit(e, reg);
     else
@@ -5480,6 +5478,7 @@ void SwitchStatement::emit(Emit &e)
         std::string label= genlabel();
         caselabel.push_back(label);
         std::string value= gentemp(type);
+        casevalue[i]->annotate(e);
         casevalue[i]->emit(e, value);
         e << INDENT "if " << reg << " == " << value <<
                 " goto " << label << '\n';
@@ -5692,12 +5691,12 @@ void DoStatement::emit(Emit &e)
 
 //**********************************************************************
 
-FunctionStatement::FunctionStatement(Tokenizer &tk, const Token &st,
+FunctionStatement::FunctionStatement(Tokenizer &tk, const Token & tstart,
         Block &parent,
         const std::string &funcname) :
     FunctionModifiers(parent, tk),
     FunctionBlock(parent),
-    start(st),
+    Annotated(tstart),
     name(funcname)
 {
     Token t= tk.get();
@@ -5756,7 +5755,7 @@ void FunctionStatement::emitparams (Emit &e)
 
 void FunctionStatement::emitbody (Emit &e)
 {
-    e.annotate(start);
+    annotate(e);
     body->emit(e);
     e.annotate(tend);
 }
@@ -6011,8 +6010,8 @@ private:
 class ClassSpecifierParrotKey : public ClassSpecifier
 {
 public:
-    ClassSpecifierParrotKey(const Token &start, Tokenizer &tk) :
-        ClassSpecifier(start)
+    ClassSpecifierParrotKey(const Token & tstart, Tokenizer &tk) :
+        ClassSpecifier(tstart)
     {
         Token t;
         do {
@@ -6039,11 +6038,11 @@ private:
 class ClassSpecifierId : public ClassSpecifier
 {
 public:
-    ClassSpecifierId(const Token &start, Tokenizer &tk, BlockBase &owner) :
-        ClassSpecifier(start),
+    ClassSpecifierId(const Token & tstart, Tokenizer &tk, BlockBase &owner) :
+        ClassSpecifier(tstart),
         bl(owner)
     {
-        id.push_back(start.identifier());
+        id.push_back(tstart.identifier());
         Token t;
         while ((t = tk.get()).isop('.'))
         {
