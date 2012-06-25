@@ -4612,6 +4612,7 @@ BaseStatement *ExprStatement::optimize ()
 
 void ExprStatement::emit (Emit &e)
 {
+    expr->annotate(e);
     expr->emit(e, std::string());
     e << '\n';
 }
