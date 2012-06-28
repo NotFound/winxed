@@ -5865,84 +5865,6 @@ class NewBaseExpr : Expr
 
 //**********************************************************************
 
-function warn_class_unknown(var e, string name, var pos)
-{
-    e.warn("class " + name + " not found at compile time", pos);
-}
-
-class NewExpr : NewBaseExpr
-{
-    var value;
-
-    function NewExpr(var tk, var owner, var start, var firstvalue)
-    {
-        self.Expr(owner, start);
-
-        if (!firstvalue.isidentifier())
-            SyntaxError("Unimplemented", firstvalue);
-        self.value = firstvalue;
-        var t = tk.get();
-
-        if (t.isop("("))
-            self.parseinitializer(tk);
-        else
-            tk.unget(t);
-    }
-    function optimize()
-    {
-        var value = self.value;
-        self.optimize_initializer();
-        return self;
-    }
-    function emit(var e, string result, int is_init[optional])
-    {
-        self.annotate(e);
-
-        var initializer = self.initializer;
-        var value = self.value;
-        int numinits = self.numargs();
-
-        string reginit = "";
-        string regnew = result;
-        string constructor;
-        switch (numinits) {
-          case -1:
-          case 0:
-            break;
-          default:
-            if (! is_init)
-                regnew = self.tempreg(REGvar);
-        }
-
-        if (regnew == "")
-            regnew = self.tempreg(REGvar);
-
-        var cl = self.owner.checkclass(value);
-        if (cl != null) {
-            var key = cl.getpath();
-            key.emit_new(e, self, regnew, reginit);
-        }
-        else {
-            var id = self.scopesearch( [value], SEARCH_CLASS);
-            if (id != null)
-                e.say(INDENT, "new ", regnew, ", ", id.getclasskey(), reginit);
-            else {
-                warn_class_unknown(e, value.getidentifier(), value);
-                e.say(INDENT, "new ", regnew, ", ['", value, "']", reginit);
-            }
-        }
-        constructor = value;
-
-        if (numinits >= 0) {
-            self.emit_constructor(e, regnew, constructor);
-            if (! is_init)
-                e.emitset(result, regnew);
-        }
-    }
-}
-
-//**********************************************************************
-
 class NewIndexedExpr : NewBaseExpr
 {
     var nskey;
@@ -6033,17 +5955,10 @@ function parseNew(var tk, var owner, var start)
         // Class specifier is a key
         return new NewIndexedExpr(tk, owner, start);
       case t.isidentifier():
-        // Special case here. It can be an id or a qualified id 
-        var t2 = tk.get();
-        tk.unget(t2);
-        if (t2.isop(".")) {
-            // Qualified id
-            return new NewQualifiedExpr(tk, owner, t);
-        }
-        // Else let the default handle it
+        // Identifier, maybe qualified
+        return new NewQualifiedExpr(tk, owner, t);
       default:
-        // Remainig cases
-        return new NewExpr(tk, owner, start, t);
+        Expected("Identifier of class key", t);
     }
 }
 
@@ -8827,6 +8742,11 @@ const int
     CLASSSPECIFIER_str       = 1, // Literal name
     CLASSSPECIFIER_parrotkey = 2, // Parrot key
     CLASSSPECIFIER_id        = 3; // Identifier, maybe qualified
+
+function warn_class_unknown(var e, string name, var pos)
+{
+    e.warn("class " + name + " not found at compile time", pos);
+}
 
 class ClassSpecifier : CommonBase
 {
