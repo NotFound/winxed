@@ -39,7 +39,7 @@ See --help for more options.
 
 ## Web site:
 
-[http://winxed.org/](http://winxed.org/)
+[http://winxed.net/](http://winxed.net/)
 
 ## Code repository:
 
