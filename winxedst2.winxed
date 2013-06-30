@@ -8587,31 +8587,11 @@ class InlineReturnStatement : Statement
         var outer = self.owner.getouter();
         __ASSERT__(outer instanceof InlinedBlock);
         var expr = self.expr;
-        string rettype = outer.getrettype();
-        self.annotate(e);
-        if (expr != null) {
-            var retreg = outer.getretreg();
-            if (retreg == null)
-                expr.emit_void(e);
-            else {
-                if (expr.isnull())
-                    e.emitnull(retreg);
-                else {
-                    string type = expr.checkresult();
-                    if (type == rettype)
-                        expr.emit(e, retreg);
-                    else {
-                        string reg = expr.emit_get(e);
-                        self.annotate(e);
-                        if (rettype == REGvar)
-                            e.emitbox(retreg, reg);
-                        else
-                            e.emitset(retreg, reg);
-                    }
-                }
-            }
+        if (expr != null)
+        {
+            self.annotate(e);
+            outer.emitret(e, expr);
         }
-
         if (! outer.islaststatement(self)) {
             string retlabel = outer.getendlabel();
             self.annotate(e);
@@ -11673,6 +11653,32 @@ class InlinedBlock : BlockStatement
     function getretreg()
     {
         return self.retreg;
+    }
+    function emitret(var e, var expr)
+    {
+        string rettype = self.getrettype();
+        if (expr != null) {
+            var retreg = self.getretreg();
+            if (retreg == null)
+                expr.emit_void(e);
+            else {
+                if (expr.isnull())
+                    e.emitnull(retreg);
+                else {
+                    string type = expr.checkresult();
+                    if (type == rettype)
+                        expr.emit(e, retreg);
+                    else {
+                        string reg = expr.emit_get(e);
+                        self.annotate(e);
+                        if (rettype == REGvar)
+                            e.emitbox(retreg, reg);
+                        else
+                            e.emitset(retreg, reg);
+                    }
+                }
+            }
+        }
     }
     function emit_it(var e)
     {
