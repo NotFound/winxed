@@ -11657,7 +11657,10 @@ class InlinedBlock : BlockStatement
 
     function getendlabel()
     {
-        return self.endlabel;
+        var endlabel = self.endlabel;
+        if (endlabel == null)
+           self.endlabel = endlabel = self.genlabel();
+        return string(endlabel);
     }
     function getrettype()
     {
@@ -11675,7 +11678,6 @@ class InlinedBlock : BlockStatement
     {
         if (e.getDebug())
             e.comment("inlined start");
-        self.endlabel = self.genlabel();
         var params = self.params;
         var args = self.args;
         int nparams = params == null ? 0 : elements(params);
@@ -11699,7 +11701,9 @@ class InlinedBlock : BlockStatement
         }
         e.print(join("", transform(self.usedsubids, [], emit_subid)));
         self.body.emit(e);
-        e.emitlabel(self.endlabel);
+        var endlabel = self.endlabel;
+        if (endlabel != null)
+            e.emitlabel(endlabel);
     }
     function emit(var e, string result)
     {
