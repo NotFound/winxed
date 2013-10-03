@@ -13407,8 +13407,7 @@ class WinxedHLL
         // output is supposed to be used with pir target for a now,.
         if (target == null)
             target = "";
-        var handlein = new ["FileHandle"];
-        handlein.open(filename, "r");
+        var handlein = open(filename, "r");
         handlein.encoding("utf8");
         :Tokenizer tk(handlein, filename, nowarn);
         :WinxedCompileUnit winxed(filename, nowarn, debug);

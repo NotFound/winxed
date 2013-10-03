@@ -9938,11 +9938,10 @@ function main [main](var args)
     string srcname = src;
 
     var handlein;
-    if (evalexpr == null) {
-        handlein = new ["FileHandle"];
-        handlein.open(srcname, "r");
-    }
-    else {
+    if (evalexpr == null)
+        handlein = open(srcname, "r");
+    else
+    {
         evalexpr = "function main[main](var argv){" + evalexpr + ";}";
         handlein = new ["StringHandle"];
         handlein.open(srcname, "w");
@@ -9961,10 +9960,8 @@ function main [main](var args)
     var output;
     if (objname == "-")
         output = getstdout();
-    else {
-        output = new ["FileHandle"];
-        output.open(objname, "w");
-    }
+    else
+        output = open(objname, "w");
     var emit = new Emit(output, nowarn);
     winxed.emit(emit);
     emit.close();
