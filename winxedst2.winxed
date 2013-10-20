@@ -12836,13 +12836,15 @@ class NamespaceBase : VarContainer
         t = tk.get();
 
         var parent = self;
-        for ( ; t.isop("."); t = tk.get()) {
+        for ( ; t.isop("."); t = tk.get())
+        {
             parent = parent.childnamespace(start, name, null);
             name = tk.get();
         }
 
         var modifier;
-        if (t.isop("[")) {
+        if (t.isop("["))
+        {
             modifier = new ModifierList(tk, self);
             t = tk.get();
         }
