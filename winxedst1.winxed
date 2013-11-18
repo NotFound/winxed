@@ -3348,6 +3348,38 @@ class OpClassExpr : OpExpr
 
 //*********************************************
 
+class OpFuncDerefExpr : OpExpr
+{
+    var funcloc;
+
+    function OpFuncDerefExpr(tk, owner, start)
+    {
+        self.initop(owner, start);
+        var path = parseDotted(tk);
+        if (elements(path) == 0)
+            ExpectedIdentifier(tk.get());
+        self.funcloc = path;
+    }
+    function checkresult() { return REGvar; }
+    function emit(e, result)
+    {
+        var funcloc = self.funcloc;
+        if (result == '')
+            result = self.owner.tempreg(REGvar);
+
+        string name = funcloc[-1];
+        self.annotate(e);
+        string key;
+        if (elements(funcloc) > 1) {
+            funcloc.pop();
+            key = getparrotkey(funcloc);
+        }
+        e.emitget_hll_global(result, name, key);
+    }
+}
+
+//*********************************************
+
 class OpUnaryExpr : OpExpr
 {
     var subexpr;
@@ -6223,6 +6255,8 @@ function parseExpr_0(var tk, var owner)
         return new OpNamespaceExpr(tk, owner, t);
       case t.isidentifier():
         return new IdentifierExpr(owner, t);
+      case t.isop('*'):
+        return new OpFuncDerefExpr(tk, owner, t);
       default:
         Expected("expression", t);
     }
