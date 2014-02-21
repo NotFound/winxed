@@ -3970,6 +3970,16 @@ class ComparatorBaseExpr : OpBinaryExpr
             e.emitset(aux, regr);
             regr = aux;
             break;
+          case rr == REGfloat && rl == REGvar:
+            aux = self.tempreg(REGfloat);
+            e.emitset( aux, regl);
+            regl = aux;
+            break;
+          case rr == REGvar && rl == REGfloat:
+            aux = self.tempreg(REGfloat);
+            e.emitset(aux, regr);
+            regr = aux;
+            break;
           case rr == REGstring && rl == REGvar:
             aux = self.tempreg(REGstring);
             e.emitset(aux, regl);
