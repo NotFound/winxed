@@ -1,6 +1,22 @@
 Winxed news.
 (C) Julián Albo "NotFound"
 
+Version 1.10
+
+Version 1.9
+    - var cast improved
+    - bootstrap chain simplified
+    - minor optimization improvements
+    - fixed some inline bugs
+    - new syntax for multi: function name( : Type param)
+    - new syntactic sugar for declare and initialize:
+        :Type variable(arguments); does the same as:
+        var variable = new Type(arguments);
+  Build 1.9.0
+    - Candidate
+  Build 1.9.1
+    - Treat carriage return as whitespace in source files
+
 Version 1.8
     - Put source file name when known in generated PIR header.
     - Local inline.

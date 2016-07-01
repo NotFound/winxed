@@ -2,7 +2,7 @@
 // harness for winxed tests
 // TAP parsing adapted from nqp in plumage harness
 
-$load 'Getopt/Obj.pbc';
+$load "Getopt/Obj.pbc";
 
 function debugmsg(string s)
 {
@@ -17,18 +17,26 @@ function run_test(string filename, int debug, string stage)
     // If specified, assume we are in the build tree and use the
     // non installed driver to select stage.
     string s= stage == "" ?
-        'winxed' :
-        'parrot winxedrun.pbc --stage=' + stage;
+        "winxed" :
+        "parrot winxedrun.pbc --stage=" + stage;
     if (debug)
         s = s + " --debug";
-    s = s + ' ' + filename;
+    s = s + " " + filename;
     debugmsg(s);
 
-    var fh= open(s, 'rp');
+    var fh= open(s, "rp");
     fh.encoding("utf8");
     string test_output= fh.readall();
     fh.close();
-    return split("\n", test_output);
+    var lines = split("\n", test_output);
+    // Discard the last line if empty
+    int lastline = elements(lines) - 1;
+    if (lastline >= 0) {
+        string l = lines[lastline];
+        if (l == "")
+            lines.pop();
+    }
+    return lines;
 }
 
 function max_length(var args)
@@ -42,6 +50,45 @@ function max_length(var args)
     return l;
 }
 
+function check_plan_line(string line)
+{
+    var plan_parts= split("..", line);
+    if (elements(plan_parts) != 2)
+        return -1;
+    var part0 = plan_parts[0];
+    if (!part0.is_integer(part0))
+        return -1;
+    var part1 = plan_parts[1];
+    if (!part1.is_integer(part1))
+        return -1;
+    return int(part1);
+}
+
+function get_plan(var output)
+{
+    // Simplified search for plan: check only first and last lines.
+    // If found, remove the line with the plan from output.
+
+    int numlines = elements(output);
+    if (numlines < 1)
+        return -1;
+    string line = output[0];
+    int n = check_plan_line(line);
+    if (n >= 0) {
+        output.shift();
+        return n;
+    }
+    if (numlines < 1)
+        return -1;
+    line = output[numlines - 1];
+    n = check_plan_line(line);
+    if (n >= 0) {
+        output.pop();
+        return n;
+    }
+    return -1;
+}
+
 function run_test_list(var args, int verbose, string stage, int debug)
 {
     int total_passed= 0;
@@ -50,51 +97,31 @@ function run_test_list(var args, int verbose, string stage, int debug)
     int failed_files= 0;
 
     int l= max_length(args) + 2;
+    string filler = "";
+    for (int i = 0; i < l; i = i + 1)
+        filler = filler + ".";
     for (string filename in args) {
-        print(filename, '.' * (l - length(filename)));
+        print(filename, substr(filler, length(filename)));
         total_files = total_files + 1;
         int passed= 0;
         int failed= 0;
         int curr_test= 0;
         int num_tests = -1;
         var output= run_test(filename, debug, stage);
-
-        var plan_part0;
-        var plan_part1;
-        {
-            var plan_parts= split('..', output[0]);
-            plan_part0 = plan_parts[0];
-            plan_part1 = plan_parts[1];
-        }
-        if (plan_part0.is_integer(plan_part0)) {
-            num_tests = plan_part1;
-            output.shift();
-            if (verbose)
-                say(1 , '..', num_tests);
-        }
-
+        num_tests = get_plan(output);
+        if (verbose)
+            say(1 , "..", num_tests);
         for (string line in output) {
             debugmsg(line);
-            if (line != '') {
+            if (line != "") {
                 if (verbose)
                     say(line);
-                if (num_tests < 0) {
-                    var plan_parts= split('..', line);
-                    var p0 = plan_parts[0];
-                    if (p0.is_integer(p0)) {
-                        plan_part0 = plan_parts[0];
-                        plan_part1 = plan_parts[1];
-                        num_tests = plan_part1;
-                        if (verbose)
-                            say(1 , '..', num_tests);
-                    }
-                }
-                var line_parts = split('ok ', line);
+                var line_parts = split("ok ", line);
                 int test_number= line_parts[1];
                 debugmsg(test_number);
                 string part= line_parts[0];
                 debugmsg(part);
-                if (part == 'not ') {
+                if (part == "not ") {
                     failed = failed + 1;
                     curr_test = curr_test + 1;
                 }
@@ -105,29 +132,29 @@ function run_test_list(var args, int verbose, string stage, int debug)
             }
         }
         if (failed)
-            say('failed ', failed, '/', num_tests, ' tests');
-        else if (plan_part0 != 1 || (num_tests < 0)) {
-            say('INVALID PLAN: ', plan_part0, '..', plan_part1);
+            say("failed ", failed, "/", num_tests, " tests");
+        else if (num_tests < 0) {
+            say("INVALID PLAN");
             failed_files = failed_files + 1;
         }
         else
-            say('passed ', curr_test, ' tests');
+            say("passed ", curr_test, " tests");
 
         total_passed= total_passed + passed;
         total_failed= total_failed + failed;
         if (num_tests != curr_test) {
-            say('Planned to run ', num_tests, ' tests but ran ', curr_test, ' tests');
-            say('FAILED');
+            say("Planned to run ", num_tests, " tests but ran ", curr_test, " tests");
+            say("FAILED");
         }
     }
     if (total_failed) {
         int total= total_passed + total_failed;
-        say('FAILED ', total_failed, '/', total);
+        say("FAILED ", total_failed, "/", total);
     }
     else if (failed_files)
-        say('FAILED ', failed_files, ' files, PASSED ', total_passed, ' tests');
+        say("FAILED ", failed_files, " files, PASSED ", total_passed, " tests");
     else
-        say('PASSED ', total_passed, ' tests in ', total_files, ' files');
+        say("PASSED ", total_passed, " tests in ", total_files, " files");
 }
 
 // Use the OS pmc for file operations.
@@ -135,8 +162,8 @@ function getOS()
 {
     var os;
     try {
-        loadlib('os');
-        os = new ['OS'];
+        loadlib("os");
+        os = new ["OS"];
     }
     catch() { }
     return os;
@@ -145,7 +172,7 @@ function getOS()
 function add_file(var result, string path)
 {
     // Add a file to result list only if it has a .t extension.
-    if (length(path) > 2 && substr(path, -2) == '.t')
+    if (length(path) > 2 && substr(path, -2) == ".t")
             result.push(path);
 }
 
@@ -157,12 +184,12 @@ function build_from_dir(var result, string path, int recursive)
     var dirpaths = [];
     var os = getOS();
     int l = length(path);
-    if (substr(path, l - 1, 1) == '/')
+    if (substr(path, l - 1, 1) == "/")
         path = substr(path, 0, l - 1);
     var dir = os.readdir(path);
     for (string dirent in dir)
-        if ((dirent != '.') && (dirent != '..')) {
-            string newpath = (path == '.') ? dirent : path + '/' + dirent;
+        if ((dirent != ".") && (dirent != "..")) {
+            string newpath = (path == ".") ? dirent : path + "/" + dirent;
             var st= os.stat(newpath);
             int mode = st[2];
             if ((mode & 16384) != 0)
@@ -198,29 +225,29 @@ function build_file_list(var result, var args, int recursive)
 
 function main(var argv)
 {
-    var getopts = new ['Getopt','Obj'];
+    var getopts = new ["Getopt","Obj"];
     getopts.notOptStop(1);
-    getopts.push_string('v');
-    getopts.push_string('r');
-    getopts.push_string('stage=s');
-    getopts.push_string('debug');
+    getopts.push_string("v");
+    getopts.push_string("r");
+    getopts.push_string("stage=s");
+    getopts.push_string("debug");
 
     argv.shift();
     var opts = getopts.get_options(argv);
-    var optverbose = opts['v'];
-    var optrecursive = opts['r'];
-    var optdebug = opts['debug'];
+    var optverbose = opts["v"];
+    var optrecursive = opts["r"];
+    var optdebug = opts["debug"];
     int verbose = optverbose == null ? 0 : int(optverbose);
     int recursive = optrecursive == null ? 0 : int(optrecursive);
     int debug = optdebug != null;
-    var opt_stage = opts['stage'];
+    var opt_stage = opts["stage"];
     string stage = "";
     if (opt_stage != null)
         stage = opt_stage;
 
     int argc= argv;
     if (argc == 0)
-        argv.push('.');
+        argv.push(".");
 
     string args[];
     build_file_list(args, argv, recursive);

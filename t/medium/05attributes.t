@@ -24,8 +24,8 @@ function main()
     foo.set("hello");
     is(foo.*atname, "hello", "indirect get string");
 
-    foo.*atname = "hello";
-    is(foo.bar, "hello", "indirect set string");
+    foo.*atname = "bye";
+    is(foo.bar, "bye", "indirect set string");
 
     check = 0;
     try {

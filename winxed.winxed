@@ -4,19 +4,18 @@
 // Parses command line options, calls the compiler backend
 // and eventually runs the generated program.
 
-$load 'Getopt/Obj.pbc';
+$load "Getopt/Obj.pbc";
 
-// This driver must be compilable with stage 0, can't use $incldue_const
-// here, so harcode the values from iglobals.pasm and libpaths.pasm
-const int IGLOBALS_LIB_PATHS = 9;
-const int PARROT_LIB_PATH_INCLUDE = 0;
+$include_const "iglobals.pasm";
+$include_const "libpaths.pasm";
+$include_const "except_severity.pasm";
 
 function extname(string filename, string ext)
 {
     // Strip a possible .winxed extension from filename,
     // add ext, and return the result.
     int l = length(filename);
-    return (l > 7 && substr(filename, -7) == '.winxed') ?
+    return (l > 7 && substr(filename, -7) == ".winxed") ?
         substr(filename, 0, l - 7) + ext :
         filename + ext;
 }
@@ -26,35 +25,35 @@ function getOS()
 {
     var os;
     try {
-        loadlib('os');
-        os = new ['OS'];
+        loadlib("os");
+        os = new ["OS"];
     }
     catch() { }
     return os;
 }
 
-class WinxedDriverOptions : ['Getopt', 'Obj']
+class WinxedDriverOptions : ["Getopt", "Obj"]
 {
     var name;
     var options;
     var opts;
 
-    function WinxedDriverOptions(argv, int unused)
+    function WinxedDriverOptions(var argv, int unused)
     {
         var options = [
-          [ 'stage=s',  'Compiler stage to use' ],
-          [ 'c',        'Compile only. Same as --target=pir' ],
-          [ 'e=s',      'Evaluate' ],
-          [ 'o=s',      'Object name' ],
-          [ 'L=s',      'Add to parrot library search path' ],
-          [ 'I=s',      'Add to parrot include search path' ],
-          [ 'X=s',      'Add to parrot dynext search path' ],
-          [ 'debug',    'Set debug mode' ],
-          [ 'noan',     'No code annotations' ],
-          [ 'nowarn',   'No warnings' ],
-          [ 'target=s', 'Set target type: pir, pbc or run. Default is run.' ],
-          [ 'help',     'Show this help' ],
-          [ 'version',  'Show version and exit' ]
+          [ "stage=s",  "Compiler stage to use" ],
+          [ "c",        "Compile only. Same as --target=pir" ],
+          [ "e=s",      "Evaluate" ],
+          [ "o=s",      "Object name" ],
+          [ "L=s",      "Add to parrot library search path" ],
+          [ "I=s",      "Add to parrot include search path" ],
+          [ "X=s",      "Add to parrot dynext search path" ],
+          [ "debug",    "Set debug mode" ],
+          [ "noan",     "No code annotations" ],
+          [ "nowarn",   "No warnings" ],
+          [ "target=s", "Set target type: pir, pbc or run. Default is run." ],
+          [ "help",     "Show this help" ],
+          [ "version",  "Show version and exit" ]
         ];
         self.options = options;
         for (var o in options)
@@ -77,28 +76,30 @@ class WinxedDriverOptions : ['Getopt', 'Obj']
     }
     function showhelp()
     {
-        say('Usage: ', self.name, ' [options] [program] [args]');
-        say('  Available options:');
+        say("Usage: ", self.name, " [options] [program] [args]");
+        say("  Available options:");
         int l= 0;
         int i;
         var o;
         for (o in self.options) {
-            i= length(o[0]) + 4;
-            if (i > l) l= i;
+            i = length(o[0]);
+            if (i > l)
+                l = i;
         }
+	l = l + 4;
+        string filler = "                ";
         for (o in self.options) {
             string s= o[0];
-            if (length(s) > 1 && substr(s, 1, 1) != '=')
-                s= '--' + s;
+            if (length(s) > 1 && substr(s, 1, 1) != "=")
+                s = "--" + s;
             else
-                s= '-' + s;
-            i= l - length(s);
-            say('    ', s, ' ' * i, '->  ', o[1]);
+                s = "-" + s;
+            say("    ", s, substr(filler, 0, l - length(s)), "->  ", o[1]);
         }
     }
 }
 
-function driver_main(argv)
+function driver_main(var argv)
 {
     const int
         DEFAULT_STAGE = 3,
@@ -106,33 +107,33 @@ function driver_main(argv)
 
     var options = new WinxedDriverOptions(argv, 0);
 
-    int help         = options.getbool('help');
-    int version      = options.getbool('version');
-    string opt_stage = options.getstring('stage');
-    int compileonly  = options.getbool('c');
-    int debug        = options.getbool('debug');
-    int noan         = options.getbool('noan');
-    int nowarn       = options.getbool('nowarn');
-    string eval      = options.getstring('e');
-    string libs      = options.getstring('L');
-    string incs      = options.getstring('I');
-    string dyns      = options.getstring('X');
-    string obj       = options.getstring('o', '');
-    string target    = options.getstring('target');
+    int help         = options.getbool("help");
+    int version      = options.getbool("version");
+    string opt_stage = options.getstring("stage");
+    int compileonly  = options.getbool("c");
+    int debug        = options.getbool("debug");
+    int noan         = options.getbool("noan");
+    int nowarn       = options.getbool("nowarn");
+    string eval      = options.getstring("e");
+    string libs      = options.getstring("L");
+    string incs      = options.getstring("I");
+    string dyns      = options.getstring("X");
+    string obj       = options.getstring("o", "");
+    string target    = options.getstring("target");
 
     if (help) {
         options.showhelp();
         return;
     }
 
-    var env = new 'Env';
+    var env = new [ "Env" ];
     // Path for stage pbc files
-    string winxedpath = env['WINXED_PATH'];
+    string winxedpath = env["WINXED_PATH"];
 
     int stage = DEFAULT_STAGE;
     if (opt_stage == null) {
-        string envstage = env['WINXED_STAGE'];
-        if (envstage != '')
+        string envstage = env["WINXED_STAGE"];
+        if (envstage != "")
             opt_stage = envstage;
     }
     if (opt_stage != null) {
@@ -157,20 +158,20 @@ function driver_main(argv)
 
     if (target != null) {
         switch (target) {
-          case 'pir':
+          case "pir":
             targettype = TargetPir;
             break;
-          case 'pbc':
+          case "pbc":
             targettype = TargetPbc;
             break;
-          case 'run':
+          case "run":
             targettype = TargetRun;
             break;
-          case 'include':
+          case "include":
             targettype = TargetConst;
             break;
           default:
-            throw 'Invalid target: ' + target;
+            throw "Invalid target: " + target;
         }
     }
     if (compileonly) {
@@ -193,13 +194,13 @@ function driver_main(argv)
     }
 
     string pirfile;
-    if (obj != '' && targettype == TargetPir || targettype == TargetConst)
+    if (obj != "" && targettype == TargetPir || targettype == TargetConst)
         pirfile = obj;
     else {
         if (eval != null)
-            pirfile = '__eval__.pir';
+            pirfile = "__eval__.pir";
         else
-            pirfile = extname(srcfile, '.pir');
+            pirfile = extname(srcfile, ".pir");
     }
 
     var os = getOS();
@@ -209,22 +210,22 @@ function driver_main(argv)
     string winxedbin;
     switch (stage) {
       case 0:
-        winxedbin = 'winxedst0';
+        winxedbin = "winxedst0";
         break;
       case 1:
-        winxedbin = 'winxedst1';
+        winxedbin = "winxedst1";
         break;
       case 2:
-        winxedbin = 'winxedst2';
+        winxedbin = "winxedst2";
         break;
       case 3:
-        winxedbin = 'winxedst3';
+        winxedbin = "winxedst3";
         break;
       case CUSTOM_STAGE:
         winxedbin = opt_stage;
         break;
       default:
-        throw 'Invalid stage ' + stage + '. Must be 0, 1, 2 or 3 .';
+        throw "Invalid stage " + stage + ". Must be 0, 1, 2 or 3 .";
     }
 
     int retval = 0;
@@ -240,20 +241,20 @@ function driver_main(argv)
         }
 
         try {
-            load_bytecode(winxedbin + '.pbc');
+            load_bytecode(winxedbin + ".pbc");
         } catch () { }
-        var compiler = compreg('winxed');
+        var compiler = compreg("winxed");
         if (compiler == null) {
-            if (winxedpath != null && winxedpath != '') {
-                winxedbin = winxedpath + '/' + winxedbin;
+            if (winxedpath != null && winxedpath != "") {
+                winxedbin = winxedpath + "/" + winxedbin;
                 try {
-                    load_bytecode(winxedbin + '.pbc');
+                    load_bytecode(winxedbin + ".pbc");
                 }
                 catch (e) {
                     if (__DEBUG__)
                         cry("Cannot load ", winxedbin, ": ", e["message"]);
                 }
-                compiler = compreg('winxed');
+                compiler = compreg("winxed");
             }
             if (compiler == null)
                 throw "Cannot load stage " + winxedbin;
@@ -265,7 +266,7 @@ function driver_main(argv)
             say(ver);
             exit(0);
         }
-        string ctarget = targettype == TargetConst ? 'include' : 'pir';
+        string ctarget = targettype == TargetConst ? "include" : "pir";
         var opts = {
             "target": ctarget,
             "debug":  debug,
@@ -276,27 +277,27 @@ function driver_main(argv)
         if (eval == null) {
             var output;
             var file;
-            if (pirfile == '-' &&
+            if (pirfile == "-" &&
                    (targettype == TargetPir || targettype == TargetConst))
                 output = getstdout();
             else {
-                file = open(pirfile, 'w');
+                file = open(pirfile, "w");
                 output = file;
             }
-            opts['output'] = output;
+            opts["output"] = output;
             compiler.compile_from_file(srcfile, opts:[named,flat]);
             if (file != null)
                 file.close();
         }
         else {
-            eval = 'function main[main](argv){' + eval + ';}';
+            eval = "function main[main](var argv){" + eval + ";}";
             pircode = compiler.compile(eval, opts:[named,flat]);
 
-            if (pirfile == '-' &&
+            if (pirfile == "-" &&
                    (targettype == TargetPir || targettype == TargetConst))
                 print(pircode);
             else {
-                var file = open(pirfile, 'w');
+                var file = open(pirfile, "w");
                 file.print(pircode);
                 file.close();
             }
@@ -314,8 +315,8 @@ function driver_main(argv)
             // directory and has no extension, use it.
             // If not, assume it's in the PATH or we are on Windows.
             var check = null;
-            if (winxedpath != null && winxedpath != '' &&os != null) {
-                string checkbin = winxedpath + '/' + winxedbin;
+            if (winxedpath != null && winxedpath != "" &&os != null) {
+                string checkbin = winxedpath + "/" + winxedbin;
                 check = os.stat(checkbin);
                 if (check == null) {
                     checkbin = winxedpath + "\\" + winxedbin + ".exe";
@@ -328,25 +329,25 @@ function driver_main(argv)
                 if (os != null)
                     check = os.stat(winxedbin);
                 if (check != null)
-                    winxedbin = './' + winxedbin;
+                    winxedbin = "./" + winxedbin;
             }
             cmd.push(winxedbin);
         }
 
         if (targettype == TargetConst)
-            throw 'target include unavailable in stage 0';
+            throw "target include unavailable in stage 0";
 
         if (debug)
-            cmd.push('--debug');
+            cmd.push("--debug");
         if (noan)
-            cmd.push('--noan');
+            cmd.push("--noan");
         if (nowarn && stage != 0)
-            cmd.push('--nowarn');
+            cmd.push("--nowarn");
         if (eval != null) {
-            cmd.push('-e');
+            cmd.push("-e");
             cmd.push(eval);
         }
-        cmd.push('-o');
+        cmd.push("-o");
         cmd.push(pirfile);
         if (eval == null)
             cmd.push(srcfile);
@@ -357,21 +358,21 @@ function driver_main(argv)
     if (retval)
         exit(retval);
 
-    string runit[] = [ 'parrot' ];
+    string runit[] = [ "parrot" ];
 
     switch (targettype) {
       case TargetRun:
         // Execute result
         if (libs != null) {
-            runit.push('-L');
+            runit.push("-L");
             runit.push(libs);
         }
         if (incs != null) {
-            runit.push('-I');
+            runit.push("-I");
             runit.push(incs);
         }
         if (dyns != null) {
-            runit.push('-X');
+            runit.push("-X");
             runit.push(dyns);
         }
         runit.push(pirfile);
@@ -384,17 +385,17 @@ function driver_main(argv)
         }
         catch (e)
         {
-            cry('WARNING: cannot delete temporary PIR file: ', e['message']);
+            cry("WARNING: cannot delete temporary PIR file: ", e["message"]);
         }
         break;
       case TargetPbc:
         // Call parrot to ceate the pbc
         string objfile;
-        if (obj != '')
+        if (obj != "")
             objfile = obj;
         else
-            objfile = extname(srcfile, '.pbc');
-        runit.push('-o');
+            objfile = extname(srcfile, ".pbc");
+        runit.push("-o");
         runit.push(objfile);
         runit.push(pirfile);
         retval = spawnw(runit);
@@ -404,7 +405,7 @@ function driver_main(argv)
         }
         catch (e)
         {
-            cry('WARNING: cannot delete temporary PIR file: ', e['message']);
+            cry("WARNING: cannot delete temporary PIR file: ", e["message"]);
         }
         break;
       default:
@@ -414,16 +415,22 @@ function driver_main(argv)
     exit(retval);
 }
 
-function main [main] (argv)
+function main [main] (var argv)
 {
     int r;
-    try [handle_types(__WINXED_ERROR__)] {
+    try {
         driver_main(argv);
     }
     catch (e) {
+        int severity = e["severity"];
+        if (severity == EXCEPT_EXIT) {
+            int exit_code = e["exit_code"];
+            exit(exit_code);
+        }
+        int type = e["type"];
         var payload = e["payload"];
-        if (payload != null)
-            cry(payload.filename, ':', payload.line, ': ', payload.message);
+        if (type == __WINXED_ERROR__ && payload != null)
+            cry(payload.filename, ":", payload.line, ": ", payload.message);
         else
             cry(e["message"]);
         r = 1;

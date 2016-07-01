@@ -9,7 +9,7 @@ function main()
 {
     plan(1);
 
-    ok(1, 'plan and ok works');
+    ok(1, "plan and ok works");
 }
 
 // End

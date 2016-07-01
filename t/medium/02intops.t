@@ -4,7 +4,7 @@
 
 using extern Test.More plan, throws_type, diag;
 
-$include_const 'except_types.pasm';
+$include_const "except_types.pasm";
 
 function main()
 {
