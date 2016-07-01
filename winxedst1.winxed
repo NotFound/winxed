@@ -10,7 +10,7 @@
 
 function isspace(string c)
 {
-    return c == " " || c == "\n" || c == "\t";
+    return c == " " || c == "\n" || c == "\t" || c == "\r";
 }
 
 function isdigit(string c)
@@ -450,14 +450,17 @@ function getheredoc(var tk, string start, int linenum)
         switch (c) {
           case "":
             UnterminatedHeredoc(tk, linenum);
+          case "\r":
+            break; // Quick fix for windows line-ending text files
           case "\"":
           case "\\":
             // Encode the mark the same way as the heredoc content
             // to simplify its detection
-            c = "\\" + c;
+            mark = mark + "\\" + c;
             break;
+          default:
+            mark = mark + c;
         }
-        mark = mark + c;
     }
     mark = mark + ":>>";
 
@@ -469,12 +472,15 @@ function getheredoc(var tk, string start, int linenum)
             switch (c) {
               case "":
                 UnterminatedHeredoc(tk, linenum);
+              case "\r":
+                break; // Quick fix for windows line-ending text files
               case "\"":
               case "\\":
-                c = "\\" + c;
+                line = line + "\\" + c;
                 break;
+              default:
+                line = line + c;
             }
-            line = line + c;
         }
         if (line != mark)
             content = content + line + "\\n";
@@ -1821,6 +1827,11 @@ function toIdentifierList(var tlist)
     return list;
 }
 
+function toModuleFilename(var tlist)
+{
+    return "\"" + join("/", toIdentifierList(tlist)) + ".pbc\"";
+}
+
 //*********************************************
 //               CommonBase
 //*********************************************
@@ -2575,8 +2586,9 @@ class VarContainer
     }
     function createvar(var name, string type, int flags[optional])
     {
+        __ASSERT__(name instanceof TokenIdentifier);
+        string sname = name.getidentifier();
         var locals = self.locals;
-        string sname = name;
         var exist = locals[sname];
         if (exist != null)
             Redeclared(name);
@@ -2596,8 +2608,9 @@ class VarContainer
     }
     function createvarnamed(var name, string type, string pirname)
     {
+        __ASSERT__(name instanceof TokenIdentifier);
+        string sname = name.getidentifier();
         var locals = self.locals;
-        string sname = name;
         var exist = locals[sname];
         if (exist != null)
             Redeclared(name);
@@ -2605,8 +2618,9 @@ class VarContainer
     }
     function createconst(var name, string type, int flags[optional])
     {
+        __ASSERT__(name instanceof TokenIdentifier);
+        string sname = name.getidentifier();
         var locals = self.locals;
-        string sname = name;
         var exist = locals[sname];
         if (exist != null)
             Redeclared(name);
@@ -3956,6 +3970,16 @@ class ComparatorBaseExpr : OpBinaryExpr
             e.emitset(aux, regr);
             regr = aux;
             break;
+          case rr == REGfloat && rl == REGvar:
+            aux = self.tempreg(REGfloat);
+            e.emitset( aux, regl);
+            regl = aux;
+            break;
+          case rr == REGvar && rl == REGfloat:
+            aux = self.tempreg(REGfloat);
+            e.emitset(aux, regr);
+            regr = aux;
+            break;
           case rr == REGstring && rl == REGvar:
             aux = self.tempreg(REGstring);
             e.emitset(aux, regl);
@@ -5160,7 +5184,8 @@ class CallBuiltinExpr : FinalExpr
 
 function gencallbuiltin(var owner, var start, var builtin, var args)
 {
-    string callname = builtin.getname();
+    var name = builtin.getname();
+    string callname = name.getidentifier();
     owner.use_builtin(callname);
     int nargs = args == null ? 0 : args.numargs();
     var rawargs = nargs == 0 ? [] : args.getrawargs();
@@ -5850,84 +5875,6 @@ class NewBaseExpr : Expr
 
 //**********************************************************************
 
-function warn_class_unknown(var e, string name, var pos)
-{
-    e.warn("class " + name + " not found at compile time", pos);
-}
-
-class NewExpr : NewBaseExpr
-{
-    var value;
-
-    function NewExpr(var tk, var owner, var start, var firstvalue)
-    {
-        self.Expr(owner, start);
-
-        if (!firstvalue.isidentifier())
-            SyntaxError("Unimplemented", firstvalue);
-        self.value = firstvalue;
-        var t = tk.get();
-
-        if (t.isop("("))
-            self.parseinitializer(tk);
-        else
-            tk.unget(t);
-    }
-    function optimize()
-    {
-        var value = self.value;
-        self.optimize_initializer();
-        return self;
-    }
-    function emit(var e, string result, int is_init[optional])
-    {
-        self.annotate(e);
-
-        var initializer = self.initializer;
-        var value = self.value;
-        int numinits = self.numargs();
-
-        string reginit = "";
-        string regnew = result;
-        string constructor;
-        switch (numinits) {
-          case -1:
-          case 0:
-            break;
-          default:
-            if (! is_init)
-                regnew = self.tempreg(REGvar);
-        }
-
-        if (regnew == "")
-            regnew = self.tempreg(REGvar);
-
-        var cl = self.owner.checkclass(value);
-        if (cl != null) {
-            var key = cl.getpath();
-            key.emit_new(e, self, regnew, reginit);
-        }
-        else {
-            var id = self.scopesearch( [value], SEARCH_CLASS);
-            if (id != null)
-                e.say(INDENT, "new ", regnew, ", ", id.getclasskey(), reginit);
-            else {
-                warn_class_unknown(e, value.getidentifier(), value);
-                e.say(INDENT, "new ", regnew, ", ['", value, "']", reginit);
-            }
-        }
-        constructor = value;
-
-        if (numinits >= 0) {
-            self.emit_constructor(e, regnew, constructor);
-            if (! is_init)
-                e.emitset(result, regnew);
-        }
-    }
-}
-
-//**********************************************************************
-
 class NewIndexedExpr : NewBaseExpr
 {
     var nskey;
@@ -6018,17 +5965,10 @@ function parseNew(var tk, var owner, var start)
         // Class specifier is a key
         return new NewIndexedExpr(tk, owner, start);
       case t.isidentifier():
-        // Special case here. It can be an id or a qualified id 
-        var t2 = tk.get();
-        tk.unget(t2);
-        if (t2.isop(".")) {
-            // Qualified id
-            return new NewQualifiedExpr(tk, owner, t);
-        }
-        // Else let the default handle it
+        // Identifier, maybe qualified
+        return new NewQualifiedExpr(tk, owner, t);
       default:
-        // Remainig cases
-        return new NewExpr(tk, owner, start, t);
+        Expected("Identifier of class key", t);
     }
 }
 
@@ -7284,12 +7224,8 @@ class ForeachStatement : LoopStatement, BlockStatement
     function ForeachStatement(var start, var tk, var owner, var name, string type)
     {
         self.BlockStatement(start, owner);
-        string sname = name;
-        if (type != "") {
-            string deftype = typetoregcheck(type);
-            self.createvar(sname, deftype);
-            self.deftype = deftype;
-        }
+        if (type != "")
+            self.deftype = type;
         self.varname = name;
         self.container = parseExpr(tk, self);
         ExpectOp(")", tk);
@@ -7297,6 +7233,9 @@ class ForeachStatement : LoopStatement, BlockStatement
     }
     function optimize()
     {
+        var deftype = self.deftype;
+        if (deftype != null)
+            self.createvar(self.varname, deftype);
         self.container = self.container.optimize();
         self.body = self.body.optimize();
         return self;
@@ -7338,17 +7277,22 @@ function parseFor(var t, var tk, var owner)
 {
     ExpectOp("(", tk);
     var aux = tk.get();
-    var in1 = tk.get();
-    if (in1.iskeyword("in"))
-        return new ForeachStatement(t, tk, owner, aux, "");
-    else {
-        var in2 = tk.get();
-        if (in2.iskeyword("in"))
-            return new ForeachStatement(t, tk, owner, in1, aux);
-        tk.unget(in2);
+    if (aux.isidentifier()) {
+        var in1 = tk.get();
+        if (in1.isidentifier()) {
+            if (in1.iskeyword("in"))
+                return new ForeachStatement(t, tk, owner, aux, "");
+            else {
+                var in2 = tk.get();
+                string type = typetoregcheck(aux.getidentifier());
+                if (in2.iskeyword("in") && type != "")
+                    return new ForeachStatement(t, tk, owner, in1, type);
+                tk.unget(in2);
+            }
+        }
         tk.unget(in1);
-        tk.unget(aux);
     }
+    tk.unget(aux);
     return new ForStatement(t, tk, owner);
 }
 
@@ -7420,9 +7364,8 @@ class TryStatement : BlockStatement
             Expected("'(' after 'catch'", t);
         t = tk.get();
         if (! t.isop(")")) {
-            string exname = t.getidentifier();
+            RequireIdentifier(t);
             self.exname = t;
-            self.createvar(exname, REGvar);
             t = tk.get();
             if (! t.isop(")"))
                 Expected("')' in 'catch'", t);
@@ -7432,6 +7375,8 @@ class TryStatement : BlockStatement
     function optimize()
     {
         self.stry = self.stry.optimize();
+        if (self.exname != null)
+            self.createvar(self.exname, REGvar);
         self.scatch = self.scatch.optimize();
         return self;
     }
@@ -7475,19 +7420,44 @@ class TryStatement : BlockStatement
 }
 
 //*********************************************
-//            VarBaseStatement
+//            DeclareItem
 //*********************************************
 
-class VarBaseStatement : Statement
+/*
+    Base class for all variable declarations.
+*/
+
+class DeclareItem : Statement
 {
     var name;
+    var regtype;
     var reg;
-    function initvarbase(var start, var owner, var name, int flags[optional])
+    var flags;
+
+    function DeclareItem(var start, var owner,
+            var name, string regtype, int flags)
     {
         self.Statement(start, owner);
         self.name = name;
-        var vdata = self.createvar(name, REGvar, flags);
+        self.regtype = regtype;
+        self.flags = flags;
+    }
+    function optimizedeclare()
+    {
+        var vdata = self.createvar(self.name, self.regtype, self.flags);
         self.reg = vdata.getreg();
+    }
+}
+
+//*********************************************
+//            VarBaseStatement
+//*********************************************
+
+class VarBaseStatement : DeclareItem
+{
+    function initvarbase(var start, var owner, var name, int flags[optional])
+    {
+        self.DeclareItem(start, owner, name, REGvar, flags);
     }
 }
 
@@ -7495,19 +7465,13 @@ class VarBaseStatement : Statement
 //            Declare Statements
 //*********************************************
 
-class DeclareBase : Statement
+class DeclareBase : DeclareItem
 {
-    var name;
     var basetype;
-    var reg;
-
     function DeclareBase(var start, var owner, var name, string basetype, string regtype)
     {
-        self.Statement(start, owner);
-        self.name = name;
+        self.DeclareItem(start, owner, name, regtype, 0);
         self.basetype = basetype;
-        var vdata = self.createvar(name, regtype);
-        self.reg = vdata.getreg();
     }
 }
 
@@ -7531,6 +7495,7 @@ class DeclareSingleStatement : DeclareBase
     }
     function optimize()
     {
+        self.optimizedeclare();
         var init = self.init;
         if (init != null)
             self.init = init.optimize();
@@ -7626,6 +7591,7 @@ class DeclareArrayStatement : DeclareBase
     }
     function optimize()
     {
+        self.optimizedeclare();
         if (self.size != null)
             self.size = self.size.optimize();
         optimize_array(self.initarray);
@@ -7807,13 +7773,12 @@ class ConstStatement : Statement
     var data;
     var value;
 
-    function ConstStatement(var name, var owner,
-            string type, var value)
+    function ConstStatement(var name, var tk, var owner, string type)
     {
         self.Statement(name, owner);
         self.type = type;
         self.name = name;
-        self.value = value;
+        self.value = parseExpr(tk, self);
         self.data = self.createconst(name, type);
     }
     function optimize()
@@ -7848,17 +7813,16 @@ class ConstStatement : Statement
 function parseConst(var start, var tk, var owner)
 {
     var t = tk.get();
-    string type = typetoregcheck(t);
+    string type = t.isidentifier() ? typetoregcheck(t.getidentifier()) : "";
     if (type != REGint && type != REGfloat && type != REGstring)
-        SyntaxError("Invalid type for const", start);
+        SyntaxError("Invalid type for const", t);
 
     var multi = null;
     do {
         var name = tk.get();
+        RequireIdentifier(name);
         ExpectOp("=", tk);
-        var value = parseExpr(tk, owner);
-        multi = addtomulti(multi,
-                new ConstStatement(name, owner, type, value));
+        multi = addtomulti(multi, new ConstStatement(name, tk, owner, type));
     } while ((t = tk.get()).isop(","));
     RequireOp(";", t);
     return multi;
@@ -7889,6 +7853,7 @@ class VarStatement : VarBaseStatement
     }
     function optimize()
     {
+        self.optimizedeclare();
         return self.optimize_init();
     }
     function emit(var e)
@@ -8156,10 +8121,11 @@ class FunctionParameter
             Expected("parameter type", t);
         self.type = type;
         t = tk.get();
+        RequireIdentifier(t);
         string argname = "__ARG_" + string(func.generateparamnum());
         func.createvarnamed(t, type, argname);
 
-        self.name = string(t);
+        self.name = t;
         t = tk.get();
         if (t.isop("["))
             self.modifiers = new ParameterModifierList(tk, func.owner);
@@ -8670,37 +8636,47 @@ class MethodStatement : FunctionStatement
 
 class SigParameter
 {
+    var owner;
     var name;
+    var type;
     var modifiers;
-    var reg;
     function SigParameter(var tk, var owner)
     {
+        self.owner = owner;
         var name = tk.get();
         if (! name.isidentifier())
             ExpectedIdentifier(name);
         var t = tk.get();
         if (t.isidentifier()) {
             string type = typetoregcheck(name.checkkeyword());
+            self.type = type;
             name = t;
-            owner.createvar(name, type);
             t = tk.get();
         }
         self.name = name;
-        var data = owner.getvar(name.getidentifier());
-        self.reg = data.getreg();
         if (t.isop("["))
             self.modifiers = new ParameterModifierList(tk, self);
         else
             tk.unget(t);
     }
+    function optimize()
+    {
+        var type = self.type;
+        if (type != null)
+            self.owner.createvar(self.name, type);
+        return self;
+    }
     function emit(var e)
     {
-        e.print(self.reg);
+        var name = self.name;
+        var data = self.owner.getvar(name);
+        if (data == null)
+            UndefinedVariable(name, name);
+        var reg = data.getreg();
+        e.print(reg);
         var modifiers = self.modifiers;
-        if (modifiers != null) {
-            var name = self.name;
+        if (modifiers != null)
             modifiers.emitmodifiers(e, name, name);
-        }
     }
 }
 
@@ -8715,6 +8691,10 @@ class SigParameterList
     function SigParameterList(var tk, var owner)
     {
         self.params = parseList(tk, owner, parseSigParameter, ")");
+    }
+    function optimize()
+    {
+        optimize_array(self.params);
     }
     function emit(var e)
     {
@@ -8742,6 +8722,7 @@ class MultiAssignStatement : Statement
     function optimize()
     {
         self.expr = self.expr.optimize();
+        self.params.optimize();
         return self;
     }
     function emit(var e)
@@ -8769,6 +8750,11 @@ const int
     CLASSSPECIFIER_parrotkey = 2, // Parrot key
     CLASSSPECIFIER_id        = 3; // Identifier, maybe qualified
 
+function warn_class_unknown(var e, string name, var pos)
+{
+    e.warn("class " + name + " not found at compile time", pos);
+}
+
 class ClassSpecifier : CommonBase
 {
     function ClassSpecifier(var owner, var start)
@@ -8795,7 +8781,7 @@ class ClassSpecifierStr : ClassSpecifier
 
     function emit(var e, var ns)
     {
-        string basestr = self.name;
+        string basestr = self.name.getPirString();
         e.print(basestr);
     }
 }
@@ -8904,7 +8890,7 @@ class ClassBase : CommonBase
     {
         self.initbase(start, parent);
         self.name = name;
-        var classns = parent.getpath().createchild(name);
+        var classns = parent.getpath().createchild(name.getidentifier());
         self.classns = classns;
     }
     function getpath()
@@ -8929,7 +8915,8 @@ class FunctionContainer
         __ASSERT__((newfunc instanceof Builtin) ||
                    (newfunc instanceof FunctionStatement));
         var functions = self.functions;
-        string name = newfunc.name;
+        __ASSERT__(newfunc.name instanceof TokenIdentifier);
+        string name = newfunc.name.getidentifier();
         var func = functions[name];
         if (func == null)
             functions[name] = newfunc;
@@ -9114,6 +9101,8 @@ function include_parrot(var start, var tk, var ns)
         Expected("literal string", tfile);
     ExpectOp(";", tk);
 
+    var sfile = start.file;
+    int sline = start.line;
     string filename = tfile.rawstring();
     var file = open_include(filename, start);
 
@@ -9148,9 +9137,9 @@ function include_parrot(var start, var tk, var ns)
                 ivalue = substr(value, 2).to_int(16);
             else
                 ivalue = value;
-            var cst = ns.createconst(name, REGint, VAR_is_extern);
-            cst.setvalue(integerValue(ns,
-                    new TokenInteger(start.file, start.line, name), ivalue));
+            var tokname = new TokenIdentifier(sfile, sline, name);
+            var cst = ns.createconst(tokname, REGint, VAR_is_extern);
+            cst.setvalue(integerValue(ns, tokname, ivalue));
         }
     }
 
@@ -9192,8 +9181,7 @@ function parsensUsing(var start, var tk, var ns)
         var names = parseListOrEmpty(tk, null, parseIdentifier, ";");
         if (names != null)
             ns.addextern(module, names);
-        string reqmodule = "\"" + join("/", module) + ".pbc\"";
-        ns.addload(reqmodule);
+        ns.addload(toModuleFilename(module));
         break;
       default:
         Expected("string literal or identifier", t);
@@ -9801,15 +9789,19 @@ class RootNamespace : NamespaceBase
 //           Compiler classes
 //*********************************************
 
-class Builtin {
+class Builtin
+{
     var name;
     var variants;
     function Builtin(string name, var variant)
     {
-        self.name = name;
+        self.name = new TokenIdentifier("__builtins__", 0, name);
         self.variants = [ variant ];
     }
-    function getname() { return string(self.name); }
+    function getname()
+    {
+        return self.name;
+    }
     function addvariant(var variant)
     {
         push(self.variants, variant);
@@ -9953,11 +9945,10 @@ function main [main](var args)
     string srcname = src;
 
     var handlein;
-    if (evalexpr == null) {
-        handlein = new ["FileHandle"];
-        handlein.open(srcname, "r");
-    }
-    else {
+    if (evalexpr == null)
+        handlein = open(srcname, "r");
+    else
+    {
         evalexpr = "function main[main](var argv){" + evalexpr + ";}";
         handlein = new ["StringHandle"];
         handlein.open(srcname, "w");
@@ -9976,10 +9967,8 @@ function main [main](var args)
     var output;
     if (objname == "-")
         output = getstdout();
-    else {
-        output = new ["FileHandle"];
-        output.open(objname, "w");
-    }
+    else
+        output = open(objname, "w");
     var emit = new Emit(output, nowarn);
     winxed.emit(emit);
     emit.close();
