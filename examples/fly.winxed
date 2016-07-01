@@ -30,9 +30,19 @@ function close(int handle)
 const float PI = 3.1415926;
 const float ToRad = PI / 180.0;
 
+inline distance_modified(const float distance, float angle) return float
+{
+    return distance + 3.0 * sin(angle * 4.0) + 7.0 * sin(angle * 8.0);
+}
+
 $include_const 'opengl_defines.pasm';
 
 //**********************************************************************
+
+inline colormod(const float f, const float r, const float g, const float b)
+{
+    glColor3f(r * f, g * f, b * f);
+}
 
 class Thing
 {
@@ -65,55 +75,42 @@ class Thing
         float z = self.z;
         float height = self.height;
         float width = self.width;
-        float f;
         glPushMatrix();
         glColor3f(r, g, b);
 
-        if (0) {
-            glTranslatef(x, height / 2.0, x);
-            glScalef(1.0, height, 1.0);
-            glutSolidCube(1.0);
-        }
-        else {
-            glTranslatef(x, 0.0, z);
+        glTranslatef(x, 0.0, z);
+        glBegin(GL_QUADS);
 
-            glBegin(GL_QUADS);
+        glVertex3f( width, height,  width);
+        glVertex3f( width, height, -width);
+        glVertex3f(-width, height, -width);
+        glVertex3f(-width, height,  width);
 
-            glVertex3f( width, height,  width);
-            glVertex3f( width, height, -width);
-            glVertex3f(-width, height, -width);
-            glVertex3f(-width, height,  width);
+        colormod(0.7, r, g, b);
+        glVertex3f( width, 0.0,    -width);
+        glVertex3f( width, height, -width);
+        glVertex3f( width, height,  width);
+        glVertex3f( width, 0.0,     width);
 
-            f = 0.7;
-            glColor3f(r * f, g * f, b * f);
-            glVertex3f( width, 0.0,    -width);
-            glVertex3f( width, height, -width);
-            glVertex3f( width, height,  width);
-            glVertex3f( width, 0.0,     width);
+        colormod(0.6, r, g, b);
+        glVertex3f(-width, 0.0,     width);
+        glVertex3f(-width, height,  width);
+        glVertex3f(-width, height, -width);
+        glVertex3f(-width, 0.0,    -width);
 
-            f = 0.6;
-            glColor3f(r * f, g * f, b * f);
-            glVertex3f(-width, 0.0,     width);
-            glVertex3f(-width, height,  width);
-            glVertex3f(-width, height, -width);
-            glVertex3f(-width, 0.0,    -width);
+        colormod(0.84, r, g, b);
+        glVertex3f(-width, 0.0,    -width);
+        glVertex3f(-width, height, -width);
+        glVertex3f( width, height, -width);
+        glVertex3f( width, 0.0,    -width);
 
-            f = 0.3;
-            glColor3f(r * f, g * f, b * f);
-            glVertex3f(-width, 0.0,    -width);
-            glVertex3f(-width, height, -width);
-            glVertex3f( width, height, -width);
-            glVertex3f( width, 0.0,    -width);
+        colormod(0.4, r, g, b);
+        glVertex3f( width, 0.0,     width);
+        glVertex3f( width, height,  width);
+        glVertex3f(-width, height,  width);
+        glVertex3f(-width, 0.0,     width);
 
-            f = 0.4;
-            glColor3f(r * f, g * f, b * f);
-            glVertex3f( width, 0.0,     width);
-            glVertex3f( width, height,  width);
-            glVertex3f(-width, height,  width);
-            glVertex3f(-width, 0.0,     width);
-
-            glEnd();
-        }
+        glEnd();
 
         glPopMatrix();
     }
@@ -121,44 +118,44 @@ class Thing
 
 //**********************************************************************
 
+inline colorpanel(const float carangle, const float modangle, const float fuzz)
+{
+    float color = 0.75 + 0.15 * sin(carangle + modangle * (PI / 8.0));
+    glColor3f(color, color, fuzz * color);
+}
+
 function train(float angle, float dis, float fuzz)
 {
     glPushMatrix();
 
-    float dismod = dis + 3.0 * sin(angle * 4.0) + 7.0 * sin(angle * 8.0);
+    float dismod = distance_modified(dis, angle);
     // Central position
     float xt = sin(angle) * dismod;
     float zt = cos(angle) * dismod;
-    glTranslatef(xt, 0.0, zt);
 
-    // Approximate the tangent
-    const float delta = 0.0001;
-    float angle1 = angle + delta;
-    float dismod1 = dis + 3.0 * sin(angle1 * 4.0) + 7.0 * sin(angle1 * 8.0);
-    float xt1 = sin(angle1) * dismod1;
-    float zt1 = cos(angle1) * dismod1;
-    float angle2 = angle - delta;
-    float dismod2 = dis + 3.0 * sin(angle2 * 4.0) + 7.0 * sin(angle2 * 8.0);
-    float xt2 = sin(angle2) * dismod2;
-    float zt2 = cos(angle2) * dismod2;
-    glRotatef((atan(xt1 - xt2, zt1 - zt2)) / ToRad + 90.0, 0.0, 1.0, 0.0);
+    // Derivative
+    float cosa = cos(angle);
+    float sina = sin(angle);
+    float cos4a = cos(4.0 * angle);
+    float sin4a = sin(4.0 * angle);
+    float cos8a = cos(8.0 * angle);
+    float sin8a = sin(8.0 * angle);
+    float xtt =  cosa * (dis + 7.0 * sin8a + 3.0 * sin4a) +  
+                 sina * (56.0 * cos8a + 12.0 * cos4a);
+    float ztt = -sina * (dis + 7.0 * sin8a + 3.0 * sin4a) +
+                 cosa * (56.0 * cos8a + 12 * cos4a);
+    float carangle = atan(xtt, ztt);
+
+    glTranslatef(xt, 0.0, zt);
+    glRotatef(carangle / ToRad + 90.0, 0.0, 1.0, 0.0);
 
     // Cheat a bit: change the wagon length instead of adjusting its
     // angular position
-    const float halfangle = 0.0278;
-    float anglea = angle + halfangle;
-    float dismoda = dis + 3.0 * sin(anglea * 4.0) + 7.0 * sin(anglea * 8.0);
-    float xa = sin(anglea) * dismoda;
-    float za = cos(anglea) * dismoda;
-    float lena = sqrt((xt-xa)*(xt-xa) + (zt-za)*(zt-za));
+    float adjust = sqrt(xtt * xtt + ztt * ztt) / dis;
+    float lena =  5.0 * adjust;
+    float lenb = -5.0 * adjust;
 
-    float angleb = angle - halfangle;
-    float dismodb = dis + 3.0 * sin(angleb * 4.0) + 7.0 * sin(angleb * 8.0);
-    float xb = sin(angleb) * dismoda;
-    float zb = cos(angleb) * dismoda;
-    float lenb = - sqrt((xt-xb)*(xt-xb) + (zt-zb)*(zt-zb));
-
-    const float height = 1.2);
+    const float height = 1.2;
     const float width = 0.8;
 
     glColor3f(1.0, 1.0, fuzz);
@@ -169,7 +166,11 @@ function train(float angle, float dis, float fuzz)
     glVertex3f(lenb, height,  width / 2);
     glEnd();
 
-    glColor3f(0.7, 0.7, fuzz * 0.7);
+    // Left side
+    float base = carangle + 1.0 * (PI / 8.0);
+    float color = 0.75 + 0.15 * sin(base);
+    //glColor3f(color, color, fuzz * color);
+    colorpanel(carangle, 1.0, fuzz);
     glBegin(GL_QUAD_STRIP);
     glVertex3f(lena, height,  width / 2);
     glVertex3f(lenb, height,  width / 2);
@@ -177,7 +178,11 @@ function train(float angle, float dis, float fuzz)
     glVertex3f(lenb, 0.0,     width / 2);
     glEnd();
 
-    glColor3f(0.8, 0.8, fuzz * 0.8);
+    // Right side
+    //base = carangle + 9.0 * (PI / 8.0);
+    //color = 0.75 + 0.15 * sin(base);
+    colorpanel(carangle, 9.0, fuzz);
+    glColor3f(color, color, fuzz * color);
     glBegin(GL_QUAD_STRIP);
     glVertex3f(lena, 0.0,    -width / 2);
     glVertex3f(lenb, 0.0,    -width / 2);
@@ -185,14 +190,22 @@ function train(float angle, float dis, float fuzz)
     glVertex3f(lenb, height, -width / 2);
     glEnd();
 
-    glColor3f(0.6, 0.6, fuzz *0.6);
+    // Back
+    //base = carangle + 5.0 * (PI / 8.0);
+    //color = 0.75 + 0.15 * sin(base);
+    //glColor3f(color, color, fuzz * color);
+    colorpanel(carangle, 5.0, fuzz);
     glBegin(GL_QUADS);
     glVertex3f(lena, height, -width / 2);
     glVertex3f(lena, height,  width / 2);
     glVertex3f(lena, 0.0,     width / 2);
     glVertex3f(lena, 0.0,     -width / 2);
 
-    glColor3f(0.5, 0.5, fuzz *0.5);
+    // Front
+    //base = carangle + 13.0 * (PI / 8.0);
+    //color = 0.75 + 0.15 * sin(base);
+    //glColor3f(color, color, fuzz * color);
+    colorpanel(carangle, 13.0, fuzz);
     glVertex3f(lenb, 0.0,    -width / 2);
     glVertex3f(lenb, 0.0,     width / 2);
     glVertex3f(lenb, height,  width / 2);
@@ -240,6 +253,13 @@ class Fly
     var speed;
     var prev;
 
+    const int nsteps = 7;
+    const int length_train_1 = 11;
+    const int length_train_2 = 8;
+    var steps;
+    var heights;
+    var fuzz;
+
     function Fly(string title)
     {
         self.w = int(glutCreateWindow(title));
@@ -260,6 +280,16 @@ class Fly
         self.dz  =  0.0;
 
         self.speed = 25.0;
+
+        int steps[nsteps]     = [   3,   3,   3,   4,    3,    3,    3 ];
+        self.steps = steps;
+        float heights[nsteps] = [ 0.2, 0.4, 0.3, 0.0, -0.3, -0.4, -0.2 ];
+        self.heights = heights;
+        float fuzz[] = [ 0.0, 0.4, 0.5, 0.3, 0.4, 0.0, 0.3, 0.5, 0.4, 0.3, 0.2 ];
+        __ASSERT__(length_train_1 <= elements(fuzz));
+        __ASSERT__(length_train_2 <= elements(fuzz));
+        __ASSERT__(length_train_1 == elements(fuzz) || length_train_2 == elements(fuzz));
+        self.fuzz = fuzz;
 
         var things = [];
         things.push(new Thing(0.0, 0.8, 0.2, 4.0, 4.0, 1.0));
@@ -293,7 +323,7 @@ class Fly
         const float pwidth = 0.18;
         for (int i = 0;  i < 360; i+=8) {
             float angle = float(i) * ToRad;
-            float dismod = dis + 3.0 * sin(angle * 4.0) + 7.0 * sin(angle * 8.0);
+            float dismod = distance_modified(dis, angle);
             float xi = dismod * sin(angle);
             float zi = dismod * cos(angle);
             things.push(new Thing(r, g, b, xi, zi, pheight, pwidth));
@@ -305,8 +335,7 @@ class Fly
 
         self.things = things;
 
-        float prev;
-        ${ time prev };
+        float prev = floattime();
         self.prev = prev;
         // Inititalize postion for automatic mode, draw can be called
         // before the first timer pulse.
@@ -411,9 +440,8 @@ class Fly
         const float rangle = angle + 90.0 * ToRad;
         const float inix =  189.5;
         const float iniz =  -81.5;
-        const int nsteps = 7;
-        int steps[nsteps]     = [   3,   3,   3,   4,    3,    3,    3 ];
-        float heights[nsteps] = [ 0.2, 0.4, 0.3, 0.0, -0.3, -0.4, -0.2 ];
+        var steps = self.steps;
+        var heights = self.heights;
         float stepx = sin(angle)  * 2.0;
         float stepz = cos(angle)  * 2.0;
 
@@ -456,13 +484,14 @@ class Fly
         float now = self.prev;
         float t = now / 7.2;
         int i;
-        float fuzz[] = [ 0.0, 0.4, 0.5, 0.3, 0.4, 0.0, 0.3, 0.5, 0.4, 0.3, 0.2 ];
-        for (i = 0; i < 11; ++i) {
+
+        var fuzz = self.fuzz;
+        for (i = 0; i < length_train_1; ++i) {
             train(t, 180.0, fuzz[i]);
             t += 0.058;
         }
         t = - now / 6.8;
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < length_train_2; ++i) {
             train(t, 182.0, fuzz[i]);
             t -= 0.058;
         }
@@ -481,9 +510,8 @@ class Fly
         float dx; float dy; float dz;
         float prev = self.prev;
         float angle;
-        float now;
+        float now = floattime();
         float diff;
-        ${ time now };
         float dis;
         switch (self.auto) {
           case 1:
@@ -517,12 +545,17 @@ class Fly
           case 3:
             dis = 180.3;
             diff = now / 7.2 + 0.012;
-            float dismod = dis + 3.0 * sin(diff * 4.0) + 7.0 * sin(diff * 8.0);
+            float dismod = distance_modified(dis, diff);
+            // Shake a bit horizontally and vertically to improve the
+            // illusion of being mounted on a train.
+            // Use different periods, each a non integer multiple of the time,
+            // to add variety.
+            dismod += sin(diff * 30.43) * 0.02;
+            y = 1.8 + pow(sin(diff * 20.27), 2) * 0.014;;
             x = sin(diff) * dismod;
             z = cos(diff) * dismod;
-            y = 1.8;
             float angle1 = diff + 0.01;
-            float dismod1 = dis + 3.0 * sin(angle1 * 4.0) + 7.0 * sin(angle1 * 8.0);
+            float dismod1 = distance_modified(dis, angle1);
             float xt1 = sin(angle1) * dismod1;
             float zt1 = cos(angle1) * dismod1;
             dx = xt1 - x;

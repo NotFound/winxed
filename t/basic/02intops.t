@@ -6,7 +6,7 @@ using extern Test.More plan, is, diag;
 
 function main()
 {
-    plan (14);
+    plan (19);
 
     int a = 69;
     int b = 42;
@@ -29,6 +29,21 @@ function main()
 
     c = 2 * b  + a == 153;
     is(c, 1, "2 * b  + a == 153");
+
+    c = a - b * 2;
+    is(c, -15, "a - b * 2");
+
+    c = 2 * b  - a;
+    is(c, 15, "2 * b  - a");
+
+    c = 2 * (b  - a);
+    is(c, -54, "2 * (b  - a)");
+
+    c = ((a - b)) * 2;
+    is(c, 54, "((a - b)) * 2");
+
+    c = 2 * b  - a == 15;
+    is(c, 1, "2 * b  - a == 15");
 
     c = a / 33 * 2;
     is(c, 4, "a / 33 * 2");

@@ -15,7 +15,7 @@ DRIVER = winxedrun
 
 #-----------------------------------------------------------------------
 
-default: stage0 driver winxedst1.pbc winxedst2.pbc
+default: stage0 driver winxedst1.pbc winxedst2.pbc winxedst3.pbc
 
 all: default
 
@@ -76,8 +76,18 @@ winxedst1.pir: winxedst0$(EXEEXT) winxedst1.winxed
 winxedst2.pbc: winxedst2.pir
 	parrot -o winxedst2.pbc winxedst2.pir
 
-winxedst2.pir: winxedst1.winxed winxedst1.pbc $(DRIVER).pbc
-	parrot $(DRIVER).pbc --stage=1 -c -o winxedst2.pir winxedst1.winxed
+winxedst2.pir: winxedst2.winxed winxedst1.pbc
+	parrot winxedst1.pbc -o winxedst2.pir winxedst2.winxed
+
+#-------------------------------
+#    Compiler stage 3
+#-------------------------------
+
+winxedst3.pbc: winxedst3.pir
+	parrot -o winxedst3.pbc winxedst3.pir
+
+winxedst3.pir: winxedst2.winxed winxedst2.pbc $(DRIVER).pbc
+	parrot $(DRIVER).pbc --stage=2 -c -o winxedst3.pir winxedst2.winxed
 
 #-------------------------------
 #      Driver
@@ -91,8 +101,8 @@ winxed$(EXEEXT): $(DRIVER).pbc
 $(DRIVER).pbc: $(DRIVER).pir
 	parrot -o $(DRIVER).pbc $(DRIVER).pir
 
-$(DRIVER).pir: winxed.winxed winxedst0$(EXEEXT)
-	./winxedst0$(EXEEXT) -o $(DRIVER).pir winxed.winxed
+$(DRIVER).pir: winxed.winxed winxedst1.pbc
+	parrot winxedst1.pbc -o $(DRIVER).pir winxed.winxed
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #                      Install
@@ -106,16 +116,16 @@ preinstall: \
     pir/winxed_compiler.pir \
     pir/winxed_installed.pir 
 
-# Installed compiler is stage 1 built with stage 2
-pir/winxed_compiler.pir: winxedst2.pbc $(DRIVER).pbc
-	parrot $(DRIVER).pbc -c -o pir/winxed_compiler.pir winxedst1.winxed
+# Installed compiler is stage 2 built with stage 3
+pir/winxed_compiler.pir: winxedst3.pbc $(DRIVER).pbc
+	parrot $(DRIVER).pbc --noan -c -o pir/winxed_compiler.pir winxedst2.winxed
 
 # Installed driver
-pir/winxed_installed.pir: winxed_installed.winxed winxedst2.pbc $(DRIVER).pbc
-	parrot $(DRIVER).pbc -c -o pir/winxed_installed.pir winxed_installed.winxed
+pir/winxed_installed.pir: winxed_installed.winxed winxedst3.pbc $(DRIVER).pbc
+	parrot $(DRIVER).pbc --noan -c -o pir/winxed_installed.pir winxed_installed.winxed
 
 # setup.pir for use from plumage
-setup.pir: setup.winxed winxedst2.pbc $(DRIVER).pbc
+setup.pir: setup.winxed winxedst3.pbc $(DRIVER).pbc
 	parrot $(DRIVER).pbc -c -o setup.pir setup.winxed
 
 # Install
@@ -126,40 +136,91 @@ install: preinstall
 
 #-----------------------------------------------------------------------
 
-# Useful for some tests
-%.pir: %.winxed winxed
-	./winxedst0$(EXEEXT) $<
-
-
-test: $(DRIVER).pbc
+test0: $(DRIVER).pbc
 	parrot $(DRIVER).pbc --stage=0 t/harness --stage=0 -r t/basic t/*.t
 
-testv: $(DRIVER).pbc
-	parrot $(DRIVER).pbc t/harness -rv t/basic t/*.t
-
 test1: $(DRIVER).pbc winxedst1.pbc
-	parrot $(DRIVER).pbc --stage=1 t/harness --stage=1 -r t/basic t/advanced t/*.t
+	parrot $(DRIVER).pbc --stage=1 t/harness --stage=1 -r t/basic t/medium t/*.t
 
 test2: $(DRIVER).pbc winxedst2.pbc
-	parrot $(DRIVER).pbc --stage=2 t/harness --stage=2 -r t/basic t/advanced t/*.t
+	parrot $(DRIVER).pbc --stage=2 t/harness --stage=2 -r t/basic t/medium t/advanced t/*.t
 
-clean:
-	rm -f winxedst2$(EXEEXT)
-	rm -f winxedst2$(OBJEXT)
-	rm -f winxedst2.c
-	rm -f winxedst1$(EXEEXT)
-	rm -f winxedst1$(OBJEXT)
-	rm -f winxedst1.c
-	rm -f winxedst0$(EXEEXT)
-	rm -f winxedst2.pbc
+test3: $(DRIVER).pbc winxedst3.pbc
+	parrot $(DRIVER).pbc --stage=3 t/harness --stage=3 -r t/basic t/medium t/advanced t/*.t
+
+test: test3
+
+#-----------------------------------------------------------------------
+
+# Test the --debug option and the compiler assertions:
+# - First compile stage 1 with -debug option
+# - Then use that stage 1 to compile stage 2 with debug option
+# - Then use that stage 2 to compile again stage 2 with debug option
+# - Then run the tests with both stage 2 debug versions
+
+
+# Compile stage 1 in debug mode
+
+winxedst1_deb1.pir: winxedst1.winxed stage0
+	./winxedst0 --debug -o winxedst1_deb1.pir winxedst1.winxed
+
+winxedst1_deb1.pbc: winxedst1_deb1.pir
+	parrot -o winxedst1_deb1.pbc winxedst1_deb1.pir
+
+
+# Compiler driver with debug mode stage 1
+rundebug.pbc: rundebug.pir
+	parrot -o rundebug.pbc rundebug.pir
+
+rundebug.pir: winxed.winxed winxedst1_deb1.pbc
+	parrot winxedst1_deb1.pbc --debug -o rundebug.pir winxed.winxed
+
+
+# Compile stage 2 in debug mode with debug mode stage 1
+
+winxedst2_deb1.pir: winxedst2.winxed winxedst1_deb1.pbc
+	parrot winxedst1_deb1.pbc --debug -o winxedst2_deb1.pir winxedst2.winxed
+
+winxedst2_deb1.pbc: winxedst2_deb1.pir
+	parrot -o winxedst2_deb1.pbc winxedst2_deb1.pir
+
+
+# Compile stage 2 in debug mode with debug mode stage 2
+
+winxedst2_deb2.pir: winxedst2.winxed winxedst2_deb1.pbc rundebug.pbc
+	parrot rundebug.pbc -c --debug --stage=winxedst2_deb1 -o winxedst2_deb2.pir winxedst2.winxed
+
+winxedst2_deb2.pbc: winxedst2_deb2.pir
+	parrot -o winxedst2_deb2.pbc winxedst2_deb2.pir
+
+
+testdebug: rundebug.pbc winxedst1_deb1.pbc winxedst2_deb1.pbc winxedst2_deb2.pbc $(DRIVER).pbc
+	parrot rundebug.pbc --debug --stage=winxedst2_deb1 t/harness --debug --stage=winxedst2_deb1 -r t/basic t/medium t/advanced t/*.t
+	parrot rundebug.pbc --debug --stage=winxedst2_deb2 t/harness --debug --stage=winxedst2_deb2 -r t/basic t/medium t/advanced t/*.t
+
+#-----------------------------------------------------------------------
+
+cleandebug:
+	rm -f rundebug.pbc rundebug.pir \
+		winxedst1_deb1.pbc winxedst1_deb1.pir \
+		winxedst2_deb1.pbc winxedst2_deb1.pir \
+		winxedst2_deb2.pbc winxedst2_deb2.pir
+
+clean3:
+	rm -f winxedst3.pbc  winxedst3.pir
+
+clean2: clean3
+	rm -f winxedst2.pbc  winxedst2.pir
+
+clean: cleandebug clean2
 	rm -f winxedst1.pbc
-	rm -f winxedst2.pir
 	rm -f winxedst1.pir
 	rm -f winxed$(EXEEXT)
 	rm -f winxed$(OBJEXT)
 	rm -f winxed.c
 	rm -f $(DRIVER).pbc
 	rm -f $(DRIVER).pir
+	rm -f winxedst0$(EXEEXT)
 	rm -f *$(OBJEXT)
 
 # Makefile end

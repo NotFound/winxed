@@ -72,7 +72,7 @@ class Row
         string encoding;
         if (self.encoding != null)
             encoding = self.encoding;
-        var p = self.desc[self.mrow, 0, i];
+        var p = self.desc[self.mrow, i];
         string result;
         if (p != null) {
             result = p.as_string(encoding);
@@ -97,10 +97,10 @@ class Result
         var f = dlfunc(getlib(), 'mysql_field_count', 'ip');
         int count = f(my.mysql);
         self.nfields = count;
-        var desc = new ['StructView'] ( [DATATYPE_STRUCT, 1,
-                DATATYPE_PTR, count
-            ]
-        );
+	int viewtype[count + 2] = [ DATATYPE_STRUCT, count ];
+	for (int i = 2; i < count + 2; ++i)
+            viewtype[i] = DATATYPE_PTR;
+        var desc = new ['StructView'] (viewtype);
         self.desc = desc;
     }
     function field_count()

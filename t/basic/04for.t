@@ -10,39 +10,39 @@ function main()
 
     int check = 0;
     for (;;) {
-        ++check;
-        is(check, 1, 'for (;;)');
+        check = check + 1;
+        is(check, 1, "for (;;)");
         break;
     }
 
     string s;
     int i;
-    for (i = 0; i < 5; ++i)
-        s+= 'x';
-    is(s, 'xxxxx', 'simple counting');
+    for (i = 0; i < 5; i = i + 1)
+        s = s + "x";
+    is(s, "xxxxx", "simple counting");
     i = 0;
-    s = '';
-    for (; i < 5; ++i)
-        s+= 'x';
-    is(s, 'xxxxx', 'simple counting without initialization');
+    s = "";
+    for (; i < 5; i = i + 1)
+        s = s + "x";
+    is(s, "xxxxx", "simple counting without initialization");
 
-    s = '';
-    for (i = 0; i < 0; ++i)
-        s+= 'x';
-    is(s, '', 'condition false at start');
+    s = "";
+    for (i = 0; i < 0; i = i + 1)
+        s = s + "x";
+    is(s, "", "condition false at start");
 
     i = 0;
-    s = '';
-    for (; i < 0; ++i)
-        s+= 'x';
-    is(s, '', 'condition false at start without initialization');
+    s = "";
+    for (; i < 0; i = i + 1)
+        s = s + "x";
+    is(s, "", "condition false at start without initialization");
     for (; i < 0;)
-        s+= 'x';
-    is(s, '', 'condition false at start - condition only');
+        s = s + "x";
+    is(s, "", "condition false at start - condition only");
 
-    for (s = ''; length(s) < 4;)
-        s+= 'x';
-    is (s, 'xxxx', 'without increment');
+    for (s = ""; length(s) < 4;)
+        s = s + "x";
+    is (s, "xxxx", "without increment");
 }
 
 // End

@@ -1,6 +1,72 @@
 Winxed news.
 (C) Julián Albo "NotFound"
 
+Version 1.10
+
+Version 1.9
+    - var cast improved
+    - bootstrap chain simplified
+    - minor optimization improvements
+    - fixed some inline bugs
+    - new syntax for multi: function name( : Type param)
+    - new syntactic sugar for declare and initialize:
+        :Type variable(arguments); does the same as:
+        var variable = new Type(arguments);
+  Build 1.9.0
+    - Candidate
+  Build 1.9.1
+    - Treat carriage return as whitespace in source files
+
+Version 1.8
+    - Put source file name when known in generated PIR header.
+    - Local inline.
+    - operator defined
+    - Allow use of all operators and statements in inline.
+    - get_context builtin, deprecated getcontext
+    - lexical modifier for variables
+    - Show backtrace on unhandled exceptions in installable driver
+    - Fail nicely on attempts to use labels not defined
+  Build 1.8.0
+    - Candidate
+  Build 1.8.1
+    - Bug fixes
+  Build 1.8.2
+    - Fix multi assign
+    - Bundled with parrot 4.4.0
+
+Version 1.7
+    - Default values in multi assign
+    - Fixes in default values
+  Build 1.7.0
+    - Bundled with parrot 4.3.0
+
+Version 1.6
+    - Default values in function parameters
+    - Update usage of compreg PIR
+  Build 1.6.0
+    - Bundled with parrot 4.2.0
+
+Version 1.5
+    - added one more bootstrap stage
+    - inline functions
+    - comma operator alike in for initialization and iteration parts
+    - builtins abs, sinh, cosh and tanh
+    - fix postfix ++ and ++ operators with var
+    - Minor optimizations of generated code
+  Build 1.5.0
+    - Bundled with parrot 3.11.0
+
+Version 1.4
+    - 'multi' modifier improved
+    - Fixes and improvements in builtins compile time evaluation
+    - throw "string" now emits throw instead of die
+    - Several minor optimizations of generated code
+  Build 1.4.0
+     - Candidate
+  Build 1.4.1
+    - Fixed bug in __ASSERT__
+    - Bundled with parrot 3.10.0
+
 Version 1.3
     - builtin sleep
     - some more 'multi' features
